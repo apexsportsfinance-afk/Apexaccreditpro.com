@@ -1,179 +1,173 @@
 import React, { useState } from "react";
-import { Download, Loader2, X } from "lucide-react";
-import { jsPDF } from "jspdf";
-import QRCode from "qrcode";
-import { getCountryName, calculateAge } from "../../lib/utils";
+import { Download, Loader2, X, FileText, Eye } from "lucide-react";
+import { downloadCapturedPDF, openCapturedPDFInTab } from "./pdfUtils"; // adjust path to match your structure
 
-const roleColorSchemes = {
-  athlete: { bg: "#2563eb", text: "#ffffff" },
-  coach: { bg: "#0d9488", text: "#ffffff" },
-  media: { bg: "#d97706", text: "#ffffff" },
-  official: { bg: "#7c3aed", text: "#ffffff" },
-  medical: { bg: "#e11d48", text: "#ffffff" },
-  staff: { bg: "#475569", text: "#ffffff" },
-  vip: { bg: "#b45309", text: "#ffffff" }
-};
-const getRoleColors = (r) => roleColorSchemes[r?.toLowerCase()] || { bg: "#475569", text: "#fff" };
+/**
+ * BadgeGenerator
+ *
+ * ✅ Pixel-perfect PDF — captures the LIVE preview DOM nodes
+ *    via html2canvas, never manually redraws anything.
+ *
+ * Prerequisites:
+ *   • <AccreditationCardPreview> must already be mounted in the same
+ *     page so that #accreditation-front-card and
+ *     #accreditation-back-card exist in the DOM.
+ *
+ * Props:
+ *   accreditation  – full accreditation record object
+ *   onClose        – optional () => void  (renders ✕ button)
+ */
+export default function BadgeGenerator({ accreditation, onClose }) {
+  const [downloading, setDownloading] = useState(false);
+  const [previewing,  setPreviewing]  = useState(false);
+  const [error,       setError]       = useState(null);
 
-export default function BadgeGenerator({ accreditation, event, zones = [], onClose }) {
-  const [generating, setGenerating] = useState(false);
+  /* ── build a safe file name ──────────────────────────── */
+  const buildFileName = () => {
+    const first = (accreditation?.firstName  || "Unknown").replace(/\s+/g, "_");
+    const last  = (accreditation?.lastName   || "Unknown").replace(/\s+/g, "_");
+    const badge = accreditation?.badgeNumber || "card";
+    return `${first}_${last}_Badge_${badge}.pdf`;
+  };
 
-  const generateBadgePDF = async () => {
-    setGenerating(true);
+  /* ── guard: are the card elements present? ───────────── */
+  const cardExists = () => {
+    const el = document.getElementById("accreditation-front-card");
+    if (!el) {
+      setError("Card preview not found. Make sure the preview is visible on screen before downloading.");
+      return false;
+    }
+    return true;
+  };
+
+  /* ── download handler ────────────────────────────────── */
+  const handleDownload = async () => {
+    if (!cardExists()) return;
+    setDownloading(true);
+    setError(null);
+
     try {
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: [148, 210] // A5 portrait size
-      });
-
-      /* ---------- DATA ---------- */
-      const roleColors = getRoleColors(accreditation.role);
-      const fullName = `${accreditation.firstName || ""} ${accreditation.lastName || ""}`.trim().toUpperCase();
-      const countryName = getCountryName(accreditation.nationality);
-      const zoneCodes = accreditation.zoneCode?.split(",").map(z => z.trim()).filter(Boolean) || [];
-      const age = accreditation.dateOfBirth && event?.ageCalculationYear
-        ? calculateAge(accreditation.dateOfBirth, event.ageCalculationYear)
-        : null;
-
-      /* ---------- HEADER ---------- */
-      pdf.setFillColor(245, 249, 255);
-      pdf.rect(0, 0, 148, 27, "F");
-      pdf.setTextColor(30, 58, 138);
-      pdf.setFont("Helvetica", "bold");
-      pdf.setFontSize(10);
-      pdf.text(event?.name?.toUpperCase() || "EVENT NAME", 140, 13, { align: "right" });
-      pdf.setFont("Helvetica", "normal");
-      pdf.setFontSize(9);
-      pdf.text(event?.headerSubtitle || "", 140, 20, { align: "right" });
-
-      /* ---------- ROLE BANNER ---------- */
-      pdf.setFillColor(roleColors.bg);
-      pdf.rect(0, 27, 148, 15, "F"); // increased height
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFont("Helvetica", "bold");
-      pdf.setFontSize(13);
-      pdf.text((accreditation.role || "PARTICIPANT").toUpperCase(), 74, 37, { align: "center" });
-
-      /* ---------- BODY SECTION ---------- */
-      const leftX = 10;     // photo position
-      const rightX = 66;    // text starting point (shifted right)
-      const topY = 47;      // start position for top of photo/text
-
-      // Photo box
-      pdf.setDrawColor(203, 213, 225);
-      pdf.rect(leftX, topY, 46, 56);
-      if (accreditation.photoUrl) {
-        const img = new Image();
-        img.src = accreditation.photoUrl;
-        pdf.addImage(img, "JPEG", leftX, topY, 46, 56);
-      }
-
-      /* ---------- TEXT CONTENT ---------- */
-      const nameLength = fullName.length;
-      let nameFont = 18;
-      if (nameLength > 26) nameFont = 12;
-      else if (nameLength > 20) nameFont = 14;
-      else if (nameLength > 16) nameFont = 16;
-
-      pdf.setFont("Helvetica", "bold");
-      pdf.setFontSize(nameFont);
-      pdf.setTextColor(30, 58, 138);
-      pdf.text(fullName, rightX, topY + 8);
-
-      pdf.setFont("Helvetica", "normal");
-      pdf.setFontSize(12);
-      pdf.setTextColor(15, 23, 42);
-      pdf.text(accreditation.club || "Club Name", rightX, topY + 18);
-      pdf.setFontSize(11);
-      pdf.text(`${age !== null ? age + " Y  |  " : ""}${accreditation.gender || ""}`, rightX, topY + 28);
-
-      pdf.setTextColor(30, 64, 175);
-      pdf.setFont("Helvetica", "bold");
-      pdf.setFontSize(13);
-      pdf.text(countryName, rightX, topY + 45);
-
-      /* ---------- IDs BELOW PHOTO ---------- */
-      pdf.setFont("Helvetica", "normal");
-      pdf.setFontSize(10);
-      pdf.setTextColor(51, 65, 85);
-      const idNumber = accreditation.accreditationId?.split("-")?.pop() || "---";
-      pdf.text(`ID: ${idNumber}`, rightX, 121);
-      pdf.text(`Badge: ${accreditation.badgeNumber || "---"}`, rightX, 126);
-
-      /* ---------- QR CODE ---------- */
-      const verifyId = accreditation.accreditationId || accreditation.badgeNumber || accreditation.id || "unknown";
-      const verifyUrl = `${window.location.origin}/verify/${verifyId}`;
-      const qrCanvas = await QRCode.toCanvas(verifyUrl, {
-        errorCorrectionLevel: "H",
-        margin: 0,
-        width: 300,
-        color: { dark: "#000000", light: "#FFFFFF" }
-      });
-      const qrImg = qrCanvas.toDataURL("image/png");
-      pdf.addImage(qrImg, "PNG", 98, 132, 35, 35);
-      pdf.setFont("Helvetica", "normal");
-      pdf.setFontSize(8);
-      pdf.setTextColor(100, 116, 139);
-      pdf.text("SCAN TO VERIFY", 115, 172, { align: "center" });
-
-      /* ---------- ZONE SECTION ---------- */
-      pdf.setFillColor(0, 61, 82);
-      pdf.rect(0, 182, 148, 20, "F");  // thicker bar
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFont("Helvetica", "bold");
-      pdf.setFontSize(18);
-      const zonesText = zoneCodes.length ? zoneCodes.slice(0, 4).join("   ") : "NO ACCESS";
-      pdf.text(zonesText, 74, 194, { align: "center" });
-
-      /* ---------- BORDER ---------- */
-      pdf.setDrawColor(226, 232, 240);
-      pdf.setLineWidth(0.3);
-      pdf.rect(2, 2, 144, 206);
-
-      /* ---------- SAVE ---------- */
-      const fileName = `${accreditation.firstName}_${accreditation.lastName}_Badge_${accreditation.badgeNumber || "card"}.pdf`;
-      pdf.save(fileName);
+      await downloadCapturedPDF(
+        "accreditation-front-card",
+        "accreditation-back-card",
+        buildFileName()
+      );
     } catch (err) {
-      console.error("Badge PDF error:", err);
-      alert("Something went wrong while generating the PDF.");
+      console.error("PDF download error:", err);
+      setError("Failed to generate PDF. Please try again.");
     } finally {
-      setGenerating(false);
+      setDownloading(false);
     }
   };
 
+  /* ── open-in-tab handler ─────────────────────────────── */
+  const handlePreview = async () => {
+    if (!cardExists()) return;
+    setPreviewing(true);
+    setError(null);
+
+    try {
+      await openCapturedPDFInTab(
+        "accreditation-front-card",
+        "accreditation-back-card"
+      );
+    } catch (err) {
+      console.error("PDF preview error:", err);
+      setError("Failed to open PDF preview. Please try again.");
+    } finally {
+      setPreviewing(false);
+    }
+  };
+
+  const busy = downloading || previewing;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+
+      {/* ── header ── */}
       <div className="flex items-center justify-between">
-        <h3 className="text-xl font-bold text-white">Generate Accreditation PDF</h3>
+        <h3 className="text-xl font-bold text-white">
+          Generate Accreditation PDF
+        </h3>
         {onClose && (
           <button
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-slate-700 transition-colors"
+            aria-label="Close"
           >
             <X className="w-5 h-5 text-slate-400" />
           </button>
         )}
       </div>
 
+      {/* ── info banner ── */}
+      <div className="rounded-lg bg-slate-800/60 border border-slate-700/50 px-4 py-3 text-sm text-slate-300">
+        <p>
+          The PDF is captured directly from the live preview — 
+          <span className="text-cyan-400 font-semibold"> what you see is exactly what you get.</span>
+        </p>
+        <p className="mt-1 text-slate-400 text-xs">
+          Make sure the card preview is fully visible on screen before generating.
+        </p>
+      </div>
+
+      {/* ── error message ── */}
+      {error && (
+        <div className="rounded-lg bg-rose-950/60 border border-rose-700/50 px-4 py-3 text-sm text-rose-300">
+          ⚠️ {error}
+        </div>
+      )}
+
+      {/* ── action buttons ── */}
       <div className="flex gap-3 flex-wrap">
+
+        {/* Download PDF */}
         <button
-          onClick={generateBadgePDF}
-          disabled={generating}
-          className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 text-lg"
+          onClick={handleDownload}
+          disabled={busy}
+          className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg
+                     hover:bg-emerald-700 active:scale-95 transition-all
+                     disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold"
         >
-          {generating ? (
+          {downloading ? (
             <>
-              <Loader2 size={18} className="animate-spin" />
-              <span>Generating PDF...</span>
+              <Loader2 size={16} className="animate-spin" />
+              <span>Generating PDF…</span>
             </>
           ) : (
             <>
-              <Download size={18} />
-              <span>Download Accreditation PDF</span>
+              <Download size={16} />
+              <span>Download PDF</span>
             </>
           )}
         </button>
+
+        {/* Preview in new tab */}
+        <button
+          onClick={handlePreview}
+          disabled={busy}
+          className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-lg
+                     hover:bg-slate-600 active:scale-95 transition-all
+                     disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold"
+        >
+          {previewing ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              <span>Opening…</span>
+            </>
+          ) : (
+            <>
+              <Eye size={16} />
+              <span>Preview in Tab</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* ── file name preview ── */}
+      <div className="flex items-center gap-2 text-xs text-slate-500">
+        <FileText size={13} />
+        <span className="font-mono">{buildFileName()}</span>
       </div>
     </div>
   );
