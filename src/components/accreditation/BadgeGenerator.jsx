@@ -25,9 +25,9 @@ export default function BadgeGenerator({ accreditation, onClose }) {
   const [printing,     setPrinting]     = useState(false);
   const [error,        setError]        = useState(null);
 
-  /* default selections */
+  /* FIX: default image size is now "4k" (600 DPI) */
   const [pdfSize,  setPdfSize]  = useState("a6");
-  const [imgSize,  setImgSize]  = useState("4k"); // 4K = 600 DPI default
+  const [imgSize,  setImgSize]  = useState("4k");
 
   /* ── helpers ─────────────────────────────────────────── */
   const buildFileName = (ext = "pdf") => {
@@ -178,10 +178,10 @@ export default function BadgeGenerator({ accreditation, onClose }) {
           </select>
         </div>
 
-        {/* Image / DPI Size */}
+        {/* Image / DPI Size — FIX: labels now show Low Quality / HD / 1280 / 4K */}
         <div className="flex flex-col gap-1">
           <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-            Image Size
+            Image Quality
           </label>
           <select
             value={imgSize}
@@ -233,7 +233,7 @@ export default function BadgeGenerator({ accreditation, onClose }) {
         >
           {imgDownload
             ? <><Loader2 size={16} className="animate-spin" /><span>Exporting…</span></>
-            : <><Image size={16} /><span>Download as Images ({IMAGE_SIZES[imgSize]?.label?.split(" ")[0]})</span></>
+            : <><Image size={16} /><span>Download as Images ({IMAGE_SIZES[imgSize]?.label})</span></>
           }
         </button>
 
