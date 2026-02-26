@@ -63,18 +63,23 @@ const useZoneBadgePngs = (codes) => {
   return badges;
 };
 
-/* ── KEY FIX: pre-load flag as base64 so it is never a
-   cross-origin <img> src when html2canvas captures the card ── */
+/* ── Pre-load flag as base64 data URL ─────────────────────── */
+/* Uses /flags proxy (defined in vite.config.js) in dev,       */
+/* and fetches directly with CORS in production.               */
 const useFlagBase64 = (flagCode) => {
   const [flagB64, setFlagB64] = React.useState(null);
 
   React.useEffect(() => {
     if (!flagCode) return;
-    const url = `https://flagcdn.com/w80/${flagCode}.png`;
 
-    // Try fetch first
-    fetch(url, { mode: "cors", cache: "force-cache" })
-      .then((r) => r.blob())
+    // Use local proxy path during dev to avoid CORS completely
+    const isDev = import.meta.env.DEV;
+    const url   = isDev
+      ? `/flags/w80/${flagCode}.png`
+      : `https://flagcdn.com/w80/${flagCode}.png`;
+
+    fetch(url, { cache: "force-cache" })
+      .then((r) => (r.ok ? r.blob() : Promise.reject()))
       .then(
         (blob) =>
           new Promise((res) => {
@@ -92,25 +97,26 @@ const useFlagBase64 = (flagCode) => {
         img.onload = () => {
           try {
             const c = document.createElement("canvas");
-            c.width  = img.naturalWidth;
-            c.height = img.naturalHeight;
+            c.width  = img.naturalWidth  || 80;
+            c.height = img.naturalHeight || 60;
             c.getContext("2d").drawImage(img, 0, 0);
             setFlagB64(c.toDataURL("image/png"));
           } catch {
-            setFlagB64(url); // last resort — use original URL
+            // Canvas tainted — use original URL as last resort
+            setFlagB64(`https://flagcdn.com/w80/${flagCode}.png`);
           }
         };
-        img.onerror = () => setFlagB64(url);
-        img.src = url + "?_t=" + Date.now();
+        img.onerror = () => setFlagB64(null);
+        img.src = `https://flagcdn.com/w80/${flagCode}.png?_t=${Date.now()}`;
       })
-      .catch(() => setFlagB64(url));
+      .catch(() => setFlagB64(null));
   }, [flagCode]);
 
   return flagB64;
 };
 
 /* ══════════════════════════════════════════════════════════
-   COMPONENT
+   COMPONENT — unchanged except flag src uses useFlagBase64
    ══════════════════════════════════════════════════════════ */
 const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
 
@@ -133,7 +139,7 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
 
   const zoneBadgePngs = useZoneBadgePngs(zoneCodes);
 
-  /* QR code */
+  /* QR code — already base64, no CORS risk */
   const [qrDataUrl, setQrDataUrl] = React.useState(null);
   React.useEffect(() => {
     if (!accreditation) return;
@@ -147,7 +153,7 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
       .catch(err => console.error("QR error:", err));
   }, [accreditation?.id, accreditation?.accreditationId, accreditation?.status]);
 
-  /* FLAG — pre-loaded as base64 to prevent canvas taint */
+  /* Flag — pre-loaded as base64 via proxy */
   const flagB64 = useFlagBase64(countryData?.flag ?? null);
 
   const S = {
@@ -172,7 +178,6 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
         fontFamily: "Helvetica, Arial, sans-serif",
       }}
     >
-
       {/* ════════════════ FRONT CARD ════════════════ */}
       <div id="accreditation-front-card" style={S.card}>
 
@@ -234,9 +239,8 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
           position: "relative", zIndex: 10, minHeight: 0,
           backgroundColor: "white",
         }}>
-          {/* LEFT: photo + IDs + QR */}
+          {/* LEFT */}
           <div style={{ width: "110px", display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
-
             <div style={{
               width: "100px", height: "120px", flexShrink: 0,
               border: "2px solid #cbd5e1", padding: "2px",
@@ -268,13 +272,12 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
 
             {qrDataUrl && (
               <div style={{ marginTop: "12px" }}>
-                {/* QR is already base64 from qrcode library — no CORS risk */}
                 <img src={qrDataUrl} alt="QR" style={{ width: "70px", height: "70px", display: "block" }} />
               </div>
             )}
           </div>
 
-          {/* RIGHT: name + details */}
+          {/* RIGHT */}
           <div style={{
             flex: 1, paddingLeft: "16px",
             display: "flex", flexDirection: "column", justifyContent: "flex-start",
@@ -288,21 +291,18 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
             }}>
               {fullName}
             </h2>
-
             <p style={{ margin: "10px 0 0", fontSize: "14px", color: "#334155", lineHeight: 1.3, wordBreak: "break-word" }}>
               {accreditation?.club || "Club Name"}
             </p>
             <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#64748b" }}>
               {accreditation?.role || "Participant"}
             </p>
-
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "10px", fontSize: "13px", color: "#475569" }}>
               {age !== null && <span style={{ fontWeight: 500 }}>{age} Y</span>}
               {age !== null && <span style={{ color: "#cbd5e1" }}>|</span>}
               <span style={{ fontWeight: 500 }}>{accreditation?.gender || "Gender"}</span>
             </div>
-
-            {/* FLAG — uses base64 src, never a cross-origin URL */}
+            {/* FLAG — base64 data URL, never a cross-origin request at capture time */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "14px" }}>
               {flagB64 && (
                 <img
@@ -391,7 +391,6 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
               style={{ width: "100%", height: "100%", objectFit: "contain", backgroundColor: "white" }} />
           : (
             <div style={{ padding: "20px", display: "flex", flexDirection: "column", height: "100%", position: "relative", zIndex: 10 }}>
-
               <div style={{ textAlign: "center", marginBottom: "24px" }}>
                 <div style={{ display: "inline-block", padding: "8px 24px", background: "linear-gradient(to right, #0891b2, #2563eb)", borderRadius: "9999px" }}>
                   <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "bold", color: "white" }}>
@@ -399,7 +398,6 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
                   </h3>
                 </div>
               </div>
-
               <div style={{ flex: 1, marginBottom: "16px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
                   <div style={{ width: "4px", height: "24px", backgroundColor: "#06b6d4", borderRadius: "9999px" }} />
@@ -432,7 +430,6 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
                   })}
                 </div>
               </div>
-
               <div style={{
                 background: "linear-gradient(to right, rgba(245,158,11,0.2), rgba(249,115,22,0.2))",
                 borderRadius: "8px", padding: "16px", marginTop: "auto",
@@ -448,7 +445,6 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
                   This accreditation must be worn visibly at all times. Access is restricted to authorized zones only.
                 </p>
               </div>
-
               <div style={{ position: "absolute", bottom: "16px", right: "16px", opacity: 0.1 }}>
                 <svg style={{ width: "80px", height: "80px", color: "#06b6d4" }} viewBox="0 0 24 24" fill="currentColor">
                   <path d="M2 18c.6.5 1.2 1 2.3 1 1.4 0 2.1-.6 2.7-1.2.6-.6 1.3-1.2 2.7-1.2s2.1.6 2.7 1.2c.6.6 1.3 1.2 2.7 1.2s2.1-.6 2.7-1.2c.6-.6 1.3-1.2 2.7-1.2.7 0 1.2.1 1.7.4V15c-.5-.3-1.1-.4-1.7-.4-1.4 0-2.1.6-2.7 1.2-.6.6-1.3 1.2-2.7 1.2s-2.1-.6-2.7-1.2c-.6-.6-1.3-1.2-2.7-1.2s-2.1.6-2.7 1.2C6.4 16.4 5.7 17 4.3 17c-1.1 0-1.7-.5-2.3-1v2z"/>
