@@ -1,9 +1,6 @@
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 
-/* ─────────────────────────────────────────────────────────────
-   PAPER SIZES
-   ───────────────────────────────────────────────────────────── */
 export const PDF_SIZES = {
   a4:   { width: 210, height: 297, label: "A4 (210×297 mm)" },
   a5:   { width: 148, height: 210, label: "A5 (148×210 mm)" },
@@ -11,9 +8,6 @@ export const PDF_SIZES = {
   card: { width: 85.6, height: 54,  label: "ID Card (85.6×54 mm)" },
 };
 
-/* ─────────────────────────────────────────────────────────────
-   IMAGE / DPI SIZES
-   ───────────────────────────────────────────────────────────── */
 export const IMAGE_SIZES = {
   low:   { scale: 1,    label: "Low Quality" },
   hd:    { scale: 2,    label: "HD"          },
@@ -21,31 +15,20 @@ export const IMAGE_SIZES = {
   "4k":  { scale: 6.25, label: "4K"          },
 };
 
-/* ─────────────────────────────────────────────────────────────
-   INTERNAL — convert a single external URL → base64 data URL.
-   This is the core CORS fix: by inlining every external image
-   as base64 BEFORE html2canvas sees it, the canvas never
-   becomes tainted and toDataURL() always succeeds.
-   ───────────────────────────────────────────────────────────── */
+/* ─── Convert any external URL → base64 data URL ─── */
 const toBase64 = (url) =>
   new Promise((resolve) => {
     if (!url || url.startsWith("data:")) return resolve(url);
-
-    // Try fetch first (works when server sends CORS headers)
     fetch(url, { mode: "cors", cache: "force-cache" })
       .then((r) => r.blob())
-      .then(
-        (blob) =>
-          new Promise((res) => {
-            const reader = new FileReader();
-            reader.onloadend = () => res(reader.result);
-            reader.onerror  = () => res(null);
-            reader.readAsDataURL(blob);
-          })
-      )
-      .then(resolve)
+      .then((blob) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror  = () => resolve(null);
+        reader.readAsDataURL(blob);
+      })
       .catch(() => {
-        // Fetch failed — fall back to Image + offscreen canvas
+        // Fallback: Image + canvas
         const img = new Image();
         img.crossOrigin = "anonymous";
         img.onload = () => {
@@ -55,9 +38,7 @@ const toBase64 = (url) =>
             c.height = img.naturalHeight || 60;
             c.getContext("2d").drawImage(img, 0, 0);
             resolve(c.toDataURL("image/png"));
-          } catch {
-            resolve(null); // tainted even here — skip image
-          }
+          } catch { resolve(null); }
         };
         img.onerror = () => resolve(null);
         img.src = url + (url.includes("?") ? "&" : "?") + "_t=" + Date.now();
@@ -65,10 +46,7 @@ const toBase64 = (url) =>
       });
   });
 
-/* ─────────────────────────────────────────────────────────────
-   INTERNAL — inline ALL <img> src attributes in an element
-   tree as base64 before html2canvas captures it.
-   ───────────────────────────────────────────────────────────── */
+/* ─── Inline every <img> src as base64 ─── */
 const inlineAllImages = async (el) => {
   const imgs = Array.from(el.querySelectorAll("img"));
   await Promise.all(
@@ -76,21 +54,15 @@ const inlineAllImages = async (el) => {
       if (!img.src || img.src.startsWith("data:")) return;
       const b64 = await toBase64(img.src);
       if (b64) img.src = b64;
-      // If b64 is null (failed), hide the image so it doesn't taint canvas
-      else {
-        img.style.visibility = "hidden";
-      }
+      else img.style.display = "none"; // hide broken images
     })
   );
 };
 
-/* ─────────────────────────────────────────────────────────────
-   INTERNAL — wait for every <img> to finish loading
-   ───────────────────────────────────────────────────────────── */
-const waitForImages = (el) => {
-  const imgs = Array.from(el.querySelectorAll("img"));
-  return Promise.all(
-    imgs.map(
+/* ─── Wait for all images to finish loading ─── */
+const waitForImages = (el) =>
+  Promise.all(
+    Array.from(el.querySelectorAll("img")).map(
       (img) =>
         new Promise((res) => {
           if (img.complete && img.naturalWidth > 0) return res();
@@ -99,101 +71,130 @@ const waitForImages = (el) => {
         })
     )
   );
-};
 
 /* ─────────────────────────────────────────────────────────────
-   INTERNAL — capture a single element cleanly.
+   CORE CAPTURE
+   
+   Deep-clones the element into a brand-new absolutely-positioned
+   container that is:
+     • appended directly to <body> (outside any modal/portal)
+     • positioned off-screen (top: -99999px)
+     • given a fixed width/height matching the original card
+     • has ALL overflow/clip/transform styles removed
 
-   Flow:
-   1. Inline all images as base64 (prevents canvas taint)
-   2. Capture with html2canvas using onclone to strip
-      overflow/clip from every parent in the modal stack
+   This guarantees html2canvas always sees a clean, fully-painted
+   element regardless of what the modal is doing.
    ───────────────────────────────────────────────────────────── */
-const captureElement = async (el, scale = 6.25) => {
-  // Step 1 — inline images BEFORE cloning so the clone inherits b64 srcs
-  await inlineAllImages(el);
-  await waitForImages(el);
+const captureElementOffscreen = async (el, scale = 6.25) => {
+  // Get the card's intended size from its inline styles
+  // (the card uses fixed inline width/height: 320px / 454px)
+  const CARD_W = parseInt(el.style.width)  || el.offsetWidth  || 320;
+  const CARD_H = parseInt(el.style.height) || el.offsetHeight || 454;
 
-  const w = el.offsetWidth;
-  const h = el.offsetHeight;
-
-  if (!w || !h) {
-    throw new Error(
-      `Element #${el.id} has zero dimensions. Make sure it is visible on screen.`
-    );
-  }
-
-  // Step 2 — capture
-  const canvas = await html2canvas(el, {
-    scale,
-    useCORS:         false,  // not needed — images are already base64
-    allowTaint:      false,
-    backgroundColor: "#ffffff",
-    logging:         false,
-    imageTimeout:    30000,
-    removeContainer: true,
-    scrollX:         0,
-    scrollY:         0,
-    onclone: (_doc, clonedEl) => {
-      // Walk every ancestor in the clone and remove clipping
-      let node = clonedEl;
-      while (node && node.tagName !== "BODY") {
-        node.style.overflow   = "visible";
-        node.style.clipPath   = "none";
-        node.style.transform  = "none";
-        node.style.opacity    = "1";
-        node.style.visibility = "visible";
-        node = node.parentElement;
-      }
-      clonedEl.style.boxShadow  = "none";
-      clonedEl.style.width      = w + "px";
-      clonedEl.style.height     = h + "px";
-      clonedEl.style.position   = "relative";
-      clonedEl.style.top        = "0";
-      clonedEl.style.left       = "0";
-    },
+  // Create off-screen host
+  const host = document.createElement("div");
+  Object.assign(host.style, {
+    position:   "fixed",
+    top:        "-999999px",
+    left:       "-999999px",
+    width:      CARD_W + "px",
+    height:     CARD_H + "px",
+    overflow:   "visible",
+    zIndex:     "-9999",
+    pointerEvents: "none",
+    background: "#ffffff",
   });
 
-  if (canvas.width === 0 || canvas.height === 0) {
-    throw new Error(
-      `html2canvas returned empty canvas for #${el.id}. ` +
-      "Ensure the card is fully visible and not hidden behind other elements."
-    );
-  }
+  // Deep-clone the card
+  const clone = el.cloneNode(true);
+  Object.assign(clone.style, {
+    position:     "relative",
+    top:          "0",
+    left:         "0",
+    width:        CARD_W + "px",
+    height:       CARD_H + "px",
+    transform:    "none",
+    margin:       "0",
+    boxShadow:    "none",
+    borderRadius: "0",
+    overflow:     "hidden",   // keep card's own overflow:hidden for correct rendering
+    flexShrink:   "0",
+  });
 
-  return canvas;
+  // Remove id to avoid duplicate-id issues
+  clone.removeAttribute("id");
+
+  host.appendChild(clone);
+  document.body.appendChild(host);
+
+  try {
+    // Inline all images in the clone as base64
+    await inlineAllImages(clone);
+    await waitForImages(clone);
+
+    // Extra settle for fonts/canvas-drawn elements
+    await new Promise((r) => setTimeout(r, 200));
+
+    const canvas = await html2canvas(clone, {
+      scale,
+      width:           CARD_W,
+      height:          CARD_H,
+      useCORS:         false,   // all images are already base64
+      allowTaint:      false,
+      backgroundColor: "#ffffff",
+      logging:         false,
+      imageTimeout:    30000,
+      removeContainer: true,
+      scrollX:         0,
+      scrollY:         0,
+      windowWidth:     CARD_W,
+      windowHeight:    CARD_H,
+    });
+
+    if (!canvas || canvas.width === 0 || canvas.height === 0) {
+      throw new Error(`Capture returned empty canvas for element.`);
+    }
+
+    return canvas;
+  } finally {
+    // Always clean up
+    document.body.removeChild(host);
+  }
 };
 
-/* ─────────────────────────────────────────────────────────────
-   INTERNAL — build jsPDF
-   ───────────────────────────────────────────────────────────── */
-const buildPDF = async (frontEl, backEl, scale = 6.25) => {
-  const w = frontEl.offsetWidth;
-  const h = frontEl.offsetHeight;
+/* ─── Build PDF from front + back card elements ─── */
+const buildPDF = async (frontId, backId, scale = 6.25) => {
+  const frontEl = document.getElementById(frontId);
+  const backEl  = backId ? document.getElementById(backId) : null;
+
+  if (!frontEl) throw new Error(`Element #${frontId} not found in DOM`);
+
+  const FRONT_W = parseInt(frontEl.style.width)  || frontEl.offsetWidth  || 320;
+  const FRONT_H = parseInt(frontEl.style.height) || frontEl.offsetHeight || 454;
 
   const pdf = new jsPDF({
-    orientation: h >= w ? "portrait" : "landscape",
+    orientation: FRONT_H >= FRONT_W ? "portrait" : "landscape",
     unit:        "px",
-    format:      [w, h],
+    format:      [FRONT_W, FRONT_H],
     compress:    true,
     hotfixes:    ["px_scaling"],
   });
 
-  const frontCanvas = await captureElement(frontEl, scale);
+  const frontCanvas = await captureElementOffscreen(frontEl, scale);
   pdf.addImage(
     frontCanvas.toDataURL("image/png", 1.0),
-    "PNG", 0, 0, w, h,
+    "PNG", 0, 0, FRONT_W, FRONT_H,
     undefined, "FAST"
   );
 
   if (backEl) {
-    const bw = backEl.offsetWidth;
-    const bh = backEl.offsetHeight;
-    pdf.addPage([bw, bh]);
-    const backCanvas = await captureElement(backEl, scale);
+    const BACK_W = parseInt(backEl.style.width)  || backEl.offsetWidth  || 320;
+    const BACK_H = parseInt(backEl.style.height) || backEl.offsetHeight || 454;
+    pdf.addPage([BACK_W, BACK_H]);
+    const backCanvas = await captureElementOffscreen(backEl, scale);
     pdf.addImage(
       backCanvas.toDataURL("image/png", 1.0),
-      "PNG", 0, 0, bw, bh,
+      "PNG", 0, 0, BACK_W, BACK_H,
       undefined, "FAST"
     );
   }
@@ -201,18 +202,15 @@ const buildPDF = async (frontEl, backEl, scale = 6.25) => {
   return pdf;
 };
 
-/* ═════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════
    PUBLIC API
-   ═════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════ */
 
 export const downloadCapturedPDF = async (
   frontId, backId, fileName,
   scale = IMAGE_SIZES["4k"].scale
 ) => {
-  const front = document.getElementById(frontId);
-  const back  = backId ? document.getElementById(backId) : null;
-  if (!front) throw new Error(`Element #${frontId} not found`);
-  const pdf = await buildPDF(front, back, scale);
+  const pdf = await buildPDF(frontId, backId, scale);
   pdf.save(fileName);
 };
 
@@ -220,22 +218,15 @@ export const openCapturedPDFInTab = async (
   frontId, backId,
   scale = IMAGE_SIZES["4k"].scale
 ) => {
-  const front = document.getElementById(frontId);
-  const back  = backId ? document.getElementById(backId) : null;
-  if (!front) throw new Error(`Element #${frontId} not found`);
-  const pdf  = await buildPDF(front, back, scale);
-  const blob = pdf.output("bloburl");
-  window.open(blob, "_blank");
+  const pdf  = await buildPDF(frontId, backId, scale);
+  window.open(pdf.output("bloburl"), "_blank");
 };
 
 export const getCapturedPDFBlob = async (
   frontId, backId,
   scale = IMAGE_SIZES["4k"].scale
 ) => {
-  const front = document.getElementById(frontId);
-  const back  = backId ? document.getElementById(backId) : null;
-  if (!front) throw new Error(`Element #${frontId} not found`);
-  const pdf = await buildPDF(front, back, scale);
+  const pdf = await buildPDF(frontId, backId, scale);
   return pdf.output("blob");
 };
 
@@ -243,25 +234,24 @@ export const downloadBothCardsAsImages = async (
   frontId, backId, baseName,
   scale = IMAGE_SIZES["4k"].scale
 ) => {
-  const front = document.getElementById(frontId);
-  const back  = backId ? document.getElementById(backId) : null;
-  if (!front) throw new Error(`Element #${frontId} not found`);
+  const frontEl = document.getElementById(frontId);
+  const backEl  = backId ? document.getElementById(backId) : null;
+  if (!frontEl) throw new Error(`Element #${frontId} not found in DOM`);
 
-  const frontCanvas = await captureElement(front, scale);
-  const frontLink   = document.createElement("a");
-  frontLink.download = `${baseName}_front.png`;
-  frontLink.href     = frontCanvas.toDataURL("image/png", 1.0);
-  frontLink.click();
+  const frontCanvas = await captureElementOffscreen(frontEl, scale);
+  const a1 = document.createElement("a");
+  a1.download = `${baseName}_front.png`;
+  a1.href     = frontCanvas.toDataURL("image/png", 1.0);
+  a1.click();
 
-  if (back) {
+  if (backEl) {
     await new Promise((r) => setTimeout(r, 300));
-    const backCanvas = await captureElement(back, scale);
-    const backLink   = document.createElement("a");
-    backLink.download = `${baseName}_back.png`;
-    backLink.href     = backCanvas.toDataURL("image/png", 1.0);
-    backLink.click();
+    const backCanvas = await captureElementOffscreen(backEl, scale);
+    const a2 = document.createElement("a");
+    a2.download = `${baseName}_back.png`;
+    a2.href     = backCanvas.toDataURL("image/png", 1.0);
+    a2.click();
   }
 };
 
-/** Alias for any component that imports downloadAsImages */
 export const downloadAsImages = downloadBothCardsAsImages;
