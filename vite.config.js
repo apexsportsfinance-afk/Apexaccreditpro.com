@@ -10,7 +10,15 @@ export default defineConfig({
     allowedHosts: true,
     watch: {
       usePolling: true
-    }
+    },
+    /* ── Proxy flag CDN so flags load without CORS issues ── */
+    proxy: {
+      "/flags": {
+        target: "https://flagcdn.com",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/flags/, ""),
+      },
+    },
   },
   resolve: {
     alias: {
