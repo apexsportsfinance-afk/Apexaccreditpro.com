@@ -22,7 +22,7 @@ export const IMAGE_SIZES = {
 };
 
 /* ─────────────────────────────────────────────────────────────
-   INTERNAL — wait for every <img> to fully load
+   INTERNAL — wait for every <img> in an element to load
    ───────────────────────────────────────────────────────────── */
 const waitForImages = (el) => {
   const imgs = Array.from(el.querySelectorAll("img"));
@@ -39,114 +39,163 @@ const waitForImages = (el) => {
 };
 
 /* ─────────────────────────────────────────────────────────────
-   INTERNAL — convert every <img> src to a base64 data URL
-   so html2canvas never makes a cross-origin request.
-   This is the key fix for "wrong PNG signature".
+   INTERNAL — capture the OUTER wrapper (#accreditation-card-preview)
+   as a single canvas, then crop out each card by its position
+   relative to the wrapper.
+
+   WHY: Both cards live inside a flex container. Trying to capture
+   a child element (#accreditation-front-card) directly fails because
+   html2canvas measures coordinates relative to the document, but the
+   parent flex container clips/offsets the result. Capturing the full
+   wrapper and cropping is 100% reliable.
    ───────────────────────────────────────────────────────────── */
-const inlineImages = async (el) => {
-  const imgs = Array.from(el.querySelectorAll("img"));
-  await Promise.all(
-    imgs.map(async (img) => {
-      if (!img.src || img.src.startsWith("data:")) return;
-      try {
-        const res  = await fetch(img.src, { mode: "cors", cache: "force-cache" });
-        const blob = await res.blob();
-        await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            img.src = reader.result;
-            resolve();
-          };
-          reader.readAsDataURL(blob);
-        });
-      } catch {
-        /* If fetch fails (e.g. flag CDN), leave src as-is */
+const captureWrapper = async (wrapperId, scale = 6.25) => {
+  const wrapper = document.getElementById(wrapperId);
+  if (!wrapper) throw new Error(`Wrapper element #${wrapperId} not found`);
+
+  await waitForImages(wrapper);
+
+  // Scroll wrapper into view
+  wrapper.scrollIntoView({ block: "center", inline: "center" });
+  await new Promise((r) => setTimeout(r, 120));
+
+  const canvas = await html2canvas(wrapper, {
+    scale,
+    useCORS:         true,
+    allowTaint:      false,
+    backgroundColor: null,   // transparent — wrapper bg is irrelevant
+    logging:         false,
+    imageTimeout:    30000,
+    removeContainer: true,
+    scrollX:         0,
+    scrollY:         0,
+    onclone: (clonedDoc, clonedEl) => {
+      // Strip overflow/clip from wrapper and all parents in clone
+      let node = clonedEl;
+      while (node && node !== clonedDoc.body) {
+        node.style.overflow   = "visible";
+        node.style.clipPath   = "none";
+        node.style.transform  = "none";
+        node.style.opacity    = "1";
+        node.style.visibility = "visible";
+        node = node.parentElement;
       }
-    })
-  );
-};
+      // Make the wrapper itself scrollable-height
+      clonedEl.style.overflow = "visible";
+      return waitForImages(clonedEl);
+    },
+  });
 
-/* ─────────────────────────────────────────────────────────────
-   INTERNAL — capture element directly (no clone)
-   ───────────────────────────────────────────────────────────── */
-const captureElement = async (el, scale = 6.25) => {
-  await waitForImages(el);
-  await inlineImages(el);
-
-  const rect = el.getBoundingClientRect();
-  const w = Math.round(rect.width);
-  const h = Math.round(rect.height);
-
-  const prevShadow = el.style.boxShadow;
-  const prevRadius = el.style.borderRadius;
-  el.style.boxShadow    = "none";
-  el.style.borderRadius = "0";
-
-  let canvas;
-  try {
-    canvas = await html2canvas(el, {
-      scale,
-      width:           w,
-      height:          h,
-      x:               rect.left + window.scrollX,
-      y:               rect.top  + window.scrollY,
-      backgroundColor: "#ffffff",
-      useCORS:         true,
-      allowTaint:      true,
-      logging:         false,
-      imageTimeout:    30000,
-      removeContainer: true,
-      scrollX:         -window.scrollX,
-      scrollY:         -window.scrollY,
-      windowWidth:     document.documentElement.scrollWidth,
-      windowHeight:    document.documentElement.scrollHeight,
-    });
-  } finally {
-    el.style.boxShadow    = prevShadow;
-    el.style.borderRadius = prevRadius;
+  if (canvas.width === 0 || canvas.height === 0) {
+    throw new Error("Capture returned an empty canvas. Ensure the card preview is visible on screen.");
   }
 
   return canvas;
 };
 
 /* ─────────────────────────────────────────────────────────────
-   INTERNAL — build jsPDF
+   INTERNAL — crop a canvas to a sub-rectangle defined by
+   the position of childEl relative to parentEl
    ───────────────────────────────────────────────────────────── */
-const buildPDF = async (frontEl, backEl, scale = 6.25) => {
-  const rect = frontEl.getBoundingClientRect();
-  const wPx  = Math.round(rect.width);
-  const hPx  = Math.round(rect.height);
+const cropCanvasToChild = (fullCanvas, parentEl, childEl, scale) => {
+  const parentRect = parentEl.getBoundingClientRect();
+  const childRect  = childEl.getBoundingClientRect();
+
+  // Position of child relative to parent (in CSS px)
+  const relX = childRect.left - parentRect.left;
+  const relY = childRect.top  - parentRect.top;
+  const relW = childRect.width;
+  const relH = childRect.height;
+
+  // Scale up to canvas pixels
+  const cx = Math.round(relX * scale);
+  const cy = Math.round(relY * scale);
+  const cw = Math.round(relW * scale);
+  const ch = Math.round(relH * scale);
+
+  // Clamp to canvas bounds
+  const safeX = Math.max(0, cx);
+  const safeY = Math.max(0, cy);
+  const safeW = Math.min(cw, fullCanvas.width  - safeX);
+  const safeH = Math.min(ch, fullCanvas.height - safeY);
+
+  if (safeW <= 0 || safeH <= 0) {
+    throw new Error(
+      `Card "${childEl.id}" could not be cropped from the capture. ` +
+      `Bounds: x=${safeX} y=${safeY} w=${safeW} h=${safeH}`
+    );
+  }
+
+  const cropped = document.createElement("canvas");
+  cropped.width  = safeW;
+  cropped.height = safeH;
+  const ctx = cropped.getContext("2d");
+  ctx.drawImage(fullCanvas, safeX, safeY, safeW, safeH, 0, 0, safeW, safeH);
+  return cropped;
+};
+
+/* ─────────────────────────────────────────────────────────────
+   INTERNAL — capture both cards and return { front, back }
+   canvases, plus their CSS pixel dimensions
+   ───────────────────────────────────────────────────────────── */
+const captureBothCards = async (frontId, backId, scale = 6.25) => {
+  const WRAPPER_ID = "accreditation-card-preview";
+
+  const wrapperEl = document.getElementById(WRAPPER_ID);
+  const frontEl   = document.getElementById(frontId);
+  const backEl    = backId ? document.getElementById(backId) : null;
+
+  if (!wrapperEl) throw new Error(`Wrapper #${WRAPPER_ID} not found. Is AccreditationCardPreview mounted?`);
+  if (!frontEl)   throw new Error(`Front card #${frontId} not found`);
+
+  // Capture the full wrapper as one canvas
+  const fullCanvas = await captureWrapper(WRAPPER_ID, scale);
+
+  // Crop out front card
+  const frontCanvas = cropCanvasToChild(fullCanvas, wrapperEl, frontEl, scale);
+  const frontW = frontEl.getBoundingClientRect().width;
+  const frontH = frontEl.getBoundingClientRect().height;
+
+  // Crop out back card (if present)
+  let backCanvas = null;
+  let backW = 0, backH = 0;
+  if (backEl) {
+    backCanvas = cropCanvasToChild(fullCanvas, wrapperEl, backEl, scale);
+    backW = backEl.getBoundingClientRect().width;
+    backH = backEl.getBoundingClientRect().height;
+  }
+
+  return { frontCanvas, frontW, frontH, backCanvas, backW, backH };
+};
+
+/* ─────────────────────────────────────────────────────────────
+   INTERNAL — build jsPDF from cropped canvases
+   ───────────────────────────────────────────────────────────── */
+const buildPDF = async (frontId, backId, scale = 6.25) => {
+  const { frontCanvas, frontW, frontH, backCanvas, backW, backH } =
+    await captureBothCards(frontId, backId, scale);
 
   const pdf = new jsPDF({
-    orientation: hPx >= wPx ? "portrait" : "landscape",
+    orientation: frontH >= frontW ? "portrait" : "landscape",
     unit:        "px",
-    format:      [wPx, hPx],
+    format:      [frontW, frontH],
     compress:    true,
     hotfixes:    ["px_scaling"],
   });
 
-  const frontCanvas = await captureElement(frontEl, scale);
-
-  if (frontCanvas.width === 0 || frontCanvas.height === 0) {
-    throw new Error("Card capture returned an empty canvas. Ensure the card is fully visible on screen.");
-  }
-
   pdf.addImage(
     frontCanvas.toDataURL("image/png", 1.0),
-    "PNG", 0, 0, wPx, hPx,
+    "PNG", 0, 0, frontW, frontH,
     undefined, "FAST"
   );
 
-  if (backEl) {
-    pdf.addPage([wPx, hPx]);
-    const backCanvas = await captureElement(backEl, scale);
-    if (backCanvas.width > 0 && backCanvas.height > 0) {
-      pdf.addImage(
-        backCanvas.toDataURL("image/png", 1.0),
-        "PNG", 0, 0, wPx, hPx,
-        undefined, "FAST"
-      );
-    }
+  if (backCanvas) {
+    pdf.addPage([backW || frontW, backH || frontH]);
+    pdf.addImage(
+      backCanvas.toDataURL("image/png", 1.0),
+      "PNG", 0, 0, backW || frontW, backH || frontH,
+      undefined, "FAST"
+    );
   }
 
   return pdf;
@@ -160,10 +209,7 @@ export const downloadCapturedPDF = async (
   frontId, backId, fileName,
   scale = IMAGE_SIZES["4k"].scale
 ) => {
-  const front = document.getElementById(frontId);
-  const back  = backId ? document.getElementById(backId) : null;
-  if (!front) throw new Error("Front card not found");
-  const pdf = await buildPDF(front, back, scale);
+  const pdf = await buildPDF(frontId, backId, scale);
   pdf.save(fileName);
 };
 
@@ -171,10 +217,7 @@ export const openCapturedPDFInTab = async (
   frontId, backId,
   scale = IMAGE_SIZES["4k"].scale
 ) => {
-  const front = document.getElementById(frontId);
-  const back  = backId ? document.getElementById(backId) : null;
-  if (!front) throw new Error("Front card not found");
-  const pdf  = await buildPDF(front, back, scale);
+  const pdf  = await buildPDF(frontId, backId, scale);
   const blob = pdf.output("bloburl");
   window.open(blob, "_blank");
 };
@@ -183,10 +226,7 @@ export const getCapturedPDFBlob = async (
   frontId, backId,
   scale = IMAGE_SIZES["4k"].scale
 ) => {
-  const front = document.getElementById(frontId);
-  const back  = backId ? document.getElementById(backId) : null;
-  if (!front) throw new Error("Front card not found");
-  const pdf = await buildPDF(front, back, scale);
+  const pdf = await buildPDF(frontId, backId, scale);
   return pdf.output("blob");
 };
 
@@ -194,19 +234,15 @@ export const downloadBothCardsAsImages = async (
   frontId, backId, baseName,
   scale = IMAGE_SIZES["4k"].scale
 ) => {
-  const front = document.getElementById(frontId);
-  const back  = backId ? document.getElementById(backId) : null;
-  if (!front) throw new Error("Front card not found");
+  const { frontCanvas, backCanvas } = await captureBothCards(frontId, backId, scale);
 
-  const frontCanvas = await captureElement(front, scale);
   const frontLink   = document.createElement("a");
   frontLink.download = `${baseName}_front.png`;
   frontLink.href     = frontCanvas.toDataURL("image/png", 1.0);
   frontLink.click();
 
-  if (back) {
+  if (backCanvas) {
     await new Promise((r) => setTimeout(r, 300));
-    const backCanvas = await captureElement(back, scale);
     const backLink   = document.createElement("a");
     backLink.download = `${baseName}_back.png`;
     backLink.href     = backCanvas.toDataURL("image/png", 1.0);
@@ -214,5 +250,5 @@ export const downloadBothCardsAsImages = async (
   }
 };
 
-/** Alias for components that import downloadAsImages */
+/** Alias */
 export const downloadAsImages = downloadBothCardsAsImages;
