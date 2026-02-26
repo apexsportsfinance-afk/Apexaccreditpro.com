@@ -1,0 +1,171 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Shimmer Animation for Role Banner */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 3s infinite;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Nunito", system-ui, sans-serif;
+  background: #f0f9ff;
+  background-attachment: fixed;
+  color: #1e293b;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #e0f2fe;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #00bcd4, #2196f3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #26c6da, #42a5f5);
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+input[type="file"]::file-selector-button {
+  background: linear-gradient(135deg, #00bcd4 0%, #0097a7 100%);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  margin-right: 12px;
+  transition: all 0.2s;
+}
+
+input[type="file"]::file-selector-button:hover {
+  background: linear-gradient(135deg, #26c6da 0%, #00acc1 100%);
+  transform: translateY(-1px);
+}
+
+/* Swimming wave animation */
+@keyframes wave {
+  0% { transform: translateX(0) translateY(0); }
+  50% { transform: translateX(-25%) translateY(2px); }
+  100% { transform: translateX(-50%) translateY(0); }
+}
+
+.animate-wave {
+  animation: wave 8s ease-in-out infinite;
+}
+
+/* Water ripple effect */
+@keyframes ripple {
+  0% { transform: scale(1); opacity: 0.4; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+.animate-ripple {
+  animation: ripple 2s ease-out infinite;
+}
+
+/* Pool shimmer effect */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 25%, rgba(0,188,212,0.1) 50%, transparent 75%);
+  background-size: 200% 100%;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+/* Bubble floating animation */
+@keyframes float-up {
+  0% { transform: translateY(0) scale(1); opacity: 0.6; }
+  100% { transform: translateY(-100px) scale(0.5); opacity: 0; }
+}
+
+.animate-bubble {
+  animation: float-up 4s ease-in infinite;
+}
+
+/* Swimmer animation */
+@keyframes swim {
+  0% { transform: translateX(-100%) rotate(-5deg); }
+  25% { transform: translateX(-50%) rotate(5deg); }
+  50% { transform: translateX(0%) rotate(-5deg); }
+  75% { transform: translateX(50%) rotate(5deg); }
+  100% { transform: translateX(100%) rotate(-5deg); }
+}
+
+.animate-swim {
+  animation: swim 12s ease-in-out infinite;
+}
+
+/* Lane line animation */
+@keyframes lane-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+.animate-lane {
+  animation: lane-pulse 3s ease-in-out infinite;
+}
+
+/* Water surface reflection */
+@keyframes water-surface {
+  0% { transform: scaleY(1); }
+  50% { transform: scaleY(1.05); }
+  100% { transform: scaleY(1); }
+}
+
+.animate-water-surface {
+  animation: water-surface 4s ease-in-out infinite;
+}
+
+/* Splash effect */
+@keyframes splash {
+  0% { transform: scale(0) translateY(0); opacity: 1; }
+  50% { transform: scale(1) translateY(-10px); opacity: 0.7; }
+  100% { transform: scale(1.5) translateY(-20px); opacity: 0; }
+}
+
+.animate-splash {
+  animation: splash 2s ease-out infinite;
+}
+
+/* Text shadow utility for better readability on backgrounds */
+.text-shadow {
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.text-shadow-lg {
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
