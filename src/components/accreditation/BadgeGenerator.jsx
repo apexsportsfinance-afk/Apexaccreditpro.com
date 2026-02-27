@@ -1,17 +1,16 @@
 import React, { useState } from "react";
-import { Download, Loader2, X, ExternalLink, Printer, Image as ImageIcon } from "lucide-react";
+import { Download, Loader2, X, ExternalLink, Printer } from "lucide-react";
 import { 
   downloadCardPDF, 
   openCardPDF, 
   printCard,
   PDF_SIZES,
   IMAGE_SIZES 
-} from "./cardExport"; // CHANGED from pdfUtils
+} from "./cardExport";
 
 export default function BadgeGenerator({ accreditation, event, zones = [], onClose, children }) {
   const [loading, setLoading] = useState(false);
   const [pdfSize, setPdfSize] = useState("a6");
-  const [imageQuality, setImageQuality] = useState("p1280");
 
   const withLoading = async (fn) => {
     setLoading(true);
@@ -29,17 +28,17 @@ export default function BadgeGenerator({ accreditation, event, zones = [], onClo
     downloadCardPDF(
       accreditation, event, zones, 
       `${accreditation?.firstName}_${accreditation?.lastName}_Badge_${accreditation?.badgeNumber || "card"}.pdf`,
-      IMAGE_SIZES[imageQuality]?.scale,
+      4,
       pdfSize
     )
   );
 
   const handleOpenInTab = () => withLoading(() => 
-    openCardPDF(accreditation, event, zones, IMAGE_SIZES[imageQuality]?.scale, pdfSize)
+    openCardPDF(accreditation, event, zones, 4, pdfSize)
   );
 
   const handlePrint = () => withLoading(() => 
-    printCard(accreditation, event, zones, IMAGE_SIZES["hd"].scale, pdfSize)
+    printCard(accreditation, event, zones, 2, pdfSize)
   );
 
   return (
@@ -57,19 +56,15 @@ export default function BadgeGenerator({ accreditation, event, zones = [], onClo
         {children}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">PDF Size</label>
-          <select value={pdfSize} onChange={(e) => setPdfSize(e.target.value)} className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white">
+          <select 
+            value={pdfSize} 
+            onChange={(e) => setPdfSize(e.target.value)}
+            className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white"
+          >
             {Object.entries(PDF_SIZES).map(([key, { label }]) => (
-              <option key={key} value={key}>{label}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">Image Quality</label>
-          <select value={imageQuality} onChange={(e) => setImageQuality(e.target.value)} className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white">
-            {Object.entries(IMAGE_SIZES).map(([key, { label }]) => (
               <option key={key} value={key}>{label}</option>
             ))}
           </select>
