@@ -1,9 +1,7 @@
 import React from "react";
-import ReactDOM from "react-dom";
 import { getCountryName, calculateAge, COUNTRIES, isExpired } from "../../lib/utils";
 import QRCode from "qrcode";
 
-/* ── role colours ─────────────────────────────────────────── */
 const roleColors = {
   athlete:  "#2563eb",
   coach:    "#0d9488",
@@ -15,7 +13,6 @@ const roleColors = {
 };
 const getRoleHex = (role) => roleColors[role?.toLowerCase()] ?? "#475569";
 
-/* ── canvas-based accurate name font sizing ───────────────── */
 const RIGHT_COL_WIDTH = 174;
 const MAX_FONT = 22;
 const MIN_FONT = 11;
@@ -35,7 +32,6 @@ const measureNameFontSize = (firstName, lastName) => {
   return size;
 };
 
-/* ── zone badge PNGs ──────────────────────────────────────── */
 const useZoneBadgePngs = (codes) => {
   const [badges, setBadges] = React.useState({});
   React.useEffect(() => {
@@ -64,7 +60,6 @@ const useZoneBadgePngs = (codes) => {
   return badges;
 };
 
-/* ── Pre-load flag as base64 data URL ─────────────────────── */
 const useFlagBase64 = (flagCode) => {
   const [flagB64, setFlagB64] = React.useState(null);
   React.useEffect(() => {
@@ -108,8 +103,7 @@ const useFlagBase64 = (flagCode) => {
 };
 
 /* ══════════════════════════════════════════════════════════
-   CARD INNER — pure presentational, used for both preview
-   and the offscreen capture node
+   CardInner — exported so pdfUtils can render it offscreen
    ══════════════════════════════════════════════════════════ */
 export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) => {
   const matchingZone    = zones.find(z => z.name?.toLowerCase() === accreditation?.role?.toLowerCase());
@@ -133,315 +127,3 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
   const [qrDataUrl, setQrDataUrl] = React.useState(null);
   React.useEffect(() => {
     if (!accreditation) return;
-    const id  = accreditation.accreditationId ?? accreditation.badgeNumber ?? accreditation.id ?? "unknown";
-    const url = `${window.location.origin}/verify/${id}`;
-    QRCode.toDataURL(url, {
-      errorCorrectionLevel: "H", margin: 1, width: 200,
-      color: { dark: "#0f172a", light: "#ffffff" },
-    })
-      .then(setQrDataUrl)
-      .catch(err => console.error("QR error:", err));
-  }, [accreditation?.id, accreditation?.accreditationId, accreditation?.status]);
-
-  const frontId = `accreditation-front-card${idSuffix}`;
-  const backId  = `accreditation-back-card${idSuffix}`;
-
-  const cardStyle = {
-    width: "320px", height: "454px",
-    backgroundColor: "#ffffff",
-    borderRadius: 0,
-    boxShadow: "none",
-    overflow: "hidden", flexShrink: 0,
-    display: "flex", flexDirection: "column",
-    position: "relative",
-    border: expired ? "2px solid #f87171" : "1px solid #e2e8f0",
-  };
-
-  return (
-    <div
-      style={{
-        display: "flex", flexWrap: "wrap", gap: "24px",
-        alignItems: "flex-start", justifyContent: "center",
-        fontFamily: "Helvetica, Arial, sans-serif",
-      }}
-    >
-      {/* FRONT CARD */}
-      <div id={frontId} style={cardStyle}>
-        {expired && (
-          <div style={{
-            position: "absolute", inset: 0, zIndex: 20, pointerEvents: "none",
-            backgroundColor: "rgba(239,68,68,0.1)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            <div style={{
-              backgroundColor: "#dc2626", color: "white",
-              padding: "8px 24px", transform: "rotate(-15deg)",
-              fontWeight: "bold", fontSize: "24px", letterSpacing: "0.1em",
-            }}>EXPIRED</div>
-          </div>
-        )}
-        {/* HEADER */}
-        <div style={{
-          height: "100px", flexShrink: 0, overflow: "hidden", position: "relative",
-          background: "linear-gradient(to right, #22d3ee, #7dd3fc, #22d3ee)",
-        }}>
-          <div style={{
-            position: "relative", zIndex: 10, height: "100%", width: "100%",
-            display: "flex", alignItems: "center", justifyContent: "center", padding: "0 16px",
-          }}>
-            {event?.logoUrl
-              ? <img src={event.logoUrl} alt="Logo" style={{ maxHeight: "85px", maxWidth: "100%", objectFit: "contain" }} />
-              : <svg style={{ width: "64px", height: "64px", color: "rgba(255,255,255,0.7)" }} viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                </svg>
-            }
-          </div>
-        </div>
-        {/* white spacer */}
-        <div style={{ height: "6px", backgroundColor: "white", flexShrink: 0 }} />
-        {/* ROLE BANNER */}
-        <div style={{
-          height: "40px", flexShrink: 0, overflow: "hidden",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          backgroundColor: roleBannerColor,
-        }}>
-          <span style={{
-            color: "white", fontSize: "16px", fontWeight: "bold",
-            textTransform: "uppercase", letterSpacing: "0.2em",
-            textShadow: "0 1px 2px rgba(0,0,0,0.2)", lineHeight: 1,
-          }}>
-            {accreditation?.role || "PARTICIPANT"}
-          </span>
-        </div>
-        {/* BODY */}
-        <div style={{
-          display: "flex", flex: 1, padding: "12px",
-          position: "relative", zIndex: 10, minHeight: 0,
-          backgroundColor: "white",
-        }}>
-          {/* LEFT */}
-          <div style={{ width: "110px", display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
-            <div style={{
-              width: "100px", height: "120px", flexShrink: 0,
-              border: "2px solid #cbd5e1", padding: "2px",
-              backgroundColor: "white",
-            }}>
-              {accreditation?.photoUrl
-                ? <img src={accreditation.photoUrl} alt="User"
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                : <div style={{
-                    width: "100%", height: "100%",
-                    background: "linear-gradient(to bottom right, #f1f5f9, #e2e8f0)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    <svg style={{ width: "40px", height: "40px", color: "#cbd5e1" }} viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                    </svg>
-                  </div>
-              }
-            </div>
-            <div style={{ marginTop: "8px", width: "100%", textAlign: "left" }}>
-              <p style={{ margin: 0, fontSize: "10px", color: "#334155", fontFamily: "monospace", fontWeight: 500 }}>
-                ID: {idNumber}
-              </p>
-              <p style={{ margin: "2px 0 0", fontSize: "10px", color: "#334155", fontFamily: "monospace", fontWeight: "bold" }}>
-                BADGE: {accreditation?.badgeNumber || "---"}
-              </p>
-            </div>
-            {qrDataUrl && (
-              <div style={{ marginTop: "12px" }}>
-                <img src={qrDataUrl} alt="QR" style={{ width: "70px", height: "70px", display: "block" }} />
-              </div>
-            )}
-          </div>
-          {/* RIGHT */}
-          <div style={{
-            flex: 1, paddingLeft: "16px",
-            display: "flex", flexDirection: "column", justifyContent: "flex-start",
-            minWidth: 0, overflow: "hidden",
-          }}>
-            <h2 style={{
-              margin: 0, fontWeight: "bold", color: "#1e3a8a",
-              textTransform: "uppercase", fontSize: `${nameFontSize}px`,
-              lineHeight: 1.15, whiteSpace: "nowrap", overflow: "hidden",
-              textOverflow: "clip", width: "100%",
-            }}>
-              {fullName}
-            </h2>
-            <p style={{ margin: "10px 0 0", fontSize: "14px", color: "#334155", lineHeight: 1.3, wordBreak: "break-word" }}>
-              {accreditation?.club || "Club Name"}
-            </p>
-            <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#64748b" }}>
-              {accreditation?.role || "Participant"}
-            </p>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "10px", fontSize: "13px", color: "#475569" }}>
-              {age !== null && <span style={{ fontWeight: 500 }}>{age} Y</span>}
-              {age !== null && <span style={{ color: "#cbd5e1" }}>|</span>}
-              <span style={{ fontWeight: 500 }}>{accreditation?.gender || "Gender"}</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "14px" }}>
-              {flagB64 && (
-                <img src={flagB64} alt="Flag"
-                  style={{
-                    width: "44px", height: "30px", flexShrink: 0,
-                    borderRadius: "4px", objectFit: "cover",
-                    border: "1px solid #e2e8f0",
-                  }}
-                />
-              )}
-              <p style={{ margin: 0, fontSize: "15px", fontWeight: "bold", color: "#1e40af", wordBreak: "break-word" }}>
-                {countryName}
-              </p>
-            </div>
-          </div>
-        </div>
-        {/* ZONE BADGES */}
-        <div style={{
-          height: "34px", width: "100%", flexShrink: 0,
-          backgroundColor: "white",
-          display: "flex", alignItems: "center", justifyContent: "flex-end",
-          gap: "4px", paddingLeft: "12px", paddingRight: "12px",
-        }}>
-          {zoneCodes.length > 0
-            ? zoneCodes.slice(0, 4).map((code, i) =>
-                zoneBadgePngs[code]
-                  ? <img key={i} src={zoneBadgePngs[code]} alt={code}
-                      style={{ width: "30px", height: "30px", display: "block" }} />
-                  : <div key={i} style={{
-                      backgroundColor: "#0f172a", color: "white",
-                      width: "30px", height: "30px", lineHeight: "30px",
-                      textAlign: "center", borderRadius: "3px",
-                      fontSize: "13px", fontWeight: 700,
-                    }}>{code}</div>
-              )
-            : <span style={{ fontSize: "10px", color: "#94a3b8" }}>No Access</span>
-          }
-        </div>
-        {/* SPONSORS */}
-        <div style={{
-          height: "36px", width: "100%", flexShrink: 0,
-          borderTop: "1px solid #e2e8f0", backgroundColor: "#f8fafc",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          gap: "12px", padding: "0 12px",
-        }}>
-          {event?.sponsorLogos?.length > 0
-            ? event.sponsorLogos.slice(0, 6).map((logo, i) =>
-                logo ? <img key={i} src={logo} alt="Sponsor"
-                  style={{ height: "26px", maxWidth: "50px", objectFit: "contain" }} /> : null
-              )
-            : <span style={{ fontSize: "8px", color: "#94a3b8", fontStyle: "italic" }}>Sponsors</span>
-          }
-        </div>
-      </div>
-
-      {/* BACK CARD */}
-      <div
-        id={backId}
-        style={{
-          width: "320px", height: "454px",
-          background: "linear-gradient(to bottom right, #0f172a, #1e293b, #0f172a)",
-          borderRadius: 0,
-          boxShadow: "none",
-          overflow: "hidden", flexShrink: 0,
-          border: "1px solid #334155", position: "relative",
-        }}
-      >
-        <div style={{ position: "absolute", inset: 0, opacity: 0.05 }}>
-          <svg style={{ width: "100%", height: "100%" }} viewBox="0 0 320 454" preserveAspectRatio="none">
-            <defs>
-              <pattern id={`backPattern${idSuffix}`} patternUnits="userSpaceOnUse" width="40" height="40">
-                <circle cx="20" cy="20" r="1" fill="white" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill={`url(#backPattern${idSuffix})`} />
-          </svg>
-        </div>
-        {event?.backTemplateUrl
-          ? <img src={event.backTemplateUrl} alt="Back Template"
-              style={{ width: "100%", height: "100%", objectFit: "contain", backgroundColor: "white" }} />
-          : (
-            <div style={{ padding: "20px", display: "flex", flexDirection: "column", height: "100%", position: "relative", zIndex: 10 }}>
-              <div style={{ textAlign: "center", marginBottom: "24px" }}>
-                <div style={{ display: "inline-block", padding: "8px 24px", background: "linear-gradient(to right, #0891b2, #2563eb)", borderRadius: "9999px" }}>
-                  <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "bold", color: "white" }}>
-                    {event?.name || "Event Name"}
-                  </h3>
-                </div>
-              </div>
-              <div style={{ flex: 1, marginBottom: "16px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
-                  <div style={{ width: "4px", height: "24px", backgroundColor: "#06b6d4", borderRadius: "9999px" }} />
-                  <p style={{ margin: 0, fontSize: "13px", fontWeight: "bold", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>Access</p>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                  {zoneCodes.map((code, i) => {
-                    const zoneInfo = zones?.find(z => z.code === code);
-                    return (
-                      <div key={i} style={{
-                        display: "flex", alignItems: "center", gap: "16px",
-                        backgroundColor: "rgba(30,41,59,0.5)", borderRadius: "8px",
-                        padding: "12px", border: "1px solid rgba(51,65,85,0.5)",
-                      }}>
-                        <div style={{
-                          width: "40px", height: "40px", borderRadius: "8px", flexShrink: 0,
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          background: "linear-gradient(to bottom right, #06b6d4, #2563eb)",
-                        }}>
-                          <span style={{ fontSize: "13px", fontWeight: "bold", color: "white" }}>{code}</span>
-                        </div>
-                        <div>
-                          <span style={{ fontSize: "12px", color: "white", fontWeight: 500 }}>{zoneInfo?.name || code}</span>
-                          {zoneInfo?.description && (
-                            <p style={{ margin: "2px 0 0", fontSize: "10px", color: "#94a3b8" }}>{zoneInfo.description}</p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              <div style={{
-                background: "linear-gradient(to right, rgba(245,158,11,0.2), rgba(249,115,22,0.2))",
-                borderRadius: "8px", padding: "16px", marginTop: "auto",
-                border: "1px solid rgba(245,158,11,0.3)",
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-                  <svg style={{ width: "20px", height: "20px", color: "#fbbf24", flexShrink: 0 }} viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-                  </svg>
-                  <p style={{ margin: 0, fontSize: "12px", fontWeight: "bold", color: "#fbbf24", textTransform: "uppercase", letterSpacing: "0.05em" }}>Important</p>
-                </div>
-                <p style={{ margin: 0, fontSize: "11px", color: "#e2e8f0", lineHeight: 1.5 }}>
-                  This accreditation must be worn visibly at all times. Access is restricted to authorized zones only.
-                </p>
-              </div>
-              <div style={{ position: "absolute", bottom: "16px", right: "16px", opacity: 0.1 }}>
-                <svg style={{ width: "80px", height: "80px", color: "#06b6d4" }} viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M2 18c.6.5 1.2 1 2.3 1 1.4 0 2.1-.6 2.7-1.2.6-.6 1.3-1.2 2.7-1.2s2.1.6 2.7 1.2c.6.6 1.3 1.2 2.7 1.2s2.1-.6 2.7-1.2c.6-.6 1.3-1.2 2.7-1.2.7 0 1.2.1 1.7.4V15c-.5-.3-1.1-.4-1.7-.4-1.4 0-2.1.6-2.7 1.2-.6.6-1.3 1.2-2.7 1.2s-2.1-.6-2.7-1.2c-.6-.6-1.3-1.2-2.7-1.2s-2.1.6-2.7 1.2C6.4 16.4 5.7 17 4.3 17c-1.1 0-1.7-.5-2.3-1v2z"/>
-                </svg>
-              </div>
-            </div>
-          )
-        }
-      </div>
-    </div>
-  );
-};
-
-/* ══════════════════════════════════════════════════════════
-   MAIN COMPONENT — wraps CardInner, adds preview id
-   ══════════════════════════════════════════════════════════ */
-const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
-  return (
-    <div id="accreditation-card-preview">
-      <CardInner
-        accreditation={accreditation}
-        event={event}
-        zones={zones}
-        idSuffix=""
-      />
-    </div>
-  );
-};
-
-export default AccreditationCardPreview;
