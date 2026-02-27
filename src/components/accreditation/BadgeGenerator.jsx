@@ -7,81 +7,49 @@ import {
   printCards,
   PDF_SIZES,
   IMAGE_SIZES 
-} from "./pdfUtils"; // Adjust path to where you saved pdfUtils.js
+} from "./pdfUtils";
 
-export default function BadgeGenerator({ accreditation, event, zones = [], onClose }) {
+export default function BadgeGenerator({ accreditation, event, zones = [], onClose, children }) {
   const [loading, setLoading] = useState(false);
   const [pdfSize, setPdfSize] = useState("a6");
   const [imageQuality, setImageQuality] = useState("p1280");
 
-  const handleDownloadPDF = async () => {
-    if (!accreditation) return;
+  const withLoading = async (fn) => {
     setLoading(true);
     try {
-      const scale = IMAGE_SIZES[imageQuality]?.scale || 4;
-      await downloadCapturedPDF(
-        accreditation, 
-        event, 
-        zones, 
-        `${accreditation.firstName}_${accreditation.lastName}_Badge_${accreditation.badgeNumber || "card"}.pdf`,
-        scale,
-        pdfSize
-      );
+      await fn();
     } catch (err) {
       console.error(err);
-      alert("Failed to generate PDF: " + err.message);
+      alert("Error: " + (err.message || "Failed to generate"));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOpenInTab = async () => {
-    if (!accreditation) return;
-    setLoading(true);
-    try {
-      const scale = IMAGE_SIZES[imageQuality]?.scale || 4;
-      await openCapturedPDFInTab(accreditation, event, zones, scale, pdfSize);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to open PDF: " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const handleDownloadPDF = () => withLoading(() => 
+    downloadCapturedPDF(
+      accreditation, event, zones, 
+      `${accreditation?.firstName}_${accreditation?.lastName}_Badge_${accreditation?.badgeNumber || "card"}.pdf`,
+      IMAGE_SIZES[imageQuality]?.scale,
+      pdfSize
+    )
+  );
 
-  const handleDownloadImages = async () => {
-    if (!accreditation) return;
-    setLoading(true);
-    try {
-      const scale = IMAGE_SIZES[imageQuality]?.scale || 4;
-      await downloadAsImages(
-        accreditation, 
-        event, 
-        zones, 
-        `${accreditation.firstName}_${accreditation.lastName}_Card`,
-        scale
-      );
-    } catch (err) {
-      console.error(err);
-      alert("Failed to generate images: " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const handleOpenInTab = () => withLoading(() => 
+    openCapturedPDFInTab(accreditation, event, zones, IMAGE_SIZES[imageQuality]?.scale, pdfSize)
+  );
 
-  const handlePrint = async () => {
-    if (!accreditation) return;
-    setLoading(true);
-    try {
-      // Use HD scale (2) for print to avoid memory issues
-      await printCards(accreditation, event, zones, 2);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to print: " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const handleDownloadImages = () => withLoading(() => 
+    downloadAsImages(
+      accreditation, event, zones, 
+      `${accreditation?.firstName}_${accreditation?.lastName}_Card`,
+      IMAGE_SIZES[imageQuality]?.scale
+    )
+  );
+
+  const handlePrint = () => withLoading(() => 
+    printCards(accreditation, event, zones, IMAGE_SIZES["hd"].scale)
+  );
 
   return (
     <div className="space-y-6 p-6">
@@ -94,8 +62,10 @@ export default function BadgeGenerator({ accreditation, event, zones = [], onClo
         )}
       </div>
 
-      {/* Your Preview Component Here - Keep exactly as is */}
-      {/* <AccreditationCardPreview accreditation={accreditation} event={event} zones={zones} /> */}
+      {/* Preview Area */}
+      <div className="flex justify-center">
+        {children}
+      </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -125,38 +95,22 @@ export default function BadgeGenerator({ accreditation, event, zones = [], onClo
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <button
-          onClick={handleDownloadPDF}
-          disabled={loading}
-          className="flex items-center justify-center gap-2 px-4 py-3 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 text-white rounded-lg font-medium"
-        >
+        <button onClick={handleDownloadPDF} disabled={loading} className="flex items-center justify-center gap-2 px-4 py-3 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 text-white rounded-lg font-medium">
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
           Download PDF
         </button>
 
-        <button
-          onClick={handleOpenInTab}
-          disabled={loading}
-          className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded-lg font-medium"
-        >
+        <button onClick={handleOpenInTab} disabled={loading} className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded-lg font-medium">
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
           Open in New Tab
         </button>
 
-        <button
-          onClick={handleDownloadImages}
-          disabled={loading}
-          className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded-lg font-medium"
-        >
+        <button onClick={handleDownloadImages} disabled={loading} className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded-lg font-medium">
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
           Download Images
         </button>
 
-        <button
-          onClick={handlePrint}
-          disabled={loading}
-          className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded-lg font-medium"
-        >
+        <button onClick={handlePrint} disabled={loading} className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded-lg font-medium">
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
           Print Card
         </button>
