@@ -62,7 +62,6 @@ export default function BadgeGenerator({ accreditation, event, zones = [], onClo
         )}
       </div>
 
-      {/* Preview Area */}
       <div className="flex justify-center">
         {children}
       </div>
