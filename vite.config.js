@@ -8,10 +8,7 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     allowedHosts: true,
-    watch: {
-      usePolling: true
-    },
-    /* ── Proxy flag CDN so flags load without CORS issues ── */
+    watch: { usePolling: true },
     proxy: {
       "/flags": {
         target: "https://flagcdn.com",
@@ -21,27 +18,23 @@ export default defineConfig({
     },
   },
   resolve: {
-    alias: {
-      "@": "/src"
-    }
+    alias: { "@": "/src" }
   },
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ["react", "react-dom", "react-router-dom"],
-          pdf: ["@react-pdf/renderer"]
-        }
+        entryFileNames: 'js/[name]-[hash]-v3.js',
+        chunkFileNames: 'js/[name]-[hash]-v3.js',
+        assetFileNames: (info) => {
+          if (info.name.endsWith('.css')) return 'css/[name]-[hash]-v3[extname]';
+          return 'assets/[name]-[hash]-v3[extname]';
+        },
       }
     },
-    commonjsOptions: {
-      transformMixedEsModules: true
-    }
+    commonjsOptions: { transformMixedEsModules: true }
   },
   optimizeDeps: {
     include: ["@react-pdf/renderer"],
-    esbuildOptions: {
-      target: "esnext"
-    }
+    esbuildOptions: { target: "esnext" }
   }
 });
