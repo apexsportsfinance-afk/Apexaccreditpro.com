@@ -1,4 +1,5 @@
 import React from "react";
+import ReactDOM from "react-dom";
 import { getCountryName, calculateAge, COUNTRIES, isExpired } from "../../lib/utils";
 import QRCode from "qrcode";
 
@@ -64,20 +65,14 @@ const useZoneBadgePngs = (codes) => {
 };
 
 /* ── Pre-load flag as base64 data URL ─────────────────────── */
-/* Uses /flags proxy (defined in vite.config.js) in dev,       */
-/* and fetches directly with CORS in production.               */
 const useFlagBase64 = (flagCode) => {
   const [flagB64, setFlagB64] = React.useState(null);
-
   React.useEffect(() => {
     if (!flagCode) return;
-
-    // Use local proxy path during dev to avoid CORS completely
     const isDev = import.meta.env.DEV;
     const url   = isDev
       ? `/flags/w80/${flagCode}.png`
       : `https://flagcdn.com/w80/${flagCode}.png`;
-
     fetch(url, { cache: "force-cache" })
       .then((r) => (r.ok ? r.blob() : Promise.reject()))
       .then(
@@ -91,7 +86,6 @@ const useFlagBase64 = (flagCode) => {
       )
       .then((b64) => {
         if (b64) { setFlagB64(b64); return; }
-        // Fallback: Image + canvas
         const img = new Image();
         img.crossOrigin = "anonymous";
         img.onload = () => {
@@ -102,7 +96,6 @@ const useFlagBase64 = (flagCode) => {
             c.getContext("2d").drawImage(img, 0, 0);
             setFlagB64(c.toDataURL("image/png"));
           } catch {
-            // Canvas tainted — use original URL as last resort
             setFlagB64(`https://flagcdn.com/w80/${flagCode}.png`);
           }
         };
@@ -111,35 +104,32 @@ const useFlagBase64 = (flagCode) => {
       })
       .catch(() => setFlagB64(null));
   }, [flagCode]);
-
   return flagB64;
 };
 
 /* ══════════════════════════════════════════════════════════
-   COMPONENT — unchanged except flag src uses useFlagBase64
+   CARD INNER — pure presentational, used for both preview
+   and the offscreen capture node
    ══════════════════════════════════════════════════════════ */
-const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
-
+export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) => {
   const matchingZone    = zones.find(z => z.name?.toLowerCase() === accreditation?.role?.toLowerCase());
   const roleBannerColor = matchingZone?.color ?? getRoleHex(accreditation?.role);
-
-  const zoneCodes   = accreditation?.zoneCode?.split(",").map(z => z.trim()).filter(Boolean) ?? [];
-  const countryData = COUNTRIES.find(c => c.code === accreditation?.nationality);
-  const countryName = getCountryName(accreditation?.nationality);
-  const age         = accreditation?.dateOfBirth && event?.ageCalculationYear
+  const zoneCodes       = accreditation?.zoneCode?.split(",").map(z => z.trim()).filter(Boolean) ?? [];
+  const countryData     = COUNTRIES.find(c => c.code === accreditation?.nationality);
+  const countryName     = getCountryName(accreditation?.nationality);
+  const age             = accreditation?.dateOfBirth && event?.ageCalculationYear
     ? calculateAge(accreditation.dateOfBirth, event.ageCalculationYear) : null;
-  const expired     = typeof isExpired === "function" ? isExpired(accreditation?.expiresAt) : false;
-  const idNumber    = accreditation?.accreditationId?.split("-")?.pop() ?? "---";
-  const fullName    = `${accreditation?.firstName || "FIRST"} ${accreditation?.lastName || "LAST"}`;
+  const expired         = typeof isExpired === "function" ? isExpired(accreditation?.expiresAt) : false;
+  const idNumber        = accreditation?.accreditationId?.split("-")?.pop() ?? "---";
+  const fullName        = `${accreditation?.firstName || "FIRST"} ${accreditation?.lastName || "LAST"}`;
 
-  const nameFontSize = React.useMemo(
+  const nameFontSize  = React.useMemo(
     () => measureNameFontSize(accreditation?.firstName, accreditation?.lastName),
     [accreditation?.firstName, accreditation?.lastName]
   );
-
   const zoneBadgePngs = useZoneBadgePngs(zoneCodes);
+  const flagB64       = useFlagBase64(countryData?.flag ?? null);
 
-  /* QR code — already base64, no CORS risk */
   const [qrDataUrl, setQrDataUrl] = React.useState(null);
   React.useEffect(() => {
     if (!accreditation) return;
@@ -153,34 +143,30 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
       .catch(err => console.error("QR error:", err));
   }, [accreditation?.id, accreditation?.accreditationId, accreditation?.status]);
 
-  /* Flag — pre-loaded as base64 via proxy */
-  const flagB64 = useFlagBase64(countryData?.flag ?? null);
+  const frontId = `accreditation-front-card${idSuffix}`;
+  const backId  = `accreditation-back-card${idSuffix}`;
 
-  const S = {
-    card: {
-      width: "320px", height: "454px",
-      backgroundColor: "#ffffff",
-      borderRadius: 0,
-      boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
-      overflow: "hidden", flexShrink: 0,
-      display: "flex", flexDirection: "column",
-      position: "relative",
-      border: expired ? "2px solid #f87171" : "1px solid #e2e8f0",
-    },
+  const cardStyle = {
+    width: "320px", height: "454px",
+    backgroundColor: "#ffffff",
+    borderRadius: 0,
+    boxShadow: "none",
+    overflow: "hidden", flexShrink: 0,
+    display: "flex", flexDirection: "column",
+    position: "relative",
+    border: expired ? "2px solid #f87171" : "1px solid #e2e8f0",
   };
 
   return (
     <div
-      id="accreditation-card-preview"
       style={{
         display: "flex", flexWrap: "wrap", gap: "24px",
         alignItems: "flex-start", justifyContent: "center",
         fontFamily: "Helvetica, Arial, sans-serif",
       }}
     >
-      {/* ════════════════ FRONT CARD ════════════════ */}
-      <div id="accreditation-front-card" style={S.card}>
-
+      {/* FRONT CARD */}
+      <div id={frontId} style={cardStyle}>
         {expired && (
           <div style={{
             position: "absolute", inset: 0, zIndex: 20, pointerEvents: "none",
@@ -194,7 +180,6 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
             }}>EXPIRED</div>
           </div>
         )}
-
         {/* HEADER */}
         <div style={{
           height: "100px", flexShrink: 0, overflow: "hidden", position: "relative",
@@ -205,23 +190,19 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
             display: "flex", alignItems: "center", justifyContent: "center", padding: "0 16px",
           }}>
             {event?.logoUrl
-              ? <img src={event.logoUrl} alt="Logo" crossOrigin="anonymous"
-                  style={{ maxHeight: "85px", maxWidth: "100%", objectFit: "contain" }} />
+              ? <img src={event.logoUrl} alt="Logo" style={{ maxHeight: "85px", maxWidth: "100%", objectFit: "contain" }} />
               : <svg style={{ width: "64px", height: "64px", color: "rgba(255,255,255,0.7)" }} viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                 </svg>
             }
           </div>
         </div>
-
         {/* white spacer */}
         <div style={{ height: "6px", backgroundColor: "white", flexShrink: 0 }} />
-
         {/* ROLE BANNER */}
         <div style={{
           height: "40px", flexShrink: 0, overflow: "hidden",
           display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
           backgroundColor: roleBannerColor,
         }}>
           <span style={{
@@ -232,7 +213,6 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
             {accreditation?.role || "PARTICIPANT"}
           </span>
         </div>
-
         {/* BODY */}
         <div style={{
           display: "flex", flex: 1, padding: "12px",
@@ -244,10 +224,10 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
             <div style={{
               width: "100px", height: "120px", flexShrink: 0,
               border: "2px solid #cbd5e1", padding: "2px",
-              backgroundColor: "white", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
+              backgroundColor: "white",
             }}>
               {accreditation?.photoUrl
-                ? <img src={accreditation.photoUrl} alt="User" crossOrigin="anonymous"
+                ? <img src={accreditation.photoUrl} alt="User"
                     style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 : <div style={{
                     width: "100%", height: "100%",
@@ -260,7 +240,6 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
                   </div>
               }
             </div>
-
             <div style={{ marginTop: "8px", width: "100%", textAlign: "left" }}>
               <p style={{ margin: 0, fontSize: "10px", color: "#334155", fontFamily: "monospace", fontWeight: 500 }}>
                 ID: {idNumber}
@@ -269,14 +248,12 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
                 BADGE: {accreditation?.badgeNumber || "---"}
               </p>
             </div>
-
             {qrDataUrl && (
               <div style={{ marginTop: "12px" }}>
                 <img src={qrDataUrl} alt="QR" style={{ width: "70px", height: "70px", display: "block" }} />
               </div>
             )}
           </div>
-
           {/* RIGHT */}
           <div style={{
             flex: 1, paddingLeft: "16px",
@@ -302,17 +279,13 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
               {age !== null && <span style={{ color: "#cbd5e1" }}>|</span>}
               <span style={{ fontWeight: 500 }}>{accreditation?.gender || "Gender"}</span>
             </div>
-            {/* FLAG — base64 data URL, never a cross-origin request at capture time */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "14px" }}>
               {flagB64 && (
-                <img
-                  src={flagB64}
-                  alt="Flag"
+                <img src={flagB64} alt="Flag"
                   style={{
                     width: "44px", height: "30px", flexShrink: 0,
                     borderRadius: "4px", objectFit: "cover",
                     border: "1px solid #e2e8f0",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
                   }}
                 />
               )}
@@ -322,7 +295,6 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
             </div>
           </div>
         </div>
-
         {/* ZONE BADGES */}
         <div style={{
           height: "34px", width: "100%", flexShrink: 0,
@@ -345,7 +317,6 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
             : <span style={{ fontSize: "10px", color: "#94a3b8" }}>No Access</span>
           }
         </div>
-
         {/* SPONSORS */}
         <div style={{
           height: "36px", width: "100%", flexShrink: 0,
@@ -355,7 +326,7 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
         }}>
           {event?.sponsorLogos?.length > 0
             ? event.sponsorLogos.slice(0, 6).map((logo, i) =>
-                logo ? <img key={i} src={logo} alt="Sponsor" crossOrigin="anonymous"
+                logo ? <img key={i} src={logo} alt="Sponsor"
                   style={{ height: "26px", maxWidth: "50px", objectFit: "contain" }} /> : null
               )
             : <span style={{ fontSize: "8px", color: "#94a3b8", fontStyle: "italic" }}>Sponsors</span>
@@ -363,14 +334,14 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
         </div>
       </div>
 
-      {/* ════════════════ BACK CARD ════════════════ */}
+      {/* BACK CARD */}
       <div
-        id="accreditation-back-card"
+        id={backId}
         style={{
           width: "320px", height: "454px",
           background: "linear-gradient(to bottom right, #0f172a, #1e293b, #0f172a)",
           borderRadius: 0,
-          boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
+          boxShadow: "none",
           overflow: "hidden", flexShrink: 0,
           border: "1px solid #334155", position: "relative",
         }}
@@ -378,16 +349,15 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
         <div style={{ position: "absolute", inset: 0, opacity: 0.05 }}>
           <svg style={{ width: "100%", height: "100%" }} viewBox="0 0 320 454" preserveAspectRatio="none">
             <defs>
-              <pattern id="backPattern" patternUnits="userSpaceOnUse" width="40" height="40">
+              <pattern id={`backPattern${idSuffix}`} patternUnits="userSpaceOnUse" width="40" height="40">
                 <circle cx="20" cy="20" r="1" fill="white" />
               </pattern>
             </defs>
-            <rect width="100%" height="100%" fill="url(#backPattern)" />
+            <rect width="100%" height="100%" fill={`url(#backPattern${idSuffix})`} />
           </svg>
         </div>
-
         {event?.backTemplateUrl
-          ? <img src={event.backTemplateUrl} alt="Back Template" crossOrigin="anonymous"
+          ? <img src={event.backTemplateUrl} alt="Back Template"
               style={{ width: "100%", height: "100%", objectFit: "contain", backgroundColor: "white" }} />
           : (
             <div style={{ padding: "20px", display: "flex", flexDirection: "column", height: "100%", position: "relative", zIndex: 10 }}>
@@ -454,6 +424,22 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
           )
         }
       </div>
+    </div>
+  );
+};
+
+/* ══════════════════════════════════════════════════════════
+   MAIN COMPONENT — wraps CardInner, adds preview id
+   ══════════════════════════════════════════════════════════ */
+const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
+  return (
+    <div id="accreditation-card-preview">
+      <CardInner
+        accreditation={accreditation}
+        event={event}
+        zones={zones}
+        idSuffix=""
+      />
     </div>
   );
 };
