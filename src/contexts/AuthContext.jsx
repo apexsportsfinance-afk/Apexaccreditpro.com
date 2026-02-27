@@ -16,32 +16,68 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser({
-          id: session.user.id,
-          email: session.user.email,
-          name: session.user.user_metadata?.name || session.user.email,
-          role: session.user.user_metadata?.role || "event_admin"
-        });
-      }
-      setLoading(false);
-    });
+  // Helper to construct a safe user object immediately from session
+  const getSafeUserFromSession = (sessionUser) => ({
+    id: sessionUser.id,
+    email: sessionUser.email,
+    name: sessionUser.user_metadata?.full_name || sessionUser.user_metadata?.name || sessionUser.email,
+    role: sessionUser.user_metadata?.role || "event_admin" // Default safe role until DB confirms
+  });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setUser({
-          id: session.user.id,
-          email: session.user.email,
-          name: session.user.user_metadata?.name || session.user.email,
-          role: session.user.user_metadata?.role || "event_admin"
-        });
-      } else {
-        setUser(null);
+  const upgradeProfileRole = async (sessionUser) => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("role, full_name")
+        .eq("id", sessionUser.id)
+        .single();
+
+      if (!error && data) {
+        // Upgrade the user state with DB data
+        setUser((current) => ({
+          ...current,
+          name: data.full_name || current?.name,
+          role: data.role || current?.role
+        }));
       }
-      setLoading(false);
-    });
+    } catch (err) {
+      console.warn("Background profile fetch failed:", err);
+    }
+  };
+
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          // 1. OPTIMISTIC UPDATE: Log user in IMMEDIATELY
+          const safeUser = getSafeUserFromSession(session.user);
+          setUser(safeUser);
+          // 2. BACKGROUND FETCH: Upgrade with real DB data
+          upgradeProfileRole(session.user);
+        }
+      } catch (error) {
+        console.error("Auth initialization error:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (session?.user) {
+          // Optimistic update for speedy transition
+          setUser((prev) => prev?.id === session.user.id ? prev : getSafeUserFromSession(session.user));
+          // Background refresh
+          upgradeProfileRole(session.user);
+        } else {
+          setUser(null);
+        }
+        setLoading(false);
+      }
+    );
 
     return () => subscription.unsubscribe();
   }, []);
@@ -56,12 +92,15 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     await UsersAPI.logout();
+    setUser(null);
   };
 
   const hasPermission = (permission) => {
     if (!user) return false;
+    // Map both 'admin' and 'super_admin' to super admin privileges
     const permissions = {
       super_admin: ["all"],
+      admin: ["all"],
       event_admin: ["view_events", "manage_accreditations", "view_reports"],
       viewer: ["view_events", "view_accreditations"]
     };
@@ -76,7 +115,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     hasPermission,
     isAuthenticated: !!user,
-    isSuperAdmin: user?.role === "super_admin",
+    isSuperAdmin: user?.role === "super_admin" || user?.role === "admin",
     isEventAdmin: user?.role === "event_admin",
     isViewer: user?.role === "viewer"
   };
