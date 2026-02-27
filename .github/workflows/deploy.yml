@@ -1,0 +1,63 @@
+name: Auto Fix Lockfile & Deploy to Vercel
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  deploy:
+    name: Fix Lockfile & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: ⬇️ Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      # Step 2: Setup Node.js
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      # Step 3: Install pnpm
+      - name: 📦 Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10
+
+      # Step 4: Delete stale lockfile and reinstall
+      - name: 🔄 Regenerate pnpm Lockfile
+        run: |
+          rm -f pnpm-lock.yaml
+          pnpm install --no-frozen-lockfile
+
+      # Step 5: Auto commit the new lockfile if changed
+      - name: 💾 Commit Updated Lockfile
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "ci: auto-regenerate pnpm-lock.yaml"
+          file_pattern: pnpm-lock.yaml
+          branch: ${{ github.head_ref || github.ref_name }}
+
+      # Step 6: Build the project
+      - name: 🏗️ Build Project
+        run: pnpm run build
+
+      # Step 7: Deploy to Vercel
+      - name: 🚀 Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: "--prod"
