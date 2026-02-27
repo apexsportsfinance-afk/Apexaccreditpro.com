@@ -1,13 +1,12 @@
 import React, { useState } from "react";
 import { Download, Loader2, X, ExternalLink, Printer, Image as ImageIcon } from "lucide-react";
 import { 
-  downloadCapturedPDF, 
-  openCapturedPDFInTab, 
-  downloadAsImages, 
-  printCards,
+  downloadCardPDF, 
+  openCardPDF, 
+  printCard,
   PDF_SIZES,
   IMAGE_SIZES 
-} from "./pdfUtils";
+} from "./cardExport"; // CHANGED from pdfUtils
 
 export default function BadgeGenerator({ accreditation, event, zones = [], onClose, children }) {
   const [loading, setLoading] = useState(false);
@@ -27,7 +26,7 @@ export default function BadgeGenerator({ accreditation, event, zones = [], onClo
   };
 
   const handleDownloadPDF = () => withLoading(() => 
-    downloadCapturedPDF(
+    downloadCardPDF(
       accreditation, event, zones, 
       `${accreditation?.firstName}_${accreditation?.lastName}_Badge_${accreditation?.badgeNumber || "card"}.pdf`,
       IMAGE_SIZES[imageQuality]?.scale,
@@ -36,19 +35,11 @@ export default function BadgeGenerator({ accreditation, event, zones = [], onClo
   );
 
   const handleOpenInTab = () => withLoading(() => 
-    openCapturedPDFInTab(accreditation, event, zones, IMAGE_SIZES[imageQuality]?.scale, pdfSize)
-  );
-
-  const handleDownloadImages = () => withLoading(() => 
-    downloadAsImages(
-      accreditation, event, zones, 
-      `${accreditation?.firstName}_${accreditation?.lastName}_Card`,
-      IMAGE_SIZES[imageQuality]?.scale
-    )
+    openCardPDF(accreditation, event, zones, IMAGE_SIZES[imageQuality]?.scale, pdfSize)
   );
 
   const handlePrint = () => withLoading(() => 
-    printCards(accreditation, event, zones, IMAGE_SIZES["hd"].scale, pdfSize)
+    printCard(accreditation, event, zones, IMAGE_SIZES["hd"].scale, pdfSize)
   );
 
   return (
@@ -69,11 +60,7 @@ export default function BadgeGenerator({ accreditation, event, zones = [], onClo
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">PDF Size</label>
-          <select 
-            value={pdfSize} 
-            onChange={(e) => setPdfSize(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white"
-          >
+          <select value={pdfSize} onChange={(e) => setPdfSize(e.target.value)} className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white">
             {Object.entries(PDF_SIZES).map(([key, { label }]) => (
               <option key={key} value={key}>{label}</option>
             ))}
@@ -81,11 +68,7 @@ export default function BadgeGenerator({ accreditation, event, zones = [], onClo
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">Image Quality</label>
-          <select 
-            value={imageQuality} 
-            onChange={(e) => setImageQuality(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white"
-          >
+          <select value={imageQuality} onChange={(e) => setImageQuality(e.target.value)} className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white">
             {Object.entries(IMAGE_SIZES).map(([key, { label }]) => (
               <option key={key} value={key}>{label}</option>
             ))}
@@ -102,11 +85,6 @@ export default function BadgeGenerator({ accreditation, event, zones = [], onClo
         <button onClick={handleOpenInTab} disabled={loading} className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded-lg font-medium">
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
           Open in New Tab
-        </button>
-
-        <button onClick={handleDownloadImages} disabled={loading} className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded-lg font-medium">
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
-          Download Images
         </button>
 
         <button onClick={handlePrint} disabled={loading} className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded-lg font-medium">
