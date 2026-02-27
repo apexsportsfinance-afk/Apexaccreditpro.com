@@ -4,6 +4,7 @@ import {
   downloadCapturedPDF,
   openCapturedPDFInTab,
   downloadAsImages,
+  printCards,
   PDF_SIZES,
   IMAGE_SIZES,
 } from "./pdfUtils";
@@ -11,28 +12,27 @@ import {
 /**
  * BadgeGenerator
  *
- * Captures the live AccreditationCardPreview DOM nodes
- * via html2canvas — pixel-perfect, no manual redraw.
+ * Captures the live AccreditationCardPreview DOM nodes via html2canvas.
+ * Pixel-perfect — what you see in preview is exactly what you get.
  *
- * Requires these IDs in the DOM:
+ * Required DOM ids:
  *   #accreditation-front-card
  *   #accreditation-back-card
  */
 export default function BadgeGenerator({ accreditation, onClose }) {
-  const [downloading,  setDownloading]  = useState(false);
-  const [previewing,   setPreviewing]   = useState(false);
-  const [imgDownload,  setImgDownload]  = useState(false);
-  const [printing,     setPrinting]     = useState(false);
-  const [error,        setError]        = useState(null);
+  const [downloading, setDownloading] = useState(false);
+  const [previewing,  setPreviewing]  = useState(false);
+  const [imgDownload, setImgDownload] = useState(false);
+  const [printing,    setPrinting]    = useState(false);
+  const [error,       setError]       = useState(null);
 
-  /* FIX: default image size is now "4k" (600 DPI) */
-  const [pdfSize,  setPdfSize]  = useState("a6");
-  const [imgSize,  setImgSize]  = useState("4k");
+  const [pdfSize, setPdfSize] = useState("a6");
+  const [imgSize, setImgSize] = useState("4k");
 
-  /* ── helpers ─────────────────────────────────────────── */
+  /* ── Helpers ─────────────────────────────────────────── */
   const buildFileName = (ext = "pdf") => {
-    const first = (accreditation?.firstName  || "Unknown").replace(/\s+/g, "_");
-    const last  = (accreditation?.lastName   || "Unknown").replace(/\s+/g, "_");
+    const first = (accreditation?.firstName || "Unknown").replace(/\s+/g, "_");
+    const last  = (accreditation?.lastName  || "Unknown").replace(/\s+/g, "_");
     const badge = accreditation?.badgeNumber || "card";
     return `${first}_${last}_Badge_${badge}.${ext}`;
   };
@@ -40,7 +40,9 @@ export default function BadgeGenerator({ accreditation, onClose }) {
   const cardExists = () => {
     const el = document.getElementById("accreditation-front-card");
     if (!el) {
-      setError("Card preview not found. Make sure the preview is fully visible before downloading.");
+      setError(
+        "Card preview not found. Make sure the preview is fully visible on screen before downloading."
+      );
       return false;
     }
     return true;
@@ -48,7 +50,7 @@ export default function BadgeGenerator({ accreditation, onClose }) {
 
   const scale = IMAGE_SIZES[imgSize]?.scale ?? IMAGE_SIZES["4k"].scale;
 
-  /* ── download PDF ─────────────────────────────────────── */
+  /* ── Download PDF ────────────────────────────────────── */
   const handleDownload = async () => {
     if (!cardExists()) return;
     setDownloading(true);
@@ -62,34 +64,34 @@ export default function BadgeGenerator({ accreditation, onClose }) {
         pdfSize
       );
     } catch (err) {
-      console.error(err);
-      setError("Failed to generate PDF. Please try again.");
+      console.error("PDF download error:", err);
+      setError(err?.message || "Failed to generate PDF. Please try again.");
     } finally {
       setDownloading(false);
     }
   };
 
-  /* ── open in new tab ──────────────────────────────────── */
+  /* ── Open in New Tab ─────────────────────────────────── */
   const handlePreview = async () => {
     if (!cardExists()) return;
     setPreviewing(true);
     setError(null);
     try {
       await openCapturedPDFInTab(
-       "accreditation-front-card",
-       "accreditation-back-card",
+        "accreditation-front-card",
+        "accreditation-back-card",
         scale,
-       pdfSize
-     );
+        pdfSize
+      );
     } catch (err) {
-      console.error(err);
-      setError("Failed to open PDF preview. Please try again.");
+      console.error("PDF preview error:", err);
+      setError(err?.message || "Failed to open PDF preview. Please try again.");
     } finally {
       setPreviewing(false);
     }
   };
 
-  /* ── download as images ───────────────────────────────── */
+  /* ── Download as Images ──────────────────────────────── */
   const handleImageDownload = async () => {
     if (!cardExists()) return;
     setImgDownload(true);
@@ -103,30 +105,44 @@ export default function BadgeGenerator({ accreditation, onClose }) {
         scale
       );
     } catch (err) {
-      console.error(err);
-      setError("Failed to download images. Please try again.");
+      console.error("Image download error:", err);
+      setError(err?.message || "Failed to download images. Please try again.");
     } finally {
       setImgDownload(false);
     }
   };
 
-  /* ── print ────────────────────────────────────────────── */
-  const handlePrint = () => {
-    window.print();
+  /* ── Print ───────────────────────────────────────────── */
+  const handlePrint = async () => {
+    if (!cardExists()) return;
+    setPrinting(true);
+    setError(null);
+    try {
+      await printCards(
+        "accreditation-front-card",
+        "accreditation-back-card",
+        IMAGE_SIZES["hd"].scale
+      );
+    } catch (err) {
+      console.error("Print error:", err);
+      setError(err?.message || "Failed to print. Please try again.");
+    } finally {
+      setPrinting(false);
+    }
   };
 
   const busy = downloading || previewing || imgDownload || printing;
 
-  /* ── shared button style ──────────────────────────────── */
   const btn = (color) =>
     `flex items-center justify-center gap-2 px-5 py-3 rounded-lg
      text-white text-sm font-semibold transition-all active:scale-95
      disabled:opacity-50 disabled:cursor-not-allowed ${color}`;
 
+  /* ─────────────────────────────────────────────────────── */
   return (
     <div className="space-y-5">
 
-      {/* header */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-bold text-white">
           Generate Accreditation PDF
@@ -142,26 +158,26 @@ export default function BadgeGenerator({ accreditation, onClose }) {
         )}
       </div>
 
-      {/* info banner */}
+      {/* Info banner */}
       <div className="rounded-lg bg-slate-800/60 border border-slate-700/50 px-4 py-3 text-sm text-slate-300">
-        PDF is captured directly from the live preview —
-        <span className="text-cyan-400 font-semibold"> what you see is exactly what you get.</span>
+        PDF is captured directly from the live preview —{" "}
+        <span className="text-cyan-400 font-semibold">
+          what you see is exactly what you get.
+        </span>
         <p className="mt-1 text-slate-400 text-xs">
           Ensure the card preview is fully visible on screen before downloading.
         </p>
       </div>
 
-      {/* error */}
+      {/* Error */}
       {error && (
         <div className="rounded-lg bg-rose-950/60 border border-rose-700/50 px-4 py-3 text-sm text-rose-300">
           ⚠️ {error}
         </div>
       )}
 
-      {/* ── SIZE SELECTORS ── */}
+      {/* Size Selectors */}
       <div className="grid grid-cols-2 gap-4">
-
-        {/* PDF Size */}
         <div className="flex flex-col gap-1">
           <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
             PDF Size
@@ -180,7 +196,6 @@ export default function BadgeGenerator({ accreditation, onClose }) {
           </select>
         </div>
 
-        {/* Image / DPI Size — FIX: labels now show Low Quality / HD / 1280 / 4K */}
         <div className="flex flex-col gap-1">
           <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
             Image Quality
@@ -200,7 +215,7 @@ export default function BadgeGenerator({ accreditation, onClose }) {
         </div>
       </div>
 
-      {/* ── ACTION BUTTONS ── */}
+      {/* Action Buttons */}
       <div className="grid grid-cols-2 gap-3">
 
         {/* Download PDF */}
@@ -209,10 +224,11 @@ export default function BadgeGenerator({ accreditation, onClose }) {
           disabled={busy}
           className={btn("bg-cyan-600 hover:bg-cyan-700")}
         >
-          {downloading
-            ? <><Loader2 size={16} className="animate-spin" /><span>Generating…</span></>
-            : <><Download size={16} /><span>Download PDF ({PDF_SIZES[pdfSize]?.label?.split(" ")[0]})</span></>
-          }
+          {downloading ? (
+            <><Loader2 size={16} className="animate-spin" /><span>Generating…</span></>
+          ) : (
+            <><Download size={16} /><span>Download PDF ({PDF_SIZES[pdfSize]?.label?.split(" ")[0]})</span></>
+          )}
         </button>
 
         {/* Open in New Tab */}
@@ -221,10 +237,11 @@ export default function BadgeGenerator({ accreditation, onClose }) {
           disabled={busy}
           className={btn("bg-slate-700 hover:bg-slate-600")}
         >
-          {previewing
-            ? <><Loader2 size={16} className="animate-spin" /><span>Opening…</span></>
-            : <><Eye size={16} /><span>Open in New Tab</span></>
-          }
+          {previewing ? (
+            <><Loader2 size={16} className="animate-spin" /><span>Opening…</span></>
+          ) : (
+            <><Eye size={16} /><span>Open in New Tab</span></>
+          )}
         </button>
 
         {/* Download as Images */}
@@ -233,10 +250,11 @@ export default function BadgeGenerator({ accreditation, onClose }) {
           disabled={busy}
           className={btn("bg-violet-700 hover:bg-violet-600")}
         >
-          {imgDownload
-            ? <><Loader2 size={16} className="animate-spin" /><span>Exporting…</span></>
-            : <><Image size={16} /><span>Download as Images ({IMAGE_SIZES[imgSize]?.label})</span></>
-          }
+          {imgDownload ? (
+            <><Loader2 size={16} className="animate-spin" /><span>Exporting…</span></>
+          ) : (
+            <><Image size={16} /><span>Download as Images ({IMAGE_SIZES[imgSize]?.label})</span></>
+          )}
         </button>
 
         {/* Print Card */}
@@ -245,12 +263,15 @@ export default function BadgeGenerator({ accreditation, onClose }) {
           disabled={busy}
           className={btn("bg-slate-700 hover:bg-slate-600")}
         >
-          <Printer size={16} />
-          <span>Print Card</span>
+          {printing ? (
+            <><Loader2 size={16} className="animate-spin" /><span>Preparing…</span></>
+          ) : (
+            <><Printer size={16} /><span>Print Card</span></>
+          )}
         </button>
       </div>
 
-      {/* file name preview */}
+      {/* File name preview */}
       <p className="text-xs text-slate-500 font-mono truncate">
         📄 {buildFileName()}
       </p>
