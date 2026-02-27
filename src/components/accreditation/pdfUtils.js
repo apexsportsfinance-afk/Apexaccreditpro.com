@@ -79,7 +79,6 @@ const inlineAllImages = async (container) => {
   );
 };
 
-// Robust offscreen render with proper React 18 flush
 const renderOffscreenCard = (accreditation, event, zones) =>
   new Promise((resolve, reject) => {
     const SUFFIX = `_offscreen_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -114,11 +113,10 @@ const renderOffscreenCard = (accreditation, event, zones) =>
       )
     );
 
-    // Wait for React to render + QR generation + image loading
     let attempts = 0;
     const checkReady = async () => {
       attempts++;
-      if (attempts > 150) { // 15 seconds max
+      if (attempts > 150) {
         cleanup();
         return reject(new Error("Card render timeout"));
       }
@@ -128,26 +126,22 @@ const renderOffscreenCard = (accreditation, event, zones) =>
       
       if (!frontEl) return setTimeout(checkReady, 100);
 
-      // Wait for QR code generation (async in CardInner)
       const qrImg = frontEl.querySelector('img[alt="QR Verify"]');
       if (!qrImg && accreditation?.accreditationId) {
         return setTimeout(checkReady, 100);
       }
 
-      // Inline external images
       try {
         await inlineAllImages(container);
       } catch (e) {
         console.warn("Image inlining warning:", e);
       }
 
-      // Extra time for paint/composite
       await sleep(300);
       
       resolve({ frontEl, backEl, cleanup });
     };
 
-    // Initial delay for React to start render
     setTimeout(checkReady, 150);
   });
 
