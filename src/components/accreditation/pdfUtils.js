@@ -2,11 +2,15 @@ import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 
 /* ─────────────────────────────────────────────
-   IMAGE / DPI PRESETS
-   96 DPI  = scale 1
-   192 DPI = scale 2
-   384 DPI = scale 4
-   600 DPI = scale 6.25 ✅
+   ✅ REQUIRED EXPORT (Fixes Vercel build error)
+───────────────────────────────────────────── */
+export const PDF_SIZES = {
+  card: { width: 320, height: 454, label: "Card Size (Preview Exact)" }
+};
+
+/* ─────────────────────────────────────────────
+   IMAGE / DPI SIZES
+   600 DPI = scale 6.25 ✅ DEFAULT
 ───────────────────────────────────────────── */
 export const IMAGE_SIZES = {
   low:   { scale: 1,    label: "Low Quality" },
@@ -16,7 +20,7 @@ export const IMAGE_SIZES = {
 };
 
 /* ─────────────────────────────────────────────
-   WAIT FOR ALL IMAGES INSIDE ELEMENT
+   Wait for images to load
 ───────────────────────────────────────────── */
 const waitForImages = async (root) => {
   const images = Array.from(root.querySelectorAll("img"));
@@ -32,8 +36,7 @@ const waitForImages = async (root) => {
 };
 
 /* ─────────────────────────────────────────────
-   CAPTURE LIVE ELEMENT (NO CLONES ❗)
-   ✅ This fixes your error permanently
+   Capture LIVE element (no clone)
 ───────────────────────────────────────────── */
 const captureLiveElement = async (el, scale) => {
   const CARD_W = 320;
@@ -41,7 +44,7 @@ const captureLiveElement = async (el, scale) => {
 
   await waitForImages(el);
 
-  // Temporarily remove overflow clipping from parents
+  // Remove parent overflow clipping temporarily
   const parents = [];
   let node = el.parentElement;
   while (node && node !== document.body) {
@@ -84,7 +87,7 @@ const captureLiveElement = async (el, scale) => {
 };
 
 /* ─────────────────────────────────────────────
-   BUILD PDF (EXACT CARD SIZE)
+   Build PDF (exact preview size)
 ───────────────────────────────────────────── */
 const buildPDF = async (frontId, backId, scale) => {
   const frontEl = document.getElementById(frontId);
@@ -102,6 +105,7 @@ const buildPDF = async (frontId, backId, scale) => {
   });
 
   const frontCanvas = await captureLiveElement(frontEl, scale);
+
   pdf.addImage(
     frontCanvas.toDataURL("image/png", 1),
     "PNG",
@@ -135,8 +139,9 @@ const buildPDF = async (frontId, backId, scale) => {
 };
 
 /* ─────────────────────────────────────────────
-   PUBLIC API (USED BY YOUR UI)
+   PUBLIC API
 ───────────────────────────────────────────── */
+
 export const downloadCapturedPDF = async (
   frontId,
   backId,
