@@ -5,30 +5,30 @@ import { jsPDF } from "jspdf";
    PAPER SIZES (mm)
 ───────────────────────────────────────────── */
 export const PDF_SIZES = {
-  card: { width: 85.6, height: 54, label: "ID Card (85.6×54 mm)" },
-  a6: { width: 105, height: 148, label: "A6 (105×148 mm)" },
-  a5: { width: 148, height: 210, label: "A5 (148×210 mm)" },
-  a4: { width: 210, height: 297, label: "A4 (210×297 mm)" }
+  card: { width: 85.6, height: 54, label: "ID Card" },
+  a6: { width: 105, height: 148, label: "A6" },
+  a5: { width: 148, height: 210, label: "A5" },
+  a4: { width: 210, height: 297, label: "A4" }
 };
 
-/* ─────────────────────────────────────────────
-   IMAGE QUALITY (600 DPI default)
-───────────────────────────────────────────── */
+/* 600 DPI default */
 export const IMAGE_SIZES = {
-  low: { scale: 1, label: "Low Quality" },
+  low: { scale: 1, label: "Low" },
   hd: { scale: 2, label: "HD" },
   p1280: { scale: 4, label: "1280" },
-  "4k": { scale: 6.25, label: "4K (600 DPI)" }
+  "4k": { scale: 6.25, label: "600 DPI" }
 };
 
-const CARD_WIDTH = 320;
-const CARD_HEIGHT = 454;
+const CARD_W = 320;
+const CARD_H = 454;
 
-/* ───────────────────────────────────────────── */
+/* ─────────────────────────────────────────────
+   WAIT FOR IMAGES
+───────────────────────────────────────────── */
 const waitForImages = async (root) => {
-  const images = Array.from(root.querySelectorAll("img"));
+  const imgs = Array.from(root.querySelectorAll("img"));
   await Promise.all(
-    images.map(
+    imgs.map(
       (img) =>
         new Promise((res) => {
           if (img.complete && img.naturalWidth > 0) return res();
@@ -38,92 +38,146 @@ const waitForImages = async (root) => {
   );
 };
 
-/* ───────────────────────────────────────────── */
-const captureLiveElement = async (el, scale) => {
-  await waitForImages(el);
+/* ─────────────────────────────────────────────
+   ENGINE 1: Isolated container capture (PRIMARY)
+───────────────────────────────────────────── */
+const captureUsingIsolatedContainer = async (el, scale) => {
+  const wrapper = document.createElement("div");
 
-  const rect = el.getBoundingClientRect();
-  const scrollX = window.scrollX;
-  const scrollY = window.scrollY;
-
-  const canvas = await html2canvas(document.body, {
-    scale,
-    x: rect.left + scrollX,
-    y: rect.top + scrollY,
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
-    backgroundColor: "#ffffff",
-    useCORS: true,
-    allowTaint: false,
-    logging: false,
-    scrollX: -scrollX,
-    scrollY: -scrollY
+  Object.assign(wrapper.style, {
+    position: "fixed",
+    top: "-10000px",
+    left: "-10000px",
+    width: CARD_W + "px",
+    height: CARD_H + "px",
+    overflow: "visible",
+    background: "#ffffff",
+    zIndex: "-1"
   });
 
-  if (!canvas || canvas.width === 0 || canvas.height === 0) {
-    throw new Error(`Canvas capture failed for #${el.id}`);
+  const clone = el.cloneNode(true);
+
+  Object.assign(clone.style, {
+    width: CARD_W + "px",
+    height: CARD_H + "px",
+    transform: "none"
+  });
+
+  wrapper.appendChild(clone);
+  document.body.appendChild(wrapper);
+
+  await waitForImages(wrapper);
+  await new Promise((r) => setTimeout(r, 100));
+
+  let canvas;
+  try {
+    canvas = await html2canvas(wrapper, {
+      scale,
+      backgroundColor: "#ffffff",
+      useCORS: true,
+      allowTaint: false
+    });
+  } finally {
+    document.body.removeChild(wrapper);
+  }
+
+  if (!canvas || canvas.width === 0) {
+    throw new Error("Engine1 failed");
   }
 
   return canvas;
 };
 
-/* ───────────────────────────────────────────── */
-const addCardToPDF = (pdf, canvas, pageWidth, pageHeight) => {
-  const ratio = CARD_WIDTH / CARD_HEIGHT;
-  const pageRatio = pageWidth / pageHeight;
+/* ─────────────────────────────────────────────
+   ENGINE 2: Direct element capture (FALLBACK)
+───────────────────────────────────────────── */
+const captureDirect = async (el, scale) => {
+  await waitForImages(el);
 
-  let renderWidth, renderHeight;
+  const canvas = await html2canvas(el, {
+    scale,
+    backgroundColor: "#ffffff",
+    useCORS: true,
+    allowTaint: false
+  });
 
-  if (ratio > pageRatio) {
-    renderWidth = pageWidth;
-    renderHeight = pageWidth / ratio;
-  } else {
-    renderHeight = pageHeight;
-    renderWidth = pageHeight * ratio;
+  if (!canvas || canvas.width === 0) {
+    throw new Error("Engine2 failed");
   }
 
-  const x = (pageWidth - renderWidth) / 2;
-  const y = (pageHeight - renderHeight) / 2;
+  return canvas;
+};
+
+/* ─────────────────────────────────────────────
+   SMART CAPTURE (tries both)
+───────────────────────────────────────────── */
+const smartCapture = async (el, scale) => {
+  try {
+    return await captureUsingIsolatedContainer(el, scale);
+  } catch (e1) {
+    try {
+      return await captureDirect(el, scale);
+    } catch (e2) {
+      throw new Error("All capture engines failed");
+    }
+  }
+};
+
+/* ─────────────────────────────────────────────
+   Add card centered to page
+───────────────────────────────────────────── */
+const addCardToPDF = (pdf, canvas, pageW, pageH) => {
+  const ratio = CARD_W / CARD_H;
+  const pageRatio = pageW / pageH;
+
+  let renderW, renderH;
+
+  if (ratio > pageRatio) {
+    renderW = pageW;
+    renderH = pageW / ratio;
+  } else {
+    renderH = pageH;
+    renderW = pageH * ratio;
+  }
+
+  const x = (pageW - renderW) / 2;
+  const y = (pageH - renderH) / 2;
 
   pdf.addImage(
     canvas.toDataURL("image/png", 1),
     "PNG",
     x,
     y,
-    renderWidth,
-    renderHeight,
+    renderW,
+    renderH,
     undefined,
     "FAST"
   );
 };
 
-/* ───────────────────────────────────────────── */
-const buildPDF = async (
-  frontId,
-  backId,
-  scale,
-  selectedSize = "card"
-) => {
-  const frontEl = document.getElementById(frontId);
-  if (!frontEl) throw new Error(`#${frontId} not found`);
+/* ─────────────────────────────────────────────
+   BUILD PDF
+───────────────────────────────────────────── */
+const buildPDF = async (frontId, backId, scale, sizeKey) => {
+  const front = document.getElementById(frontId);
+  if (!front) throw new Error("Front card not found");
 
-  const size = PDF_SIZES[selectedSize] || PDF_SIZES.card;
+  const size = PDF_SIZES[sizeKey] || PDF_SIZES.card;
 
   const pdf = new jsPDF({
-    orientation: size.height >= size.width ? "portrait" : "landscape",
     unit: "mm",
     format: [size.width, size.height],
-    compress: true
+    orientation: size.height >= size.width ? "portrait" : "landscape"
   });
 
-  const frontCanvas = await captureLiveElement(frontEl, scale);
+  const frontCanvas = await smartCapture(front, scale);
   addCardToPDF(pdf, frontCanvas, size.width, size.height);
 
   if (backId) {
-    const backEl = document.getElementById(backId);
-    if (backEl) {
+    const back = document.getElementById(backId);
+    if (back) {
       pdf.addPage([size.width, size.height]);
-      const backCanvas = await captureLiveElement(backEl, scale);
+      const backCanvas = await smartCapture(back, scale);
       addCardToPDF(pdf, backCanvas, size.width, size.height);
     }
   }
@@ -131,7 +185,9 @@ const buildPDF = async (
   return pdf;
 };
 
-/* ───────────────────────────────────────────── */
+/* ─────────────────────────────────────────────
+   PUBLIC API
+───────────────────────────────────────────── */
 export const downloadCapturedPDF = async (
   frontId,
   backId,
@@ -151,31 +207,4 @@ export const openCapturedPDFInTab = async (
 ) => {
   const pdf = await buildPDF(frontId, backId, scale, selectedSize);
   window.open(pdf.output("bloburl"), "_blank");
-};
-
-export const downloadAsImages = async (
-  frontId,
-  backId,
-  baseName,
-  scale = IMAGE_SIZES["4k"].scale
-) => {
-  const frontEl = document.getElementById(frontId);
-  if (!frontEl) throw new Error(`#${frontId} not found`);
-
-  const frontCanvas = await captureLiveElement(frontEl, scale);
-  const a1 = document.createElement("a");
-  a1.download = `${baseName}_front.png`;
-  a1.href = frontCanvas.toDataURL("image/png", 1);
-  a1.click();
-
-  if (backId) {
-    const backEl = document.getElementById(backId);
-    if (backEl) {
-      const backCanvas = await captureLiveElement(backEl, scale);
-      const a2 = document.createElement("a");
-      a2.download = `${baseName}_back.png`;
-      a2.href = backCanvas.toDataURL("image/png", 1);
-      a2.click();
-    }
-  }
 };
