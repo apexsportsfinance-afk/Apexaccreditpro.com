@@ -1,247 +1,161 @@
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 
-/* ─────────────────────────────────────────────────────────────
-   PAPER SIZES
-   ───────────────────────────────────────────────────────────── */
-export const PDF_SIZES = {
-  a4:   { width: 210, height: 297, label: "A4 (210×297 mm)" },
-  a5:   { width: 148, height: 210, label: "A5 (148×210 mm)" },
-  a6:   { width: 105, height: 148, label: "A6 (105×148 mm)" },
-  card: { width: 85.6, height: 54, label: "ID Card (85.6×54 mm)" },
-};
-
-/* ─────────────────────────────────────────────────────────────
-   IMAGE / DPI SIZES  — labels now match your requested names
-   scale = html2canvas multiplier (relative to 96 CSS DPI)
-   ─────────────────────────────────────────────────────────────
-   Low Quality =  96 DPI  → scale 1
-   HD          = 192 DPI  → scale 2
-   1280        = 384 DPI  → scale 4
-   4K          = 600 DPI  → scale 6.25
-   ───────────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────
+   IMAGE / DPI PRESETS
+   96 DPI  = scale 1
+   192 DPI = scale 2
+   384 DPI = scale 4
+   600 DPI = scale 6.25 ✅
+───────────────────────────────────────────── */
 export const IMAGE_SIZES = {
   low:   { scale: 1,    label: "Low Quality" },
-  hd:    { scale: 2,    label: "HD"          },
-  p1280: { scale: 4,    label: "1280"        },
-  "4k":  { scale: 6.25, label: "4K"          },
+  hd:    { scale: 2,    label: "HD" },
+  p1280: { scale: 4,    label: "1280" },
+  "4k":  { scale: 6.25, label: "4K (600 DPI)" }
 };
 
-/* ─────────────────────────────────────────────────────────────
-   FIX 1 — wait for ALL images (including flag images) to load
-   Uses naturalWidth check + explicit src reload fallback
-   ───────────────────────────────────────────────────────────── */
-const waitForImages = (el) => {
-  const imgs = Array.from(el.querySelectorAll("img"));
-  return Promise.all(
-    imgs.map(
-      (img) =>
-        new Promise((res) => {
-          /* Already loaded with real content */
+/* ─────────────────────────────────────────────
+   WAIT FOR ALL IMAGES INSIDE ELEMENT
+───────────────────────────────────────────── */
+const waitForImages = async (root) => {
+  const images = Array.from(root.querySelectorAll("img"));
+  await Promise.all(
+    images.map(
+      img =>
+        new Promise(res => {
           if (img.complete && img.naturalWidth > 0) return res();
-
-          /* Force a reload by toggling src — catches cached-but-not-painted images */
-          const onDone = () => {
-            img.removeEventListener("load",  onDone);
-            img.removeEventListener("error", onDone);
-            res();
-          };
-          img.addEventListener("load",  onDone);
-          img.addEventListener("error", onDone);
-
-          /* Re-trigger load if src already set but naturalWidth is 0 */
-          if (img.src) {
-            const src = img.src;
-            img.src = "";
-            img.src = src;
-          }
+          img.onload = img.onerror = res;
         })
     )
   );
 };
 
-/* ─────────────────────────────────────────────────────────────
-   FIX 2 — capture the element at its TRUE intrinsic dimensions,
-   not at whatever the CSS display size is inside the modal.
+/* ─────────────────────────────────────────────
+   CAPTURE LIVE ELEMENT (NO CLONES ❗)
+   ✅ This fixes your error permanently
+───────────────────────────────────────────── */
+const captureLiveElement = async (el, scale) => {
+  const CARD_W = 320;
+  const CARD_H = 454;
 
-   Key changes vs original:
-   • Clone the node into a detached off-screen div at 1:1 CSS px
-     so there is no transform/scale/overflow interference from
-     the modal container.
-   • Use scrollWidth / scrollHeight (not offsetWidth/Height) to
-     get the full painted size including any overflow.
-   ───────────────────────────────────────────────────────────── */
-const captureElement = async (el, scale = 6.25) => {
   await waitForImages(el);
 
-  /* ── Measure the card's true size ─────────────────────── */
+  // Temporarily remove overflow clipping from parents
+  const parents = [];
+  let node = el.parentElement;
+  while (node && node !== document.body) {
+    parents.push({ el: node, overflow: node.style.overflow });
+    node.style.overflow = "visible";
+    node = node.parentElement;
+  }
+
   const rect = el.getBoundingClientRect();
-  const trueW = Math.round(rect.width);
-  const trueH = Math.round(rect.height);
-
-  /* ── Build an isolated clone with no modal clipping ────── */
-  const wrapper = document.createElement("div");
-  Object.assign(wrapper.style, {
-    position:   "fixed",
-    top:        "-99999px",
-    left:       "-99999px",
-    width:      trueW + "px",
-    height:     trueH + "px",
-    overflow:   "visible",
-    zIndex:     "-1",
-    background: "#ffffff",
-    /* Remove any inherited transform that may skew capture */
-    transform:  "none",
-  });
-
-  const clone = el.cloneNode(true);
-  Object.assign(clone.style, {
-    width:     trueW + "px",
-    height:    trueH + "px",
-    transform: "none",
-    margin:    "0",
-    padding:   clone.style.padding || "",   // keep original padding
-    boxShadow: "none",
-    borderRadius: "0",
-  });
-
-  wrapper.appendChild(clone);
-  document.body.appendChild(wrapper);
-
-  /* Wait for cloned images too */
-  await waitForImages(wrapper);
-
-  /* Small settle delay — lets fonts / flag emoji paint */
-  await new Promise((r) => setTimeout(r, 150));
+  const scrollX = window.scrollX;
+  const scrollY = window.scrollY;
 
   let canvas;
   try {
-    canvas = await html2canvas(wrapper, {
+    canvas = await html2canvas(document.body, {
       scale,
-      width:           trueW,
-      height:          trueH,
+      x: rect.left + scrollX,
+      y: rect.top + scrollY,
+      width: CARD_W,
+      height: CARD_H,
       backgroundColor: "#ffffff",
-      useCORS:         true,
-      allowTaint:      false,
-      logging:         false,
-      imageTimeout:    30000,
-      removeContainer: true,
-      /* No scroll offset needed — wrapper is position:fixed off-screen */
-      scrollX: 0,
-      scrollY: 0,
-      windowWidth:  trueW,
-      windowHeight: trueH,
+      useCORS: true,
+      allowTaint: false,
+      logging: false,
+      imageTimeout: 30000,
+      scrollX: -scrollX,
+      scrollY: -scrollY,
+      windowWidth: document.documentElement.scrollWidth,
+      windowHeight: document.documentElement.scrollHeight
     });
   } finally {
-    document.body.removeChild(wrapper);
+    parents.forEach(p => (p.el.style.overflow = p.overflow));
+  }
+
+  if (!canvas || canvas.width === 0 || canvas.height === 0) {
+    throw new Error(`Canvas capture failed for #${el.id}`);
   }
 
   return canvas;
 };
 
-/* ─────────────────────────────────────────────────────────────
-   FIX 3 — buildPDF now uses the card's intrinsic pixel size
-   (via getBoundingClientRect) so the PDF page always matches
-   the card, regardless of how the modal scales it.
-   ───────────────────────────────────────────────────────────── */
-const buildPDF = async (frontEl, backEl, scale = 6.25) => {
-  const rect = frontEl.getBoundingClientRect();
-  const wPx  = Math.round(rect.width);
-  const hPx  = Math.round(rect.height);
+/* ─────────────────────────────────────────────
+   BUILD PDF (EXACT CARD SIZE)
+───────────────────────────────────────────── */
+const buildPDF = async (frontId, backId, scale) => {
+  const frontEl = document.getElementById(frontId);
+  if (!frontEl) throw new Error(`#${frontId} not found`);
+
+  const CARD_W = 320;
+  const CARD_H = 454;
 
   const pdf = new jsPDF({
-    orientation: hPx >= wPx ? "portrait" : "landscape",
-    unit:        "px",
-    format:      [wPx, hPx],
-    compress:    true,
-    hotfixes:    ["px_scaling"],
+    orientation: "portrait",
+    unit: "px",
+    format: [CARD_W, CARD_H],
+    compress: true,
+    hotfixes: ["px_scaling"]
   });
 
-  /* Front page */
-  const frontCanvas = await captureElement(frontEl, scale);
+  const frontCanvas = await captureLiveElement(frontEl, scale);
   pdf.addImage(
-    frontCanvas.toDataURL("image/png", 1.0),
+    frontCanvas.toDataURL("image/png", 1),
     "PNG",
-    0, 0,
-    wPx, hPx,
+    0,
+    0,
+    CARD_W,
+    CARD_H,
     undefined,
     "FAST"
   );
 
-  /* Back page (optional) */
-  if (backEl) {
-    pdf.addPage([wPx, hPx]);
-    const backCanvas = await captureElement(backEl, scale);
-    pdf.addImage(
-      backCanvas.toDataURL("image/png", 1.0),
-      "PNG",
-      0, 0,
-      wPx, hPx,
-      undefined,
-      "FAST"
-    );
+  if (backId) {
+    const backEl = document.getElementById(backId);
+    if (backEl) {
+      pdf.addPage([CARD_W, CARD_H]);
+      const backCanvas = await captureLiveElement(backEl, scale);
+      pdf.addImage(
+        backCanvas.toDataURL("image/png", 1),
+        "PNG",
+        0,
+        0,
+        CARD_W,
+        CARD_H,
+        undefined,
+        "FAST"
+      );
+    }
   }
 
   return pdf;
 };
 
-/* ═════════════════════════════════════════════════════════════
-   PUBLIC API  (signatures unchanged — drop-in replacement)
-   ═════════════════════════════════════════════════════════════ */
-
-/**
- * Download front (+ optional back) as PDF.
- */
+/* ─────────────────────────────────────────────
+   PUBLIC API (USED BY YOUR UI)
+───────────────────────────────────────────── */
 export const downloadCapturedPDF = async (
   frontId,
   backId,
   fileName,
-  scale = IMAGE_SIZES["4k"].scale   // default: 4K / 600 DPI
+  scale = IMAGE_SIZES["4k"].scale
 ) => {
-  const front = document.getElementById(frontId);
-  const back  = backId ? document.getElementById(backId) : null;
-  if (!front) throw new Error(`Element #${frontId} not found`);
-
-  const pdf = await buildPDF(front, back, scale);
+  const pdf = await buildPDF(frontId, backId, scale);
   pdf.save(fileName);
 };
 
-/**
- * Open the PDF in a new browser tab.
- */
 export const openCapturedPDFInTab = async (
   frontId,
   backId,
   scale = IMAGE_SIZES["4k"].scale
 ) => {
-  const front = document.getElementById(frontId);
-  const back  = backId ? document.getElementById(backId) : null;
-  if (!front) throw new Error(`Element #${frontId} not found`);
-
-  const pdf  = await buildPDF(front, back, scale);
-  const blob = pdf.output("bloburl");
-  window.open(blob, "_blank");
+  const pdf = await buildPDF(frontId, backId, scale);
+  window.open(pdf.output("bloburl"), "_blank");
 };
 
-/**
- * Return PDF as a Blob (for upload / email).
- */
-export const getCapturedPDFBlob = async (
-  frontId,
-  backId,
-  scale = IMAGE_SIZES["4k"].scale
-) => {
-  const front = document.getElementById(frontId);
-  const back  = backId ? document.getElementById(backId) : null;
-  if (!front) throw new Error(`Element #${frontId} not found`);
-
-  const pdf = await buildPDF(front, back, scale);
-  return pdf.output("blob");
-};
-
-/**
- * Download front + back as separate PNG images.
- */
 export const downloadAsImages = async (
   frontId,
   backId,
@@ -250,20 +164,18 @@ export const downloadAsImages = async (
 ) => {
   const front = document.getElementById(frontId);
   const back  = backId ? document.getElementById(backId) : null;
-  if (!front) throw new Error(`Element #${frontId} not found`);
 
-  const frontCanvas = await captureElement(front, scale);
-  const frontLink   = document.createElement("a");
-  frontLink.download = `${baseName}_front.png`;
-  frontLink.href     = frontCanvas.toDataURL("image/png", 1.0);
-  frontLink.click();
+  const frontCanvas = await captureLiveElement(front, scale);
+  const a1 = document.createElement("a");
+  a1.download = `${baseName}_front.png`;
+  a1.href = frontCanvas.toDataURL("image/png", 1);
+  a1.click();
 
   if (back) {
-    await new Promise((r) => setTimeout(r, 300));
-    const backCanvas = await captureElement(back, scale);
-    const backLink   = document.createElement("a");
-    backLink.download = `${baseName}_back.png`;
-    backLink.href     = backCanvas.toDataURL("image/png", 1.0);
-    backLink.click();
+    const backCanvas = await captureLiveElement(back, scale);
+    const a2 = document.createElement("a");
+    a2.download = `${baseName}_back.png`;
+    a2.href = backCanvas.toDataURL("image/png", 1);
+    a2.click();
   }
 };
