@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { Download, Loader2, X, ExternalLink, Printer } from "lucide-react";
+// CRITICAL: Change this import from pdfUtils to cardExport
 import { 
   downloadCardPDF, 
   openCardPDF, 
   printCard,
-  PDF_SIZES,
-  IMAGE_SIZES 
+  PDF_SIZES
 } from "./cardExport";
 
 export default function BadgeGenerator({ accreditation, event, zones = [], onClose, children }) {
@@ -56,19 +56,17 @@ export default function BadgeGenerator({ accreditation, event, zones = [], onClo
         {children}
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">PDF Size</label>
-          <select 
-            value={pdfSize} 
-            onChange={(e) => setPdfSize(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white"
-          >
-            {Object.entries(PDF_SIZES).map(([key, { label }]) => (
-              <option key={key} value={key}>{label}</option>
-            ))}
-          </select>
-        </div>
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-slate-300 mb-2">PDF Size</label>
+        <select 
+          value={pdfSize} 
+          onChange={(e) => setPdfSize(e.target.value)}
+          className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white"
+        >
+          {Object.entries(PDF_SIZES).map(([key, { label }]) => (
+            <option key={key} value={key}>{label}</option>
+          ))}
+        </select>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
