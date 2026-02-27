@@ -47,8 +47,9 @@ export default function BadgeGenerator({ accreditation, event, zones = [], onClo
     )
   );
 
+  // FIXED: Pass pdfSize to print function
   const handlePrint = () => withLoading(() => 
-    printCards(accreditation, event, zones, IMAGE_SIZES["hd"].scale)
+    printCards(accreditation, event, zones, IMAGE_SIZES["hd"].scale, pdfSize)
   );
 
   return (
