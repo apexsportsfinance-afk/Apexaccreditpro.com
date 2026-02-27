@@ -55,12 +55,12 @@ export default function BadgeGenerator({ accreditation, onClose }) {
     setError(null);
     try {
       await downloadCapturedPDF(
-  "accreditation-front-card",
-  "accreditation-back-card",
-  buildFileName("pdf"),
-  scale,
-  pdfSize
-);
+        "accreditation-front-card",
+        "accreditation-back-card",
+        buildFileName("pdf"),
+        scale,
+        pdfSize
+      );
     } catch (err) {
       console.error(err);
       setError("Failed to generate PDF. Please try again.");
@@ -76,11 +76,11 @@ export default function BadgeGenerator({ accreditation, onClose }) {
     setError(null);
     try {
       await openCapturedPDFInTab(
-  "accreditation-front-card",
-  "accreditation-back-card",
-  scale,
-  pdfSize
-);
+       "accreditation-front-card",
+       "accreditation-back-card",
+        scale,
+       pdfSize
+     );
     } catch (err) {
       console.error(err);
       setError("Failed to open PDF preview. Please try again.");
