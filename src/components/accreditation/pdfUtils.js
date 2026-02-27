@@ -230,24 +230,27 @@ export const downloadAsImages = async (accreditation, event, zones, baseName, sc
   }
 };
 
-export const printCards = async (accreditation, event, zones, scale = IMAGE_SIZES["hd"].scale) => {
+// FIXED: Print now uses the selected size and prints only the card
+export const printCards = async (accreditation, event, zones, scale = IMAGE_SIZES["hd"].scale, sizeKey = "a6") => {
   const { frontEl, backEl, cleanup } = await renderOffscreenCard(accreditation, event, zones);
   
   try {
     const frontCanvas = await captureEl(frontEl, scale);
     const backCanvas = backEl ? await captureEl(backEl, scale) : null;
     
-    const PAGE_W_MM = 85.6;
-    const PAGE_H_MM = parseFloat(((CARD_H_PX / CARD_W_PX) * PAGE_W_MM).toFixed(2));
+    // Use the selected PDF size for print page dimensions
+    const size = PDF_SIZES[sizeKey] || PDF_SIZES.a6;
+    const pageW = size.width;
+    const pageH = size.height;
 
     const html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"/><title>Print</title>
 <style>
-@page { size: ${PAGE_W_MM}mm ${PAGE_H_MM}mm; margin: 0; }
-body{margin:0;padding:0;}
-.page{width:${PAGE_W_MM}mm;height:${PAGE_H_MM}mm;display:flex;align-items:center;justify-content:center;page-break-after:always;}
+@page { size: ${pageW}mm ${pageH}mm; margin: 0; }
+body{margin:0;padding:0;background:#fff;}
+.page{width:${pageW}mm;height:${pageH}mm;display:flex;align-items:center;justify-content:center;page-break-after:always;overflow:hidden;}
 .page:last-child{page-break-after:avoid;}
-img{width:100%;height:100%;object-fit:fill;}
+img{width:100%;height:100%;object-fit:contain;display:block;}
 </style></head>
 <body>
 <div class="page"><img src="${frontCanvas.toDataURL()}"/></div>
@@ -263,9 +266,23 @@ ${backCanvas ? `<div class="page"><img src="${backCanvas.toDataURL()}"/></div>` 
     doc.write(html);
     doc.close();
     
-    await sleep(500);
-    iframe.contentWindow.focus();
-    iframe.contentWindow.print();
+    await sleep(600);
+    
+    // Ensure iframe is fully loaded before printing
+    iframe.onload = () => {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    };
+    
+    // Fallback if onload doesn't fire
+    setTimeout(() => {
+      try {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      } catch (e) {
+        console.error("Print failed:", e);
+      }
+    }, 800);
     
     setTimeout(() => iframe.remove(), 30000);
   } finally {
