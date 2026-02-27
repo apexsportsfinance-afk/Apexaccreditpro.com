@@ -3,31 +3,23 @@
  * ============================================================
  * Pixel-perfect card capture pipeline:
  *
- *  1. Convert ALL external <img> src → base64 data URL BEFORE
- *     html2canvas runs. This is the only reliable CORS fix.
+ *  1. Convert ALL external <img> src to base64 BEFORE html2canvas.
  *  2. Capture the LIVE DOM element (never a clone).
- *  3. Strip overflow:hidden on ancestors so html2canvas can see
- *     the full card (modals clip it otherwise).
- *  4. ALWAYS restore the original src + styles after capture.
- *  5. Build jsPDF in mm units, fitting the card image to the
- *     chosen paper size with zero margins.
- *  6. Print via a dedicated hidden <iframe> that contains only
- *     the card images — zero interference from the app CSS.
+ *  3. Strip overflow:hidden on ancestors (modals clip the card).
+ *  4. ALWAYS restore original src + styles after capture.
+ *  5. Build jsPDF in mm units, card image fills page, zero margins.
+ *  6. Print via hidden <iframe> — zero app CSS interference.
  * ============================================================
  */
 
 import html2canvas from "html2canvas";
 import { jsPDF }   from "jspdf";
 
-/* ─────────────────────────────────────────────────────────────
-   CARD DIMENSIONS — must match AccreditationCardPreview inline styles
-   ───────────────────────────────────────────────────────────── */
+/* ─── Card pixel dimensions — must match AccreditationCardPreview ─── */
 const CARD_W_PX = 320;
 const CARD_H_PX = 454;
 
-/* ─────────────────────────────────────────────────────────────
-   PAPER SIZES  (millimetres)
-   ───────────────────────────────────────────────────────────── */
+/* ─── Paper sizes (mm) ─── */
 export const PDF_SIZES = {
   card: { width: 85.6,  height: 54,  label: "ID Card (85.6×54 mm)"  },
   a6:   { width: 105,   height: 148, label: "A6 (105×148 mm)"       },
@@ -35,10 +27,7 @@ export const PDF_SIZES = {
   a4:   { width: 210,   height: 297, label: "A4 (210×297 mm)"       },
 };
 
-/* ─────────────────────────────────────────────────────────────
-   CAPTURE SCALE FACTORS
-   scale=1 → 96 DPI  |  scale=2 → 192 DPI  |  scale=6.25 → 600 DPI
-   ───────────────────────────────────────────────────────────── */
+/* ─── Capture scale factors ─── */
 export const IMAGE_SIZES = {
   low:   { scale: 1,    label: "Low Quality" },
   hd:    { scale: 2,    label: "HD"          },
@@ -46,26 +35,19 @@ export const IMAGE_SIZES = {
   "4k":  { scale: 6.25, label: "600 DPI"     },
 };
 
-/* ═════════════════════════════════════════════════════════════
-   INTERNAL UTILITY — url → base64 data URL
-   ═════════════════════════════════════════════════════════════
-   Tries fetch first (fast, works when CORS headers present),
-   falls back to Image+canvas (works for same-origin or CDNs
-   that allow anonymous crossOrigin).
-   Returns null if both fail — image will be hidden, not tainted.
-*/
+/* ═══════════════════════════════════════════════════════════
+   UTILITY — Convert any URL to base64 data URL
+   Tries fetch first, falls back to Image+canvas.
+   Returns null if both fail (image hidden, canvas not tainted).
+   ═══════════════════════════════════════════════════════════ */
 const urlToBase64 = (url) =>
   new Promise((resolve) => {
-    if (!url)                        return resolve(null);
-    if (url.startsWith("data:"))     return resolve(url);  // already inlined
-    if (url.startsWith("blob:"))     return resolve(url);  // blob URL — fine
+    if (!url)                    return resolve(null);
+    if (url.startsWith("data:")) return resolve(url);
+    if (url.startsWith("blob:")) return resolve(url);
 
-    /* ── Method 1: fetch ── */
-    fetch(url, {
-      mode:        "cors",
-      cache:       "force-cache",
-      credentials: "omit",
-    })
+    /* Method 1 — fetch (works when server sends CORS headers) */
+    fetch(url, { mode: "cors", cache: "force-cache", credentials: "omit" })
       .then((r) => (r.ok ? r.blob() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then(
         (blob) =>
@@ -81,8 +63,8 @@ const urlToBase64 = (url) =>
         throw new Error("empty");
       })
       .catch(() => {
-        /* ── Method 2: Image element + canvas ── */
-        const img   = new Image();
+        /* Method 2 — Image element + canvas */
+        const img = new Image();
         img.crossOrigin = "anonymous";
 
         const timer = setTimeout(() => {
@@ -93,67 +75,57 @@ const urlToBase64 = (url) =>
         img.onload = () => {
           clearTimeout(timer);
           try {
-            const c   = document.createElement("canvas");
-            c.width   = img.naturalWidth  || 1;
-            c.height  = img.naturalHeight || 1;
+            const c = document.createElement("canvas");
+            c.width  = img.naturalWidth  || 1;
+            c.height = img.naturalHeight || 1;
             c.getContext("2d").drawImage(img, 0, 0);
             resolve(c.toDataURL("image/png"));
           } catch {
-            // Canvas tainted (strict CORS) — hide the image instead
-            resolve(null);
+            resolve(null); // canvas tainted — hide the image
           }
         };
 
         img.onerror = () => { clearTimeout(timer); resolve(null); };
 
-        // Cache-bust so the browser doesn't serve a cached opaque response
         const sep = url.includes("?") ? "&" : "?";
         img.src = `${url}${sep}_cb=${Date.now()}`;
       });
   });
 
-/* ═════════════════════════════════════════════════════════════
-   INTERNAL UTILITY — inline all <img> src in element
-   Returns a restore function — ALWAYS call it after capture.
-   ═════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════
+   UTILITY — Inline all <img> inside an element as base64.
+   Returns a restore() function — MUST be called after capture.
+   ═══════════════════════════════════════════════════════════ */
 const inlineElementImages = async (root) => {
   const imgs    = Array.from(root.querySelectorAll("img"));
-  const restore = []; // { img, originalSrc, wasHidden }
+  const restore = [];
 
   await Promise.all(
     imgs.map(async (img) => {
-      const originalSrc = img.getAttribute("src") || "";
+      const originalSrc        = img.getAttribute("src") || "";
+      const originalVisibility = img.style.visibility;
 
-      // Already a data/blob URL — nothing to do
       if (!originalSrc || originalSrc.startsWith("data:") || originalSrc.startsWith("blob:")) {
-        return;
+        return; // nothing to do
       }
 
       const b64 = await urlToBase64(originalSrc);
 
-      restore.push({
-        img,
-        originalSrc,
-        originalVisibility: img.style.visibility,
-        wasInlined: !!b64,
-      });
+      restore.push({ img, originalSrc, originalVisibility });
 
       if (b64) {
         img.setAttribute("src", b64);
-        // Give the browser a tick to mark the image as complete
         await new Promise((res) => {
           if (img.complete) return res();
           img.onload  = res;
           img.onerror = res;
         });
       } else {
-        // Hide rather than let it taint the canvas
-        img.style.visibility = "hidden";
+        img.style.visibility = "hidden"; // hide rather than taint canvas
       }
     })
   );
 
-  // Return a restore callback
   return () => {
     restore.forEach(({ img, originalSrc, originalVisibility }) => {
       img.setAttribute("src", originalSrc);
@@ -162,24 +134,11 @@ const inlineElementImages = async (root) => {
   };
 };
 
-/* ═════════════════════════════════════════════════════════════
-   CORE — capture a live DOM element as HTMLCanvasElement
-   ═════════════════════════════════════════════════════════════
-
-   Why we capture document.body instead of the element directly:
-
-   html2canvas walks the COMPUTED layout of the page. When you
-   pass `el` directly it re-computes layout from `el` as root,
-   which causes flex/grid containers to re-measure and produce
-   wrong dimensions. Passing document.body + {x, y, width, height}
-   gives a correct viewport-relative crop of exactly the card.
-
-   Ancestor overflow:hidden must be removed temporarily or the
-   crop coordinates fall outside the clipping rect and produce
-   a blank canvas.
-*/
+/* ═══════════════════════════════════════════════════════════
+   CORE — Capture a live DOM element as HTMLCanvasElement
+   ═══════════════════════════════════════════════════════════ */
 const captureLiveElement = async (el, scale) => {
-  /* ── 1. Strip overflow on all scrollable/modal ancestors ── */
+  /* 1. Strip overflow on scrollable/modal ancestors */
   const ancestors = [];
   let node = el.parentElement;
   while (node && node !== document.documentElement) {
@@ -191,24 +150,24 @@ const captureLiveElement = async (el, scale) => {
     node = node.parentElement;
   }
 
-  /* ── 2. Patch the card's own styles for clean capture ── */
+  /* 2. Patch the card's own styles for clean capture */
   const cardSaved = {
     overflow:     el.style.overflow,
     boxShadow:    el.style.boxShadow,
     borderRadius: el.style.borderRadius,
   };
-  el.style.overflow     = "hidden"; // card keeps its own clip
-  el.style.boxShadow    = "none";   // shadows cause artefacts at edges
-  el.style.borderRadius = "0";      // rounded corners clip in html2canvas
+  el.style.overflow     = "hidden";
+  el.style.boxShadow    = "none";
+  el.style.borderRadius = "0";
 
-  /* ── 3. Inline all images (CORS-safe base64) ── */
+  /* 3. Inline all images as base64 */
   const restoreImages = await inlineElementImages(el);
 
-  /* ── 4. Let the browser repaint with new styles ── */
+  /* 4. Let browser repaint */
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   await new Promise((r) => setTimeout(r, 120));
 
-  /* ── 5. Compute absolute document position of card ── */
+  /* 5. Compute absolute document coordinates */
   const rect    = el.getBoundingClientRect();
   const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
   const scrollY = window.pageYOffset || document.documentElement.scrollTop;
@@ -223,7 +182,7 @@ const captureLiveElement = async (el, scale) => {
       y:               absY,
       width:           CARD_W_PX,
       height:          CARD_H_PX,
-      useCORS:         false,        // images are already base64 — no CORS needed
+      useCORS:         false,       // images already base64 — no CORS needed
       allowTaint:      false,
       backgroundColor: "#ffffff",
       logging:         false,
@@ -235,41 +194,40 @@ const captureLiveElement = async (el, scale) => {
       windowHeight:    document.documentElement.scrollHeight,
     });
   } finally {
-    /* ── 6. ALWAYS restore DOM — even if capture threw ── */
+    /* 6. ALWAYS restore DOM even if capture threw */
     el.style.overflow     = cardSaved.overflow;
     el.style.boxShadow    = cardSaved.boxShadow;
     el.style.borderRadius = cardSaved.borderRadius;
     ancestors.forEach(({ el: a, inlineOverflow }) => {
       a.style.overflow = inlineOverflow;
     });
-    restoreImages();  // restore original src attributes
+    restoreImages();
   }
 
   if (!canvas || canvas.width === 0 || canvas.height === 0) {
     throw new Error(
-      `Capture returned empty canvas for #${el.id}.\n` +
-      `Rect: ${JSON.stringify({ left: rect.left, top: rect.top, w: rect.width, h: rect.height })}\n` +
-      `Scroll: (${scrollX}, ${scrollY})\n` +
-      `Hint: Make sure the card is fully visible on screen before capturing.`
+      `Capture returned empty canvas for #${el.id}. ` +
+      `Rect: ${JSON.stringify({ left: rect.left, top: rect.top, w: rect.width, h: rect.height })}. ` +
+      `Make sure the card is fully visible on screen before capturing.`
     );
   }
 
   return canvas;
 };
 
-/* ═════════════════════════════════════════════════════════════
-   INTERNAL — build jsPDF document (mm page, card image fills page)
-   ═════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════
+   INTERNAL — Build jsPDF document
+   ═══════════════════════════════════════════════════════════ */
 const buildPDF = async (frontId, backId, scale, sizeKey = "a6") => {
   const frontEl = document.getElementById(frontId);
   if (!frontEl) {
     throw new Error(
-      `#${frontId} not found in DOM.\n` +
-      `Make sure the AccreditationCardPreview is rendered and visible.`
+      `#${frontId} not found in DOM. ` +
+      `Make sure AccreditationCardPreview is rendered and visible on screen.`
     );
   }
 
-  const size = PDF_SIZES[sizeKey] || PDF_SIZES.a6;
+  const size        = PDF_SIZES[sizeKey] || PDF_SIZES.a6;
   const isLandscape = size.width > size.height;
 
   const pdf = new jsPDF({
@@ -285,24 +243,25 @@ const buildPDF = async (frontId, backId, scale, sizeKey = "a6") => {
     frontCanvas.toDataURL("image/png", 1.0),
     "PNG",
     0, 0,
-    size.width,
-    size.height,
+    size.width, size.height,
     undefined,
     "FAST"
   );
 
-  /* Back page (optional) */
+  /* Back page */
   if (backId) {
     const backEl = document.getElementById(backId);
     if (backEl) {
-      pdf.addPage([size.width, size.height], isLandscape ? "landscape" : "portrait");
+      pdf.addPage(
+        [size.width, size.height],
+        isLandscape ? "landscape" : "portrait"
+      );
       const backCanvas = await captureLiveElement(backEl, scale);
       pdf.addImage(
         backCanvas.toDataURL("image/png", 1.0),
         "PNG",
         0, 0,
-        size.width,
-        size.height,
+        size.width, size.height,
         undefined,
         "FAST"
       );
@@ -312,19 +271,10 @@ const buildPDF = async (frontId, backId, scale, sizeKey = "a6") => {
   return pdf;
 };
 
-/* ═════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════
    PUBLIC API
-   ═════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════ */
 
-/**
- * Download front + back as a single PDF file.
- *
- * @param {string} frontId    DOM id of the front card element
- * @param {string} backId     DOM id of the back card element
- * @param {string} fileName   Output filename, e.g. "John_Doe.pdf"
- * @param {number} scale      html2canvas scale (from IMAGE_SIZES)
- * @param {string} sizeKey    Key from PDF_SIZES, e.g. "a6"
- */
 export const downloadCapturedPDF = async (
   frontId,
   backId,
@@ -336,14 +286,6 @@ export const downloadCapturedPDF = async (
   pdf.save(fileName);
 };
 
-/**
- * Open front + back as PDF in a new browser tab.
- *
- * @param {string} frontId
- * @param {string} backId
- * @param {number} scale
- * @param {string} sizeKey
- */
 export const openCapturedPDFInTab = async (
   frontId,
   backId,
@@ -355,23 +297,14 @@ export const openCapturedPDFInTab = async (
   const win = window.open(url, "_blank");
   if (!win) {
     // Popup blocked fallback
-    const a = document.createElement("a");
-    a.href   = url;
-    a.target = "_blank";
-    a.rel    = "noopener noreferrer";
+    const a   = document.createElement("a");
+    a.href    = url;
+    a.target  = "_blank";
+    a.rel     = "noopener noreferrer";
     a.click();
   }
 };
 
-/**
- * Return the PDF as a raw Blob (for custom upload / email).
- *
- * @param {string} frontId
- * @param {string} backId
- * @param {number} scale
- * @param {string} sizeKey
- * @returns {Promise<Blob>}
- */
 export const getCapturedPDFBlob = async (
   frontId,
   backId,
@@ -382,14 +315,6 @@ export const getCapturedPDFBlob = async (
   return pdf.output("blob");
 };
 
-/**
- * Download front and back as separate high-resolution PNG files.
- *
- * @param {string} frontId
- * @param {string} backId
- * @param {string} baseName   Filename without extension, e.g. "John_Doe_Badge"
- * @param {number} scale
- */
 export const downloadAsImages = async (
   frontId,
   backId,
@@ -397,11 +322,8 @@ export const downloadAsImages = async (
   scale = IMAGE_SIZES["4k"].scale
 ) => {
   const frontEl = document.getElementById(frontId);
-  if (!frontEl) {
-    throw new Error(`#${frontId} not found in DOM.`);
-  }
+  if (!frontEl) throw new Error(`#${frontId} not found in DOM.`);
 
-  /* Capture and download front */
   const frontCanvas = await captureLiveElement(frontEl, scale);
   const a1 = document.createElement("a");
   a1.download = `${baseName}_front.png`;
@@ -410,11 +332,10 @@ export const downloadAsImages = async (
   a1.click();
   document.body.removeChild(a1);
 
-  /* Capture and download back */
   if (backId) {
     const backEl = document.getElementById(backId);
     if (backEl) {
-      await new Promise((r) => setTimeout(r, 500)); // stagger to avoid browser blocking
+      await new Promise((r) => setTimeout(r, 500));
       const backCanvas = await captureLiveElement(backEl, scale);
       const a2 = document.createElement("a");
       a2.download = `${baseName}_back.png`;
@@ -426,33 +347,17 @@ export const downloadAsImages = async (
   }
 };
 
-/**
- * Print front + back cards pixel-perfectly.
- *
- * Strategy: capture both cards as PNG images, inject them into a
- * minimal hidden <iframe> with dedicated @page CSS that matches the
- * card's aspect ratio and removes all browser margins. Then call
- * print() on that iframe. The main app is never touched.
- *
- * @param {string} frontId
- * @param {string} backId
- * @param {number} scale   Use "hd" (scale=2) for print — saves memory
- */
 export const printCards = async (
   frontId,
   backId,
   scale = IMAGE_SIZES["hd"].scale
 ) => {
   const frontEl = document.getElementById(frontId);
-  if (!frontEl) {
-    throw new Error(`#${frontId} not found in DOM.`);
-  }
+  if (!frontEl) throw new Error(`#${frontId} not found in DOM.`);
 
-  /* Capture front */
-  const frontCanvas = await captureLiveElement(frontEl, scale);
+  const frontCanvas  = await captureLiveElement(frontEl, scale);
   const frontDataUrl = frontCanvas.toDataURL("image/png", 1.0);
 
-  /* Capture back */
   let backDataUrl = null;
   if (backId) {
     const backEl = document.getElementById(backId);
@@ -462,21 +367,12 @@ export const printCards = async (
     }
   }
 
-  /*
-   * Card aspect ratio: 320 / 454 ≈ 0.704
-   * We use a page size that preserves this ratio.
-   * 85.6mm × 121.5mm keeps the exact 320:454 ratio at CR80-ish width.
-   *
-   * The browser will scale the page to the physical printer paper size,
-   * but the image itself has no whitespace or distortion.
-   */
+  /* Page size that preserves 320:454 card aspect ratio at CR80 width */
   const PAGE_W_MM = 85.6;
-  const PAGE_H_MM = (CARD_H_PX / CARD_W_PX) * PAGE_W_MM; // ≈ 121.5 mm
+  const PAGE_H_MM = parseFloat(((CARD_H_PX / CARD_W_PX) * PAGE_W_MM).toFixed(2));
 
   const backPageHtml = backDataUrl
-    ? `<div class="page">
-         <img src="${backDataUrl}" />
-       </div>`
+    ? `<div class="page"><img src="${backDataUrl}" /></div>`
     : "";
 
   const printHtml = `<!DOCTYPE html>
@@ -489,15 +385,17 @@ export const printCards = async (
       size: ${PAGE_W_MM}mm ${PAGE_H_MM}mm;
       margin: 0;
     }
-    * {
+    *, *::before, *::after {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
     html, body {
-      width:  ${PAGE_W_MM}mm;
+      width: ${PAGE_W_MM}mm;
       height: ${PAGE_H_MM}mm;
       background: #fff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
     .page {
       width:  ${PAGE_W_MM}mm;
@@ -520,14 +418,12 @@ export const printCards = async (
   </style>
 </head>
 <body>
-  <div class="page">
-    <img src="${frontDataUrl}" />
-  </div>
+  <div class="page"><img src="${frontDataUrl}" /></div>
   ${backPageHtml}
 </body>
 </html>`;
 
-  /* Create a hidden iframe and print from it */
+  /* Inject into hidden iframe and print */
   const iframe = document.createElement("iframe");
   iframe.style.cssText =
     "position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;border:none;visibility:hidden;";
@@ -538,55 +434,37 @@ export const printCards = async (
   iframeDoc.write(printHtml);
   iframeDoc.close();
 
-  /* Wait for images to load inside the iframe then print */
+  /* Wait for iframe images to load */
   await new Promise((resolve) => {
-    const win = iframe.contentWindow;
-    const images = iframeDoc.querySelectorAll("img");
+    const images = Array.from(iframeDoc.querySelectorAll("img"));
+    if (images.length === 0) return resolve();
     let loaded = 0;
-    const total = images.length;
-
-    if (total === 0) return resolve();
-
-    const onLoad = () => {
-      loaded++;
-      if (loaded >= total) resolve();
-    };
-
+    const onDone = () => { if (++loaded >= images.length) resolve(); };
     images.forEach((img) => {
-      if (img.complete) { onLoad(); return; }
-      img.onload  = onLoad;
-      img.onerror = onLoad; // don't hang on error
+      if (img.complete) { onDone(); return; }
+      img.onload  = onDone;
+      img.onerror = onDone;
     });
-
-    // Safety timeout
-    setTimeout(resolve, 5000);
+    setTimeout(resolve, 5000); // safety timeout
   });
 
-  /* Small delay for final render then print */
   await new Promise((r) => setTimeout(r, 200));
 
   try {
     iframe.contentWindow.focus();
     iframe.contentWindow.print();
   } catch (e) {
-    console.error("iframe print failed, falling back to window.open:", e);
-    const printWin = window.open("", "_blank");
-    if (printWin) {
-      printWin.document.write(printHtml);
-      printWin.document.close();
-      setTimeout(() => {
-        printWin.focus();
-        printWin.print();
-        printWin.close();
-      }, 500);
+    /* Fallback: open in new window and print */
+    const pw = window.open("", "_blank");
+    if (pw) {
+      pw.document.write(printHtml);
+      pw.document.close();
+      setTimeout(() => { pw.focus(); pw.print(); pw.close(); }, 600);
     }
   }
 
-  /* Remove iframe after a delay (give browser time to spool the job) */
   setTimeout(() => {
-    if (iframe.parentNode) {
-      document.body.removeChild(iframe);
-    }
+    if (iframe.parentNode) document.body.removeChild(iframe);
   }, 30_000);
 };
 
