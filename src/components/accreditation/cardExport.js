@@ -201,6 +201,7 @@ export const printCard = async (accreditation, event, zones, scale, sizeKey) => 
   }
 };
 
+// BULK DOWNLOAD: Generate ZIP of multiple PDFs
 export const bulkDownloadPDFs = async (accreditations, event, zones, sizeKey = "a6", onProgress) => {
   const zip = new JSZip();
   const folder = zip.folder("accreditation-cards");
