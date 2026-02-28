@@ -17,7 +17,6 @@ const toBase64 = (url) =>
   new Promise((resolve) => {
     if (!url) return resolve(null);
     if (url.startsWith("data:")) return resolve(url);
-    
     fetch(url, { mode: "cors", cache: "force-cache" })
       .then(r => r.ok ? r.blob() : Promise.reject())
       .then(blob => new Promise(res => {
@@ -154,23 +153,16 @@ const AccreditationPDF = ({ accreditation, event, zones, sizeKey, images }) => {
 const preloadImages = async (accreditation, event) => {
   const countryData = COUNTRIES.find(c => c.code === accreditation?.nationality);
   const flagUrl = countryData?.flag ? `https://flagcdn.com/w80/${countryData.flag.toLowerCase()}.png` : null;
-  
   const verifyId = accreditation?.accreditationId || accreditation?.badgeNumber || "unknown";
   const verifyUrl = `${window.location.origin}/verify/${verifyId}`;
-  
   let qrBase64 = null;
   try {
     qrBase64 = await QRCode.toDataURL(verifyUrl, { errorCorrectionLevel: "H", margin: 1, width: 200, color: { dark: "#0f172a", light: "#ffffff" } });
   } catch (e) {}
-
   const [photo, logo, flag, backTemplate, ...sponsors] = await Promise.all([
-    toBase64(accreditation?.photoUrl),
-    toBase64(event?.logoUrl),
-    toBase64(flagUrl),
-    toBase64(event?.backTemplateUrl),
-    ...(event?.sponsorLogos || []).slice(0, 6).map(toBase64),
+    toBase64(accreditation?.photoUrl), toBase64(event?.logoUrl), toBase64(flagUrl),
+    toBase64(event?.backTemplateUrl), ...(event?.sponsorLogos || []).slice(0, 6).map(toBase64),
   ]);
-
   return { photo, logo, flag, backTemplate, qrBase64, sponsors: sponsors.filter(Boolean) };
 };
 
@@ -196,16 +188,12 @@ export const printCard = async (accreditation, event, zones, scale, sizeKey) => 
   const blob = await generatePDFBlob(accreditation, event, zones, sizeKey);
   const url = URL.createObjectURL(blob);
   const printWindow = window.open(url, "_blank");
-  if (printWindow) {
-    printWindow.onload = () => printWindow.print();
-  }
+  if (printWindow) printWindow.onload = () => printWindow.print();
 };
 
-// BULK DOWNLOAD: Generate ZIP of multiple PDFs
 export const bulkDownloadPDFs = async (accreditations, event, zones, sizeKey = "a6", onProgress) => {
   const zip = new JSZip();
   const folder = zip.folder("accreditation-cards");
-  
   for (let i = 0; i < accreditations.length; i++) {
     const acc = accreditations[i];
     const blob = await generatePDFBlob(acc, event, zones, sizeKey);
@@ -213,7 +201,6 @@ export const bulkDownloadPDFs = async (accreditations, event, zones, sizeKey = "
     folder.file(fileName, blob);
     if (onProgress) onProgress(i + 1, accreditations.length);
   }
-  
   const zipBlob = await zip.generateAsync({ type: "blob" });
   saveAs(zipBlob, `accreditation-cards-${event?.name || "event"}.zip`);
 };
