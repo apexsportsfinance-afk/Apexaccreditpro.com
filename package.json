@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host",
-    "build": "rm -rf node_modules/.vite dist && vite build",
+    "build": "rm -rf node_modules/.vite dist .turbo && vite build",
     "preview": "vite preview",
     "clean": "rm -rf node_modules dist .vercel",
-    "vercel:force": "rm -rf node_modules/.vite dist && vercel --force"
+    "vercel:force": "rm -rf node_modules/.vite dist .turbo && vercel --force"
   },
   "dependencies": {
     "@react-pdf/renderer": "^3.1.14",
