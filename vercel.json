@@ -1,3 +1,15 @@
 {
-  "routes": [{ "src": "/[^.]+", "dest": "/", "status": 200 }]
+  "version": 2,
+  "buildCommand": "rm -rf node_modules/.vite dist .turbo && pnpm install && pnpm run build",
+  "installCommand": "pnpm install",
+  "framework": "vite",
+  "build": {
+    "env": {
+      "NODE_ENV": "production",
+      "FORCE_BUILD": "true"
+    }
+  },
+  "routes": [
+    { "src": "/[^.]+", "dest": "/", "status": 200 }
+  ]
 }
