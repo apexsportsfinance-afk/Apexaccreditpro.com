@@ -22,174 +22,154 @@ export const IMAGE_SIZES = {
 };
 
 /* ─────────────────────────────────────────────────────────────
-   INTERNAL — convert external URL to base64 data URL
-   Handles CORS via fetch, falls back to Image+canvas
+   INTERNAL — Create off-screen sandbox for clean capture
+   This avoids modal clipping issues entirely
    ───────────────────────────────────────────────────────────── */
-const urlToBase64 = (url) =>
-  new Promise((resolve) => {
-    if (!url || url.startsWith("data:") || url.startsWith("blob:")) {
-      return resolve(url);
-    }
-    fetch(url, { mode: "cors", cache: "force-cache" })
-      .then((r) => (r.ok ? r.blob() : Promise.reject()))
-      .then(
-        (blob) =>
-          new Promise((res) => {
-            const reader = new FileReader();
-            reader.onloadend = () => res(reader.result);
-            reader.onerror  = () => res(null);
-            reader.readAsDataURL(blob);
-          })
-      )
-      .then(resolve)
-      .catch(() => {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload = () => {
-          try {
-            const c = document.createElement("canvas");
-            c.width  = img.naturalWidth  || 80;
-            c.height = img.naturalHeight || 60;
-            c.getContext("2d").drawImage(img, 0, 0);
-            resolve(c.toDataURL("image/png"));
-          } catch {
-            resolve(null);
-          }
-        };
-        img.onerror = () => resolve(null);
-        img.src = url + (url.includes("?") ? "&" : "?") + "_cb=" + Date.now();
-        setTimeout(() => resolve(null), 8000);
-      });
-  });
+const createSandbox = () => {
+  const sandbox = document.createElement('div');
+  sandbox.id = 'pdf-capture-sandbox';
+  sandbox.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: visible;
+    z-index: 999999;
+    pointer-events: none;
+    opacity: 0;
+    background: white;
+  `;
+  document.body.appendChild(sandbox);
+  return sandbox;
+};
 
-/* ─────────────────────────────────────────────────────────────
-   INTERNAL — replace every external <img> src with base64
-   so html2canvas never sees a cross-origin URL
-   ───────────────────────────────────────────────────────────── */
-const inlineImages = async (root) => {
-  const imgs = Array.from(root.querySelectorAll("img"));
-  await Promise.all(
-    imgs.map(async (img) => {
-      const src = img.getAttribute("src") || "";
-      if (!src || src.startsWith("data:") || src.startsWith("blob:")) return;
-      const b64 = await urlToBase64(src);
-      if (b64) {
-        img.setAttribute("src", b64);
-      } else {
-        img.style.visibility = "hidden"; // hide rather than taint canvas
-      }
-    })
-  );
-  // Wait for all images to report loaded
-  await Promise.all(
-    imgs.map(
-      (img) =>
-        new Promise((res) => {
-          if (img.complete) return res();
-          img.onload  = res;
-          img.onerror = res;
-        })
-    )
-  );
+const removeSandbox = () => {
+  const existing = document.getElementById('pdf-capture-sandbox');
+  if (existing) document.body.removeChild(existing);
+};
+
+const cloneToSandbox = (originalEl) => {
+  // Get computed styles
+  const computed = window.getComputedStyle(originalEl);
+  const width = originalEl.offsetWidth || 320;
+  const height = originalEl.offsetHeight || 454;
+  
+  // Create clone
+  const clone = originalEl.cloneNode(true);
+  clone.style.cssText = `
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: ${width}px;
+    height: ${height}px;
+    transform: none;
+    margin: 0;
+    opacity: 1;
+    visibility: visible;
+    overflow: hidden;
+    box-shadow: none;
+  `;
+  
+  // Copy all computed styles recursively
+  const copyStyles = (source, target) => {
+    const sourceComputed = window.getComputedStyle(source);
+    const importantStyles = [
+      'background', 'backgroundColor', 'backgroundImage', 'color',
+      'fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'textAlign',
+      'padding', 'margin', 'border', 'borderRadius', 'display',
+      'flexDirection', 'justifyContent', 'alignItems', 'gap',
+      'position', 'width', 'height', 'top', 'left', 'right', 'bottom'
+    ];
+    
+    importantStyles.forEach(prop => {
+      try {
+        target.style[prop] = sourceComputed[prop];
+      } catch(e) {}
+    });
+    
+    // Handle children
+    const sourceChildren = source.children;
+    const targetChildren = target.children;
+    for (let i = 0; i < sourceChildren.length && i < targetChildren.length; i++) {
+      copyStyles(sourceChildren[i], targetChildren[i]);
+    }
+  };
+  
+  copyStyles(originalEl, clone);
+  
+  // Handle images - ensure they're loaded
+  const images = clone.querySelectorAll('img');
+  images.forEach(img => {
+    img.crossOrigin = 'anonymous';
+    // Convert src to absolute if relative
+    if (img.src && !img.src.startsWith('http') && !img.src.startsWith('data:')) {
+      img.src = new URL(img.src, window.location.href).href;
+    }
+  });
+  
+  return { clone, width, height };
 };
 
 /* ─────────────────────────────────────────────────────────────
-   CORE CAPTURE STRATEGY
-   ═══════════════════════════════════════════════════════════════
-
-   The problem with every previous approach:
-   ┌─────────────────────────────────────────────────────────┐
-   │ html2canvas renders by walking the DOM tree and painting │
-   │ each element using its computed CSS position on screen.  │
-   │ A cloneNode() copy has NO computed layout — its         │
-   │ getBoundingClientRect() returns {0,0,0,0} because it    │
-   │ was never laid out by the browser's layout engine.      │
-   │ This is why clones always produce empty canvases.       │
-   └─────────────────────────────────────────────────────────┘
-
-   The ONLY reliable approach is to capture the LIVE element
-   that the browser has already laid out. We just need to:
-
-   1. Temporarily remove CSS that causes clipping (overflow:hidden
-      on the card and its modal ancestors)
-   2. Capture at the correct document coordinates
-   3. Restore all styles afterward
-
-   This works because the card has FIXED dimensions (320×454px)
-   set as inline styles, so the layout is fully determined.
+   INTERNAL — Capture element using sandbox method
    ───────────────────────────────────────────────────────────── */
-const captureLiveElement = async (el, scale) => {
-  const CARD_W = 320;
-  const CARD_H = 454;
-
-  // ── Step 1: collect all ancestors and save their overflow ──
-  const ancestors = [];
-  let node = el.parentElement;
-  while (node && node !== document.body) {
-    ancestors.push({ el: node, overflow: node.style.overflow });
-    node.style.overflow = "visible";
-    node = node.parentElement;
-  }
-
-  // ── Step 2: save and patch the card element itself ──
-  const savedStyles = {
-    overflow:     el.style.overflow,
-    boxShadow:    el.style.boxShadow,
-    borderRadius: el.style.borderRadius,
-  };
-  el.style.overflow     = "hidden"; // keep card's own clip for correct look
-  el.style.boxShadow    = "none";
-  el.style.borderRadius = "0";
-
-  // ── Step 3: inline all images in the LIVE element ──
-  await inlineImages(el);
-
-  // Allow browser to repaint after style changes
-  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-  await new Promise((r) => setTimeout(r, 80));
-
-  // ── Step 4: get live position ──
-  const rect = el.getBoundingClientRect();
-  const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
-  const scrollY = window.pageYOffset || document.documentElement.scrollTop;
-  const absX = rect.left + scrollX;
-  const absY = rect.top  + scrollY;
-
+const captureElement = async (el, scale = 3) => {
+  if (!el) throw new Error('Element not found');
+  
+  // Clean up any existing sandbox
+  removeSandbox();
+  
+  // Create fresh sandbox
+  const sandbox = createSandbox();
+  
+  // Clone element to sandbox
+  const { clone, width, height } = cloneToSandbox(el);
+  sandbox.appendChild(clone);
+  
+  // Wait for images to load
+  const images = clone.querySelectorAll('img');
+  await Promise.all(Array.from(images).map(img => {
+    return new Promise((resolve) => {
+      if (img.complete && img.naturalWidth > 0) {
+        resolve();
+      } else {
+        img.onload = () => resolve();
+        img.onerror = () => resolve();
+        setTimeout(resolve, 500); // Timeout fallback
+      }
+    });
+  }));
+  
+  // Small delay for fonts/layout
+  await new Promise(r => setTimeout(r, 100));
+  
   let canvas;
   try {
-    canvas = await html2canvas(document.body, {
-      scale,
-      x:               absX,
-      y:               absY,
-      width:           CARD_W,
-      height:          CARD_H,
-      useCORS:         false,  // images already inlined as base64
-      allowTaint:      false,
+    // Capture the clone in sandbox
+    canvas = await html2canvas(clone, {
+      scale: scale,
+      useCORS: true,
+      allowTaint: true,
       backgroundColor: "#ffffff",
-      logging:         false,
-      imageTimeout:    30000,
-      removeContainer: true,
-      scrollX:         -scrollX,
-      scrollY:         -scrollY,
-      windowWidth:     document.documentElement.scrollWidth,
-      windowHeight:    document.documentElement.scrollHeight,
+      logging: false,
+      width: width,
+      height: height,
+      x: 0,
+      y: 0,
+      scrollX: 0,
+      scrollY: 0
     });
+    
+    if (!canvas || canvas.width === 0 || canvas.height === 0) {
+      throw new Error('Canvas capture returned empty result');
+    }
+    
+    return { canvas, width, height };
   } finally {
-    // ── Step 5: restore ALL saved styles ──
-    el.style.overflow     = savedStyles.overflow;
-    el.style.boxShadow    = savedStyles.boxShadow;
-    el.style.borderRadius = savedStyles.borderRadius;
-    ancestors.forEach(({ el: a, overflow }) => { a.style.overflow = overflow; });
+    // Always cleanup
+    removeSandbox();
   }
-
-  if (!canvas || canvas.width === 0 || canvas.height === 0) {
-    throw new Error(
-      `Canvas capture returned empty result for #${el.id}. ` +
-      `Element rect: ${JSON.stringify(rect)}`
-    );
-  }
-
-  return canvas;
 };
 
 /* ─────────────────────────────────────────────────────────────
@@ -199,6 +179,7 @@ const buildPDF = async (frontId, backId, scale) => {
   const frontEl = document.getElementById(frontId);
   if (!frontEl) throw new Error(`#${frontId} not found in DOM`);
 
+  // Use fixed card dimensions
   const CARD_W = 320;
   const CARD_H = 454;
 
@@ -206,12 +187,12 @@ const buildPDF = async (frontId, backId, scale) => {
     orientation: "portrait",
     unit:        "px",
     format:      [CARD_W, CARD_H],
-    compress:    true,
+    compress:    false, // Better quality
     hotfixes:    ["px_scaling"],
   });
 
-  // Capture front
-  const frontCanvas = await captureLiveElement(frontEl, scale);
+  // Capture front using sandbox method
+  const { canvas: frontCanvas } = await captureElement(frontEl, scale);
   pdf.addImage(
     frontCanvas.toDataURL("image/png", 1.0),
     "PNG", 0, 0, CARD_W, CARD_H,
@@ -223,7 +204,7 @@ const buildPDF = async (frontId, backId, scale) => {
     const backEl = document.getElementById(backId);
     if (backEl) {
       pdf.addPage([CARD_W, CARD_H]);
-      const backCanvas = await captureLiveElement(backEl, scale);
+      const { canvas: backCanvas } = await captureElement(backEl, scale);
       pdf.addImage(
         backCanvas.toDataURL("image/png", 1.0),
         "PNG", 0, 0, CARD_W, CARD_H,
@@ -243,16 +224,28 @@ export const downloadCapturedPDF = async (
   frontId, backId, fileName,
   scale = IMAGE_SIZES["4k"].scale
 ) => {
-  const pdf = await buildPDF(frontId, backId, scale);
-  pdf.save(fileName);
+  try {
+    const pdf = await buildPDF(frontId, backId, scale);
+    pdf.save(fileName);
+  } catch (error) {
+    console.error('PDF Download Error:', error);
+    throw new Error(`Failed to generate PDF: ${error.message}`);
+  }
 };
 
 export const openCapturedPDFInTab = async (
   frontId, backId,
   scale = IMAGE_SIZES["4k"].scale
 ) => {
-  const pdf  = await buildPDF(frontId, backId, scale);
-  window.open(pdf.output("bloburl"), "_blank");
+  try {
+    const pdf = await buildPDF(frontId, backId, scale);
+    const blob = pdf.output('blob');
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+  } catch (error) {
+    console.error('PDF Open Error:', error);
+    throw error;
+  }
 };
 
 export const getCapturedPDFBlob = async (
@@ -270,20 +263,20 @@ export const downloadBothCardsAsImages = async (
   const frontEl = document.getElementById(frontId);
   if (!frontEl) throw new Error(`#${frontId} not found in DOM`);
 
-  const frontCanvas = await captureLiveElement(frontEl, scale);
+  const { canvas: frontCanvas } = await captureElement(frontEl, scale);
   const a1 = document.createElement("a");
   a1.download = `${baseName}_front.png`;
-  a1.href     = frontCanvas.toDataURL("image/png", 1.0);
+  a1.href = frontCanvas.toDataURL("image/png", 1.0);
   a1.click();
 
   if (backId) {
     const backEl = document.getElementById(backId);
     if (backEl) {
       await new Promise((r) => setTimeout(r, 300));
-      const backCanvas = await captureLiveElement(backEl, scale);
+      const { canvas: backCanvas } = await captureElement(backEl, scale);
       const a2 = document.createElement("a");
       a2.download = `${baseName}_back.png`;
-      a2.href     = backCanvas.toDataURL("image/png", 1.0);
+      a2.href = backCanvas.toDataURL("image/png", 1.0);
       a2.click();
     }
   }
