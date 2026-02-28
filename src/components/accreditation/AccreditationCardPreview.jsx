@@ -27,6 +27,79 @@ const getNameFontSize = (firstName, lastName) => {
   return 22;
 };
 
+// Pre-render role banner as a canvas image so html2canvas copies pixels instead of rendering text
+const useRoleBannerPng = (role, bgColor, width = 320, height = 40) => {
+  const [url, setUrl] = React.useState(null);
+  React.useEffect(() => {
+    const scale = 3;
+    const canvas = document.createElement("canvas");
+    canvas.width = width * scale;
+    canvas.height = height * scale;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(scale, scale);
+
+    // Background
+    ctx.fillStyle = bgColor || "#2563eb";
+    ctx.fillRect(0, 0, width, height);
+
+    // Shadow
+    ctx.shadowColor = "rgba(0,0,0,0.2)";
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 1;
+    ctx.shadowBlur = 2;
+
+    // Text
+    ctx.fillStyle = "white";
+    ctx.font = "bold 16px sans-serif";
+    ctx.textBaseline = "middle";
+
+    const text = (role || "PARTICIPANT").toUpperCase();
+    const letterSpacing = 3.2; // 0.2em * 16px
+
+    // Draw characters individually with letter-spacing, centered
+    const chars = text.split("");
+    ctx.textAlign = "left";
+    const charWidths = chars.map(c => ctx.measureText(c).width);
+    const totalWidth = charWidths.reduce((sum, w) => sum + w, 0) + letterSpacing * (chars.length - 1);
+    let currentX = (width - totalWidth) / 2;
+    chars.forEach((char, i) => {
+      ctx.fillText(char, currentX, height / 2);
+      currentX += charWidths[i] + letterSpacing;
+    });
+
+    setUrl(canvas.toDataURL("image/png"));
+  }, [role, bgColor, width, height]);
+  return url;
+};
+
+// Pre-render country name as a canvas image at flag height for perfect vertical alignment
+const useCountryNamePng = (name) => {
+  const [url, setUrl] = React.useState(null);
+  React.useEffect(() => {
+    if (!name) return;
+    const height = 30;
+    const scale = 3;
+    const canvas = document.createElement("canvas");
+    const tempCtx = canvas.getContext("2d");
+    tempCtx.font = "bold 16px sans-serif";
+    const textWidth = Math.ceil(tempCtx.measureText(name).width) + 4;
+
+    canvas.width = textWidth * scale;
+    canvas.height = height * scale;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(scale, scale);
+
+    ctx.fillStyle = "#1e40af";
+    ctx.font = "bold 16px sans-serif";
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "left";
+    ctx.fillText(name, 0, height / 2);
+
+    setUrl(canvas.toDataURL("image/png"));
+  }, [name]);
+  return url;
+};
+
 const useZoneBadgePngs = (codes) => {
   const [badges, setBadges] = React.useState({});
   React.useEffect(() => {
@@ -68,6 +141,8 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
     : null;
 
   const zoneBadgePngs = useZoneBadgePngs(zoneCodes);
+  const roleBannerUrl = useRoleBannerPng(accreditation?.role, zoneColor || roleData.hex);
+  const countryNameUrl = useCountryNamePng(countryName);
   const expired = typeof isExpired === "function" ? isExpired(accreditation?.expiresAt) : false;
   const idNumber = accreditation?.accreditationId?.split("-")?.pop() || "---";
   const nameFontSize = getNameFontSize(accreditation?.firstName, accreditation?.lastName);
@@ -144,11 +219,15 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
 
         <div style={{ height: "6px", backgroundColor: "white", flexShrink: 0 }} />
 
-        {/* ROLE BANNER */}
-        <div style={{ height: "40px", display: "flex", alignItems: "center", justifyContent: "center", width: "100%", position: "relative", overflow: "hidden", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)", flexShrink: 0, backgroundColor: zoneColor || roleData.hex || "#2563eb" }}>
-          <span style={{ color: "white", fontSize: "16px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.2em", textShadow: "0 1px 2px rgba(0,0,0,0.2)", lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
-            {accreditation?.role || "PARTICIPANT"}
-          </span>
+        {/* ROLE BANNER — rendered as canvas image for html2canvas compatibility */}
+        <div style={{ height: "40px", width: "100%", overflow: "hidden", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)", flexShrink: 0 }}>
+          {roleBannerUrl ? (
+            <img src={roleBannerUrl} alt={accreditation?.role} style={{ width: "100%", height: "40px", display: "block" }} />
+          ) : (
+            <div style={{ height: "40px", lineHeight: "40px", textAlign: "center", width: "100%", backgroundColor: zoneColor || roleData.hex || "#2563eb", color: "white", fontSize: "16px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.2em", textShadow: "0 1px 2px rgba(0,0,0,0.2)" }}>
+              {accreditation?.role || "PARTICIPANT"}
+            </div>
+          )}
         </div>
 
         {/* BODY */}
@@ -198,18 +277,23 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
               <span style={{ fontWeight: 500 }}>{accreditation?.gender || "Gender"}</span>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "16px" }}>
+            {/* Country — both flag and name are <img> at 30px height for pixel-perfect alignment */}
+            <div style={{ marginTop: "16px", height: "30px" }}>
               {countryData?.flag && (
                 <img
                   src={`https://flagcdn.com/w80/${countryData.flag}.png`}
                   alt="Flag"
-                  style={{ width: "44px", height: "30px", borderRadius: "4px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", objectFit: "cover", border: "1px solid #e2e8f0" }}
+                  style={{ width: "44px", height: "30px", borderRadius: "4px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", objectFit: "cover", border: "1px solid #e2e8f0", display: "inline-block", verticalAlign: "top", marginRight: "12px" }}
                   crossOrigin="anonymous"
                 />
               )}
-              <p style={{ fontSize: "16px", fontWeight: "bold", color: "#1e40af", wordBreak: "break-word" }}>
-                {countryName}
-              </p>
+              {countryNameUrl ? (
+                <img src={countryNameUrl} alt={countryName} style={{ height: "30px", display: "inline-block", verticalAlign: "top" }} />
+              ) : (
+                <span style={{ fontSize: "16px", fontWeight: "bold", color: "#1e40af", display: "inline-block", verticalAlign: "top", lineHeight: "30px" }}>
+                  {countryName}
+                </span>
+              )}
             </div>
           </div>
         </div>
