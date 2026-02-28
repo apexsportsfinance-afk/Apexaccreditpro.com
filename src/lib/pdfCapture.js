@@ -1,22 +1,11 @@
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 
-// HTML Card dimensions (pixels)
-const CARD_WIDTH_PX = 320;
-const CARD_HEIGHT_PX = 454;
-
-// Convert pixels to mm (standard: 96px = 25.4mm)
-const pxToMm = (px) => px * 25.4 / 96;
-
-// Exact card size in mm
-const CARD_WIDTH_MM = pxToMm(CARD_WIDTH_PX);  // ~84.67mm
-const CARD_HEIGHT_MM = pxToMm(CARD_HEIGHT_PX); // ~120.13mm
-
 export const PDF_SIZES = {
-  a4:   { width: 210, height: 297, label: "A4 (210×297 mm)", useExactCardSize: false },
-  a5:   { width: 148, height: 210, label: "A5 (148×210 mm)", useExactCardSize: false },
-  a6:   { width: 105, height: 148, label: "A6 (105×148 mm)", useExactCardSize: false },
-  card: { width: CARD_WIDTH_MM, height: CARD_HEIGHT_MM, label: "Exact Card Size", useExactCardSize: true },
+  a4:   { width: 210, height: 297, label: "A4 (210×297 mm)" },
+  a5:   { width: 148, height: 210, label: "A5 (148×210 mm)" },
+  a6:   { width: 105, height: 148, label: "A6 (105×148 mm)" },
+  card: { width: 320, height: 454, label: "Exact Card (320×454 px)", unit: "px" },
 };
 
 export const IMAGE_SIZES = {
@@ -31,6 +20,13 @@ const captureElement = async (elementId, scale = 3) => {
   const element = document.getElementById(elementId);
   if (!element) throw new Error(`Element #${elementId} not found`);
 
+  // MEASURE ACTUAL DIMENSIONS
+  const rect = element.getBoundingClientRect();
+  const actualWidth = Math.round(rect.width);
+  const actualHeight = Math.round(rect.height);
+  
+  console.log(`[Capture] Actual dimensions: ${actualWidth}x${actualHeight}px`);
+
   const originalParent = element.parentNode;
   const originalNextSibling = element.nextSibling;
   
@@ -43,8 +39,9 @@ const captureElement = async (elementId, scale = 3) => {
     element.style.boxShadow = 'none';
     element.style.top = '0';
     element.style.left = '0';
-    element.style.width = `${CARD_WIDTH_PX}px`;
-    element.style.height = `${CARD_HEIGHT_PX}px`;
+    // Force exact dimensions
+    element.style.width = `${actualWidth}px`;
+    element.style.height = `${actualHeight}px`;
 
     // Wait for images
     const images = element.querySelectorAll('img');
@@ -59,22 +56,22 @@ const captureElement = async (elementId, scale = 3) => {
 
     await new Promise(r => setTimeout(r, 150));
 
-    // Capture at exact dimensions
+    // Capture at actual dimensions
     const canvas = await html2canvas(element, {
       scale: scale,
       useCORS: true,
       allowTaint: true,
       backgroundColor: "#ffffff",
       logging: false,
-      width: CARD_WIDTH_PX,
-      height: CARD_HEIGHT_PX,
+      width: actualWidth,
+      height: actualHeight,
       x: 0,
       y: 0
     });
 
     if (!canvas || canvas.width === 0) throw new Error('Canvas capture failed');
     
-    return canvas;
+    return { canvas, width: actualWidth, height: actualHeight };
 
   } finally {
     // Restore element
@@ -97,39 +94,40 @@ const captureElement = async (elementId, scale = 3) => {
 
 export const downloadCapturedPDF = async (frontId, backId, fileName, sizeKey = "card") => {
   try {
-    const frontCanvas = await captureElement(frontId, 3);
+    const { canvas: frontCanvas, width, height } = await captureElement(frontId, 3);
     const sizeConfig = PDF_SIZES[sizeKey] || PDF_SIZES.card;
     
-    let pageWidth, pageHeight, imgWidth, imgHeight;
+    let pdfWidth, pdfHeight, imgWidth, imgHeight;
     
-    if (sizeConfig.useExactCardSize || sizeKey === "card") {
-      // CRITICAL: Use exact card dimensions so PDF looks exactly like HTML
-      pageWidth = CARD_WIDTH_MM;
-      pageHeight = CARD_HEIGHT_MM;
-      imgWidth = CARD_WIDTH_MM;
-      imgHeight = CARD_HEIGHT_MM;
+    if (sizeKey === "card" || sizeConfig.unit === "px") {
+      // Use exact pixel dimensions
+      pdfWidth = width;
+      pdfHeight = height;
+      imgWidth = width;
+      imgHeight = height;
     } else {
-      // For A4/A5/A6 - scale down to fit while maintaining aspect ratio
-      pageWidth = sizeConfig.width;
-      pageHeight = sizeConfig.height;
+      // For paper sizes, scale to fit while maintaining aspect ratio
+      pdfWidth = sizeConfig.width;
+      pdfHeight = sizeConfig.height;
       
-      // Calculate scale to fit card into page
-      const scaleX = pageWidth / CARD_WIDTH_MM;
-      const scaleY = pageHeight / CARD_HEIGHT_MM;
-      const scale = Math.min(scaleX, scaleY); // Maintain aspect ratio
+      // Calculate scale to fit within page
+      const scaleX = pdfWidth / (width * 0.264583); // px to mm
+      const scaleY = pdfHeight / (height * 0.264583);
+      const scale = Math.min(scaleX, scaleY, 1); // Don't upscale
       
-      imgWidth = CARD_WIDTH_MM * scale;
-      imgHeight = CARD_HEIGHT_MM * scale;
+      imgWidth = width * scale * 0.264583;
+      imgHeight = height * scale * 0.264583;
     }
     
     const pdf = new jsPDF({
       orientation: "portrait",
-      unit: "mm",
-      format: [pageWidth, pageHeight],
-      compress: false
+      unit: sizeKey === "card" ? "px" : "mm",
+      format: [pdfWidth, pdfHeight],
+      compress: false,
+      hotfixes: ["px_scaling"]
     });
 
-    // Add image at calculated dimensions (no stretching!)
+    // Add image maintaining exact aspect ratio
     pdf.addImage(
       frontCanvas.toDataURL('image/png', 1.0), 
       'PNG', 
@@ -139,17 +137,28 @@ export const downloadCapturedPDF = async (frontId, backId, fileName, sizeKey = "
       imgHeight
     );
 
-    // Add back if exists
     if (backId) {
-      pdf.addPage([pageWidth, pageHeight]);
-      const backCanvas = await captureElement(backId, 3);
+      pdf.addPage([pdfWidth, pdfHeight]);
+      const { canvas: backCanvas, width: backWidth, height: backHeight } = await captureElement(backId, 3);
+      
+      let backImgWidth = backWidth;
+      let backImgHeight = backHeight;
+      
+      if (sizeKey !== "card" && sizeConfig.unit !== "px") {
+        const scaleX = pdfWidth / (backWidth * 0.264583);
+        const scaleY = pdfHeight / (backHeight * 0.264583);
+        const scale = Math.min(scaleX, scaleY, 1);
+        backImgWidth = backWidth * scale * 0.264583;
+        backImgHeight = backHeight * scale * 0.264583;
+      }
+      
       pdf.addImage(
         backCanvas.toDataURL('image/png', 1.0), 
         'PNG', 
         0, 
         0, 
-        imgWidth, 
-        imgHeight
+        backImgWidth, 
+        backImgHeight
       );
     }
 
@@ -161,77 +170,81 @@ export const downloadCapturedPDF = async (frontId, backId, fileName, sizeKey = "
 };
 
 export const openCapturedPDFInTab = async (frontId, backId, sizeKey = "card") => {
-  const frontCanvas = await captureElement(frontId, 3);
+  const { canvas: frontCanvas, width, height } = await captureElement(frontId, 3);
   const sizeConfig = PDF_SIZES[sizeKey] || PDF_SIZES.card;
   
-  let pageWidth, pageHeight, imgWidth, imgHeight;
+  let pdfWidth = sizeKey === "card" ? width : sizeConfig.width;
+  let pdfHeight = sizeKey === "card" ? height : sizeConfig.height;
+  let imgWidth = width;
+  let imgHeight = height;
   
-  if (sizeConfig.useExactCardSize || sizeKey === "card") {
-    pageWidth = CARD_WIDTH_MM;
-    pageHeight = CARD_HEIGHT_MM;
-    imgWidth = CARD_WIDTH_MM;
-    imgHeight = CARD_HEIGHT_MM;
-  } else {
-    pageWidth = sizeConfig.width;
-    pageHeight = sizeConfig.height;
-    const scaleX = pageWidth / CARD_WIDTH_MM;
-    const scaleY = pageHeight / CARD_HEIGHT_MM;
-    const scale = Math.min(scaleX, scaleY);
-    imgWidth = CARD_WIDTH_MM * scale;
-    imgHeight = CARD_HEIGHT_MM * scale;
+  if (sizeKey !== "card" && sizeConfig.unit !== "px") {
+    const scale = Math.min(pdfWidth / (width * 0.264583), pdfHeight / (height * 0.264583), 1);
+    imgWidth = width * scale * 0.264583;
+    imgHeight = height * scale * 0.264583;
   }
   
   const pdf = new jsPDF({
     orientation: "portrait",
-    unit: "mm",
-    format: [pageWidth, pageHeight]
+    unit: sizeKey === "card" ? "px" : "mm",
+    format: [pdfWidth, pdfHeight],
+    hotfixes: ["px_scaling"]
   });
 
   pdf.addImage(frontCanvas.toDataURL('image/png'), 'PNG', 0, 0, imgWidth, imgHeight);
 
   if (backId) {
-    pdf.addPage([pageWidth, pageHeight]);
-    const backCanvas = await captureElement(backId, 3);
-    pdf.addImage(backCanvas.toDataURL('image/png'), 'PNG', 0, 0, imgWidth, imgHeight);
+    pdf.addPage([pdfWidth, pdfHeight]);
+    const { canvas: backCanvas, width: backWidth, height: backHeight } = await captureElement(backId, 3);
+    let backImgWidth = backWidth;
+    let backImgHeight = backHeight;
+    if (sizeKey !== "card" && sizeConfig.unit !== "px") {
+      const scale = Math.min(pdfWidth / (backWidth * 0.264583), pdfHeight / (backHeight * 0.264583), 1);
+      backImgWidth = backWidth * scale * 0.264583;
+      backImgHeight = backHeight * scale * 0.264583;
+    }
+    pdf.addImage(backCanvas.toDataURL('image/png'), 'PNG', 0, 0, backImgWidth, backImgHeight);
   }
 
   window.open(pdf.output('bloburl'), '_blank');
 };
 
 export const getCapturedPDFBlob = async (frontId, backId, sizeKey = "card") => {
-  const frontCanvas = await captureElement(frontId, 3);
+  const { canvas: frontCanvas, width, height } = await captureElement(frontId, 3);
   const sizeConfig = PDF_SIZES[sizeKey] || PDF_SIZES.card;
   
-  let pageWidth, pageHeight, imgWidth, imgHeight;
+  let pdfWidth = sizeKey === "card" ? width : sizeConfig.width;
+  let pdfHeight = sizeKey === "card" ? height : sizeConfig.height;
+  let imgWidth = width;
+  let imgHeight = height;
   
-  if (sizeConfig.useExactCardSize || sizeKey === "card") {
-    pageWidth = CARD_WIDTH_MM;
-    pageHeight = CARD_HEIGHT_MM;
-    imgWidth = CARD_WIDTH_MM;
-    imgHeight = CARD_HEIGHT_MM;
-  } else {
-    pageWidth = sizeConfig.width;
-    pageHeight = sizeConfig.height;
-    const scaleX = pageWidth / CARD_WIDTH_MM;
-    const scaleY = pageHeight / CARD_HEIGHT_MM;
-    const scale = Math.min(scaleX, scaleY);
-    imgWidth = CARD_WIDTH_MM * scale;
-    imgHeight = CARD_HEIGHT_MM * scale;
+  if (sizeKey !== "card" && sizeConfig.unit !== "px") {
+    const scale = Math.min(pdfWidth / (width * 0.264583), pdfHeight / (height * 0.264583), 1);
+    imgWidth = width * scale * 0.264583;
+    imgHeight = height * scale * 0.264583;
   }
   
   const pdf = new jsPDF({
     orientation: "portrait",
-    unit: "mm",
-    format: [pageWidth, pageHeight],
-    compress: false
+    unit: sizeKey === "card" ? "px" : "mm",
+    format: [pdfWidth, pdfHeight],
+    compress: false,
+    hotfixes: ["px_scaling"]
   });
 
   pdf.addImage(frontCanvas.toDataURL('image/png'), 'PNG', 0, 0, imgWidth, imgHeight);
 
   if (backId) {
-    pdf.addPage([pageWidth, pageHeight]);
-    const backCanvas = await captureElement(backId, 3);
-    pdf.addImage(backCanvas.toDataURL('image/png'), 'PNG', 0, 0, imgWidth, imgHeight);
+    pdf.addPage([pdfWidth, pdfHeight]);
+    const { canvas: backCanvas, width: backWidth, height: backHeight } = await captureElement(backId, 3);
+    let backImgWidth = backWidth;
+    let backImgHeight = backHeight;
+    if (sizeKey !== "card" && sizeConfig.unit !== "px") {
+      const scale = Math.min(pdfWidth / (backWidth * 0.264583), pdfHeight / (backHeight * 0.264583), 1);
+      backImgWidth = backWidth * scale * 0.264583;
+      backImgHeight = backHeight * scale * 0.264583;
+    }
+    pdf.addImage(backCanvas.toDataURL('image/png'), 'PNG', 0, 0, backImgWidth, backImgHeight);
   }
 
   return pdf.output('blob');
@@ -239,7 +252,7 @@ export const getCapturedPDFBlob = async (frontId, backId, sizeKey = "card") => {
 
 export const downloadAsImages = async (frontId, backId, baseName, size = "hd") => {
   const scale = IMAGE_SIZES[size]?.scale || 2;
-  const frontCanvas = await captureElement(frontId, scale);
+  const { canvas: frontCanvas } = await captureElement(frontId, scale);
   
   const a1 = document.createElement("a");
   a1.download = `${baseName}_front.png`;
@@ -248,7 +261,7 @@ export const downloadAsImages = async (frontId, backId, baseName, size = "hd") =
 
   if (backId) {
     await new Promise(r => setTimeout(r, 300));
-    const backCanvas = await captureElement(backId, scale);
+    const { canvas: backCanvas } = await captureElement(backId, scale);
     const a2 = document.createElement("a");
     a2.download = `${baseName}_back.png`;
     a2.href = backCanvas.toDataURL("image/png", 1.0);
