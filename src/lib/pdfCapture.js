@@ -1,6 +1,9 @@
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 
+// ============================================
+// CONSTANTS
+// ============================================
 export const PDF_SIZES = {
   a4:   { width: 210, height: 297, label: "A4 (210×297 mm)" },
   a5:   { width: 148, height: 210, label: "A5 (148×210 mm)" },
@@ -9,46 +12,63 @@ export const PDF_SIZES = {
 };
 
 export const IMAGE_SIZES = {
-  low:   { scale: 1,    label: "Low Quality" },
-  medium:{ scale: 2,    label: "Medium"      },
-  hd:    { scale: 3,    label: "HD"          },
-  high:  { scale: 4,    label: "High"        },
-  "4k":  { scale: 6,    label: "4K"          },
+  low:    { scale: 1,  label: "Low Quality" },
+  medium: { scale: 2,  label: "Medium" },
+  hd:     { scale: 3,  label: "HD" },
+  high:   { scale: 4,  label: "High" },
+  "4k":   { scale: 6,  label: "4K" },
 };
 
+// ============================================
+// CORE CAPTURE FUNCTION
+// ============================================
 const captureElement = async (elementId, scale = 3) => {
-  const originalEl = document.getElementById(elementId);
-  if (!originalEl) throw new Error(`Element #${elementId} not found`);
+  const element = document.getElementById(elementId);
+  if (!element) {
+    throw new Error(`Element #${elementId} not found`);
+  }
 
-  const originalParent = originalEl.parentNode;
-  const originalNextSibling = originalEl.nextSibling;
+  // Method: Move to body temporarily to escape modal transforms
+  const originalParent = element.parentNode;
+  const originalNextSibling = element.nextSibling;
   const originalStyles = {
-    position: originalEl.style.position,
-    transform: originalEl.style.transform,
-    zIndex: originalEl.style.zIndex,
-    boxShadow: originalEl.style.boxShadow
+    position: element.style.position,
+    transform: element.style.transform,
+    zIndex: element.style.zIndex,
+    boxShadow: element.style.boxShadow,
+    width: element.style.width,
+    height: element.style.height
   };
 
   try {
-    document.body.appendChild(originalEl);
-    originalEl.style.position = 'absolute';
-    originalEl.style.transform = 'none';
-    originalEl.style.zIndex = '999999';
-    originalEl.style.boxShadow = 'none';
-    originalEl.style.top = '0';
-    originalEl.style.left = '0';
+    // Move to body to escape modal CSS transforms
+    document.body.appendChild(element);
+    
+    // Apply capture-friendly styles
+    element.style.position = 'absolute';
+    element.style.transform = 'none';
+    element.style.zIndex = '999999';
+    element.style.boxShadow = 'none';
+    element.style.width = '320px';
+    element.style.height = '454px';
+    element.style.top = '0';
+    element.style.left = '0';
 
-    const images = originalEl.querySelectorAll('img');
-    await Promise.all(Array.from(images).map(img => {
-      return new Promise(resolve => {
-        if (img.complete) resolve();
-        else { img.onload = resolve; img.onerror = resolve; setTimeout(resolve, 500); }
-      });
-    }));
+    // Wait for images
+    const images = element.querySelectorAll('img');
+    await Promise.all(
+      Array.from(images).map(img => 
+        new Promise(resolve => {
+          if (img.complete) resolve();
+          else { img.onload = resolve; img.onerror = resolve; setTimeout(resolve, 500); }
+        })
+      )
+    );
 
     await new Promise(r => setTimeout(r, 100));
 
-    const canvas = await html2canvas(originalEl, {
+    // Capture
+    const canvas = await html2canvas(element, {
       scale,
       useCORS: true,
       allowTaint: true,
@@ -61,60 +81,68 @@ const captureElement = async (elementId, scale = 3) => {
     });
 
     if (!canvas || canvas.width === 0) {
-      throw new Error('Canvas capture failed');
+      throw new Error('Canvas capture returned empty');
     }
 
     return canvas;
 
   } finally {
+    // Restore to original position
     if (originalNextSibling) {
-      originalParent.insertBefore(originalEl, originalNextSibling);
+      originalParent.insertBefore(element, originalNextSibling);
     } else {
-      originalParent.appendChild(originalEl);
+      originalParent.appendChild(element);
     }
-    Object.assign(originalEl.style, originalStyles);
+    
+    // Restore original styles
+    Object.assign(element.style, originalStyles);
   }
 };
+
+// ============================================
+// EXPORT FUNCTIONS
+// ============================================
 
 export const downloadCapturedPDF = async (frontId, backId, fileName, size = "a6") => {
-  try {
-    const frontCanvas = await captureElement(frontId, 3);
-    const sizeConfig = PDF_SIZES[size] || PDF_SIZES.a6;
-    
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: [sizeConfig.width, sizeConfig.height],
-      compress: false
-    });
-
-    pdf.addImage(frontCanvas.toDataURL('image/png'), 'PNG', 0, 0, sizeConfig.width, sizeConfig.height);
-
-    if (backId) {
-      pdf.addPage([sizeConfig.width, sizeConfig.height]);
-      const backCanvas = await captureElement(backId, 3);
-      pdf.addImage(backCanvas.toDataURL('image/png'), 'PNG', 0, 0, sizeConfig.width, sizeConfig.height);
-    }
-
-    pdf.save(fileName);
-  } catch (error) {
-    console.error('PDF Error:', error);
-    throw new Error(`Failed to generate PDF: ${error.message}`);
-  }
-};
-
-export const openCapturedPDFInTab = async (frontId, backId, size = "a6") => {
   const frontCanvas = await captureElement(frontId, 3);
   const sizeConfig = PDF_SIZES[size] || PDF_SIZES.a6;
-  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [sizeConfig.width, sizeConfig.height] });
-  pdf.addImage(frontCanvas.toDataURL('image/png'), 'PNG', 0, 0, sizeConfig.width, sizeConfig.height);
   
+  const pdf = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: [sizeConfig.width, sizeConfig.height],
+    compress: false
+  });
+
+  pdf.addImage(frontCanvas.toDataURL('image/png'), 'PNG', 0, 0, sizeConfig.width, sizeConfig.height);
+
   if (backId) {
     pdf.addPage([sizeConfig.width, sizeConfig.height]);
     const backCanvas = await captureElement(backId, 3);
     pdf.addImage(backCanvas.toDataURL('image/png'), 'PNG', 0, 0, sizeConfig.width, sizeConfig.height);
   }
+
+  pdf.save(fileName);
+};
+
+export const openCapturedPDFInTab = async (frontId, backId, size = "a6") => {
+  const frontCanvas = await captureElement(frontId, 3);
+  const sizeConfig = PDF_SIZES[size] || PDF_SIZES.a6;
   
+  const pdf = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: [sizeConfig.width, sizeConfig.height]
+  });
+
+  pdf.addImage(frontCanvas.toDataURL('image/png'), 'PNG', 0, 0, sizeConfig.width, sizeConfig.height);
+
+  if (backId) {
+    pdf.addPage([sizeConfig.width, sizeConfig.height]);
+    const backCanvas = await captureElement(backId, 3);
+    pdf.addImage(backCanvas.toDataURL('image/png'), 'PNG', 0, 0, sizeConfig.width, sizeConfig.height);
+  }
+
   window.open(pdf.output('bloburl'), '_blank');
 };
 
@@ -157,4 +185,14 @@ export const downloadAsImages = async (frontId, backId, baseName, size = "hd") =
     a2.href = backCanvas.toDataURL("image/png");
     a2.click();
   }
+};
+
+// Default export for compatibility
+export default {
+  PDF_SIZES,
+  IMAGE_SIZES,
+  downloadCapturedPDF,
+  openCapturedPDFInTab,
+  getCapturedPDFBlob,
+  downloadAsImages
 };
