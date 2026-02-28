@@ -96,8 +96,29 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
 
   return (
     <>
-      {/* FRONT CARD */}
-      <div id={`accreditation-front-card${idSuffix}`} style={{ width: "320px", height: "454px", backgroundColor: "#ffffff", borderRadius: "0", boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)", overflow: "hidden", flexShrink: 0, display: "flex", flexDirection: "column", position: "relative", border: expired ? "2px solid #f87171" : "1px solid #e2e8f0" }}>
+      {/* FRONT CARD - CRITICAL: Use exact pixel dimensions with box-sizing */}
+      <div 
+        id={`accreditation-front-card${idSuffix}`} 
+        style={{ 
+          width: "320px", 
+          height: "454px", 
+          minWidth: "320px",
+          minHeight: "454px",
+          maxWidth: "320px",
+          maxHeight: "454px",
+          backgroundColor: "#ffffff", 
+          borderRadius: "0", 
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)", 
+          overflow: "hidden", 
+          display: "flex", 
+          flexDirection: "column", 
+          position: "relative", 
+          border: expired ? "2px solid #f87171" : "1px solid #e2e8f0",
+          boxSizing: "border-box", // CRITICAL: Include border in dimensions
+          flexShrink: 0,
+          flexGrow: 0,
+        }}
+      >
         {expired && (
           <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(239, 68, 68, 0.1)", zIndex: 20, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
             <div style={{ backgroundColor: "#dc2626", color: "white", padding: "8px 24px", transform: "rotate(-15deg)", fontWeight: "bold", fontSize: "24px", letterSpacing: "0.1em", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" }}>
@@ -131,7 +152,7 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
         </div>
 
         {/* BODY */}
-        <div style={{ display: "flex", flex: 1, padding: "12px", position: "relative", zIndex: 10, minHeight: 0, backgroundColor: "white" }}>
+        <div style={{ display: "flex", flex: 1, padding: "12px", position: "relative", zIndex: 10, minHeight: 0, backgroundColor: "white", overflow: "hidden" }}>
           {/* LEFT: Photo + ID + QR */}
           <div style={{ width: "110px", display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
             <div style={{ width: "100px", height: "120px", border: "2px solid #cbd5e1", padding: "2px", backgroundColor: "white", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)", flexShrink: 0 }}>
@@ -225,7 +246,27 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
       </div>
 
       {/* BACK CARD */}
-      <div id={`accreditation-back-card${idSuffix}`} style={{ width: "320px", height: "454px", background: "linear-gradient(to bottom right, #0f172a, #1e293b, #0f172a)", borderRadius: "0", boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)", overflow: "hidden", flexShrink: 0, border: "1px solid #334155", position: "relative", marginLeft: "20px" }}>
+      <div 
+        id={`accreditation-back-card${idSuffix}`} 
+        style={{ 
+          width: "320px", 
+          height: "454px",
+          minWidth: "320px",
+          minHeight: "454px", 
+          maxWidth: "320px",
+          maxHeight: "454px",
+          background: "linear-gradient(to bottom right, #0f172a, #1e293b, #0f172a)", 
+          borderRadius: "0", 
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)", 
+          overflow: "hidden", 
+          flexShrink: 0, 
+          border: "1px solid #334155", 
+          position: "relative", 
+          marginLeft: "20px",
+          boxSizing: "border-box",
+          flexGrow: 0,
+        }}
+      >
         <div style={{ position: "absolute", inset: 0, opacity: 0.05 }}>
           <svg style={{ width: "100%", height: "100%" }} viewBox="0 0 320 454" preserveAspectRatio="none">
             <defs>
@@ -301,11 +342,13 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
   );
 };
 
-// Original preview component unchanged
+// CRITICAL FIX: Use inline-block wrapper to prevent flex stretching
 const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
   return (
-    <div id="accreditation-card-preview" className="flex flex-col lg:flex-row gap-6 items-start justify-center font-sans">
-      <CardInner accreditation={accreditation} event={event} zones={zones} idSuffix="" />
+    <div id="accreditation-card-preview" style={{ display: "inline-block", fontFamily: "sans-serif" }}>
+      <div style={{ display: "flex", flexDirection: "row", gap: "24px", alignItems: "flex-start" }}>
+        <CardInner accreditation={accreditation} event={event} zones={zones} idSuffix="" />
+      </div>
     </div>
   );
 };
