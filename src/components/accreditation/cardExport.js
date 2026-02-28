@@ -3,60 +3,37 @@ import { saveAs } from 'file-saver';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
-// PDF Sizes for individual cards (in mm)
+// HTML Card dimensions (pixels)
+const CARD_WIDTH_PX = 320;
+const CARD_HEIGHT_PX = 454;
+
+// Convert pixels to mm (96px = 25.4mm)
+const pxToMm = (px) => px * 25.4 / 96;
+const CARD_WIDTH_MM = pxToMm(CARD_WIDTH_PX);
+const CARD_HEIGHT_MM = pxToMm(CARD_HEIGHT_PX);
+
 export const PDF_SIZES = {
   a4:   { width: 210, height: 297, label: "A4 (210×297 mm)" },
   a5:   { width: 148, height: 210, label: "A5 (148×210 mm)" },
   a6:   { width: 105, height: 148, label: "A6 (105×148 mm)" },
-  card: { width: 85.6, height: 54,  label: "ID Card (85.6×54 mm)" },
-};
-
-// Fixed card dimensions (HTML element size)
-const CARD_WIDTH = 320;
-const CARD_HEIGHT = 454;
-
-// Helper to calculate image dimensions maintaining aspect ratio
-const calculateImageDimensions = (canvasWidth, canvasHeight, pageWidth, pageHeight) => {
-  const canvasRatio = canvasWidth / canvasHeight;
-  const pageRatio = pageWidth / pageHeight;
-  
-  let imgWidth, imgHeight, x, y;
-  
-  if (canvasRatio > pageRatio) {
-    // Canvas is wider - fit to width
-    imgWidth = pageWidth;
-    imgHeight = pageWidth / canvasRatio;
-    x = 0;
-    y = (pageHeight - imgHeight) / 2;
-  } else {
-    // Canvas is taller - fit to height
-    imgHeight = pageHeight;
-    imgWidth = pageHeight * canvasRatio;
-    x = (pageWidth - imgWidth) / 2;
-    y = 0;
-  }
-  
-  return { imgWidth, imgHeight, x, y };
+  card: { width: CARD_WIDTH_MM, height: CARD_HEIGHT_MM, label: "Exact Card Size" },
 };
 
 const captureCardElement = async (elementId, scale = 3) => {
   const originalEl = document.getElementById(elementId);
-  if (!originalEl) {
-    throw new Error(`Element #${elementId} not found in DOM`);
-  }
+  if (!originalEl) throw new Error(`Element #${elementId} not found`);
 
   const originalParent = originalEl.parentNode;
   const originalNextSibling = originalEl.nextSibling;
 
   try {
-    // Create visible sandbox off-screen
     const sandbox = document.createElement('div');
     sandbox.style.cssText = `
       position: fixed;
       top: -10000px;
       left: -10000px;
-      width: ${CARD_WIDTH + 100}px;
-      height: ${CARD_HEIGHT + 100}px;
+      width: ${CARD_WIDTH_PX + 100}px;
+      height: ${CARD_HEIGHT_PX + 100}px;
       overflow: visible;
       z-index: 2147483647;
       background: white;
@@ -65,16 +42,13 @@ const captureCardElement = async (elementId, scale = 3) => {
     `;
     document.body.appendChild(sandbox);
 
-    // Deep clone
     const clone = originalEl.cloneNode(true);
-    
-    // Apply exact dimensions
     clone.style.cssText = `
       position: absolute;
       top: 0;
       left: 0;
-      width: ${CARD_WIDTH}px;
-      height: ${CARD_HEIGHT}px;
+      width: ${CARD_WIDTH_PX}px;
+      height: ${CARD_HEIGHT_PX}px;
       transform: none;
       margin: 0;
       opacity: 1;
@@ -82,22 +56,15 @@ const captureCardElement = async (elementId, scale = 3) => {
       overflow: hidden;
     `;
 
-    // Handle images
     const images = clone.querySelectorAll('img');
     images.forEach(img => {
       img.crossOrigin = 'anonymous';
       img.loading = 'eager';
-      if (img.src && !img.src.startsWith('http') && !img.src.startsWith('data:')) {
-        try {
-          img.src = new URL(img.src, window.location.href).href;
-        } catch(e) {}
-      }
     });
 
     sandbox.appendChild(clone);
     clone.getBoundingClientRect();
     
-    // Wait for images
     await Promise.all(Array.from(images).map(img => {
       return new Promise((resolve) => {
         if (img.complete && img.naturalWidth > 0) resolve();
@@ -112,75 +79,75 @@ const captureCardElement = async (elementId, scale = 3) => {
     await document.fonts.ready;
     await new Promise(r => setTimeout(r, 200));
 
-    // Capture
     const canvas = await html2canvas(clone, {
       scale: scale,
       useCORS: true,
       allowTaint: true,
       backgroundColor: "#ffffff",
       logging: false,
-      width: CARD_WIDTH,
-      height: CARD_HEIGHT,
+      width: CARD_WIDTH_PX,
+      height: CARD_HEIGHT_PX,
       x: 0,
       y: 0
     });
 
-    if (!canvas || canvas.width === 0 || canvas.height === 0) {
-      throw new Error('Canvas has invalid dimensions');
-    }
-
+    if (!canvas || canvas.width === 0) throw new Error('Canvas has invalid dimensions');
     return canvas;
   } finally {
-    // Cleanup
-    const sandbox = document.getElementById('pdf-capture-sandbox');
-    if (sandbox && sandbox.parentNode) sandbox.parentNode.removeChild(sandbox);
+    const sandbox = document.querySelector('[style*="z-index: 2147483647"]');
+    if (sandbox?.parentNode) sandbox.parentNode.removeChild(sandbox);
     
-    // Restore original element if moved
-    if (originalNextSibling) {
-      originalParent.insertBefore(originalEl, originalNextSibling);
-    } else {
-      originalParent.appendChild(originalEl);
-    }
+    if (originalNextSibling) originalParent.insertBefore(originalEl, originalNextSibling);
+    else originalParent.appendChild(originalEl);
   }
 };
 
-export const downloadCardPDF = async (frontId, backId, filename, size = "a6") => {
+export const downloadCardPDF = async (frontId, backId, filename, size = "card") => {
   try {
     const frontCanvas = await captureCardElement(frontId, 3);
-    const sizeConfig = PDF_SIZES[size] || PDF_SIZES.a6;
+    const sizeConfig = PDF_SIZES[size] || PDF_SIZES.card;
+    
+    let pageWidth, pageHeight, imgWidth, imgHeight;
+    
+    if (size === "card") {
+      // EXACT match to HTML
+      pageWidth = CARD_WIDTH_MM;
+      pageHeight = CARD_HEIGHT_MM;
+      imgWidth = CARD_WIDTH_MM;
+      imgHeight = CARD_HEIGHT_MM;
+    } else {
+      // Scale to fit A4/A5/A6
+      pageWidth = sizeConfig.width;
+      pageHeight = sizeConfig.height;
+      const scale = Math.min(pageWidth / CARD_WIDTH_MM, pageHeight / CARD_HEIGHT_MM);
+      imgWidth = CARD_WIDTH_MM * scale;
+      imgHeight = CARD_HEIGHT_MM * scale;
+    }
     
     const pdf = new jsPDF({
-      orientation: sizeConfig.width > sizeConfig.height ? "landscape" : "portrait",
+      orientation: "portrait",
       unit: "mm",
-      format: [sizeConfig.width, sizeConfig.height],
+      format: [pageWidth, pageHeight],
       compress: false
     });
-    
-    // Calculate dimensions maintaining aspect ratio
-    const { imgWidth, imgHeight, x, y } = calculateImageDimensions(
-      CARD_WIDTH,
-      CARD_HEIGHT,
-      sizeConfig.width,
-      sizeConfig.height
-    );
     
     pdf.addImage(
       frontCanvas.toDataURL('image/png', 1.0), 
       'PNG', 
-      x, 
-      y, 
+      0, 
+      0, 
       imgWidth, 
       imgHeight
     );
     
     if (backId) {
-      pdf.addPage([sizeConfig.width, sizeConfig.height]);
+      pdf.addPage([pageWidth, pageHeight]);
       const backCanvas = await captureCardElement(backId, 3);
       pdf.addImage(
         backCanvas.toDataURL('image/png', 1.0), 
         'PNG', 
-        x, 
-        y, 
+        0, 
+        0, 
         imgWidth, 
         imgHeight
       );
@@ -194,45 +161,39 @@ export const downloadCardPDF = async (frontId, backId, filename, size = "a6") =>
   }
 };
 
-export const openCardPDF = async (frontId, backId, size = "a6") => {
+export const openCardPDF = async (frontId, backId, size = "card") => {
   try {
     const frontCanvas = await captureCardElement(frontId, 3);
-    const sizeConfig = PDF_SIZES[size] || PDF_SIZES.a6;
+    const sizeConfig = PDF_SIZES[size] || PDF_SIZES.card;
+    
+    let pageWidth, pageHeight, imgWidth, imgHeight;
+    
+    if (size === "card") {
+      pageWidth = CARD_WIDTH_MM;
+      pageHeight = CARD_HEIGHT_MM;
+      imgWidth = CARD_WIDTH_MM;
+      imgHeight = CARD_HEIGHT_MM;
+    } else {
+      pageWidth = sizeConfig.width;
+      pageHeight = sizeConfig.height;
+      const scale = Math.min(pageWidth / CARD_WIDTH_MM, pageHeight / CARD_HEIGHT_MM);
+      imgWidth = CARD_WIDTH_MM * scale;
+      imgHeight = CARD_HEIGHT_MM * scale;
+    }
     
     const pdf = new jsPDF({
-      orientation: sizeConfig.width > sizeConfig.height ? "landscape" : "portrait",
+      orientation: "portrait",
       unit: "mm",
-      format: [sizeConfig.width, sizeConfig.height],
+      format: [pageWidth, pageHeight],
       compress: false
     });
     
-    const { imgWidth, imgHeight, x, y } = calculateImageDimensions(
-      CARD_WIDTH,
-      CARD_HEIGHT,
-      sizeConfig.width,
-      sizeConfig.height
-    );
-    
-    pdf.addImage(
-      frontCanvas.toDataURL('image/png', 1.0), 
-      'PNG', 
-      x, 
-      y, 
-      imgWidth, 
-      imgHeight
-    );
+    pdf.addImage(frontCanvas.toDataURL('image/png', 1.0), 'PNG', 0, 0, imgWidth, imgHeight);
     
     if (backId) {
-      pdf.addPage([sizeConfig.width, sizeConfig.height]);
+      pdf.addPage([pageWidth, pageHeight]);
       const backCanvas = await captureCardElement(backId, 3);
-      pdf.addImage(
-        backCanvas.toDataURL('image/png', 1.0), 
-        'PNG', 
-        x, 
-        y, 
-        imgWidth, 
-        imgHeight
-      );
+      pdf.addImage(backCanvas.toDataURL('image/png', 1.0), 'PNG', 0, 0, imgWidth, imgHeight);
     }
     
     const blob = pdf.output('blob');
@@ -245,12 +206,12 @@ export const openCardPDF = async (frontId, backId, size = "a6") => {
   }
 };
 
-export const printCard = async (frontId, backId, size = "a6") => {
+export const printCard = async (frontId, backId, size = "card") => {
   try {
     const frontCanvas = await captureCardElement(frontId, 2);
     const frontImage = frontCanvas.toDataURL('image/png');
     
-    const sizeConfig = PDF_SIZES[size] || PDF_SIZES.a6;
+    const sizeConfig = PDF_SIZES[size] || PDF_SIZES.card;
     
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
@@ -259,36 +220,14 @@ export const printCard = async (frontId, backId, size = "a6") => {
           <title>Print Accreditation Card</title>
           <style>
             @page { size: ${sizeConfig.width}mm ${sizeConfig.height}mm; margin: 0; }
-            body { 
-              margin: 0; 
-              padding: 0; 
-              display: flex; 
-              justify-content: center; 
-              align-items: center; 
-              min-height: 100vh;
-              background: white;
-            }
-            .card-container { 
-              width: 100%; 
-              height: 100%; 
-              display: flex;
-              justify-content: center;
-              align-items: center;
-            }
-            .card { 
-              max-width: 100%; 
-              max-height: 100%; 
-              object-fit: contain;
-            }
-            @media print { 
-              body { margin: 0; } 
-            }
+            body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: white; }
+            .card-container { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+            .card { max-width: 100%; max-height: 100%; object-fit: contain; }
+            @media print { body { margin: 0; } }
           </style>
         </head>
         <body>
-          <div class="card-container">
-            <img src="${frontImage}" class="card" />
-          </div>
+          <div class="card-container"><img src="${frontImage}" class="card" /></div>
           ${backId ? `<div style="page-break-after: always;"></div>` : ''}
         </body>
       </html>
@@ -297,11 +236,7 @@ export const printCard = async (frontId, backId, size = "a6") => {
     if (backId) {
       const backCanvas = await captureCardElement(backId, 2);
       const backImage = backCanvas.toDataURL('image/png');
-      printWindow.document.body.innerHTML += `
-        <div class="card-container">
-          <img src="${backImage}" class="card" />
-        </div>
-      `;
+      printWindow.document.body.innerHTML += `<div class="card-container"><img src="${backImage}" class="card" /></div>`;
     }
     
     printWindow.document.close();
@@ -317,8 +252,7 @@ export const printCard = async (frontId, backId, size = "a6") => {
   }
 };
 
-// Bulk download - also needs aspect ratio fix
-export const bulkDownloadPDFs = async (accreditations, event, zones, size = "a6") => {
+export const bulkDownloadPDFs = async (accreditations, event, zones, size = "card") => {
   if (!accreditations || accreditations.length === 0) {
     throw new Error("No accreditations selected");
   }
@@ -326,18 +260,17 @@ export const bulkDownloadPDFs = async (accreditations, event, zones, size = "a6"
   try {
     const zip = new JSZip();
     const folder = zip.folder("accreditation-cards");
-    const sizeConfig = PDF_SIZES[size] || PDF_SIZES.a6;
+    const sizeConfig = PDF_SIZES[size] || PDF_SIZES.card;
     
     for (let i = 0; i < accreditations.length; i++) {
       const acc = accreditations[i];
       
       try {
-        // Create temporary card element
         const tempDiv = document.createElement('div');
         tempDiv.id = `temp-card-${acc.id}`;
         tempDiv.style.cssText = `
-          width: ${CARD_WIDTH}px;
-          height: ${CARD_HEIGHT}px;
+          width: ${CARD_WIDTH_PX}px;
+          height: ${CARD_HEIGHT_PX}px;
           background: white;
           position: absolute;
           left: -9999px;
@@ -346,7 +279,6 @@ export const bulkDownloadPDFs = async (accreditations, event, zones, size = "a6"
           font-family: Arial, sans-serif;
         `;
         
-        // Build card HTML
         tempDiv.innerHTML = `
           <div style="width: 100%; height: 100%; position: relative; background: white;">
             <div style="background: #38bdf8; padding: 12px; text-align: center; color: white;">
@@ -411,28 +343,35 @@ export const bulkDownloadPDFs = async (accreditations, event, zones, size = "a6"
           useCORS: true,
           allowTaint: true,
           logging: false,
-          width: CARD_WIDTH,
-          height: CARD_HEIGHT
+          width: CARD_WIDTH_PX,
+          height: CARD_HEIGHT_PX
         });
         
         document.body.removeChild(tempDiv);
         
-        // Create PDF with aspect ratio fix
+        let pageWidth, pageHeight, imgWidth, imgHeight;
+        
+        if (size === "card") {
+          pageWidth = CARD_WIDTH_MM;
+          pageHeight = CARD_HEIGHT_MM;
+          imgWidth = CARD_WIDTH_MM;
+          imgHeight = CARD_HEIGHT_MM;
+        } else {
+          pageWidth = sizeConfig.width;
+          pageHeight = sizeConfig.height;
+          const scale = Math.min(pageWidth / CARD_WIDTH_MM, pageHeight / CARD_HEIGHT_MM);
+          imgWidth = CARD_WIDTH_MM * scale;
+          imgHeight = CARD_HEIGHT_MM * scale;
+        }
+        
         const pdf = new jsPDF({
           orientation: "portrait",
           unit: "mm",
-          format: [sizeConfig.width, sizeConfig.height],
+          format: [pageWidth, pageHeight],
           compress: false
         });
         
-        const { imgWidth, imgHeight, x, y } = calculateImageDimensions(
-          CARD_WIDTH,
-          CARD_HEIGHT,
-          sizeConfig.width,
-          sizeConfig.height
-        );
-        
-        pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', x, y, imgWidth, imgHeight);
+        pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', 0, 0, imgWidth, imgHeight);
         
         const pdfBlob = pdf.output('blob');
         const safeName = `${acc.firstName}_${acc.lastName}_${acc.badgeNumber || acc.id}`.replace(/[^a-z0-9]/gi, '_').substring(0, 50);
@@ -454,7 +393,6 @@ export const bulkDownloadPDFs = async (accreditations, event, zones, size = "a6"
   }
 };
 
-// Helper functions
 const getRoleColor = (role) => {
   const colors = {
     'Athlete': '#3b82f6',
