@@ -34,7 +34,12 @@ export default defineConfig({
     commonjsOptions: { transformMixedEsModules: true }
   },
   optimizeDeps: {
-    include: ["@react-pdf/renderer"],
+    include: [
+      "@react-pdf/renderer",
+      "html2canvas",
+      "jspdf",
+      "jspdf-autotable"
+    ],
     esbuildOptions: { target: "esnext" }
   }
 });
