@@ -16,15 +16,10 @@ export const IMAGE_SIZES = {
   "4k":  { scale: 6,    label: "4K"          },
 };
 
-/**
- * ROBUST CAPTURE FOR MODAL ELEMENTS
- * Temporarily moves element to body, captures, then restores
- */
 const captureElement = async (elementId, scale = 3) => {
   const originalEl = document.getElementById(elementId);
   if (!originalEl) throw new Error(`Element #${elementId} not found`);
 
-  // Store original parent and styles
   const originalParent = originalEl.parentNode;
   const originalNextSibling = originalEl.nextSibling;
   const originalStyles = {
@@ -34,17 +29,8 @@ const captureElement = async (elementId, scale = 3) => {
     boxShadow: originalEl.style.boxShadow
   };
 
-  // Create placeholder to maintain layout
-  const placeholder = document.createElement('div');
-  placeholder.style.width = originalEl.offsetWidth + 'px';
-  placeholder.style.height = originalEl.offsetHeight + 'px';
-  placeholder.style.visibility = 'hidden';
-
   try {
-    // Move element to body (escapes modal transforms)
     document.body.appendChild(originalEl);
-    
-    // Fix styles for capture
     originalEl.style.position = 'absolute';
     originalEl.style.transform = 'none';
     originalEl.style.zIndex = '999999';
@@ -52,7 +38,6 @@ const captureElement = async (elementId, scale = 3) => {
     originalEl.style.top = '0';
     originalEl.style.left = '0';
 
-    // Wait for any images to load
     const images = originalEl.querySelectorAll('img');
     await Promise.all(Array.from(images).map(img => {
       return new Promise(resolve => {
@@ -63,7 +48,6 @@ const captureElement = async (elementId, scale = 3) => {
 
     await new Promise(r => setTimeout(r, 100));
 
-    // Capture
     const canvas = await html2canvas(originalEl, {
       scale,
       useCORS: true,
@@ -83,14 +67,11 @@ const captureElement = async (elementId, scale = 3) => {
     return canvas;
 
   } finally {
-    // Restore element to original position
     if (originalNextSibling) {
       originalParent.insertBefore(originalEl, originalNextSibling);
     } else {
       originalParent.appendChild(originalEl);
     }
-    
-    // Restore original styles
     Object.assign(originalEl.style, originalStyles);
   }
 };
@@ -135,6 +116,28 @@ export const openCapturedPDFInTab = async (frontId, backId, size = "a6") => {
   }
   
   window.open(pdf.output('bloburl'), '_blank');
+};
+
+export const getCapturedPDFBlob = async (frontId, backId, size = "a6") => {
+  const frontCanvas = await captureElement(frontId, 3);
+  const sizeConfig = PDF_SIZES[size] || PDF_SIZES.a6;
+  
+  const pdf = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: [sizeConfig.width, sizeConfig.height],
+    compress: false
+  });
+
+  pdf.addImage(frontCanvas.toDataURL('image/png'), 'PNG', 0, 0, sizeConfig.width, sizeConfig.height);
+
+  if (backId) {
+    pdf.addPage([sizeConfig.width, sizeConfig.height]);
+    const backCanvas = await captureElement(backId, 3);
+    pdf.addImage(backCanvas.toDataURL('image/png'), 'PNG', 0, 0, sizeConfig.width, sizeConfig.height);
+  }
+
+  return pdf.output('blob');
 };
 
 export const downloadAsImages = async (frontId, backId, baseName, size = "hd") => {
