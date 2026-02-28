@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "buildCommand": "rm -rf node_modules/.vite dist .turbo && pnpm install && pnpm run build",
-  "installCommand": "pnpm install",
+  "buildCommand": "rm -rf node_modules/.vite dist .turbo && pnpm install --no-frozen-lockfile && pnpm run build",
+  "installCommand": "pnpm install --no-frozen-lockfile",
   "framework": "vite",
   "build": {
     "env": {
