@@ -26,7 +26,8 @@ const captureElement = async (elementId, scale = 3) => {
 
   const originalParent = element.parentNode;
   const originalNextSibling = element.nextSibling;
-  
+  const originalCssText = element.style.cssText;
+
   try {
     document.body.appendChild(element);
     element.style.cssText = `
@@ -35,15 +36,23 @@ const captureElement = async (elementId, scale = 3) => {
       left: 0 !important;
       width: ${actualWidth}px !important;
       height: ${actualHeight}px !important;
+      min-width: ${actualWidth}px !important;
+      min-height: ${actualHeight}px !important;
+      max-width: ${actualWidth}px !important;
+      max-height: ${actualHeight}px !important;
       transform: none !important;
       margin: 0 !important;
       z-index: 999999 !important;
       box-shadow: none !important;
+      display: flex !important;
+      flex-direction: column !important;
+      overflow: hidden !important;
+      box-sizing: border-box !important;
     `;
 
     const images = element.querySelectorAll('img');
     await Promise.all(
-      Array.from(images).map(img => 
+      Array.from(images).map(img =>
         new Promise(resolve => {
           if (img.complete) resolve();
           else { img.onload = resolve; img.onerror = resolve; setTimeout(resolve, 500); }
@@ -51,6 +60,7 @@ const captureElement = async (elementId, scale = 3) => {
       )
     );
 
+    await document.fonts.ready;
     await new Promise(r => setTimeout(r, 200));
 
     const canvas = await html2canvas(element, {
@@ -70,8 +80,8 @@ const captureElement = async (elementId, scale = 3) => {
   } finally {
     if (originalNextSibling) originalParent.insertBefore(element, originalNextSibling);
     else originalParent.appendChild(element);
-    
-    element.style.cssText = '';
+
+    element.style.cssText = originalCssText;
   }
 };
 
