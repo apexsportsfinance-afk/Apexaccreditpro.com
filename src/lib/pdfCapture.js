@@ -1,14 +1,12 @@
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 
-// ============================================
-// CONSTANTS
-// ============================================
+// Size configurations
 export const PDF_SIZES = {
-  a4:   { width: 210, height: 297, label: "A4 (210×297 mm)" },
-  a5:   { width: 148, height: 210, label: "A5 (148×210 mm)" },
-  a6:   { width: 105, height: 148, label: "A6 (105×148 mm)" },
-  card: { width: 85.6, height: 54,  label: "ID Card (85.6×54 mm)" },
+  a4:   { width: 210, height: 297, label: "A4 (210×297 mm)", unit: "mm" },
+  a5:   { width: 148, height: 210, label: "A5 (148×210 mm)", unit: "mm" },
+  a6:   { width: 105, height: 148, label: "A6 (105×148 mm)", unit: "mm" },
+  card: { width: 320, height: 454, label: "Card (320×454 px)", unit: "px" }, // PIXEL-perfect size
 };
 
 export const IMAGE_SIZES = {
@@ -19,16 +17,11 @@ export const IMAGE_SIZES = {
   "4k":   { scale: 6,  label: "4K" },
 };
 
-// ============================================
-// CORE CAPTURE FUNCTION
-// ============================================
 const captureElement = async (elementId, scale = 3) => {
   const element = document.getElementById(elementId);
-  if (!element) {
-    throw new Error(`Element #${elementId} not found`);
-  }
+  if (!element) throw new Error(`Element #${elementId} not found`);
 
-  // Method: Move to body temporarily to escape modal transforms
+  // Store original parent/styles
   const originalParent = element.parentNode;
   const originalNextSibling = element.nextSibling;
   const originalStyles = {
@@ -36,21 +29,15 @@ const captureElement = async (elementId, scale = 3) => {
     transform: element.style.transform,
     zIndex: element.style.zIndex,
     boxShadow: element.style.boxShadow,
-    width: element.style.width,
-    height: element.style.height
   };
 
   try {
-    // Move to body to escape modal CSS transforms
+    // Move to body to escape modal transforms
     document.body.appendChild(element);
-    
-    // Apply capture-friendly styles
     element.style.position = 'absolute';
     element.style.transform = 'none';
     element.style.zIndex = '999999';
     element.style.boxShadow = 'none';
-    element.style.width = '320px';
-    element.style.height = '454px';
     element.style.top = '0';
     element.style.left = '0';
 
@@ -67,72 +54,88 @@ const captureElement = async (elementId, scale = 3) => {
 
     await new Promise(r => setTimeout(r, 100));
 
-    // Capture
+    // Capture at high resolution
     const canvas = await html2canvas(element, {
       scale,
       useCORS: true,
       allowTaint: true,
       backgroundColor: "#ffffff",
       logging: false,
-      width: 320,
-      height: 454,
+      width: 320,   // Force exact width
+      height: 454,  // Force exact height
       x: 0,
       y: 0
     });
 
-    if (!canvas || canvas.width === 0) {
-      throw new Error('Canvas capture returned empty');
-    }
-
+    if (!canvas || canvas.width === 0) throw new Error('Canvas capture failed');
+    
     return canvas;
 
   } finally {
-    // Restore to original position
+    // Restore element
     if (originalNextSibling) {
       originalParent.insertBefore(element, originalNextSibling);
     } else {
       originalParent.appendChild(element);
     }
-    
-    // Restore original styles
     Object.assign(element.style, originalStyles);
   }
 };
 
-// ============================================
-// EXPORT FUNCTIONS
-// ============================================
+export const downloadCapturedPDF = async (frontId, backId, fileName, sizeKey = "card") => {
+  try {
+    const frontCanvas = await captureElement(frontId, 3);
+    const sizeConfig = PDF_SIZES[sizeKey] || PDF_SIZES.card;
+    
+    // CRITICAL FIX: Use pixel units to maintain exact aspect ratio
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: sizeConfig.unit,  // Use "px" for card size, "mm" for paper sizes
+      format: [sizeConfig.width, sizeConfig.height],
+      compress: false,
+      hotfixes: ["px_scaling"]
+    });
 
-export const downloadCapturedPDF = async (frontId, backId, fileName, size = "a6") => {
-  const frontCanvas = await captureElement(frontId, 3);
-  const sizeConfig = PDF_SIZES[size] || PDF_SIZES.a6;
-  
-  const pdf = new jsPDF({
-    orientation: "portrait",
-    unit: "mm",
-    format: [sizeConfig.width, sizeConfig.height],
-    compress: false
-  });
+    // Add image at exact dimensions without stretching
+    pdf.addImage(
+      frontCanvas.toDataURL('image/png', 1.0), 
+      'PNG', 
+      0, 
+      0, 
+      sizeConfig.width, 
+      sizeConfig.height
+    );
 
-  pdf.addImage(frontCanvas.toDataURL('image/png'), 'PNG', 0, 0, sizeConfig.width, sizeConfig.height);
+    // Add back if exists
+    if (backId) {
+      pdf.addPage([sizeConfig.width, sizeConfig.height]);
+      const backCanvas = await captureElement(backId, 3);
+      pdf.addImage(
+        backCanvas.toDataURL('image/png', 1.0), 
+        'PNG', 
+        0, 
+        0, 
+        sizeConfig.width, 
+        sizeConfig.height
+      );
+    }
 
-  if (backId) {
-    pdf.addPage([sizeConfig.width, sizeConfig.height]);
-    const backCanvas = await captureElement(backId, 3);
-    pdf.addImage(backCanvas.toDataURL('image/png'), 'PNG', 0, 0, sizeConfig.width, sizeConfig.height);
+    pdf.save(fileName);
+  } catch (error) {
+    console.error('PDF Error:', error);
+    throw new Error(`Failed to generate PDF: ${error.message}`);
   }
-
-  pdf.save(fileName);
 };
 
-export const openCapturedPDFInTab = async (frontId, backId, size = "a6") => {
+export const openCapturedPDFInTab = async (frontId, backId, sizeKey = "card") => {
   const frontCanvas = await captureElement(frontId, 3);
-  const sizeConfig = PDF_SIZES[size] || PDF_SIZES.a6;
+  const sizeConfig = PDF_SIZES[sizeKey] || PDF_SIZES.card;
   
   const pdf = new jsPDF({
     orientation: "portrait",
-    unit: "mm",
-    format: [sizeConfig.width, sizeConfig.height]
+    unit: sizeConfig.unit,
+    format: [sizeConfig.width, sizeConfig.height],
+    hotfixes: ["px_scaling"]
   });
 
   pdf.addImage(frontCanvas.toDataURL('image/png'), 'PNG', 0, 0, sizeConfig.width, sizeConfig.height);
@@ -146,15 +149,16 @@ export const openCapturedPDFInTab = async (frontId, backId, size = "a6") => {
   window.open(pdf.output('bloburl'), '_blank');
 };
 
-export const getCapturedPDFBlob = async (frontId, backId, size = "a6") => {
+export const getCapturedPDFBlob = async (frontId, backId, sizeKey = "card") => {
   const frontCanvas = await captureElement(frontId, 3);
-  const sizeConfig = PDF_SIZES[size] || PDF_SIZES.a6;
+  const sizeConfig = PDF_SIZES[sizeKey] || PDF_SIZES.card;
   
   const pdf = new jsPDF({
     orientation: "portrait",
-    unit: "mm",
+    unit: sizeConfig.unit,
     format: [sizeConfig.width, sizeConfig.height],
-    compress: false
+    compress: false,
+    hotfixes: ["px_scaling"]
   });
 
   pdf.addImage(frontCanvas.toDataURL('image/png'), 'PNG', 0, 0, sizeConfig.width, sizeConfig.height);
@@ -174,7 +178,7 @@ export const downloadAsImages = async (frontId, backId, baseName, size = "hd") =
   
   const a1 = document.createElement("a");
   a1.download = `${baseName}_front.png`;
-  a1.href = frontCanvas.toDataURL("image/png");
+  a1.href = frontCanvas.toDataURL("image/png", 1.0);
   a1.click();
 
   if (backId) {
@@ -182,12 +186,11 @@ export const downloadAsImages = async (frontId, backId, baseName, size = "hd") =
     const backCanvas = await captureElement(backId, scale);
     const a2 = document.createElement("a");
     a2.download = `${baseName}_back.png`;
-    a2.href = backCanvas.toDataURL("image/png");
+    a2.href = backCanvas.toDataURL("image/png", 1.0);
     a2.click();
   }
 };
 
-// Default export for compatibility
 export default {
   PDF_SIZES,
   IMAGE_SIZES,
