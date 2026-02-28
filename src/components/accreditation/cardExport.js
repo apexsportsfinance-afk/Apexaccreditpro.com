@@ -1,6 +1,7 @@
 import React from "react";
 import { pdf } from "@react-pdf/renderer";
 import { saveAs } from "file-saver";
+import JSZip from "jszip";
 import { COUNTRIES, getCountryName, calculateAge } from "../../lib/utils";
 import QRCode from "qrcode";
 import { Document, Page, View, Text, Image as PDFImage, StyleSheet } from "@react-pdf/renderer";
@@ -10,13 +11,6 @@ export const PDF_SIZES = {
   a6: { width: 105, height: 148, label: "A6" },
   a5: { width: 148, height: 210, label: "A5" },
   a4: { width: 210, height: 297, label: "A4" },
-};
-
-export const IMAGE_SIZES = {
-  low: { scale: 1, label: "Low Quality" },
-  hd: { scale: 2, label: "HD" },
-  p1280: { scale: 4, label: "1280p" },
-  "4k": { scale: 6.25, label: "600 DPI" },
 };
 
 const toBase64 = (url) =>
@@ -180,29 +174,45 @@ const preloadImages = async (accreditation, event) => {
   return { photo, logo, flag, backTemplate, qrBase64, sponsors: sponsors.filter(Boolean) };
 };
 
-export const downloadCardPDF = async (accreditation, event, zones, fileName, scale, sizeKey) => {
+export const generatePDFBlob = async (accreditation, event, zones, sizeKey = "a6") => {
   const images = await preloadImages(accreditation, event);
   const doc = React.createElement(AccreditationPDF, { accreditation, event, zones, sizeKey, images });
-  const blob = await pdf(doc).toBlob();
+  return await pdf(doc).toBlob();
+};
+
+export const downloadCardPDF = async (accreditation, event, zones, fileName, scale, sizeKey) => {
+  const blob = await generatePDFBlob(accreditation, event, zones, sizeKey);
   saveAs(blob, fileName);
 };
 
 export const openCardPDF = async (accreditation, event, zones, scale, sizeKey) => {
-  const images = await preloadImages(accreditation, event);
-  const doc = React.createElement(AccreditationPDF, { accreditation, event, zones, sizeKey, images });
-  const blob = await pdf(doc).toBlob();
+  const blob = await generatePDFBlob(accreditation, event, zones, sizeKey);
   const url = URL.createObjectURL(blob);
   window.open(url, "_blank");
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 };
 
 export const printCard = async (accreditation, event, zones, scale, sizeKey) => {
-  const images = await preloadImages(accreditation, event);
-  const doc = React.createElement(AccreditationPDF, { accreditation, event, zones, sizeKey, images });
-  const blob = await pdf(doc).toBlob();
+  const blob = await generatePDFBlob(accreditation, event, zones, sizeKey);
   const url = URL.createObjectURL(blob);
   const printWindow = window.open(url, "_blank");
   if (printWindow) {
     printWindow.onload = () => printWindow.print();
   }
+};
+
+export const bulkDownloadPDFs = async (accreditations, event, zones, sizeKey = "a6", onProgress) => {
+  const zip = new JSZip();
+  const folder = zip.folder("accreditation-cards");
+  
+  for (let i = 0; i < accreditations.length; i++) {
+    const acc = accreditations[i];
+    const blob = await generatePDFBlob(acc, event, zones, sizeKey);
+    const fileName = `${acc.firstName}_${acc.lastName}_${acc.badgeNumber || acc.id}.pdf`;
+    folder.file(fileName, blob);
+    if (onProgress) onProgress(i + 1, accreditations.length);
+  }
+  
+  const zipBlob = await zip.generateAsync({ type: "blob" });
+  saveAs(zipBlob, `accreditation-cards-${event?.name || "event"}.zip`);
 };
