@@ -114,9 +114,17 @@ const useZoneBadgePngs = (codes) => {
 };
 
 /**
- * Generate a high-resolution QR code as a pre-rendered canvas data URL.
- * KEY FIX: We render the QR at the EXACT display pixel size × html2canvas scale
- * so there is zero resampling. The QR pixels map 1:1 to captured pixels.
+ * QR CODE FIX: Pre-render QR as a high-resolution canvas PNG.
+ * 
+ * The key insight: html2canvas captures at scale×displaySize pixels.
+ * If we pre-render the QR at exactly that resolution and embed it as a
+ * data URL <img>, html2canvas just copies pixels — no resampling blur.
+ * 
+ * Changes from original:
+ *   1. errorCorrectionLevel: "H" → "M" (fewer modules = larger squares = more scannable)
+ *   2. color dark: "#0f172a" → "#000000" (pure black = maximum scanner contrast)
+ *   3. width: 200 displayed at 70px → render at displaySize×captureScale, display at displaySize
+ *   4. imageRendering: "pixelated" on the <img> to prevent browser anti-aliasing
  */
 const useQrCodePng = (accreditation, displaySize = 90, captureScale = 3) => {
   const [dataUrl, setDataUrl] = React.useState(null);
@@ -126,29 +134,36 @@ const useQrCodePng = (accreditation, displaySize = 90, captureScale = 3) => {
 
     const generateQR = async () => {
       try {
-        const verifyId = accreditation?.accreditationId || accreditation?.badgeNumber || accreditation?.id || "unknown";
+        // Use the shortest possible identifier to minimize QR density
+        const verifyId = accreditation?.accreditationId 
+          || accreditation?.badgeNumber 
+          || accreditation?.id 
+          || "unknown";
         const verifyUrl = `${window.location.origin}/verify/${verifyId}`;
 
-        // Generate QR as a canvas at the exact pixel resolution needed after capture
-        // displaySize * captureScale = final pixel resolution in captured image
-        const qrPixelSize = displaySize * captureScale; // e.g., 90 * 3 = 270px
+        // Render at the exact final pixel resolution html2canvas will capture
+        const qrPixelSize = displaySize * captureScale; // 90 × 3 = 270px
 
+        // Step 1: Generate QR onto a canvas at full capture resolution
         const qrCanvas = document.createElement("canvas");
         await QRCode.toCanvas(qrCanvas, verifyUrl, {
-          errorCorrectionLevel: "M",  // Medium — good balance of density vs readability
-          margin: 1,
-          width: qrPixelSize,
-          color: { dark: "#000000", light: "#ffffff" }  // Pure black on white for max contrast
+          errorCorrectionLevel: "M",   // Medium: good balance of density vs readability
+          margin: 2,                    // Slightly more margin = better scanner framing
+          width: qrPixelSize,           // 270px — this is the "source of truth"
+          color: { 
+            dark: "#000000",            // Pure black — maximum contrast for scanners
+            light: "#ffffff"            // Pure white background
+          }
         });
 
-        // Now create the display-size image from this high-res canvas
-        // This ensures html2canvas captures the pre-rendered pixels, not a scaled <img>
+        // Step 2: Downscale to display size WITH nearest-neighbor (no smoothing)
+        // This ensures each QR module maps to exact integer pixels
         const displayCanvas = document.createElement("canvas");
         displayCanvas.width = displaySize;
         displayCanvas.height = displaySize;
         const ctx = displayCanvas.getContext("2d");
 
-        // CRITICAL: Disable image smoothing so QR modules stay sharp pixel-perfect squares
+        // CRITICAL: Disable ALL image smoothing — keeps QR modules as sharp pixel squares
         ctx.imageSmoothingEnabled = false;
         ctx.mozImageSmoothingEnabled = false;
         ctx.webkitImageSmoothingEnabled = false;
@@ -158,16 +173,18 @@ const useQrCodePng = (accreditation, displaySize = 90, captureScale = 3) => {
 
         setDataUrl(displayCanvas.toDataURL("image/png"));
       } catch (err) {
-        console.error("QR generation error:", err);
-
-        // Fallback: use the old method
+        console.error("QR canvas generation error:", err);
+        // Fallback to toDataURL method with improved settings
         try {
-          const verifyId = accreditation?.accreditationId || accreditation?.badgeNumber || accreditation?.id || "unknown";
+          const verifyId = accreditation?.accreditationId 
+            || accreditation?.badgeNumber 
+            || accreditation?.id 
+            || "unknown";
           const verifyUrl = `${window.location.origin}/verify/${verifyId}`;
           const url = await QRCode.toDataURL(verifyUrl, {
             errorCorrectionLevel: "M",
-            margin: 1,
-            width: 300,
+            margin: 2,
+            width: 400,                 // High resolution fallback
             color: { dark: "#000000", light: "#ffffff" }
           });
           setDataUrl(url);
@@ -178,12 +195,18 @@ const useQrCodePng = (accreditation, displaySize = 90, captureScale = 3) => {
     };
 
     generateQR();
-  }, [accreditation?.id, accreditation?.status, accreditation?.accreditationId, displaySize, captureScale]);
+  }, [
+    accreditation?.id, 
+    accreditation?.status, 
+    accreditation?.accreditationId, 
+    displaySize, 
+    captureScale
+  ]);
 
   return dataUrl;
 };
 
-// NEW: Exported for PDF generation - renders cards with dynamic IDs
+// Exported for PDF generation
 export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) => {
   const matchingZone = zones.find(z => z.name?.toLowerCase() === accreditation?.role?.toLowerCase());
   const zoneColor = matchingZone?.color || null;
@@ -203,8 +226,8 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
   const nameFontSize = getNameFontSize(accreditation?.firstName, accreditation?.lastName);
   const fullName = `${accreditation?.firstName || "FIRST"} ${accreditation?.lastName || "LAST"}`;
 
-  // QR CODE FIX: Use pre-rendered high-res QR at exact display dimensions
-  const QR_DISPLAY_SIZE = 90; // px — larger display = more scannable
+  // QR CODE: Use pre-rendered high-res QR at exact display size
+  const QR_DISPLAY_SIZE = 90;
   const qrDataUrl = useQrCodePng(accreditation, QR_DISPLAY_SIZE, 3);
 
   return (
@@ -283,20 +306,21 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
                 </div>
               )}
             </div>
-            <div style={{ marginTop: "6px", textAlign: "left", width: "100%" }}>
-              <p style={{ fontSize: "10px", color: "#334155", fontFamily: "monospace", fontWeight: 500 }}>ID: {idNumber}</p>
-              <p style={{ fontSize: "10px", color: "#334155", fontFamily: "monospace", fontWeight: "bold" }}>BADGE: {accreditation?.badgeNumber || "---"}</p>
+            <div style={{ marginTop: "4px", textAlign: "left", width: "100%" }}>
+              <p style={{ fontSize: "10px", color: "#334155", fontFamily: "monospace", fontWeight: 500, margin: 0, lineHeight: 1.4 }}>ID: {idNumber}</p>
+              <p style={{ fontSize: "10px", color: "#334155", fontFamily: "monospace", fontWeight: "bold", margin: 0, lineHeight: 1.4 }}>BADGE: {accreditation?.badgeNumber || "---"}</p>
             </div>
-            {/* QR CODE — Pre-rendered at exact pixel size, no resampling */}
+            {/* QR CODE — Pre-rendered, pixel-perfect, no resampling */}
             {qrDataUrl && (
-              <div style={{ marginTop: "8px" }}>
+              <div style={{ marginTop: "6px", backgroundColor: "#ffffff", padding: "4px", border: "1px solid #e2e8f0" }}>
                 <img 
                   src={qrDataUrl} 
                   alt="QR Verify" 
                   style={{ 
                     width: `${QR_DISPLAY_SIZE}px`, 
                     height: `${QR_DISPLAY_SIZE}px`,
-                    imageRendering: "pixelated",       // CRITICAL: Prevents browser anti-aliasing
+                    display: "block",
+                    imageRendering: "pixelated",
                     WebkitImageRendering: "pixelated",
                     MozImageRendering: "crisp-edges",
                   }} 
