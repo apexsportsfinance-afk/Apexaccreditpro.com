@@ -27,7 +27,6 @@ const getNameFontSize = (firstName, lastName) => {
   return 22;
 };
 
-// Pre-render role banner as a canvas image so html2canvas copies pixels instead of rendering text
 const useRoleBannerPng = (role, bgColor, width = 320, height = 40) => {
   const [url, setUrl] = React.useState(null);
   React.useEffect(() => {
@@ -37,26 +36,17 @@ const useRoleBannerPng = (role, bgColor, width = 320, height = 40) => {
     canvas.height = height * scale;
     const ctx = canvas.getContext("2d");
     ctx.scale(scale, scale);
-
-    // Background
     ctx.fillStyle = bgColor || "#2563eb";
     ctx.fillRect(0, 0, width, height);
-
-    // Shadow
     ctx.shadowColor = "rgba(0,0,0,0.2)";
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 1;
     ctx.shadowBlur = 2;
-
-    // Text
     ctx.fillStyle = "white";
     ctx.font = "bold 16px sans-serif";
     ctx.textBaseline = "middle";
-
     const text = (role || "PARTICIPANT").toUpperCase();
-    const letterSpacing = 3.2; // 0.2em * 16px
-
-    // Draw characters individually with letter-spacing, centered
+    const letterSpacing = 3.2;
     const chars = text.split("");
     ctx.textAlign = "left";
     const charWidths = chars.map(c => ctx.measureText(c).width);
@@ -66,13 +56,11 @@ const useRoleBannerPng = (role, bgColor, width = 320, height = 40) => {
       ctx.fillText(char, currentX, height / 2);
       currentX += charWidths[i] + letterSpacing;
     });
-
     setUrl(canvas.toDataURL("image/png"));
   }, [role, bgColor, width, height]);
   return url;
 };
 
-// Pre-render country name as a canvas image at flag height for perfect vertical alignment
 const useCountryNamePng = (name) => {
   const [url, setUrl] = React.useState(null);
   React.useEffect(() => {
@@ -83,18 +71,15 @@ const useCountryNamePng = (name) => {
     const tempCtx = canvas.getContext("2d");
     tempCtx.font = "bold 16px sans-serif";
     const textWidth = Math.ceil(tempCtx.measureText(name).width) + 4;
-
     canvas.width = textWidth * scale;
     canvas.height = height * scale;
     const ctx = canvas.getContext("2d");
     ctx.scale(scale, scale);
-
     ctx.fillStyle = "#1e40af";
     ctx.font = "bold 16px sans-serif";
     ctx.textBaseline = "middle";
     ctx.textAlign = "left";
     ctx.fillText(name, 0, height / 2);
-
     setUrl(canvas.toDataURL("image/png"));
   }, [name]);
   return url;
@@ -128,6 +113,76 @@ const useZoneBadgePngs = (codes) => {
   return badges;
 };
 
+/**
+ * Generate a high-resolution QR code as a pre-rendered canvas data URL.
+ * KEY FIX: We render the QR at the EXACT display pixel size × html2canvas scale
+ * so there is zero resampling. The QR pixels map 1:1 to captured pixels.
+ */
+const useQrCodePng = (accreditation, displaySize = 90, captureScale = 3) => {
+  const [dataUrl, setDataUrl] = React.useState(null);
+
+  React.useEffect(() => {
+    if (!accreditation) return;
+
+    const generateQR = async () => {
+      try {
+        const verifyId = accreditation?.accreditationId || accreditation?.badgeNumber || accreditation?.id || "unknown";
+        const verifyUrl = `${window.location.origin}/verify/${verifyId}`;
+
+        // Generate QR as a canvas at the exact pixel resolution needed after capture
+        // displaySize * captureScale = final pixel resolution in captured image
+        const qrPixelSize = displaySize * captureScale; // e.g., 90 * 3 = 270px
+
+        const qrCanvas = document.createElement("canvas");
+        await QRCode.toCanvas(qrCanvas, verifyUrl, {
+          errorCorrectionLevel: "M",  // Medium — good balance of density vs readability
+          margin: 1,
+          width: qrPixelSize,
+          color: { dark: "#000000", light: "#ffffff" }  // Pure black on white for max contrast
+        });
+
+        // Now create the display-size image from this high-res canvas
+        // This ensures html2canvas captures the pre-rendered pixels, not a scaled <img>
+        const displayCanvas = document.createElement("canvas");
+        displayCanvas.width = displaySize;
+        displayCanvas.height = displaySize;
+        const ctx = displayCanvas.getContext("2d");
+
+        // CRITICAL: Disable image smoothing so QR modules stay sharp pixel-perfect squares
+        ctx.imageSmoothingEnabled = false;
+        ctx.mozImageSmoothingEnabled = false;
+        ctx.webkitImageSmoothingEnabled = false;
+        ctx.msImageSmoothingEnabled = false;
+
+        ctx.drawImage(qrCanvas, 0, 0, displaySize, displaySize);
+
+        setDataUrl(displayCanvas.toDataURL("image/png"));
+      } catch (err) {
+        console.error("QR generation error:", err);
+
+        // Fallback: use the old method
+        try {
+          const verifyId = accreditation?.accreditationId || accreditation?.badgeNumber || accreditation?.id || "unknown";
+          const verifyUrl = `${window.location.origin}/verify/${verifyId}`;
+          const url = await QRCode.toDataURL(verifyUrl, {
+            errorCorrectionLevel: "M",
+            margin: 1,
+            width: 300,
+            color: { dark: "#000000", light: "#ffffff" }
+          });
+          setDataUrl(url);
+        } catch (fallbackErr) {
+          console.error("QR fallback error:", fallbackErr);
+        }
+      }
+    };
+
+    generateQR();
+  }, [accreditation?.id, accreditation?.status, accreditation?.accreditationId, displaySize, captureScale]);
+
+  return dataUrl;
+};
+
 // NEW: Exported for PDF generation - renders cards with dynamic IDs
 export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) => {
   const matchingZone = zones.find(z => z.name?.toLowerCase() === accreditation?.role?.toLowerCase());
@@ -148,30 +203,13 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
   const nameFontSize = getNameFontSize(accreditation?.firstName, accreditation?.lastName);
   const fullName = `${accreditation?.firstName || "FIRST"} ${accreditation?.lastName || "LAST"}`;
 
-  const [qrDataUrl, setQrDataUrl] = React.useState(null);
-
-  React.useEffect(() => {
-    const generateQR = async () => {
-      try {
-        const verifyId = accreditation?.accreditationId || accreditation?.badgeNumber || accreditation?.id || "unknown";
-        const verifyUrl = `${window.location.origin}/verify/${verifyId}`;
-        const url = await QRCode.toDataURL(verifyUrl, {
-          errorCorrectionLevel: "H",
-          margin: 1,
-          width: 200,
-          color: { dark: "#0f172a", light: "#ffffff" }
-        });
-        setQrDataUrl(url);
-      } catch (err) {
-        console.error("QR generation error:", err);
-      }
-    };
-    if (accreditation) generateQR();
-  }, [accreditation?.id, accreditation?.status, accreditation?.accreditationId]);
+  // QR CODE FIX: Use pre-rendered high-res QR at exact display dimensions
+  const QR_DISPLAY_SIZE = 90; // px — larger display = more scannable
+  const qrDataUrl = useQrCodePng(accreditation, QR_DISPLAY_SIZE, 3);
 
   return (
     <>
-      {/* FRONT CARD - CRITICAL: Use exact pixel dimensions with box-sizing */}
+      {/* FRONT CARD */}
       <div 
         id={`accreditation-front-card${idSuffix}`} 
         style={{ 
@@ -189,7 +227,7 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
           flexDirection: "column", 
           position: "relative", 
           border: expired ? "2px solid #f87171" : "1px solid #e2e8f0",
-          boxSizing: "border-box", // CRITICAL: Include border in dimensions
+          boxSizing: "border-box",
           flexShrink: 0,
           flexGrow: 0,
         }}
@@ -219,7 +257,7 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
 
         <div style={{ height: "6px", backgroundColor: "white", flexShrink: 0 }} />
 
-        {/* ROLE BANNER — rendered as canvas image for html2canvas compatibility */}
+        {/* ROLE BANNER */}
         <div style={{ height: "40px", width: "100%", overflow: "hidden", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)", flexShrink: 0 }}>
           {roleBannerUrl ? (
             <img src={roleBannerUrl} alt={accreditation?.role} style={{ width: "100%", height: "40px", display: "block" }} />
@@ -245,13 +283,24 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
                 </div>
               )}
             </div>
-            <div style={{ marginTop: "8px", textAlign: "left", width: "100%" }}>
+            <div style={{ marginTop: "6px", textAlign: "left", width: "100%" }}>
               <p style={{ fontSize: "10px", color: "#334155", fontFamily: "monospace", fontWeight: 500 }}>ID: {idNumber}</p>
               <p style={{ fontSize: "10px", color: "#334155", fontFamily: "monospace", fontWeight: "bold" }}>BADGE: {accreditation?.badgeNumber || "---"}</p>
             </div>
+            {/* QR CODE — Pre-rendered at exact pixel size, no resampling */}
             {qrDataUrl && (
-              <div style={{ marginTop: "16px" }}>
-                <img src={qrDataUrl} alt="QR Verify" style={{ width: "70px", height: "70px" }} />
+              <div style={{ marginTop: "8px" }}>
+                <img 
+                  src={qrDataUrl} 
+                  alt="QR Verify" 
+                  style={{ 
+                    width: `${QR_DISPLAY_SIZE}px`, 
+                    height: `${QR_DISPLAY_SIZE}px`,
+                    imageRendering: "pixelated",       // CRITICAL: Prevents browser anti-aliasing
+                    WebkitImageRendering: "pixelated",
+                    MozImageRendering: "crisp-edges",
+                  }} 
+                />
               </div>
             )}
           </div>
@@ -277,7 +326,6 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
               <span style={{ fontWeight: 500 }}>{accreditation?.gender || "Gender"}</span>
             </div>
 
-            {/* Country — both flag and name are <img> at 30px height for pixel-perfect alignment */}
             <div style={{ marginTop: "16px", height: "30px" }}>
               {countryData?.flag && (
                 <img
@@ -300,7 +348,7 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
 
         {/* ZONE NUMBERS */}
         <div style={{ height: "26px", width: "100%", backgroundColor: "white", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "4px", paddingLeft: "12px", paddingRight: "12px", flexShrink: 0 }}>
-        {zoneCodes.length > 0 ? (
+          {zoneCodes.length > 0 ? (
             zoneCodes.slice(0, 4).map((code, index) => (
               zoneBadgePngs[code] ? (
                 <img key={index} src={zoneBadgePngs[code]} alt={code} style={{ width: "30px", height: "30px", display: "block" }} />
@@ -426,7 +474,6 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
   );
 };
 
-// CRITICAL FIX: Use inline-block wrapper to prevent flex stretching
 const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
   return (
     <div id="accreditation-card-preview" style={{ display: "inline-block", fontFamily: "sans-serif" }}>
