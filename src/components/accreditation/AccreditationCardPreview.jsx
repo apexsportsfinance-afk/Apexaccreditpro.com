@@ -152,7 +152,7 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
         const url = await QRCode.toDataURL(verifyUrl, {
           errorCorrectionLevel: "H",
           margin: 1,
-          width: 300, // << master at 300 px
+          width: 300, // high-res master
           color: { dark: "#0f172a", light: "#ffffff" }
         });
         setQrDataUrl(url);
@@ -169,23 +169,10 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
       <div
         id={`accreditation-front-card${idSuffix}`}
         style={{
-          width: "320px",
-          height: "454px",
-          minWidth: "320px",
-          minHeight: "454px",
-          maxWidth: "320px",
-          maxHeight: "454px",
-          backgroundColor: "#ffffff",
-          borderRadius: "0",
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
-          position: "relative",
-          border: expired ? "2px solid #f87171" : "1px solid #e2e8f0",
-          boxSizing: "border-box",
-          flexShrink: 0,
-          flexGrow: 0,
+          width: "320px", height: "454px", minWidth: "320px", minHeight: "454px", maxWidth: "320px", maxHeight: "454px",
+          backgroundColor: "#ffffff", borderRadius: "0", boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)", overflow: "hidden",
+          display: "flex", flexDirection: "column", position: "relative", border: expired ? "2px solid #f87171" : "1px solid #e2e8f0",
+          boxSizing: "border-box", flexShrink: 0, flexGrow: 0,
         }}
       >
         {expired && (
@@ -296,15 +283,8 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
         {/* =====  WRAPPING FOOTER  ===== */}
         <div
           style={{
-            minHeight: "26px",
-            width: "100%",
-            backgroundColor: "white",
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            justifyContent: "flex-end",
-            gap: "4px",
-            padding: "6px 12px",
+            minHeight: "26px", width: "100%", backgroundColor: "white", display: "flex", flexWrap: "wrap",
+            alignItems: "center", justifyContent: "flex-end", gap: "4px", padding: "6px 12px",
           }}
         >
           {zoneCodes.length > 0 ? (
@@ -314,24 +294,16 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
                   key={code}
                   src={zoneBadgePngs[code]}
                   alt={code}
-                  style={{
-                    width: zoneCodes.length > 4 ? "24px" : "30px",
-                    height: zoneCodes.length > 4 ? "24px" : "30px",
-                  }}
+                  style={{ width: zoneCodes.length > 4 ? "24px" : "30px", height: zoneCodes.length > 4 ? "24px" : "30px" }}
                 />
               ) : (
                 <div
                   key={code}
                   style={{
-                    backgroundColor: "#0f172a",
-                    color: "white",
-                    width: zoneCodes.length > 4 ? "24px" : "30px",
-                    height: zoneCodes.length > 4 ? "24px" : "30px",
-                    fontSize: zoneCodes.length > 4 ? "11px" : "13px",
-                    lineHeight: zoneCodes.length > 4 ? "24px" : "30px",
-                    textAlign: "center",
-                    borderRadius: "3px",
-                    fontWeight: 700,
+                    backgroundColor: "#0f172a", color: "white",
+                    width: zoneCodes.length > 4 ? "24px" : "30px", height: zoneCodes.length > 4 ? "24px" : "30px",
+                    fontSize: zoneCodes.length > 4 ? "11px" : "13px", lineHeight: zoneCodes.length > 4 ? "24px" : "30px",
+                    textAlign: "center", borderRadius: "3px", fontWeight: 700,
                   }}
                 >
                   {code}
@@ -361,22 +333,10 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
       <div
         id={`accreditation-back-card${idSuffix}`}
         style={{
-          width: "320px",
-          height: "454px",
-          minWidth: "320px",
-          minHeight: "454px",
-          maxWidth: "320px",
-          maxHeight: "454px",
-          background: "linear-gradient(to bottom right, #0f172a, #1e293b, #0f172a)",
-          borderRadius: "0",
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-          overflow: "hidden",
-          flexShrink: 0,
-          border: "1px solid #334155",
-          position: "relative",
-          marginLeft: "20px",
-          boxSizing: "border-box",
-          flexGrow: 0,
+          width: "320px", height: "454px", minWidth: "320px", minHeight: "454px", maxWidth: "320px", maxHeight: "454px",
+          background: "linear-gradient(to bottom right, #0f172a, #1e293b, #0f172a)", borderRadius: "0",
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)", overflow: "hidden", flexShrink: 0,
+          border: "1px solid #334155", position: "relative", marginLeft: "20px", boxSizing: "border-box", flexGrow: 0,
         }}
       >
         <div style={{ position: "absolute", inset: 0, opacity: 0.05 }}>
