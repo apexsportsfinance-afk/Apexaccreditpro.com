@@ -2,12 +2,11 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
+import QRCode from 'qrcode';
 
-// HTML Card dimensions (pixels)
 const CARD_WIDTH_PX = 320;
 const CARD_HEIGHT_PX = 454;
 
-// Convert pixels to mm (96px = 25.4mm)
 const pxToMm = (px) => px * 25.4 / 96;
 const CARD_WIDTH_MM = pxToMm(CARD_WIDTH_PX);
 const CARD_HEIGHT_MM = pxToMm(CARD_HEIGHT_PX);
@@ -110,13 +109,11 @@ export const downloadCardPDF = async (frontId, backId, filename, size = "card") 
     let pageWidth, pageHeight, imgWidth, imgHeight;
     
     if (size === "card") {
-      // EXACT match to HTML
       pageWidth = CARD_WIDTH_MM;
       pageHeight = CARD_HEIGHT_MM;
       imgWidth = CARD_WIDTH_MM;
       imgHeight = CARD_HEIGHT_MM;
     } else {
-      // Scale to fit A4/A5/A6
       pageWidth = sizeConfig.width;
       pageHeight = sizeConfig.height;
       const scale = Math.min(pageWidth / CARD_WIDTH_MM, pageHeight / CARD_HEIGHT_MM);
@@ -133,11 +130,7 @@ export const downloadCardPDF = async (frontId, backId, filename, size = "card") 
     
     pdf.addImage(
       frontCanvas.toDataURL('image/png', 1.0), 
-      'PNG', 
-      0, 
-      0, 
-      imgWidth, 
-      imgHeight
+      'PNG', 0, 0, imgWidth, imgHeight
     );
     
     if (backId) {
@@ -145,11 +138,7 @@ export const downloadCardPDF = async (frontId, backId, filename, size = "card") 
       const backCanvas = await captureCardElement(backId, 3);
       pdf.addImage(
         backCanvas.toDataURL('image/png', 1.0), 
-        'PNG', 
-        0, 
-        0, 
-        imgWidth, 
-        imgHeight
+        'PNG', 0, 0, imgWidth, imgHeight
       );
     }
     
@@ -210,7 +199,6 @@ export const printCard = async (frontId, backId, size = "card") => {
   try {
     const frontCanvas = await captureCardElement(frontId, 2);
     const frontImage = frontCanvas.toDataURL('image/png');
-    
     const sizeConfig = PDF_SIZES[size] || PDF_SIZES.card;
     
     const printWindow = window.open('', '_blank');
@@ -252,6 +240,46 @@ export const printCard = async (frontId, backId, size = "card") => {
   }
 };
 
+/**
+ * Generate a high-res QR code as a data URL for bulk card generation.
+ * Uses the qrcode library directly instead of the unreliable external API.
+ */
+const generateQrDataUrl = async (data, size = 200) => {
+  try {
+    return await QRCode.toDataURL(data, {
+      errorCorrectionLevel: "M",
+      margin: 2,
+      width: size,
+      color: { dark: "#000000", light: "#ffffff" }
+    });
+  } catch (err) {
+    console.error("QR generation failed:", err);
+    return null;
+  }
+};
+
+const getRoleColor = (role) => {
+  const colors = {
+    'Athlete': '#3b82f6',
+    'Coach': '#22c55e', 
+    'Organizer': '#22c55e',
+    'Official': '#7c3aed',
+    'Media': '#d97706',
+    'Medical': '#ef4444',
+    'Volunteer': '#06b6d4',
+    'Staff': '#475569',
+    'VIP': '#b45309'
+  };
+  return colors[role] || '#64748b';
+};
+
+const calculateAge = (dob) => {
+  if (!dob) return '';
+  const birthDate = new Date(dob);
+  const diff = Date.now() - birthDate.getTime();
+  return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
+};
+
 export const bulkDownloadPDFs = async (accreditations, event, zones, size = "card") => {
   if (!accreditations || accreditations.length === 0) {
     throw new Error("No accreditations selected");
@@ -266,6 +294,11 @@ export const bulkDownloadPDFs = async (accreditations, event, zones, size = "car
       const acc = accreditations[i];
       
       try {
+        // Generate QR code locally instead of using external API
+        const qrData = acc.accreditationId || acc.id;
+        const qrUrl = `${window.location.origin}/verify/${qrData}`;
+        const qrDataUrl = await generateQrDataUrl(qrUrl, 300);
+        
         const tempDiv = document.createElement('div');
         tempDiv.id = `temp-card-${acc.id}`;
         tempDiv.style.cssText = `
@@ -279,63 +312,89 @@ export const bulkDownloadPDFs = async (accreditations, event, zones, size = "car
           font-family: Arial, sans-serif;
         `;
         
+        const zoneCodes = acc.zoneCode?.split(",").map(z => z.trim()).filter(Boolean) || [];
+        const zoneHtml = zoneCodes.map(code => 
+          `<div style="background: #1e40af; color: white; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; font-weight: bold; font-size: 12px; margin-right: 4px;">${code}</div>`
+        ).join('');
+
         tempDiv.innerHTML = `
-          <div style="width: 100%; height: 100%; position: relative; background: white;">
-            <div style="background: #38bdf8; padding: 12px; text-align: center; color: white;">
-              <div style="font-size: 12px; margin-bottom: 4px;">${event?.headerArabic || ''}</div>
-              <div style="font-size: 14px; font-weight: bold;">${event?.name || 'EVENT'}</div>
+          <div style="width: 100%; height: 100%; position: relative; background: white; display: flex; flex-direction: column;">
+            <div style="background: linear-gradient(to right, #22d3ee, #7dd3fc, #22d3ee); padding: 12px; text-align: center; color: white; height: 100px; display: flex; align-items: center; justify-content: center;">
+              ${event?.logoUrl 
+                ? `<img src="${event.logoUrl}" style="max-height: 80px; max-width: 100%; object-fit: contain;" crossorigin="anonymous" />`
+                : `<div style="font-size: 14px; font-weight: bold;">${event?.name || 'EVENT'}</div>`
+              }
             </div>
             
-            <div style="background: ${getRoleColor(acc.role)}; padding: 8px; text-align: center; color: white; font-weight: bold; font-size: 16px; text-transform: uppercase;">
+            <div style="height: 6px; background: white;"></div>
+            
+            <div style="background: ${getRoleColor(acc.role)}; padding: 8px; text-align: center; color: white; font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 0.2em; height: 40px; line-height: 24px;">
               ${acc.role || 'PARTICIPANT'}
             </div>
             
-            <div style="padding: 16px; display: flex; gap: 16px;">
-              <div style="width: 100px; height: 120px; flex-shrink: 0;">
-                ${acc.photoUrl ? 
-                  `<img src="${acc.photoUrl}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 4px;" />` :
-                  `<div style="width: 100%; height: 100%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #64748b;">${acc.firstName?.[0]}${acc.lastName?.[0]}</div>`
+            <div style="padding: 12px; display: flex; flex: 1; overflow: hidden;">
+              <div style="width: 110px; display: flex; flex-direction: column; align-items: center; flex-shrink: 0;">
+                <div style="width: 100px; height: 120px; border: 2px solid #cbd5e1; padding: 2px; flex-shrink: 0;">
+                  ${acc.photoUrl 
+                    ? `<img src="${acc.photoUrl}" style="width: 100%; height: 100%; object-fit: cover;" crossorigin="anonymous" />`
+                    : `<div style="width: 100%; height: 100%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #64748b;">${(acc.firstName?.[0] || '')}${(acc.lastName?.[0] || '')}</div>`
+                  }
+                </div>
+                <div style="margin-top: 4px; text-align: left; width: 100%;">
+                  <div style="font-size: 10px; color: #334155; font-family: monospace;">ID: ${acc.accreditationId?.split('-')?.pop() || '---'}</div>
+                  <div style="font-size: 10px; color: #334155; font-family: monospace; font-weight: bold;">BADGE: ${acc.badgeNumber || '---'}</div>
+                </div>
+                ${qrDataUrl 
+                  ? `<div style="margin-top: 6px; background: #fff; padding: 4px; border: 1px solid #e2e8f0;">
+                      <img src="${qrDataUrl}" style="width: 90px; height: 90px; display: block; image-rendering: pixelated;" />
+                    </div>`
+                  : ''
                 }
               </div>
               
-              <div style="flex: 1;">
-                <div style="font-size: 20px; font-weight: bold; color: #1e40af; margin-bottom: 8px; line-height: 1.2;">
-                  ${acc.firstName?.toUpperCase()} ${acc.lastName?.toUpperCase()}
+              <div style="flex: 1; padding-left: 16px;">
+                <div style="font-size: 20px; font-weight: bold; color: #1e3a8a; margin-bottom: 8px; line-height: 1.15; text-transform: uppercase;">
+                  ${(acc.firstName || '').toUpperCase()} ${(acc.lastName || '').toUpperCase()}
                 </div>
-                <div style="font-size: 13px; color: #64748b; margin-bottom: 4px;">
+                <div style="font-size: 14px; color: #334155; margin-bottom: 4px;">
                   ${acc.club || ''}
                 </div>
-                <div style="font-size: 13px; color: #64748b; margin-bottom: 8px;">
-                  ${calculateAge(acc.dateOfBirth)} Y | ${acc.gender || ''}
+                <div style="font-size: 12px; color: #64748b; margin-bottom: 12px;">
+                  ${acc.role || ''}
                 </div>
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                  <img src="https://flagcdn.com/w40/${acc.nationality?.toLowerCase()}.png" style="width: 24px; height: 16px; object-fit: cover;" />
-                  <span style="font-size: 14px; color: #1e40af; font-weight: 600;">${acc.nationality}</span>
+                <div style="font-size: 13px; color: #475569; margin-bottom: 16px;">
+                  ${calculateAge(acc.dateOfBirth) ? calculateAge(acc.dateOfBirth) + ' Y | ' : ''}${acc.gender || ''}
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <img src="https://flagcdn.com/w80/${acc.nationality?.toLowerCase()}.png" style="width: 44px; height: 30px; object-fit: cover; border-radius: 4px; border: 1px solid #e2e8f0;" crossorigin="anonymous" onerror="this.style.display='none'" />
+                  <span style="font-size: 16px; color: #1e40af; font-weight: bold;">${acc.nationality || ''}</span>
                 </div>
               </div>
             </div>
             
-            <div style="padding: 0 16px; margin-bottom: 16px;">
-              <div style="font-size: 11px; color: #64748b; margin-bottom: 2px;">ID: ${acc.accreditationId || acc.id}</div>
-              <div style="font-size: 11px; color: #64748b;">BADGE: ${acc.badgeNumber || 'PENDING'}</div>
+            <div style="height: 26px; display: flex; align-items: center; justify-content: flex-end; gap: 4px; padding: 0 12px; background: white;">
+              ${zoneHtml || '<span style="font-size: 10px; color: #94a3b8;">No Access</span>'}
             </div>
             
-            <div style="padding: 0 16px; margin-bottom: 16px;">
-              <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${acc.accreditationId || acc.id}" style="width: 80px; height: 80px;" />
-            </div>
-            
-            <div style="position: absolute; bottom: 0; left: 0; right: 0; padding: 12px; background: #f8fafc; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #e2e8f0;">
+            <div style="height: 36px; border-top: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 0 12px; background: #f8fafc;">
               ${event?.sponsorLogos?.map(logo => 
-                `<img src="${logo}" style="height: 24px; object-fit: contain;" />`
-              ).join('') || ''}
-              <div style="background: #1e40af; color: white; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-weight: bold; font-size: 14px;">
-                ${acc.zoneCode || '9'}
-              </div>
+                logo ? `<img src="${logo}" style="height: 26px; max-width: 50px; object-fit: contain;" crossorigin="anonymous" />` : ''
+              ).join('') || '<span style="font-size: 8px; color: #94a3b8;">Sponsors</span>'}
             </div>
           </div>
         `;
         
         document.body.appendChild(tempDiv);
+        
+        // Wait for images to load
+        const images = tempDiv.querySelectorAll('img');
+        await Promise.all(Array.from(images).map(img => 
+          new Promise(resolve => {
+            if (img.complete) resolve();
+            else { img.onload = resolve; img.onerror = resolve; setTimeout(resolve, 2000); }
+          })
+        ));
+        await new Promise(r => setTimeout(r, 200));
         
         const canvas = await html2canvas(tempDiv, {
           scale: 3,
@@ -391,24 +450,4 @@ export const bulkDownloadPDFs = async (accreditations, event, zones, size = "car
     console.error('Bulk Download Error:', error);
     throw error;
   }
-};
-
-const getRoleColor = (role) => {
-  const colors = {
-    'Athlete': '#3b82f6',
-    'Coach': '#22c55e', 
-    'Organizer': '#22c55e',
-    'Official': '#f59e0b',
-    'Media': '#8b5cf6',
-    'Medical': '#ef4444',
-    'Volunteer': '#06b6d4'
-  };
-  return colors[role] || '#64748b';
-};
-
-const calculateAge = (dob) => {
-  if (!dob) return '';
-  const birthDate = new Date(dob);
-  const diff = Date.now() - birthDate.getTime();
-  return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
 };
