@@ -41,10 +41,10 @@ const features = [
 ];
 
 const SwimmerIcon = ({ className }) => (
-  <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="3" className={className}>
+  <svg viewBox="0 0 64 64" fill="currentColor" className={className}>
     <ellipse cx="32" cy="32" rx="8" ry="4" />
-    <path d="M12,28 Q22,20 32,28 Q42,36 52,28" />
-    <path d="M12,36 Q22,28 32,36 Q42,44 52,36" />
+    <path d="M12,28 Q22,20 32,28 Q42,36 52,28" stroke="currentColor" strokeWidth="3" fill="none" />
+    <path d="M12,36 Q22,28 32,36 Q42,44 52,36" stroke="currentColor" strokeWidth="3" fill="none" />
     <circle cx="44" cy="32" r="6" />
   </svg>
 );
@@ -54,20 +54,20 @@ export default function Home() {
     <SwimmingBackground variant="hero">
       <div id="home_page" className="min-h-screen relative">
         {/* Header */}
-        <header className="backdrop-blur-xl bg-white/80 border-b border-slate-200/60 relative z-20 shadow-sm">
+        <header className="border-b border-white/20 backdrop-blur-xl bg-slate-900/70 relative z-20 shadow-lg">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/40 relative overflow-hidden">
-                  <Waves className="w-6 h-6 text-white relative z-10 drop-shadow-lg" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-blue-700/50 to-transparent animate-pulse" />
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 via-blue-500 to-ocean-600 flex items-center justify-center shadow-lg shadow-cyan-500/30 relative overflow-hidden">
+                  <Waves className="w-6 h-6 text-white relative z-10" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-blue-600/50 to-transparent" />
                 </div>
-                <span className="text-xl font-black bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 bg-clip-text text-transparent tracking-tight">
+                <span className="text-xl font-bold text-white tracking-wide">
                   ApexAccreditation
                 </span>
               </div>
               <Link to="/login">
-                <Button variant="outline" size="sm" className="!bg-white/90 hover:!bg-white shadow-sm border-slate-300">
+                <Button variant="outline" size="sm" className="border-cyan-400 text-cyan-300 hover:bg-cyan-500/20 hover:text-white font-semibold">
                   Admin Login
                 </Button>
               </Link>
@@ -76,112 +76,144 @@ export default function Home() {
         </header>
 
         <main>
-          {/* Hero Section - Enhanced Overlay & Shadows */}
-          <section className="py-24 lg:py-32 relative overflow-hidden">
-            {/* Darker gradient overlay for entire hero */}
-            <div className="absolute inset-0 bg-gradient-to-b from-slate-900/70 via-slate-800/60 to-transparent pointer-events-none" />
-            
-            {/* Pool lanes (kept, but faded */}
-            <div className="absolute inset-0 pointer-events-none opacity-20">
-              <div className="absolute top-0 left-1/4 w-0.5 h-full bg-gradient-to-b from-white/40 to-white/10" />
-              <div className="absolute top-0 left-1/2 w-0.5 h-full bg-gradient-to-b from-white/40 to-white/10" />
-              <div className="absolute top-0 left-3/4 w-0.5 h-full bg-gradient-to-b from-white/40 to-white/10" />
+          {/* Hero Section */}
+          <section id="home_hero" className="py-20 lg:py-32 relative overflow-hidden">
+            {/* Dark overlay strip behind hero text */}
+            <div className="absolute inset-0 bg-gradient-to-b from-slate-900/70 via-slate-900/50 to-slate-900/70 pointer-events-none" />
+
+            {/* Swimming pool lane markers */}
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute top-0 left-1/4 w-0.5 h-full bg-gradient-to-b from-cyan-300/10 via-cyan-400/20 to-cyan-300/10" />
+              <div className="absolute top-0 left-1/2 w-0.5 h-full bg-gradient-to-b from-cyan-300/10 via-cyan-400/20 to-cyan-300/10" />
+              <div className="absolute top-0 left-3/4 w-0.5 h-full bg-gradient-to-b from-cyan-300/10 via-cyan-400/20 to-cyan-300/10" />
             </div>
 
-            {/* Animated swimmers (subtler) */}
-            <div className="absolute top-1/4 -left-20 opacity-5">
-              <motion.div animate={{ x: ["0%", "200vw"] }} transition={{ duration: 25, repeat: Infinity, ease: "linear" }}>
-                <SwimmerIcon className="w-24 h-24 text-slate-200" />
+            {/* Animated swimmer silhouettes */}
+            <div className="absolute top-1/4 -left-20 opacity-10">
+              <motion.div
+                animate={{ x: ["0%", "200vw"] }}
+                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+              >
+                <SwimmerIcon className="w-24 h-24 text-cyan-300" />
               </motion.div>
+            </div>
+            <div className="absolute top-2/3 -left-40 opacity-5">
+              <motion.div
+                animate={{ x: ["0%", "200vw"] }}
+                transition={{ duration: 25, repeat: Infinity, ease: "linear", delay: 5 }}
+              >
+                <SwimmerIcon className="w-32 h-32 text-blue-300" />
+              </motion.div>
+            </div>
+
+            {/* Water splash decorations */}
+            <div className="absolute top-20 right-20 opacity-20">
+              <Droplets className="w-16 h-16 text-cyan-300 animate-bounce" style={{ animationDuration: "3s" }} />
+            </div>
+            <div className="absolute bottom-32 left-16 opacity-15">
+              <Droplets className="w-12 h-12 text-blue-300 animate-bounce" style={{ animationDuration: "2.5s", animationDelay: "0.5s" }} />
             </div>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
               <motion.div
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-center max-w-4xl mx-auto"
+                className="text-center max-w-3xl mx-auto"
               >
-                <h1 className="text-5xl lg:text-7xl font-black text-slate-50 mb-8 leading-tight drop-shadow-[0_8px_32px_rgba(0,0,0,0.9)] tracking-tight">
-                  Apex Professional <br />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-blue-300 to-emerald-300 drop-shadow-[0_4px_20px_rgba(6,182,212,0.8)]">
+                <h1 className="text-4xl lg:text-6xl font-extrabold text-white mb-6 leading-tight drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
+                  Apex Professional{" "}
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-sky-300 to-blue-300">
                     Accreditation Platform
                   </span>
                 </h1>
-                <p className="text-xl lg:text-2xl text-slate-200/95 mb-12 font-light leading-relaxed max-w-2xl mx-auto drop-shadow-lg">
-                  Streamline competition accreditations: Registration, verification, badges, and zone access—all in one secure platform.
+                <p className="text-xl text-slate-200 mb-8 font-medium leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.4)]">
+                  Streamline your competition accreditations with our comprehensive platform.
+                  Handle participant registration, document verification, badge generation,
+                  and zone-based access control all in one place.
                 </p>
-                <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Link to="/register/swimming-2025">
-                    <Button size="lg" icon={ArrowRight} className="text-xl px-8 py-4 shadow-2xl shadow-cyan-500/40 !bg-gradient-to-r !from-cyan-500 !to-emerald-500 hover:shadow-cyan-600/50 hover:scale-[1.02] backdrop-blur-sm">
+                    <Button size="lg" icon={ArrowRight} className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-xl shadow-cyan-500/30 text-white font-bold text-lg px-8">
                       Register Now
                     </Button>
                   </Link>
                   <Link to="/login">
-                    <Button variant="outline" size="lg" className="!bg-white/95 !text-slate-900 hover:!bg-white shadow-xl border-slate-200/50 text-xl px-8 py-4 font-semibold backdrop-blur-xl">
-                      Admin Dashboard
+                    <Button variant="outline" size="lg" className="border-2 border-white/50 text-white bg-white/10 hover:bg-white/20 font-bold text-lg px-8 backdrop-blur-sm">
+                      Access Dashboard
                     </Button>
                   </Link>
                 </div>
               </motion.div>
 
-              {/* Stats Cards - Frosted Glass */}
+              {/* Stats section */}
               <motion.div
                 initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto"
+                transition={{ delay: 0.3 }}
+                className="mt-16 relative"
               >
-                {[
-                  { icon: Award, value: "500+", label: "Events Managed", color: "from-emerald-500 to-cyan-500" },
-                  { icon: Users, value: "50K+", label: "Athletes Registered", color: "from-blue-500 to-indigo-500" },
-                  { icon: Timer, value: "5 min", label: "Avg. Processing", color: "from-purple-500 to-pink-500" }
-                ].map((stat, i) => (
-                  <motion.div
-                    key={stat.label}
-                    whileHover={{ scale: 1.05, y: -4 }}
-                    className={`backdrop-blur-xl bg-white/90 border border-white/70 rounded-2xl p-8 shadow-2xl shadow-slate-200/50 hover:shadow-slate-300/70 transition-all duration-500 text-center`}
-                  >
-                    <stat.icon className="w-12 h-12 mx-auto mb-4 text-slate-700 drop-shadow-lg" />
-                    <p className={`text-3xl lg:text-4xl font-black text-slate-900 mb-2 drop-shadow-md`}>{stat.value}</p>
-                    <p className="text-lg font-light text-slate-600 tracking-wide">{stat.label}</p>
-                  </motion.div>
-                ))}
+                <div className="max-w-2xl mx-auto bg-slate-900/60 backdrop-blur-lg rounded-2xl p-8 border border-cyan-400/30 shadow-2xl shadow-black/30">
+                  <div className="flex justify-center gap-8 items-center">
+                    <div className="text-center">
+                      <Award className="w-12 h-12 text-cyan-400 mx-auto mb-2 drop-shadow-lg" />
+                      <p className="text-2xl font-bold text-white">500+</p>
+                      <p className="text-sm text-cyan-300/80 font-medium">Events Managed</p>
+                    </div>
+                    <div className="w-px h-16 bg-cyan-400/30" />
+                    <div className="text-center">
+                      <Users className="w-12 h-12 text-sky-400 mx-auto mb-2 drop-shadow-lg" />
+                      <p className="text-2xl font-bold text-white">50K+</p>
+                      <p className="text-sm text-cyan-300/80 font-medium">Athletes Registered</p>
+                    </div>
+                    <div className="w-px h-16 bg-cyan-400/30" />
+                    <div className="text-center">
+                      <Timer className="w-12 h-12 text-blue-400 mx-auto mb-2 drop-shadow-lg" />
+                      <p className="text-2xl font-bold text-white">5 min</p>
+                      <p className="text-sm text-cyan-300/80 font-medium">Avg. Processing</p>
+                    </div>
+                  </div>
+                </div>
               </motion.div>
             </div>
           </section>
 
-          {/* Features - Dark Overlay Cards */}
-          <section className="py-24 relative">
-            <div className="absolute inset-0 bg-gradient-to-b from-slate-900/50 via-slate-800/40 to-transparent pointer-events-none" />
+          {/* Features Section */}
+          <section id="home_features" className="py-20 relative">
+            {/* Solid dark backdrop for readability */}
+            <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-md" />
+
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-              <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-16">
-                <h2 className="text-4xl lg:text-5xl font-black text-slate-50 mb-6 drop-shadow-[0_8px_32px_rgba(0,0,0,0.9)]">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                className="text-center mb-12"
+              >
+                <h2 className="text-3xl font-extrabold text-white mb-4 drop-shadow-lg">
                   Everything You Need
                 </h2>
-                <p className="text-xl lg:text-2xl text-slate-200/95 font-light max-w-3xl mx-auto drop-shadow-lg">
-                  Complete solution for professional accreditation management
+                <p className="text-lg text-cyan-200/80 max-w-2xl mx-auto font-medium">
+                  A complete solution for managing competition accreditations
                 </p>
               </motion.div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {features.map((feature, index) => (
                   <motion.div
                     key={feature.title}
-                    initial={{ opacity: 0, y: 30 }}
+                    initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: index * 0.1 }}
-                    whileHover={{ y: -8 }}
-                    className="group backdrop-blur-xl bg-white/90 border border-white/80 rounded-3xl p-8 shadow-2xl shadow-slate-300/50 hover:shadow-slate-400/70 hover:bg-white/95 transition-all duration-500 relative overflow-hidden"
+                    className="bg-slate-800/90 backdrop-blur-lg border border-cyan-500/20 rounded-xl p-6 hover:border-cyan-400/50 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/10 group hover:-translate-y-1"
                   >
-                    <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="relative z-10 w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-400/80 to-blue-400/80 flex items-center justify-center mb-6 border-4 border-white/50 shadow-xl group-hover:shadow-2xl group-hover:scale-110 transition-all duration-300 mx-auto drop-shadow-2xl">
-                      <feature.icon className="w-8 h-8 text-slate-800 drop-shadow-lg" />
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center mb-4 border border-cyan-500/30 group-hover:from-cyan-500/30 group-hover:to-blue-500/30 transition-all duration-300">
+                      <feature.icon className="w-6 h-6 text-cyan-400" />
                     </div>
-                    <h3 className="text-2xl font-black text-slate-900 mb-4 group-hover:text-slate-800 drop-shadow-lg leading-tight">
+                    <h3 className="text-lg font-bold text-white mb-2">
                       {feature.title}
                     </h3>
-                    <p className="text-lg text-slate-600 font-light leading-relaxed drop-shadow-md">
+                    <p className="text-sm text-slate-300 font-medium leading-relaxed">
                       {feature.description}
                     </p>
                   </motion.div>
@@ -190,54 +222,73 @@ export default function Home() {
             </div>
           </section>
 
-          {/* Roles Section - Similar Treatment */}
-          <section className="py-24">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-                <motion.div initial={{ opacity: 0, x: -40 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
-                  <h2 className="text-4xl lg:text-5xl font-black text-slate-900 mb-8 drop-shadow-2xl">
-                    Role-Based <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-emerald-600">Access Control</span>
+          {/* Roles Section */}
+          <section id="home_roles" className="py-20 relative">
+            {/* Solid dark backdrop */}
+            <div className="absolute inset-0 bg-slate-900/75 backdrop-blur-md" />
+
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                >
+                  <h2 className="text-3xl font-extrabold text-white mb-6 drop-shadow-lg">
+                    Role-Based Access Control
                   </h2>
-                  <p className="text-xl lg:text-2xl text-slate-600 mb-10 font-light leading-relaxed max-w-lg drop-shadow-lg">
-                    Granular permissions for your team. Secure and scalable.
+                  <p className="text-lg text-slate-300 mb-8 font-medium leading-relaxed">
+                    Manage your event team with granular permissions. Super Admins control everything,
+                    Event Admins manage specific events, and Viewers have read-only access.
                   </p>
-                  <ul className="space-y-6 text-lg">
+                  <ul className="space-y-4">
                     {[
-                      "Super Admin: Full system control & user management",
-                      "Event Admin: Manage events, approvals & badges",
-                      "Viewer: Read-only dashboards & reports"
-                    ].map((item, i) => (
-                      <li key={i} className="flex items-start gap-4 group">
-                        <motion.div initial={{ scale: 0 }} whileInView={{ scale: 1 }} className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg mt-0.5">
-                          <CheckCircle className="w-5 h-5 text-white" />
-                        </motion.div>
-                        <span className="font-light text-slate-700 group-hover:text-slate-900">{item}</span>
+                      "Super Admin: Full system access and user management",
+                      "Event Admin: Manage assigned events and accreditations",
+                      "Viewer: Read-only access to event data"
+                    ].map((item, index) => (
+                      <li key={index} className="flex items-start gap-3">
+                        <CheckCircle className="w-5 h-5 text-cyan-400 mt-0.5 flex-shrink-0" />
+                        <span className="text-base text-slate-200 font-medium">{item}</span>
                       </li>
                     ))}
                   </ul>
                 </motion.div>
 
-                <motion.div initial={{ opacity: 0, x: 40 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="backdrop-blur-xl bg-white/90 border border-slate-200/70 rounded-3xl p-10 shadow-2xl shadow-slate-200/50">
-                  <div className="space-y-8">
-                    {[
-                      { icon: Waves, label: "Super Admin", role: "Full Access", color: "from-red-500 to-rose-500" },
-                      { icon: Calendar, label: "Event Admin", role: "Event Management", color: "from-cyan-500 to-blue-500" },
-                      { icon: Users, label: "Viewer", role: "Read Only", color: "from-slate-500 to-slate-600" }
-                    ].map((role, i) => (
-                      <motion.div
-                        key={role.label}
-                        whileHover={{ scale: 1.02 }}
-                        className={`flex items-center gap-6 p-6 rounded-2xl bg-gradient-to-r ${role.color} text-white shadow-xl hover:shadow-2xl transition-all duration-300 border-4 border-white/30`}
-                      >
-                        <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center backdrop-blur-sm shadow-lg">
-                          <role.icon className="w-8 h-8" />
-                        </div>
-                        <div>
-                          <p className="text-xl font-black">{role.label}</p>
-                          <p className="text-lg font-light opacity-90">{role.role}</p>
-                        </div>
-                      </motion.div>
-                    ))}
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  className="bg-slate-800/90 backdrop-blur-lg border border-cyan-500/20 rounded-2xl p-8 shadow-2xl shadow-black/30"
+                >
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-700/40 border border-slate-600/30">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-400 to-rose-500 flex items-center justify-center shadow-lg shadow-red-500/30">
+                        <Waves className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-base font-bold text-white">Super Admin</p>
+                        <p className="text-sm text-cyan-400 font-semibold">Full Access</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-700/40 border border-slate-600/30">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center shadow-lg shadow-cyan-500/30">
+                        <Calendar className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-base font-bold text-white">Event Admin</p>
+                        <p className="text-sm text-cyan-400 font-semibold">Event Management</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-700/40 border border-slate-600/30">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-slate-400 to-slate-500 flex items-center justify-center shadow-lg shadow-slate-500/30">
+                        <Users className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-base font-bold text-white">Viewer</p>
+                        <p className="text-sm text-cyan-400 font-semibold">Read Only</p>
+                      </div>
+                    </div>
                   </div>
                 </motion.div>
               </div>
@@ -245,29 +296,30 @@ export default function Home() {
           </section>
         </main>
 
-        {/* Footer - Enhanced */}
-        <footer className="backdrop-blur-xl bg-white/90 border-t-2 border-slate-200/70 py-12 shadow-2xl">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <div className="flex flex-col md:flex-row items-center justify-center gap-6 mb-8">
+        {/* Footer */}
+        <footer className="relative py-8">
+          <div className="absolute inset-0 bg-slate-900/85 backdrop-blur-md" />
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-xl shadow-cyan-500/40">
-                  <Waves className="w-7 h-7 text-white" />
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-md shadow-cyan-500/30">
+                  <Waves className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-2xl font-black bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent tracking-tight">
+                <span className="text-base font-bold text-white tracking-wide">
                   ApexAccreditation
                 </span>
               </div>
+              <p className="text-sm text-slate-400 font-medium">
+                AI vibe coded development by{" "}
+                <a href="https://biela.dev/" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300 transition-colors font-semibold">
+                  Biela.dev
+                </a>
+                , powered by{" "}
+                <a href="https://teachmecode.ae/" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300 transition-colors font-semibold">
+                  TeachMeCode® Institute
+                </a>
+              </p>
             </div>
-            <p className="text-xl text-slate-600 font-light max-w-2xl mx-auto leading-relaxed">
-              Professional accreditation platform by{" "}
-              <a href="https://biela.dev/" target="_blank" rel="noopener noreferrer" className="font-semibold text-cyan-600 hover:text-cyan-700 underline decoration-cyan-200 transition-all">
-                Biela.dev
-              </a>
-              {" "}• Powered by{" "}
-              <a href="https://teachmecode.ae/" target="_blank" rel="noopener noreferrer" className="font-semibold text-emerald-600 hover:text-emerald-700 underline decoration-emerald-200 transition-all">
-                TeachMeCode® Institute
-              </a>
-            </p>
           </div>
         </footer>
       </div>
