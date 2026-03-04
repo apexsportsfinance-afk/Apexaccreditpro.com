@@ -18,28 +18,36 @@ export default defineConfig({
     },
   },
   resolve: {
-    alias: { "@": "/src" }
+    alias: { "@": "/src" },
   },
   build: {
     rollupOptions: {
       output: {
-        entryFileNames: 'js/[name]-[hash]-v3.js',
-        chunkFileNames: 'js/[name]-[hash]-v3.js',
+        entryFileNames: "js/[name]-[hash]-v3.js",
+        chunkFileNames: "js/[name]-[hash]-v3.js",
         assetFileNames: (info) => {
-          if (info.name.endsWith('.css')) return 'css/[name]-[hash]-v3[extname]';
-          return 'assets/[name]-[hash]-v3[extname]';
+          if (info.name.endsWith(".css"))
+            return "css/[name]-[hash]-v3[extname]";
+          return "assets/[name]-[hash]-v3[extname]";
         },
-      }
+        manualChunks: {
+          vendor: ["react", "react-dom", "react-router-dom"],
+          supabase: ["@supabase/supabase-js"],
+          pdf: ["@react-pdf/renderer", "jspdf", "jspdf-autotable"],
+          canvas: ["html2canvas"],
+          motion: ["motion"],
+        },
+      },
     },
-    commonjsOptions: { transformMixedEsModules: true }
+    commonjsOptions: { transformMixedEsModules: true },
   },
   optimizeDeps: {
     include: [
       "@react-pdf/renderer",
       "html2canvas",
       "jspdf",
-      "jspdf-autotable"
+      "jspdf-autotable",
     ],
-    esbuildOptions: { target: "esnext" }
-  }
+    esbuildOptions: { target: "esnext" },
+  },
 });
