@@ -6,124 +6,7 @@ import Input from "../ui/Input";
 import { useToast } from "../ui/Toast";
 import { sendCustomEmail } from "../../lib/email";
 import { getEmailTemplate } from "../../lib/email";
-import { buildPDF, IMAGE_SIZES } from "./cardExport";
-
-/**
- * Generate a PDF blob for an accreditation card
- */
-const generatePdfForAccreditation = async (accreditation, event, zones) => {
-  const { jsPDF } = await import("jspdf");
-  const html2canvas = (await import("html2canvas")).default;
-  const { CardInner } = await import("./AccreditationCardPreview");
-  const ReactModule = await import("react");
-  const { createRoot } = await import("react-dom/client");
-
-  const SUFFIX = `_email_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-
-  const container = document.createElement("div");
-  container.style.cssText =
-    "position:absolute;left:-9999px;top:0;width:700px;height:960px;overflow:visible;visibility:visible;opacity:1;z-index:-1;pointer-events:none;";
-  document.body.appendChild(container);
-
-  const root = createRoot(container);
-  root.render(
-    ReactModule.createElement(CardInner, {
-      accreditation,
-      event,
-      zones,
-      idSuffix: SUFFIX,
-    })
-  );
-
-  // Wait for render
-  await new Promise((r) => setTimeout(r, 800));
-
-  const frontEl = document.getElementById(`accreditation-front-card${SUFFIX}`);
-  const backEl = document.getElementById(`accreditation-back-card${SUFFIX}`);
-
-  if (!frontEl) {
-    root.unmount();
-    container.remove();
-    throw new Error("Card render failed");
-  }
-
-  // Inline images
-  const imgs = Array.from(container.querySelectorAll("img"));
-  await Promise.all(
-    imgs.map(async (img) => {
-      const src = img.getAttribute("src") || "";
-      if (!src || src.startsWith("data:") || src.startsWith("blob:")) return;
-      try {
-        const resp = await fetch(src, { mode: "cors", cache: "force-cache", credentials: "omit" });
-        if (resp.ok) {
-          const blob = await resp.blob();
-          const reader = new FileReader();
-          const b64 = await new Promise((res) => {
-            reader.onloadend = () => res(reader.result);
-            reader.onerror = () => res(null);
-            reader.readAsDataURL(blob);
-          });
-          if (b64) img.setAttribute("src", b64);
-        }
-      } catch {
-        /* skip */
-      }
-    })
-  );
-
-  await new Promise((r) => setTimeout(r, 300));
-
-  const captureOpts = {
-    scale: 4,
-    useCORS: true,
-    allowTaint: true,
-    backgroundColor: "#ffffff",
-    logging: false,
-    width: 320,
-    height: 454,
-    windowWidth: 320,
-    windowHeight: 454,
-  };
-
-  const frontCanvas = await html2canvas(frontEl, captureOpts);
-
-  const pdf = new jsPDF({
-    orientation: "p",
-    unit: "mm",
-    format: [105, 148],
-    compress: true,
-  });
-
-  pdf.addImage(frontCanvas.toDataURL("image/png", 1.0), "PNG", 0, 0, 105, 148, undefined, "FAST");
-
-  if (backEl) {
-    const backCanvas = await html2canvas(backEl, captureOpts);
-    pdf.addPage([105, 148], "portrait");
-    pdf.addImage(backCanvas.toDataURL("image/png", 1.0), "PNG", 0, 0, 105, 148, undefined, "FAST");
-  }
-
-  root.unmount();
-  container.remove();
-
-  return pdf;
-};
-
-/**
- * Convert a jsPDF blob to base64 string (without data: prefix)
- */
-const blobToRawBase64 = (blob) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const dataUrl = reader.result;
-      // Remove "data:application/pdf;base64,"
-      const base64 = dataUrl.split(",")[1];
-      resolve(base64);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-};
+import { generatePdfAttachment } from "../../lib/pdfEmailHelper";
 
 export default function ComposeEmailModal({
   isOpen,
@@ -217,10 +100,11 @@ export default function ComposeEmailModal({
 
         if (attachPdf && acc.status === "approved") {
           try {
-            const pdf = await generatePdfForAccreditation(acc, event, zones);
-            const pdfBlob = pdf.output("blob");
-            pdfBase64 = await blobToRawBase64(pdfBlob);
-            pdfFileName = `${acc.firstName}_${acc.lastName}_Accreditation_${acc.badgeNumber || "card"}.pdf`;
+            const attachment = await generatePdfAttachment(acc, event, zones);
+            if (attachment) {
+              pdfBase64 = attachment.pdfBase64;
+              pdfFileName = attachment.pdfFileName;
+            }
           } catch (pdfErr) {
             console.warn(`PDF generation failed for ${recipientName}:`, pdfErr);
           }
