@@ -162,51 +162,11 @@ const renderOffscreenCard = (accreditation, event, zones) =>
     setTimeout(poll, 100);
   });
 
-// Generate QR code as data URL at high resolution
-const generateQRCodeDataUrl = async (accreditation, size = 200) => {
-  const verifyId = accreditation?.accreditationId || accreditation?.badgeNumber || accreditation?.id || "unknown";
-  const verifyUrl = `${window.location.origin}/verify/${verifyId}`;
-  return await QRCode.toDataURL(verifyUrl, {
-    errorCorrectionLevel: "H",
-    margin: 2,
-    width: size,
-    color: { dark: "#0f172a", light: "#ffffff" }
-  });
-};
-
-// Overlay QR code onto canvas at specified position
-const overlayQROnCanvas = async (canvas, qrDataUrl, x, y, size) => {
-  return new Promise((resolve) => {
-    const ctx = canvas.getContext("2d");
-    const qrImg = new Image();
-    qrImg.crossOrigin = "anonymous";
-    qrImg.onload = () => {
-      // Draw white background with border
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(x - 6, y - 6, size + 12, size + 12);
-      ctx.strokeStyle = "#e2e8f0";
-      ctx.lineWidth = 3;
-      ctx.strokeRect(x - 6, y - 6, size + 12, size + 12);
-      // Draw QR code
-      ctx.drawImage(qrImg, x, y, size, size);
-      resolve(canvas);
-    };
-    qrImg.onerror = () => resolve(canvas);
-    qrImg.src = qrDataUrl;
-  });
-};
-
 const captureEl = async (el, scale) => {
-  // Hide QR code during capture to prevent compression
-  const qrElements = el.querySelectorAll("[data-qr-code]");
-  qrElements.forEach((qrEl) => {
-    qrEl.style.visibility = "hidden";
-  });
-  
   const canvas = await html2canvas(el, {
     scale,
-    useCORS: false,
-    allowTaint: false,
+    useCORS: true,
+    allowTaint: true,
     backgroundColor: "#ffffff",
     logging: false,
     imageTimeout: 30000,
@@ -217,36 +177,10 @@ const captureEl = async (el, scale) => {
     windowHeight: CARD_H_PX,
   });
 
-  // Restore QR visibility
-  qrElements.forEach((qrEl) => {
-    qrEl.style.visibility = "visible";
-  });
-
   if (!canvas || canvas.width === 0 || canvas.height === 0) {
     throw new Error("Canvas capture failed. Please try again.");
   }
 
-  return canvas;
-};
-
-// Capture element with QR overlay
-const captureElWithQR = async (el, scale, accreditation) => {
-  const canvas = await captureEl(el, scale);
-  
-  // Generate high-res QR code (512px for maximum quality)
-  const qrDataUrl = await generateQRCodeDataUrl(accreditation, 512);
-  
-  // Calculate QR position on scaled canvas
-  // QR position calculated from card layout:
-  // Header: 100px, gap: 6px, role: 40px, body padding: 12px
-  // Photo: 120px, ID text margin: 6px, ID text height: ~22px, QR margin: 8px
-  // Total Y offset: ~310px, X offset: body padding 12px
-  const qrX = 12 * scale;
-  const qrY = 310 * scale;
-  const qrSize = 88 * scale;
-  
-  await overlayQROnCanvas(canvas, qrDataUrl, qrX, qrY, qrSize);
-  
   return canvas;
 };
 
@@ -268,7 +202,7 @@ const buildPDF = async (accreditation, event, zones, scale, sizeKey) => {
   });
 
   try {
-    const frontCanvas = await captureElWithQR(frontEl, scale, accreditation);
+    const frontCanvas = await captureEl(frontEl, scale);
     pdf.addImage(
       frontCanvas.toDataURL("image/png", 1.0),
       "PNG",
@@ -312,7 +246,7 @@ const captureCardDataUrls = async (accreditation, event, zones, scale) => {
   let backDataUrl = null;
 
   try {
-    const frontCanvas = await captureElWithQR(frontEl, scale, accreditation);
+    const frontCanvas = await captureEl(frontEl, scale);
     frontDataUrl = frontCanvas.toDataURL("image/png", 1.0);
 
     if (backEl) {
