@@ -1,6 +1,41 @@
 const SUPABASE_URL = "https://dixelomafeobabahqeqg.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpeGVsb21hZmVvYmFiYWhxZXFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzMzA4MzYsImV4cCI6MjA4NjkwNjgzNn0.YD1lj0T6kFoM2XyeYonIC3bmLiPkKBvmXEHEr5VMaGM";
 
+import { supabase } from "./supabase";
+
+/**
+ * Load a saved email template from the database
+ */
+export const getEmailTemplate = async (templateType) => {
+  try {
+    const { data, error } = await supabase
+      .from("email_templates")
+      .select("subject, body")
+      .eq("template_type", templateType)
+      .single();
+    if (error || !data) return null;
+    return { subject: data.subject, body: data.body };
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Replace placeholders in template text
+ */
+const replacePlaceholders = (text, vars) => {
+  if (!text) return text;
+  return text
+    .replace(/\{name\}/g, vars.name || "")
+    .replace(/\{firstName\}/g, vars.firstName || "")
+    .replace(/\{lastName\}/g, vars.lastName || "")
+    .replace(/\{eventName\}/g, vars.eventName || "")
+    .replace(/\{role\}/g, vars.role || "")
+    .replace(/\{badge\}/g, vars.badge || "")
+    .replace(/\{zones\}/g, vars.zones || "")
+    .replace(/\{email\}/g, vars.email || "");
+};
+
 /**
  * Send accreditation approval email via Edge Function
  */
@@ -18,6 +53,26 @@ export const sendApprovalEmail = async ({
 }) => {
   try {
     console.log("[Email] Sending approval email to:", to);
+
+    // Try to load custom template
+    const template = await getEmailTemplate("approved");
+    let customBody = null;
+    let customSubject = null;
+    if (template && template.body) {
+      const vars = {
+        name,
+        firstName: name?.split(" ")[0] || "",
+        lastName: name?.split(" ").slice(1).join(" ") || "",
+        eventName,
+        role,
+        badge: badgeNumber || accreditationId || "",
+        zones: zoneCode || "",
+        email: to
+      };
+      customBody = replacePlaceholders(template.body, vars);
+      customSubject = replacePlaceholders(template.subject, vars);
+    }
+
     const response = await fetch(
       `${SUPABASE_URL}/functions/v1/send-accreditation-email`,
       {
@@ -37,7 +92,9 @@ export const sendApprovalEmail = async ({
           badgeNumber,
           zoneCode,
           reportingTimes,
-          type: "approved"
+          type: "approved",
+          templateBody: customBody || null,
+          templateSubject: customSubject || null
         })
       }
     );
@@ -70,6 +127,29 @@ export const sendRejectionEmail = async ({
 }) => {
   try {
     console.log("[Email] Sending rejection email to:", to);
+
+    // Try to load custom template
+    const template = await getEmailTemplate("rejected");
+    let customBody = null;
+    let customSubject = null;
+    if (template && template.body) {
+      const vars = {
+        name,
+        firstName: name?.split(" ")[0] || "",
+        lastName: name?.split(" ").slice(1).join(" ") || "",
+        eventName,
+        role: role || "Participant",
+        badge: "",
+        zones: "",
+        email: to
+      };
+      customBody = replacePlaceholders(template.body, vars);
+      if (remarks) {
+        customBody += "\n\nReason: " + remarks;
+      }
+      customSubject = replacePlaceholders(template.subject, vars);
+    }
+
     const response = await fetch(
       `${SUPABASE_URL}/functions/v1/send-accreditation-email`,
       {
@@ -85,7 +165,9 @@ export const sendRejectionEmail = async ({
           role,
           remarks,
           resubmitUrl,
-          type: "rejected"
+          type: "rejected",
+          templateBody: customBody || null,
+          templateSubject: customSubject || null
         })
       }
     );
