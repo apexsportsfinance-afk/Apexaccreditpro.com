@@ -320,7 +320,7 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
         </div>
 
         {/* BODY */}
-        <div style={{ display: "flex", flex: 1, padding: "10px 12px 4px 12px", position: "relative", zIndex: 10, minHeight: 0, backgroundColor: "white", overflow: "hidden" }}>
+        <div style={{ display: "flex", flex: 1, padding: "10px 12px 0px 12px", position: "relative", zIndex: 10, minHeight: 0, backgroundColor: "white", overflow: "hidden" }}>
           {/* LEFT: Photo + ID */}
           <div style={{ width: "110px", display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
             <div style={{ width: "100px", height: "120px", border: "2px solid #cbd5e1", padding: "2px", backgroundColor: "white", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)", flexShrink: 0 }}>
@@ -341,14 +341,14 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
           </div>
 
           {/* RIGHT: Name, details */}
-          <div style={{ flex: 1, paddingLeft: "12px", display: "flex", flexDirection: "column", justifyContent: "flex-start", minWidth: 0 }}>
+          <div style={{ flex: 1, paddingLeft: "12px", display: "flex", flexDirection: "column", justifyContent: "center", minWidth: 0 }}>
             <h2 style={{ fontWeight: "bold", color: "#1e3a8a", textTransform: "uppercase", fontSize: `${nameFontSize}px`, lineHeight: 1.15, margin: 0 }}>
               {fullName}
             </h2>
             <p style={{ fontSize: "13px", color: "#334155", marginTop: "10px", lineHeight: 1.3, wordBreak: "break-word" }}>
-              {accreditation?.club || "Club Name"}
+              {accreditation?.club || ""}
             </p>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "6px", fontSize: "12px", color: "#475569" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px", fontSize: "12px", color: "#475569" }}>
               <span style={{ fontWeight: 500 }}>{accreditation?.role || "Participant"}</span>
               <span style={{ color: "#cbd5e1" }}>|</span>
               <span style={{ fontWeight: 500 }}>{accreditation?.gender || "Gender"}</span>
@@ -359,7 +359,7 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
                 </>
               )}
             </div>
-            <div style={{ marginTop: "12px", height: "30px", display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{ marginTop: "10px", height: "30px", display: "flex", alignItems: "center", gap: "8px" }}>
               {countryData?.flag && (
                 <img
                   src={`https://flagcdn.com/w80/${countryData.flag}.png`}
@@ -380,12 +380,12 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
         </div>
 
         {/* QR CODE + ZONE NUMBERS - shared bottom row */}
-        <div style={{ height: "80px", width: "100%", backgroundColor: "white", display: "flex", alignItems: "center", padding: "4px 12px", gap: "8px", flexShrink: 0 }}>
+        <div style={{ height: "80px", width: "100%", backgroundColor: "white", display: "flex", alignItems: "flex-start", padding: "2px 12px 4px 12px", gap: "8px", flexShrink: 0 }}>
           {/* QR Code - left half */}
           <div style={{ flexShrink: 0 }}>
             {qrDataUrl ? (
-              <div data-qr-code="true" style={{ padding: "3px", backgroundColor: "white", border: "2px solid #e2e8f0", borderRadius: "4px" }}>
-                <img src={qrDataUrl} alt="QR Verify" style={{ width: "66px", height: "66px", display: "block", imageRendering: "pixelated" }} crossOrigin="anonymous" />
+              <div data-qr-code="true" style={{ padding: "2px", backgroundColor: "white", border: "2px solid #e2e8f0", borderRadius: "4px" }}>
+                <img src={qrDataUrl} alt="QR Verify" style={{ width: "68px", height: "68px", display: "block", imageRendering: "pixelated" }} crossOrigin="anonymous" />
               </div>
             ) : (
               <div style={{ width: "72px", height: "72px", backgroundColor: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "4px" }}>
@@ -394,7 +394,7 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
             )}
           </div>
           {/* Zone badges - right half */}
-          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "4px", flexWrap: "wrap" }}>
+          <div style={{ flex: 1, display: "flex", alignItems: "flex-end", justifyContent: "flex-end", gap: "4px", flexWrap: "wrap", height: "100%", paddingBottom: "2px" }}>
             {zoneCodes.length > 0 ? (
               zoneCodes.slice(0, 6).map((code, index) => (
                 zoneBadgePngs[code] ? (
