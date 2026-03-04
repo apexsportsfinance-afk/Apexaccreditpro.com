@@ -1,6 +1,5 @@
 import React from "react";
 import { getCountryName, calculateAge, COUNTRIES, isExpired } from "../../lib/utils";
-import { normalizeZoneCodes } from "../../lib/zoneUtils";
 import QRCode from "qrcode";
 
 const roleColors = {
@@ -28,7 +27,7 @@ const getNameFontSize = (firstName, lastName) => {
   return 22;
 };
 
-// ----------  PRE-RENDER HELPERS  ----------
+// Pre-render role banner as a canvas image so html2canvas copies pixels instead of rendering text
 const useRoleBannerPng = (role, bgColor, width = 320, height = 40) => {
   const [url, setUrl] = React.useState(null);
   React.useEffect(() => {
@@ -39,20 +38,25 @@ const useRoleBannerPng = (role, bgColor, width = 320, height = 40) => {
     const ctx = canvas.getContext("2d");
     ctx.scale(scale, scale);
 
+    // Background
     ctx.fillStyle = bgColor || "#2563eb";
     ctx.fillRect(0, 0, width, height);
 
+    // Shadow
     ctx.shadowColor = "rgba(0,0,0,0.2)";
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 1;
     ctx.shadowBlur = 2;
 
+    // Text
     ctx.fillStyle = "white";
     ctx.font = "bold 16px sans-serif";
     ctx.textBaseline = "middle";
 
     const text = (role || "PARTICIPANT").toUpperCase();
-    const letterSpacing = 3.2;
+    const letterSpacing = 3.2; // 0.2em * 16px
+
+    // Draw characters individually with letter-spacing, centered
     const chars = text.split("");
     ctx.textAlign = "left";
     const charWidths = chars.map(c => ctx.measureText(c).width);
@@ -68,6 +72,7 @@ const useRoleBannerPng = (role, bgColor, width = 320, height = 40) => {
   return url;
 };
 
+// Pre-render country name as a canvas image at flag height for perfect vertical alignment
 const useCountryNamePng = (name) => {
   const [url, setUrl] = React.useState(null);
   React.useEffect(() => {
@@ -123,7 +128,7 @@ const useZoneBadgePngs = (codes) => {
   return badges;
 };
 
-// ----------  CARD RENDERER  ----------
+// NEW: Exported for PDF generation - renders cards with dynamic IDs
 export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) => {
   const matchingZone = zones.find(z => z.name?.toLowerCase() === accreditation?.role?.toLowerCase());
   const zoneColor = matchingZone?.color || null;
@@ -143,8 +148,8 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
   const nameFontSize = getNameFontSize(accreditation?.firstName, accreditation?.lastName);
   const fullName = `${accreditation?.firstName || "FIRST"} ${accreditation?.lastName || "LAST"}`;
 
-  // =====  HIGH-RES QR  =====
   const [qrDataUrl, setQrDataUrl] = React.useState(null);
+
   React.useEffect(() => {
     const generateQR = async () => {
       try {
@@ -153,7 +158,7 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
         const url = await QRCode.toDataURL(verifyUrl, {
           errorCorrectionLevel: "H",
           margin: 1,
-          width: 300, // high-res master
+          width: 200,
           color: { dark: "#0f172a", light: "#ffffff" }
         });
         setQrDataUrl(url);
@@ -166,14 +171,27 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
 
   return (
     <>
-      {/* FRONT CARD */}
-      <div
-        id={`accreditation-front-card${idSuffix}`}
-        style={{
-          width: "320px", height: "454px", minWidth: "320px", minHeight: "454px", maxWidth: "320px", maxHeight: "454px",
-          backgroundColor: "#ffffff", borderRadius: "0", boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)", overflow: "hidden",
-          display: "flex", flexDirection: "column", position: "relative", border: expired ? "2px solid #f87171" : "1px solid #e2e8f0",
-          boxSizing: "border-box", flexShrink: 0, flexGrow: 0,
+      {/* FRONT CARD - CRITICAL: Use exact pixel dimensions with box-sizing */}
+      <div 
+        id={`accreditation-front-card${idSuffix}`} 
+        style={{ 
+          width: "320px", 
+          height: "454px", 
+          minWidth: "320px",
+          minHeight: "454px",
+          maxWidth: "320px",
+          maxHeight: "454px",
+          backgroundColor: "#ffffff", 
+          borderRadius: "0", 
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)", 
+          overflow: "hidden", 
+          display: "flex", 
+          flexDirection: "column", 
+          position: "relative", 
+          border: expired ? "2px solid #f87171" : "1px solid #e2e8f0",
+          boxSizing: "border-box", // CRITICAL: Include border in dimensions
+          flexShrink: 0,
+          flexGrow: 0,
         }}
       >
         {expired && (
@@ -201,7 +219,7 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
 
         <div style={{ height: "6px", backgroundColor: "white", flexShrink: 0 }} />
 
-        {/* ROLE BANNER */}
+        {/* ROLE BANNER — rendered as canvas image for html2canvas compatibility */}
         <div style={{ height: "40px", width: "100%", overflow: "hidden", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)", flexShrink: 0 }}>
           {roleBannerUrl ? (
             <img src={roleBannerUrl} alt={accreditation?.role} style={{ width: "100%", height: "40px", display: "block" }} />
@@ -231,7 +249,6 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
               <p style={{ fontSize: "10px", color: "#334155", fontFamily: "monospace", fontWeight: 500 }}>ID: {idNumber}</p>
               <p style={{ fontSize: "10px", color: "#334155", fontFamily: "monospace", fontWeight: "bold" }}>BADGE: {accreditation?.badgeNumber || "---"}</p>
             </div>
-            {/* =====  SHARP QR  ===== */}
             {qrDataUrl && (
               <div style={{ marginTop: "16px" }}>
                 <img src={qrDataUrl} alt="QR Verify" style={{ width: "70px", height: "70px" }} />
@@ -260,7 +277,7 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
               <span style={{ fontWeight: 500 }}>{accreditation?.gender || "Gender"}</span>
             </div>
 
-            {/* Country */}
+            {/* Country — both flag and name are <img> at 30px height for pixel-perfect alignment */}
             <div style={{ marginTop: "16px", height: "30px" }}>
               {countryData?.flag && (
                 <img
@@ -281,36 +298,18 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
           </div>
         </div>
 
-        {/* =====  WRAPPING FOOTER  ===== */}
-        <div
-          style={{
-            minHeight: "26px", width: "100%", backgroundColor: "white", display: "flex", flexWrap: "wrap",
-            alignItems: "center", justifyContent: "flex-end", gap: "4px", padding: "6px 12px",
-          }}
-        >
-          {zoneCodes.length > 0 ? (
-            zoneCodes.map((code) =>
+        {/* ZONE NUMBERS */}
+        <div style={{ height: "26px", width: "100%", backgroundColor: "white", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "4px", paddingLeft: "12px", paddingRight: "12px", flexShrink: 0 }}>
+        {zoneCodes.length > 0 ? (
+            zoneCodes.slice(0, 4).map((code, index) => (
               zoneBadgePngs[code] ? (
-                <img
-                  key={code}
-                  src={zoneBadgePngs[code]}
-                  alt={code}
-                  style={{ width: zoneCodes.length > 4 ? "24px" : "30px", height: zoneCodes.length > 4 ? "24px" : "30px" }}
-                />
+                <img key={index} src={zoneBadgePngs[code]} alt={code} style={{ width: "30px", height: "30px", display: "block" }} />
               ) : (
-                <div
-                  key={code}
-                  style={{
-                    backgroundColor: "#0f172a", color: "white",
-                    width: zoneCodes.length > 4 ? "24px" : "30px", height: zoneCodes.length > 4 ? "24px" : "30px",
-                    fontSize: zoneCodes.length > 4 ? "11px" : "13px", lineHeight: zoneCodes.length > 4 ? "24px" : "30px",
-                    textAlign: "center", borderRadius: "3px", fontWeight: 700,
-                  }}
-                >
+                <div key={index} style={{ backgroundColor: "#0f172a", color: "white", width: "30px", height: "30px", lineHeight: "30px", textAlign: "center", borderRadius: "3px", fontSize: "13px", fontWeight: 700 }}>
                   {code}
                 </div>
               )
-            )
+            ))
           ) : (
             <span style={{ fontSize: "10px", color: "#94a3b8" }}>No Access</span>
           )}
@@ -331,13 +330,25 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
       </div>
 
       {/* BACK CARD */}
-      <div
-        id={`accreditation-back-card${idSuffix}`}
-        style={{
-          width: "320px", height: "454px", minWidth: "320px", minHeight: "454px", maxWidth: "320px", maxHeight: "454px",
-          background: "linear-gradient(to bottom right, #0f172a, #1e293b, #0f172a)", borderRadius: "0",
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)", overflow: "hidden", flexShrink: 0,
-          border: "1px solid #334155", position: "relative", marginLeft: "20px", boxSizing: "border-box", flexGrow: 0,
+      <div 
+        id={`accreditation-back-card${idSuffix}`} 
+        style={{ 
+          width: "320px", 
+          height: "454px",
+          minWidth: "320px",
+          minHeight: "454px", 
+          maxWidth: "320px",
+          maxHeight: "454px",
+          background: "linear-gradient(to bottom right, #0f172a, #1e293b, #0f172a)", 
+          borderRadius: "0", 
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)", 
+          overflow: "hidden", 
+          flexShrink: 0, 
+          border: "1px solid #334155", 
+          position: "relative", 
+          marginLeft: "20px",
+          boxSizing: "border-box",
+          flexGrow: 0,
         }}
       >
         <div style={{ position: "absolute", inset: 0, opacity: 0.05 }}>
@@ -415,6 +426,7 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
   );
 };
 
+// CRITICAL FIX: Use inline-block wrapper to prevent flex stretching
 const AccreditationCardPreview = ({ accreditation, event, zones = [] }) => {
   return (
     <div id="accreditation-card-preview" style={{ display: "inline-block", fontFamily: "sans-serif" }}>
