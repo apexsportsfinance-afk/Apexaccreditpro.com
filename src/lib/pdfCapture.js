@@ -1,5 +1,6 @@
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
+import QRCode from "qrcode";
 
 export const PDF_SIZES = {
   a4:   { width: 210, height: 297, label: "A4 (210×297 mm)", dpi: 72 },
@@ -85,9 +86,80 @@ const captureElement = async (elementId, scale = 3) => {
   }
 };
 
+// Generate QR code as data URL at high resolution
+const generateQRCodeDataUrl = async (accId, size = 512) => {
+  const verifyUrl = `${window.location.origin}/verify/${accId}`;
+  return await QRCode.toDataURL(verifyUrl, {
+    errorCorrectionLevel: "H",
+    margin: 2,
+    width: size,
+    color: { dark: "#0f172a", light: "#ffffff" }
+  });
+};
+
+// Overlay QR code onto canvas at specified position
+const overlayQROnCanvas = async (canvas, qrDataUrl, x, y, size) => {
+  return new Promise((resolve) => {
+    const ctx = canvas.getContext("2d");
+    const qrImg = new Image();
+    qrImg.crossOrigin = "anonymous";
+    qrImg.onload = () => {
+      // Draw white background with border
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(x - 6, y - 6, size + 12, size + 12);
+      ctx.strokeStyle = "#e2e8f0";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x - 6, y - 6, size + 12, size + 12);
+      // Draw QR code crisp
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(qrImg, x, y, size, size);
+      ctx.imageSmoothingEnabled = true;
+      resolve(canvas);
+    };
+    qrImg.onerror = () => resolve(canvas);
+    qrImg.src = qrDataUrl;
+  });
+};
+
+// Get accreditation ID from the element for QR generation
+const getAccreditationIdFromElement = (element) => {
+  const qrContainer = element.querySelector("[data-qr-code]");
+  if (qrContainer) {
+    const img = qrContainer.querySelector("img");
+    if (img && img.src) {
+      // Extract ID from the QR URL embedded in the data URL
+      // Since we generate QR from verify URL, we need to get the ID from elsewhere
+    }
+  }
+  // Return from window context or data attribute
+  return element.getAttribute("data-accreditation-id") || null;
+};
+
 export const downloadCapturedPDF = async (frontId, backId, fileName, sizeKey = "card") => {
   try {
+    const element = document.getElementById(frontId);
+    
+    // Hide QR during capture
+    const qrElements = element?.querySelectorAll("[data-qr-code]") || [];
+    qrElements.forEach((qrEl) => {
+      qrEl.style.visibility = "hidden";
+    });
+    
     const { canvas: frontCanvas, width, height } = await captureElement(frontId, 3);
+    
+    // Restore QR visibility
+    qrElements.forEach((qrEl) => {
+      qrEl.style.visibility = "visible";
+    });
+    
+    // Overlay fresh QR code at high resolution
+    const accId = element?.getAttribute("data-accreditation-id");
+    if (accId) {
+      const qrDataUrl = await generateQRCodeDataUrl(accId, 512);
+      // QR position: x≈14px, y≈256px in original, scaled by 3
+      const scale = 3;
+      await overlayQROnCanvas(frontCanvas, qrDataUrl, 14 * scale, 256 * scale, 88 * scale);
+    }
     
     // CRITICAL FIX: Calculate PDF dimensions at exactly 72 DPI
     // PDF uses 72 DPI by default, so we convert pixels to points (1:1 ratio)
@@ -138,7 +210,28 @@ export const downloadCapturedPDF = async (frontId, backId, fileName, sizeKey = "
 };
 
 export const openCapturedPDFInTab = async (frontId, backId, sizeKey = "card") => {
+  const element = document.getElementById(frontId);
+  
+  // Hide QR during capture
+  const qrElements = element?.querySelectorAll("[data-qr-code]") || [];
+  qrElements.forEach((qrEl) => {
+    qrEl.style.visibility = "hidden";
+  });
+  
   const { canvas, width, height } = await captureElement(frontId, 3);
+  
+  // Restore QR visibility
+  qrElements.forEach((qrEl) => {
+    qrEl.style.visibility = "visible";
+  });
+  
+  // Overlay fresh QR code
+  const accId = element?.getAttribute("data-accreditation-id");
+  if (accId) {
+    const qrDataUrl = await generateQRCodeDataUrl(accId, 512);
+    const scale = 3;
+    await overlayQROnCanvas(canvas, qrDataUrl, 14 * scale, 256 * scale, 88 * scale);
+  }
   
   const pdf = new jsPDF({
     orientation: width > height ? "l" : "p",
@@ -158,7 +251,28 @@ export const openCapturedPDFInTab = async (frontId, backId, sizeKey = "card") =>
 };
 
 export const getCapturedPDFBlob = async (frontId, backId, sizeKey = "card") => {
+  const element = document.getElementById(frontId);
+  
+  // Hide QR during capture
+  const qrElements = element?.querySelectorAll("[data-qr-code]") || [];
+  qrElements.forEach((qrEl) => {
+    qrEl.style.visibility = "hidden";
+  });
+  
   const { canvas, width, height } = await captureElement(frontId, 3);
+  
+  // Restore QR visibility
+  qrElements.forEach((qrEl) => {
+    qrEl.style.visibility = "visible";
+  });
+  
+  // Overlay fresh QR code
+  const accId = element?.getAttribute("data-accreditation-id");
+  if (accId) {
+    const qrDataUrl = await generateQRCodeDataUrl(accId, 512);
+    const scale = 3;
+    await overlayQROnCanvas(canvas, qrDataUrl, 14 * scale, 256 * scale, 88 * scale);
+  }
   
   const pdf = new jsPDF({
     orientation: width > height ? "l" : "p",
@@ -179,7 +293,28 @@ export const getCapturedPDFBlob = async (frontId, backId, sizeKey = "card") => {
 };
 
 export const downloadAsImages = async (frontId, backId, baseName, size = "hd") => {
-  const { canvas } = await captureElement(frontId, IMAGE_SIZES[size]?.scale || 2);
+  const element = document.getElementById(frontId);
+  const scale = IMAGE_SIZES[size]?.scale || 2;
+  
+  // Hide QR during capture
+  const qrElements = element?.querySelectorAll("[data-qr-code]") || [];
+  qrElements.forEach((qrEl) => {
+    qrEl.style.visibility = "hidden";
+  });
+  
+  const { canvas } = await captureElement(frontId, scale);
+  
+  // Restore QR visibility
+  qrElements.forEach((qrEl) => {
+    qrEl.style.visibility = "visible";
+  });
+  
+  // Overlay fresh QR code
+  const accId = element?.getAttribute("data-accreditation-id");
+  if (accId) {
+    const qrDataUrl = await generateQRCodeDataUrl(accId, 512);
+    await overlayQROnCanvas(canvas, qrDataUrl, 14 * scale, 256 * scale, 88 * scale);
+  }
   
   const a1 = document.createElement("a");
   a1.download = `${baseName}_front.png`;
