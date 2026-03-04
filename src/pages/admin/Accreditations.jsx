@@ -16,6 +16,7 @@ import {
   Check,
   Plus,
   AlertCircle
+  ,Mail
 } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Select from "../../components/ui/Select";
@@ -38,6 +39,7 @@ import {
   sendApprovalEmail,
   sendRejectionEmail
 } from "../../lib/email";
+import ComposeEmailModal from "../../components/accreditation/ComposeEmailModal";
 import {
   formatDate,
   getStatusColor,
@@ -102,6 +104,7 @@ export default function Accreditations() {
   const [bulkEditing, setBulkEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const initializedRef = React.useRef(false);
+  const [emailModal, setEmailModal] = useState({ open: false, accreditation: null });
 
   useEffect(() => {
     const initializeData = async () => {
@@ -616,6 +619,13 @@ export default function Accreditations() {
               </button>
             </>
           )}
+          <button
+            onClick={(e) => { e.stopPropagation(); setEmailModal({ open: true, accreditation: row }); }}
+            className="p-2 rounded-lg hover:bg-violet-500/20 transition-colors"
+            title="Send Email"
+          >
+            <Mail className="w-4 h-4 text-violet-300" />
+          </button>
           <button
             onClick={(e) => { e.stopPropagation(); handleOpenDeleteConfirm(row); }}
             className="p-2 rounded-lg hover:bg-red-500/20 transition-colors"
@@ -1219,6 +1229,16 @@ export default function Accreditations() {
         </div>
       </Modal>
 
+      {/* Individual Email Compose Modal */}
+      <ComposeEmailModal
+        isOpen={emailModal.open}
+        onClose={() => setEmailModal({ open: false, accreditation: null })}
+        recipients={emailModal.accreditation ? [emailModal.accreditation] : []}
+        event={currentEvent}
+        zones={zones}
+        isBulk={false}
+      />
+
       {/* PDF Preview Modal */}
       <Modal
         isOpen={pdfPreviewModal.open}
@@ -1448,6 +1468,16 @@ export default function Accreditations() {
           </div>
         </div>
       </Modal>
+
+      {/* Compose Email Modal (single) */}
+      <ComposeEmailModal
+        isOpen={emailModal.open}
+        onClose={() => setEmailModal({ open: false, accreditation: null })}
+        recipients={emailModal.accreditation ? [emailModal.accreditation] : []}
+        event={currentEvent}
+        zones={zones}
+        isBulk={false}
+      />
     </div>
   );
 }
