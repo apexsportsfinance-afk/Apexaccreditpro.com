@@ -140,130 +140,194 @@ const useZoneBadgePngs = (codes) => {
 };
 
 const AquaticsHeader = ({ event }) => {
-  const hasLogo = !!event?.logoUrl;
-  const arabicText = event?.headerArabic || "دبي الدولية للألعاب المائية";
-  const subtitleText = event?.headerSubtitle || "AQUATICS CHAMPIONSHIP";
-  const eventName = event?.name || "CHAMPIONSHIP";
-
+  const logoUrl = event?.logoUrl;
+  
   return (
-    <div style={{
-      position: "relative",
-      height: "100px",
-      width: "100%",
-      background: "linear-gradient(135deg, #023e8a 0%, #0077b6 30%, #0096c7 60%, #00b4d8 85%, #48cae4 100%)",
-      flexShrink: 0,
-      overflow: "hidden"
-    }}>
-      <div style={{ position: "absolute", inset: 0, opacity: 0.12 }} />
-
+    <div
+      style={{
+        height: "100px",
+        width: "100%",
+        position: "relative",
+        overflow: "hidden",
+        flexShrink: 0,
+        background: "linear-gradient(135deg, #0a1628 0%, #1e3a5f 30%, #2d5a87 50%, #1e3a5f 70%, #0a1628 100%)",
+      }}
+    >
+      {/* Animated gradient overlay */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "linear-gradient(45deg, rgba(6, 182, 212, 0.15) 0%, transparent 40%, rgba(37, 99, 235, 0.15) 60%, transparent 100%)",
+        }}
+      />
+      
+      {/* Glowing orbs for depth */}
+      <div
+        style={{
+          position: "absolute",
+          top: "-20px",
+          left: "-20px",
+          width: "80px",
+          height: "80px",
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(6, 182, 212, 0.3) 0%, transparent 70%)",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          bottom: "-30px",
+          right: "-30px",
+          width: "100px",
+          height: "100px",
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(37, 99, 235, 0.25) 0%, transparent 70%)",
+        }}
+      />
+      
+      {/* Subtle wave lines */}
       <svg
         style={{
-          position: "absolute", inset: 0, width: "100%", height: "100%",
-          overflow: "visible"
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          width: "100%",
+          height: "40px",
+          opacity: 0.1,
         }}
-        viewBox="0 0 320 100"
-        preserveAspectRatio="xMidYMid slice"
+        viewBox="0 0 320 40"
+        preserveAspectRatio="none"
       >
-        <defs>
-          <linearGradient id="laneGrad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="rgba(255,255,255,0)" />
-            <stop offset="50%" stopColor="rgba(255,255,255,0.4)" />
-            <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-          </linearGradient>
-          <radialGradient id="hdrBubble" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="rgba(255,255,255,0.5)" />
-            <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-          </radialGradient>
-        </defs>
-        <line x1="0" y1="72" x2="320" y2="72" stroke="url(#laneGrad)" strokeWidth="0.8" />
-        <line x1="0" y1="80" x2="320" y2="80" stroke="url(#laneGrad)" strokeWidth="0.6" />
-        <line x1="0" y1="88" x2="320" y2="88" stroke="url(#laneGrad)" strokeWidth="0.5" />
-        {[20, 50, 80, 110, 140, 170, 200, 230, 260, 290].map((x, i) => (
-          <circle key={i} cx={x} cy="72" r="2.5"
-            fill={i % 2 === 0 ? "rgba(220,38,38,0.7)" : "rgba(255,255,255,0.7)"} />
-        ))}
-        <g transform="translate(225, 28) scale(0.72)" opacity="0.22" fill="white">
-          <circle cx="60" cy="18" r="9" />
-          <path d="M52,26 Q45,32 35,34 Q20,37 5,35 Q0,35 0,37 Q0,39 5,39 Q22,41 38,38 Q50,36 58,32 Z" />
-          <path d="M58,28 Q70,22 85,18 Q95,15 95,17 Q95,19 85,22 Q72,26 62,30 Z" />
-          <path d="M50,30 Q40,38 28,44 Q20,48 18,46 Q16,44 24,40 Q35,35 46,28 Z" />
-          <path d="M5,37 Q0,42 -5,50 Q-8,54 -6,55 Q-4,56 -1,52 Q4,44 10,39 Z" />
-          <path d="M8,38 Q3,44 0,52 Q-2,56 0,57 Q2,58 5,54 Q9,46 14,40 Z" />
-        </g>
-        <circle cx="218" cy="55" r="3.5" fill="url(#hdrBubble)" />
-        <circle cx="208" cy="62" r="2.5" fill="url(#hdrBubble)" />
-        <circle cx="12" cy="22" r="5" fill="url(#hdrBubble)" />
-        <circle cx="28" cy="42" r="3.5" fill="url(#hdrBubble)" />
-        <path d="M0,91 Q30,86 60,91 T120,91 T180,91 T240,91 T300,91 T360,91" fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="1.5" />
-        <line x1="130" y1="12" x2="130" y2="88" stroke="rgba(255,255,255,0.25)" strokeWidth="0.8" strokeDasharray="3,3" />
+        <path
+          d="M0,20 Q40,10 80,20 T160,20 T240,20 T320,20 L320,40 L0,40 Z"
+          fill="white"
+        />
+        <path
+          d="M0,25 Q40,15 80,25 T160,25 T240,25 T320,25 L320,40 L0,40 Z"
+          fill="white"
+          opacity="0.5"
+        />
       </svg>
-
-      <div style={{
-        position: "relative", zIndex: 10,
-        display: "flex", height: "100%", width: "100%",
-        alignItems: "center",
-      }}>
-        <div style={{
-          width: "130px", height: "100%",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          padding: "6px 8px",
-          flexShrink: 0,
-        }}>
-          {hasLogo ? (
-            <img
-              src={event.logoUrl}
-              alt="Logo"
-              style={{ maxHeight: "82px", maxWidth: "118px", objectFit: "contain" }}
-              crossOrigin="anonymous"
-            />
-          ) : (
-            <div style={{ textAlign: "center" }}>
-              <svg style={{ width: "36px", height: "36px", opacity: 0.85, margin: "0 auto 2px" }} viewBox="0 0 24 24" fill="white">
-                <path d="M2 18c.6.5 1.2 1 2.3 1 1.4 0 2.1-.6 2.7-1.2.6-.6 1.3-1.2 2.7-1.2s2.1.6 2.7 1.2c.6.6 1.3 1.2 2.7 1.2s2.1-.6 2.7-1.2c.6-.6 1.3-1.2 2.7-1.2.7 0 1.2.1 1.7.4V15c-.5-.3-1.1-.4-1.7-.4-1.4 0-2.1.6-2.7 1.2-.6.6-1.3 1.2-2.7 1.2s-2.1-.6-2.7-1.2C9.4 14.6 8.7 14 7.3 14c-1.4 0-2.1.6-2.7 1.2C4.1 15.8 3.4 16 2.3 16L2 16v2z" />
-                <circle cx="12" cy="4" r="2.5" />
+      
+      {/* Sparkle accents */}
+      <div
+        style={{
+          position: "absolute",
+          top: "15px",
+          right: "25px",
+          width: "4px",
+          height: "4px",
+          borderRadius: "50%",
+          backgroundColor: "rgba(255, 255, 255, 0.6)",
+          boxShadow: "0 0 8px rgba(255, 255, 255, 0.4)",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          top: "35px",
+          right: "60px",
+          width: "3px",
+          height: "3px",
+          borderRadius: "50%",
+          backgroundColor: "rgba(6, 182, 212, 0.7)",
+          boxShadow: "0 0 6px rgba(6, 182, 212, 0.5)",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          bottom: "20px",
+          left: "40px",
+          width: "3px",
+          height: "3px",
+          borderRadius: "50%",
+          backgroundColor: "rgba(255, 255, 255, 0.5)",
+          boxShadow: "0 0 6px rgba(255, 255, 255, 0.3)",
+        }}
+      />
+      
+      {/* Shimmer line */}
+      <div
+        style={{
+          position: "absolute",
+          top: "50%",
+          left: 0,
+          right: 0,
+          height: "1px",
+          background: "linear-gradient(to right, transparent 0%, rgba(255,255,255,0.2) 20%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0.2) 80%, transparent 100%)",
+          transform: "translateY(-50%)",
+        }}
+      />
+      
+      {/* Logo container - centered */}
+      <div
+        style={{
+          position: "relative",
+          zIndex: 10,
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "10px 20px",
+        }}
+      >
+        {logoUrl ? (
+          <img
+            src={logoUrl}
+            alt="Event Logo"
+            style={{
+              maxHeight: "80px",
+              maxWidth: "280px",
+              objectFit: "contain",
+              filter: "drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3))",
+            }}
+            crossOrigin="anonymous"
+          />
+        ) : (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+            }}
+          >
+            <div
+              style={{
+                width: "50px",
+                height: "50px",
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, #06b6d4 0%, #2563eb 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 4px 12px rgba(6, 182, 212, 0.4)",
+              }}
+            >
+              <svg
+                style={{ width: "28px", height: "28px", color: "white" }}
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z" />
               </svg>
             </div>
-          )}
-        </div>
-
-        <div style={{
-          flex: 1, paddingRight: "10px", paddingLeft: "8px",
-          display: "flex", flexDirection: "column", justifyContent: "center",
-          minWidth: 0,
-        }}>
-          {arabicText && (
-            <p style={{
-              fontSize: "10px", color: "rgba(255,255,255,0.85)", fontFamily: "sans-serif",
-              textAlign: "right", marginBottom: "3px", direction: "rtl",
-              letterSpacing: "0.01em", lineHeight: 1.3,
-              textShadow: "0 1px 3px rgba(0,0,0,0.3)",
-            }}>
-              {arabicText}
-            </p>
-          )}
-          <p style={{
-            fontSize: "12px", fontWeight: "bold", color: "white",
-            textTransform: "uppercase", letterSpacing: "0.06em", lineHeight: 1.2,
-            textShadow: "0 1px 4px rgba(0,0,0,0.35)",
-            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-          }}>
-            {eventName.length > 30 ? subtitleText : eventName}
-          </p>
-          <p style={{
-            fontSize: "9px", color: "rgba(255,255,255,0.75)", letterSpacing: "0.15em",
-            marginTop: "2px", textTransform: "uppercase",
-            textShadow: "0 1px 2px rgba(0,0,0,0.3)",
-          }}>
-            {eventName.length > 30 ? eventName.substring(0, 30) + "…" : subtitleText}
-          </p>
-          <div style={{
-            marginTop: "4px",
-            height: "2px",
-            background: "linear-gradient(to right, rgba(255,255,255,0.7), rgba(255,255,255,0.1))",
-            borderRadius: "1px",
-            width: "70%",
-          }} />
-        </div>
+            <span
+              style={{
+                fontSize: "18px",
+                fontWeight: "bold",
+                color: "white",
+                textTransform: "uppercase",
+                letterSpacing: "0.15em",
+                textShadow: "0 2px 4px rgba(0, 0, 0, 0.3)",
+              }}
+            >
+              ACCREDITATION
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -303,8 +367,8 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
         const verifyUrl = `${window.location.origin}/verify/${verifyId}`;
         const url = await QRCode.toDataURL(verifyUrl, {
           errorCorrectionLevel: "H",
-          margin: 2,
-          width: 120,
+          margin: 1,
+          width: 200,
           color: { dark: "#0f172a", light: "#ffffff" }
         });
         setQrDataUrl(url);
@@ -374,10 +438,10 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
             </div>
             {qrDataUrl ? (
               <div style={{ marginTop: "8px", padding: "3px", backgroundColor: "white", border: "1px solid #e2e8f0" }}>
-                <img src={qrDataUrl} alt="QR Verify" style={{ width: "76px", height: "76px", display: "block" }} />
+                <img src={qrDataUrl} alt="QR Verify" style={{ width: "96px", height: "96px", display: "block", imageRendering: "pixelated" }} />
               </div>
             ) : (
-              <div style={{ marginTop: "8px", width: "76px", height: "76px", backgroundColor: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ marginTop: "8px", width: "96px", height: "96px", backgroundColor: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <p style={{ fontSize: "8px", color: "#94a3b8", textAlign: "center" }}>QR loading...</p>
               </div>
             )}
