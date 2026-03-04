@@ -320,8 +320,8 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
         </div>
 
         {/* BODY */}
-        <div style={{ display: "flex", flex: 1, padding: "12px", position: "relative", zIndex: 10, minHeight: 0, backgroundColor: "white", overflow: "hidden" }}>
-          {/* LEFT: Photo + ID + QR */}
+        <div style={{ display: "flex", flex: 1, padding: "10px 12px 4px 12px", position: "relative", zIndex: 10, minHeight: 0, backgroundColor: "white", overflow: "hidden" }}>
+          {/* LEFT: Photo + ID */}
           <div style={{ width: "110px", display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
             <div style={{ width: "100px", height: "120px", border: "2px solid #cbd5e1", padding: "2px", backgroundColor: "white", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)", flexShrink: 0 }}>
               {accreditation?.photoUrl ? (
@@ -338,15 +338,6 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
               <p style={{ fontSize: "9px", color: "#334155", fontFamily: "monospace", fontWeight: 500 }}>ID: {idNumber}</p>
               <p style={{ fontSize: "9px", color: "#334155", fontFamily: "monospace", fontWeight: "bold" }}>BADGE: {accreditation?.badgeNumber || "---"}</p>
             </div>
-            {qrDataUrl ? (
-              <div data-qr-code="true" style={{ marginTop: "6px", padding: "4px", backgroundColor: "white", border: "2px solid #e2e8f0", borderRadius: "4px" }}>
-                <img src={qrDataUrl} alt="QR Verify" style={{ width: "105px", height: "105px", display: "block", imageRendering: "pixelated" }} crossOrigin="anonymous" />
-              </div>
-            ) : (
-              <div style={{ marginTop: "6px", width: "113px", height: "113px", backgroundColor: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <p style={{ fontSize: "8px", color: "#94a3b8", textAlign: "center" }}>QR loading...</p>
-              </div>
-            )}
           </div>
 
           {/* RIGHT: Name, details */}
@@ -388,21 +379,36 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
           </div>
         </div>
 
-        {/* ZONE NUMBERS */}
-        <div style={{ height: "32px", width: "100%", backgroundColor: "white", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "4px", paddingLeft: "12px", paddingRight: "12px", flexShrink: 0 }}>
-          {zoneCodes.length > 0 ? (
-            zoneCodes.slice(0, 6).map((code, index) => (
-              zoneBadgePngs[code] ? (
-                <img key={index} src={zoneBadgePngs[code]} alt={code} style={{ width: "28px", height: "28px", display: "block" }} />
-              ) : (
-                <div key={index} style={{ backgroundColor: "#0f172a", color: "white", width: "28px", height: "28px", lineHeight: "28px", textAlign: "center", borderRadius: "3px", fontSize: "12px", fontWeight: 700 }}>
-                  {code}
-                </div>
-              )
-            ))
-          ) : (
-            <span style={{ fontSize: "10px", color: "#94a3b8" }}>No Access</span>
-          )}
+        {/* QR CODE + ZONE NUMBERS - shared bottom row */}
+        <div style={{ height: "80px", width: "100%", backgroundColor: "white", display: "flex", alignItems: "center", padding: "4px 12px", gap: "8px", flexShrink: 0 }}>
+          {/* QR Code - left half */}
+          <div style={{ flexShrink: 0 }}>
+            {qrDataUrl ? (
+              <div data-qr-code="true" style={{ padding: "3px", backgroundColor: "white", border: "2px solid #e2e8f0", borderRadius: "4px" }}>
+                <img src={qrDataUrl} alt="QR Verify" style={{ width: "66px", height: "66px", display: "block", imageRendering: "pixelated" }} crossOrigin="anonymous" />
+              </div>
+            ) : (
+              <div style={{ width: "72px", height: "72px", backgroundColor: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "4px" }}>
+                <p style={{ fontSize: "8px", color: "#94a3b8", textAlign: "center" }}>QR</p>
+              </div>
+            )}
+          </div>
+          {/* Zone badges - right half */}
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "4px", flexWrap: "wrap" }}>
+            {zoneCodes.length > 0 ? (
+              zoneCodes.slice(0, 6).map((code, index) => (
+                zoneBadgePngs[code] ? (
+                  <img key={index} src={zoneBadgePngs[code]} alt={code} style={{ width: "28px", height: "28px", display: "block" }} />
+                ) : (
+                  <div key={index} style={{ backgroundColor: "#0f172a", color: "white", width: "28px", height: "28px", lineHeight: "28px", textAlign: "center", borderRadius: "3px", fontSize: "12px", fontWeight: 700 }}>
+                    {code}
+                  </div>
+                )
+              ))
+            ) : (
+              <span style={{ fontSize: "10px", color: "#94a3b8" }}>No Access</span>
+            )}
+          </div>
         </div>
 
         {/* SPONSORS */}
