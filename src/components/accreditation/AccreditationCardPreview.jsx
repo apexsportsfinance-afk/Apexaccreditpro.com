@@ -285,6 +285,7 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
       {/* FRONT CARD */}
       <div
         id={`accreditation-front-card${idSuffix}`}
+        data-accreditation-id={accreditation?.accreditationId || accreditation?.badgeNumber || accreditation?.id || ""}
         style={{
           width: "320px", height: "454px", minWidth: "320px", minHeight: "454px",
           maxWidth: "320px", maxHeight: "454px", backgroundColor: "#ffffff",
@@ -338,7 +339,7 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
               <p style={{ fontSize: "9px", color: "#334155", fontFamily: "monospace", fontWeight: "bold" }}>BADGE: {accreditation?.badgeNumber || "---"}</p>
             </div>
             {qrDataUrl ? (
-              <div style={{ marginTop: "8px", padding: "4px", backgroundColor: "white", border: "2px solid #e2e8f0", borderRadius: "4px" }}>
+              <div data-qr-code="true" style={{ marginTop: "8px", padding: "4px", backgroundColor: "white", border: "2px solid #e2e8f0", borderRadius: "4px" }}>
                 <img src={qrDataUrl} alt="QR Verify" style={{ width: "88px", height: "88px", display: "block", imageRendering: "crisp-edges" }} />
               </div>
             ) : (
