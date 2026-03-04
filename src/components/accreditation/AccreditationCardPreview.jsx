@@ -139,7 +139,6 @@ const useZoneBadgePngs = (codes) => {
   return badges;
 };
 
-// BIELA STYLE AQUATICS HEADER WITH ENHANCED LOGO VISIBILITY
 const AquaticsHeader = ({ event }) => {
   const logoUrl = event?.logoUrl;
 
@@ -151,172 +150,54 @@ const AquaticsHeader = ({ event }) => {
         position: "relative",
         overflow: "hidden",
         flexShrink: 0,
-        // Biela gradient: Light Aqua → Royal Blue → Deep Navy
-        background: "linear-gradient(135deg, #6EC1E4 0%, #3E63B8 50%, #1B1675 100%)",
       }}
     >
-      {/* Abstract Wave Grid Pattern - Bottom Half */}
-      <svg
-        style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          width: "100%",
-          height: "60%",
-          opacity: 0.12,
-        }}
-        viewBox="0 0 1200 300"
-        preserveAspectRatio="none"
-      >
-        <defs>
-          <linearGradient id="waveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="white" stopOpacity="0.4" />
-            <stop offset="50%" stopColor="white" stopOpacity="0.15" />
-            <stop offset="100%" stopColor="white" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-
-        {/* Flowing wave lines */}
-        <path d="M 0 250 Q 300 200 600 220 T 1200 180" 
-              stroke="url(#waveGrad)" strokeWidth="2.5" fill="none" />
-        <path d="M 0 280 Q 400 220 800 240 T 1200 200" 
-              stroke="url(#waveGrad)" strokeWidth="2" fill="none" />
-        <path d="M 0 300 Q 200 260 500 270 T 1200 230" 
-              stroke="url(#waveGrad)" strokeWidth="1.5" fill="none" />
-
-        {/* Horizontal grid lines */}
-        <line x1="0" y1="200" x2="1200" y2="180" stroke="white" strokeOpacity="0.15" strokeWidth="0.8" />
-        <line x1="0" y1="220" x2="1200" y2="200" stroke="white" strokeOpacity="0.12" strokeWidth="0.8" />
-        <line x1="0" y1="240" x2="1200" y2="220" stroke="white" strokeOpacity="0.08" strokeWidth="0.8" />
-        <line x1="0" y1="260" x2="1200" y2="240" stroke="white" strokeOpacity="0.05" strokeWidth="0.8" />
-
-        {/* Curved vertical flow lines */}
-        <path d="M 200 300 Q 250 200 300 150" stroke="white" strokeOpacity="0.12" strokeWidth="1.2" fill="none" />
-        <path d="M 400 300 Q 450 220 500 180" stroke="white" strokeOpacity="0.10" strokeWidth="1.2" fill="none" />
-        <path d="M 600 300 Q 650 240 700 200" stroke="white" strokeOpacity="0.08" strokeWidth="1.2" fill="none" />
-        <path d="M 800 300 Q 850 220 900 180" stroke="white" strokeOpacity="0.06" strokeWidth="1.2" fill="none" />
-      </svg>
-
-      {/* Pixel/Tile Pattern - Bottom Left */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          width: "180px",
-          height: "35px",
-          overflow: "hidden",
-        }}
-      >
-        <svg width="180" height="35" viewBox="0 0 180 35" style={{ opacity: 0.25 }}>
-          <defs>
-            <pattern id="pixelPattern" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse">
-              <rect x="0" y="0" width="3" height="3" fill="#7FA8E3" opacity="0.8" />
-              <rect x="4" y="4" width="3" height="3" fill="#5A7FD1" opacity="0.6" />
-              <rect x="2" y="6" width="2" height="2" fill="#3E63B8" opacity="0.4" />
-            </pattern>
-          </defs>
-          <rect width="180" height="35" fill="url(#pixelPattern)" />
-        </svg>
-      </div>
-
-      {/* Subtle top highlight line */}
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: "1px",
-          background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)",
-        }}
-      />
-
-      {/* Logo Container - ENHANCED VISIBILITY */}
-      <div
-        style={{
-          position: "relative",
-          zIndex: 10,
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "0 20px",
-        }}
-      >
-        {logoUrl ? (
+      {logoUrl ? (
+        <img
+          src={logoUrl}
+          alt="Event Header"
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            objectPosition: "center",
+            display: "block",
+          }}
+          crossOrigin="anonymous"
+        />
+      ) : (
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
           <div
             style={{
-              position: "relative",
+              width: "56px",
+              height: "56px",
+              borderRadius: "50%",
+              background: "linear-gradient(135deg, #06b6d4 0%, #2563eb 100%)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              // Enhanced visibility with stronger shadow and glow
-              filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.5)) drop-shadow(0 0 30px rgba(110, 193, 228, 0.4))",
-              transform: "scale(1.05)", // Slightly larger
+              boxShadow: "0 4px 16px rgba(6, 182, 212, 0.5)",
             }}
           >
-            {/* Stronger cyan glow behind logo */}
-            <div
-              style={{
-                position: "absolute",
-                width: "160%",
-                height: "160%",
-                background: "radial-gradient(circle, rgba(110, 193, 228, 0.5) 0%, rgba(62, 99, 184, 0.3) 40%, transparent 70%)",
-                filter: "blur(25px)",
-              }}
-            />
-            {/* White glow overlay for extra pop */}
-            <div
-              style={{
-                position: "absolute",
-                width: "120%",
-                height: "120%",
-                background: "radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 60%)",
-                filter: "blur(15px)",
-              }}
-            />
-            <img
-              src={logoUrl}
-              alt="Event Logo"
-              style={{
-                maxHeight: "80px",  // Increased from 75px
-                maxWidth: "300px",  // Increased from 280px
-                objectFit: "contain",
-                position: "relative",
-                zIndex: 2,
-              }}
-              crossOrigin="anonymous"
-            />
+            <svg
+              style={{ width: "30px", height: "30px", color: "white" }}
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+            </svg>
           </div>
-        ) : (
-          <div
-            style={{
-              fontSize: "26px",
-              fontWeight: "bold",
-              color: "white",
-              textShadow: "0 2px 12px rgba(0,0,0,0.6)",
-              letterSpacing: "2px",
-            }}
-          >
-            {event?.name || "AQUATICS"}
-          </div>
-        )}
-      </div>
-
-      {/* Bottom border accent - aqua glow */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: "3px",
-          background: "linear-gradient(90deg, #6EC1E4 0%, #3E63B8 50%, #1B1675 100%)",
-          boxShadow: "0 -2px 10px rgba(110, 193, 228, 0.7)",
-        }}
-      />
+        </div>
+      )}
     </div>
   );
 };
@@ -346,7 +227,6 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
   const nameFontSize = getNameFontSize(accreditation?.firstName, accreditation?.lastName);
   const fullName = `${accreditation?.firstName || "FIRST"} ${accreditation?.lastName || "LAST"}`;
 
-  // HIGH-RES QR CODE GENERATION
   const [qrDataUrl, setQrDataUrl] = React.useState(null);
 
   React.useEffect(() => {
@@ -356,9 +236,9 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
         const verifyUrl = `${window.location.origin}/verify/${verifyId}`;
         const url = await QRCode.toDataURL(verifyUrl, {
           errorCorrectionLevel: "H",
-          margin: 2,
-          width: 1024,
-          color: { dark: "#000000", light: "#ffffff" }
+          margin: 1,
+          width: 512,
+          color: { dark: "#0f172a", light: "#ffffff" }
         });
         setQrDataUrl(url);
       } catch (err) {
@@ -392,7 +272,6 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
           </div>
         )}
 
-        {/* BIELA STYLE AQUATICS HEADER WITH ENHANCED LOGO */}
         <AquaticsHeader event={event} />
 
         <div style={{ height: "6px", backgroundColor: "white", flexShrink: 0 }} />
@@ -474,17 +353,7 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
           <div style={{ flexShrink: 0 }}>
             {qrDataUrl ? (
               <div data-qr-code="true" style={{ padding: "2px", backgroundColor: "white", border: "2px solid #e2e8f0", borderRadius: "4px" }}>
-                <img 
-                  src={qrDataUrl} 
-                  alt="QR Verify" 
-                  style={{ 
-                    width: "68px", 
-                    height: "68px", 
-                    display: "block", 
-                    imageRendering: "pixelated"
-                  }} 
-                  crossOrigin="anonymous" 
-                />
+                <img src={qrDataUrl} alt="QR Verify" style={{ width: "68px", height: "68px", display: "block", imageRendering: "pixelated" }} crossOrigin="anonymous" />
               </div>
             ) : (
               <div style={{ width: "72px", height: "72px", backgroundColor: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "4px" }}>
@@ -492,10 +361,10 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
               </div>
             )}
           </div>
-          {/* Zone badges - right half with MULTI-ZONE SUPPORT */}
+          {/* Zone badges - right half */}
           <div style={{ flex: 1, display: "flex", alignItems: "flex-end", justifyContent: "flex-end", gap: "4px", flexWrap: "wrap", height: "100%", paddingBottom: "2px" }}>
             {zoneCodes.length > 0 ? (
-              zoneCodes.map((code, index) => (
+              zoneCodes.slice(0, 6).map((code, index) => (
                 zoneBadgePngs[code] ? (
                   <img key={index} src={zoneBadgePngs[code]} alt={code} style={{ width: "28px", height: "28px", display: "block" }} />
                 ) : (
