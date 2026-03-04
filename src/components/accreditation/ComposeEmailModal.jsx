@@ -5,6 +5,7 @@ import Modal from "../ui/Modal";
 import Input from "../ui/Input";
 import { useToast } from "../ui/Toast";
 import { sendCustomEmail } from "../../lib/email";
+import { getEmailTemplate } from "../../lib/email";
 import { buildPDF, IMAGE_SIZES } from "./cardExport";
 
 /**
@@ -143,14 +144,44 @@ export default function ComposeEmailModal({
   useEffect(() => {
     if (isOpen) {
       const eventName = event?.name || "the event";
-      if (recipients.length === 1) {
-        const r = recipients[0];
-        setSubject(`Your Accreditation - ${eventName}`);
-        setBody(`Dear ${r.firstName} ${r.lastName},\n\nPlease find your accreditation details attached.\n\nEvent: ${eventName}\nRole: ${r.role || "Participant"}\nBadge: ${r.badgeNumber || "N/A"}\n\nPlease present this at the venue for badge collection.\n\nBest regards,\nApex Sports Accreditations`);
-      } else {
-        setSubject(`Your Accreditation - ${eventName}`);
-        setBody(`Dear Participant,\n\nPlease find your accreditation details attached.\n\nEvent: ${eventName}\n\nPlease present this at the venue for badge collection.\n\nBest regards,\nApex Sports Accreditations`);
-      }
+
+      // Try to load saved custom template
+      const loadTemplate = async () => {
+        const template = await getEmailTemplate("custom");
+        if (template && template.body) {
+          const r = recipients.length === 1 ? recipients[0] : null;
+          const placeholderVars = {
+            name: r ? `${r.firstName} ${r.lastName}` : "Participant",
+            firstName: r?.firstName || "Participant",
+            lastName: r?.lastName || "",
+            eventName,
+            role: r?.role || "Participant",
+            badge: r?.badgeNumber || "N/A",
+            zones: r?.zoneCode || "",
+            email: r?.email || ""
+          };
+          let bodyText = template.body;
+          let subjectText = template.subject || `Your Accreditation - ${eventName}`;
+          // Replace placeholders
+          Object.entries(placeholderVars).forEach(([key, val]) => {
+            bodyText = bodyText.replace(new RegExp(`\\{${key}\\}`, "g"), val);
+            subjectText = subjectText.replace(new RegExp(`\\{${key}\\}`, "g"), val);
+          });
+          setSubject(subjectText);
+          setBody(bodyText);
+        } else {
+          // Fallback defaults
+          if (r) {
+            setSubject(`Your Accreditation - ${eventName}`);
+            setBody(`Dear ${r.firstName} ${r.lastName},\n\nPlease find your accreditation details attached.\n\nEvent: ${eventName}\nRole: ${r.role || "Participant"}\nBadge: ${r.badgeNumber || "N/A"}\n\nPlease present this at the venue for badge collection.\n\nBest regards,\nApex Sports Accreditations`);
+          } else {
+            setSubject(`Your Accreditation - ${eventName}`);
+            setBody(`Dear Participant,\n\nPlease find your accreditation details attached.\n\nEvent: ${eventName}\n\nPlease present this at the venue for badge collection.\n\nBest regards,\nApex Sports Accreditations`);
+          }
+        }
+      };
+      loadTemplate();
+
       setAttachPdf(true);
       setResults([]);
       setProgress({ sent: 0, failed: 0, total: 0 });
