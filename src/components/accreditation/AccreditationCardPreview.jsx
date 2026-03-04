@@ -268,8 +268,8 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
         const verifyUrl = `${window.location.origin}/verify/${verifyId}`;
         const url = await QRCode.toDataURL(verifyUrl, {
           errorCorrectionLevel: "H",
-          margin: 2,
-          width: 400,
+          margin: 1,
+          width: 512,
           color: { dark: "#0f172a", light: "#ffffff" }
         });
         setQrDataUrl(url);
@@ -339,11 +339,11 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
               <p style={{ fontSize: "9px", color: "#334155", fontFamily: "monospace", fontWeight: "bold" }}>BADGE: {accreditation?.badgeNumber || "---"}</p>
             </div>
             {qrDataUrl ? (
-              <div data-qr-code="true" style={{ marginTop: "8px", padding: "4px", backgroundColor: "white", border: "2px solid #e2e8f0", borderRadius: "4px" }}>
-                <img src={qrDataUrl} alt="QR Verify" style={{ width: "88px", height: "88px", display: "block", imageRendering: "crisp-edges" }} />
+              <div data-qr-code="true" style={{ marginTop: "8px", padding: "6px", backgroundColor: "white", border: "2px solid #e2e8f0", borderRadius: "4px" }}>
+                <img src={qrDataUrl} alt="QR Verify" style={{ width: "80px", height: "80px", display: "block", imageRendering: "pixelated" }} crossOrigin="anonymous" />
               </div>
             ) : (
-              <div style={{ marginTop: "8px", width: "96px", height: "96px", backgroundColor: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ marginTop: "8px", width: "92px", height: "92px", backgroundColor: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <p style={{ fontSize: "8px", color: "#94a3b8", textAlign: "center" }}>QR loading...</p>
               </div>
             )}
