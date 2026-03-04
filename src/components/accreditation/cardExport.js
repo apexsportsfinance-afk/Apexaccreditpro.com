@@ -237,10 +237,12 @@ const captureElWithQR = async (el, scale, accreditation) => {
   const qrDataUrl = await generateQRCodeDataUrl(accreditation, 512);
   
   // Calculate QR position on scaled canvas
-  // QR is at: marginTop 8px from ID text, size 88x88 in original
-  // Position in original: x≈14px (12px padding + 2px), y≈256px
-  const qrX = 14 * scale;
-  const qrY = 256 * scale;
+  // QR position calculated from card layout:
+  // Header: 100px, gap: 6px, role: 40px, body padding: 12px
+  // Photo: 120px, ID text margin: 6px, ID text height: ~22px, QR margin: 8px
+  // Total Y offset: ~310px, X offset: body padding 12px
+  const qrX = 12 * scale;
+  const qrY = 310 * scale;
   const qrSize = 88 * scale;
   
   await overlayQROnCanvas(canvas, qrDataUrl, qrX, qrY, qrSize);
