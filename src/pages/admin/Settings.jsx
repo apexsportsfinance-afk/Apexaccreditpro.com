@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { Settings as SettingsIcon, Save, Shield, Bell, Database, Info, Mail, Send, Eye, EyeOff, CheckCircle, XCircle, Loader2, RefreshCw, Server } from "lucide-react";
+import { Settings as SettingsIcon, Save, Shield, Bell, Database, Info, Mail, Send, Eye, EyeOff, CheckCircle, XCircle, Loader2, RefreshCw, Server, FileText, RotateCcw } from "lucide-react";
 import Card, { CardHeader, CardContent } from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Badge from "../../components/ui/Badge";
 import { useToast } from "../../components/ui/Toast";
 import { useAuth } from "../../contexts/AuthContext";
+import { supabase } from "../../lib/supabase";
 
 const SUPABASE_URL = "https://dixelomafeobabahqeqg.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpeGVsb21hZmVvYmFiYWhxZXFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzMzA4MzYsImV4cCI6MjA4NjkwNjgzNn0.YD1lj0T6kFoM2XyeYonIC3bmLiPkKBvmXEHEr5VMaGM";
@@ -29,6 +30,15 @@ export default function Settings() {
   const [smtpStatus, setSmtpStatus] = useState("unknown");
   const [lastTestResult, setLastTestResult] = useState(null);
 
+  const [templateTab, setTemplateTab] = useState("approved");
+  const [templates, setTemplates] = useState({
+    approved: { subject: "", body: "" },
+    rejected: { subject: "", body: "" },
+    custom: { subject: "", body: "" }
+  });
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [loadingTemplates, setLoadingTemplates] = useState(true);
+
   const smtpConfig = {
     host: "mail.apexsports.ae",
     port: "465",
@@ -36,6 +46,70 @@ export default function Settings() {
     username: "accreditations@apexsports.ae",
     fromName: "Apex Sports Accreditations",
     fromEmail: "accreditations@apexsports.ae"
+  };
+
+  useEffect(() => {
+    loadTemplates();
+  }, []);
+
+  const loadTemplates = async () => {
+    setLoadingTemplates(true);
+    try {
+      const { data, error } = await supabase
+        .from("email_templates")
+        .select("*");
+      if (error) throw error;
+      const mapped = {};
+      (data || []).forEach((t) => {
+        mapped[t.template_type] = { subject: t.subject || "", body: t.body || "" };
+      });
+      setTemplates((prev) => ({ ...prev, ...mapped }));
+    } catch (err) {
+      console.error("Failed to load email templates:", err);
+    } finally {
+      setLoadingTemplates(false);
+    }
+  };
+
+  const handleSaveTemplate = async () => {
+    setSavingTemplate(true);
+    try {
+      const current = templates[templateTab];
+      const { error } = await supabase
+        .from("email_templates")
+        .upsert({
+          template_type: templateTab,
+          subject: current.subject,
+          body: current.body,
+          updated_at: new Date().toISOString()
+        }, { onConflict: "template_type" });
+      if (error) throw error;
+      toast.success(`${templateTab.charAt(0).toUpperCase() + templateTab.slice(1)} email template saved!`);
+    } catch (err) {
+      console.error("Save template error:", err);
+      toast.error("Failed to save template: " + (err.message || "Unknown error"));
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
+  const handleResetTemplate = () => {
+    const defaults = {
+      approved: {
+        subject: "Your Accreditation - Dubai International Aquatics Championships (DIAC) 2026",
+        body: "Dear {name},\n\nWe are delighted to welcome you to the Dubai International Aquatics Championships (DIAC) 2026.\n\nAttached you will find your accreditation pass. Kindly review your accreditation carefully and ensure that all details are correct, including:\n\n- Name\n- Age\n- Country\n- Club / Team Name\n\nEvent: {eventName}\nRole: {role}\nBadge Number: {badge}\nZone Access: {zones}\n\nIf you notice any errors or require any changes, please reply to this same email only with the corrected information so that we can update it accordingly.\n\nPlease note that the deadline to request any corrections is within 24 hours of receiving this email.\n\nYour accreditation pass must be presented at the main gate of Hamdan Sports Complex to gain access to the competition venue.\n\nWe truly appreciate your support and cooperation, and we look forward to welcoming you to DIAC 2026.\n\nWarm regards,\nDIAC 2026 Organizing Committee"
+      },
+      rejected: {
+        subject: "Accreditation Rejected - {eventName}",
+        body: "Dear {name},\n\nWe regret to inform you that your accreditation request for {eventName} as {role} has been rejected.\n\nIf you have any questions or believe this was in error, please contact the event organizers.\n\nBest regards,\nApex Sports Accreditations"
+      },
+      custom: {
+        subject: "Your Accreditation - {eventName}",
+        body: "Dear {name},\n\nPlease find your accreditation details attached.\n\nEvent: {eventName}\nRole: {role}\nBadge: {badge}\n\nPlease present this at the venue for badge collection.\n\nBest regards,\nApex Sports Accreditations"
+      }
+    };
+    setTemplates((prev) => ({ ...prev, [templateTab]: defaults[templateTab] }));
+    toast.success("Template reset to default (save to apply)");
   };
 
   const handleSaveProfile = async (e) => {
@@ -304,6 +378,144 @@ export default function Settings() {
                 </div>
               </div>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Email Template Editor */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                <FileText className="w-5 h-5 text-emerald-400" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-white">Email Templates</h2>
+                <p className="text-lg text-slate-400 font-extralight">
+                  Customize the email body sent on approval, rejection, or compose
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-5">
+            {/* Tab Selector */}
+            <div className="flex gap-2">
+              {[
+                { key: "approved", label: "Approval Email", color: "emerald" },
+                { key: "rejected", label: "Rejection Email", color: "red" },
+                { key: "custom", label: "Compose Default", color: "cyan" }
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setTemplateTab(tab.key)}
+                  className={`px-4 py-2.5 rounded-lg text-lg font-medium transition-all ${
+                    templateTab === tab.key
+                      ? tab.color === "emerald"
+                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                        : tab.color === "red"
+                        ? "bg-red-500/20 text-red-300 border border-red-500/40"
+                        : "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
+                      : "bg-slate-800/50 text-slate-400 border border-slate-700/50 hover:text-white"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {loadingTemplates ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
+              </div>
+            ) : (
+              <>
+                {/* Subject */}
+                <Input
+                  label="Email Subject"
+                  value={templates[templateTab]?.subject || ""}
+                  onChange={(e) =>
+                    setTemplates((prev) => ({
+                      ...prev,
+                      [templateTab]: { ...prev[templateTab], subject: e.target.value }
+                    }))
+                  }
+                  placeholder="Email subject line with {eventName} placeholder"
+                />
+
+                {/* Body */}
+                <div className="space-y-1.5">
+                  <label className="block text-lg font-medium text-slate-300">
+                    Email Body
+                  </label>
+                  <textarea
+                    value={templates[templateTab]?.body || ""}
+                    onChange={(e) =>
+                      setTemplates((prev) => ({
+                        ...prev,
+                        [templateTab]: { ...prev[templateTab], body: e.target.value }
+                      }))
+                    }
+                    rows={10}
+                    className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 text-lg font-extralight"
+                    placeholder="Write your email template here..."
+                  />
+                </div>
+
+                {/* Placeholders Info */}
+                <div className="p-4 rounded-lg bg-slate-800/30 border border-slate-700/50">
+                  <p className="text-lg text-slate-300 font-medium mb-2">Available Placeholders:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {["{name}", "{firstName}", "{lastName}", "{eventName}", "{role}", "{badge}", "{zones}", "{email}"].map((ph) => (
+                      <span
+                        key={ph}
+                        className="px-3 py-1.5 rounded-md bg-violet-500/10 border border-violet-500/20 text-lg text-violet-300 font-mono cursor-pointer hover:bg-violet-500/20 transition-colors"
+                        onClick={() => {
+                          const el = document.querySelector("textarea");
+                          if (el) {
+                            const start = el.selectionStart;
+                            const end = el.selectionEnd;
+                            const currentBody = templates[templateTab]?.body || "";
+                            const updated = currentBody.substring(0, start) + ph + currentBody.substring(end);
+                            setTemplates((prev) => ({
+                              ...prev,
+                              [templateTab]: { ...prev[templateTab], body: updated }
+                            }));
+                          }
+                        }}
+                      >
+                        {ph}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-lg text-slate-500 font-extralight mt-2">
+                    Click a placeholder to insert it. These are replaced with actual values when the email is sent.
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    variant="secondary"
+                    icon={RotateCcw}
+                    onClick={handleResetTemplate}
+                  >
+                    Reset to Default
+                  </Button>
+                  <Button
+                    variant="primary"
+                    icon={Save}
+                    onClick={handleSaveTemplate}
+                    loading={savingTemplate}
+                    className="flex-1"
+                  >
+                    {savingTemplate ? "Saving..." : "Save Template"}
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
