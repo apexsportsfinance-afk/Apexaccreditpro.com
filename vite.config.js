@@ -33,7 +33,7 @@ export default defineConfig({
         manualChunks: {
           vendor: ["react", "react-dom", "react-router-dom"],
           supabase: ["@supabase/supabase-js"],
-          pdf: ["@react-pdf/renderer", "jspdf", "jspdf-autotable"],
+          pdf: ["jspdf", "jspdf-autotable"],
           canvas: ["html2canvas"],
           motion: ["motion"],
         },
@@ -42,12 +42,7 @@ export default defineConfig({
     commonjsOptions: { transformMixedEsModules: true },
   },
   optimizeDeps: {
-    include: [
-      "@react-pdf/renderer",
-      "html2canvas",
-      "jspdf",
-      "jspdf-autotable",
-    ],
+    include: ["html2canvas", "jspdf", "jspdf-autotable"],
     esbuildOptions: { target: "esnext" },
   },
 });
