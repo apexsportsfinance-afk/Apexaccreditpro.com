@@ -156,9 +156,16 @@ export const downloadCapturedPDF = async (frontId, backId, fileName, sizeKey = "
     const accId = element?.getAttribute("data-accreditation-id");
     if (accId) {
       const qrDataUrl = await generateQRCodeDataUrl(accId, 512);
-      // QR position: x≈14px, y≈256px in original, scaled by 3
+      // QR position calculated from card layout:
+      // Header: 100px, gap: 6px, role: 40px, body padding: 12px
+      // Photo: 120px, ID text margin: 6px, ID text height: ~22px, QR margin: 8px
+      // Total Y offset: 100 + 6 + 40 + 12 + 120 + 6 + 22 + 8 = ~314px
+      // X offset: body padding 12px
       const scale = 3;
-      await overlayQROnCanvas(frontCanvas, qrDataUrl, 14 * scale, 256 * scale, 88 * scale);
+      const qrX = 12 * scale;  // Left padding of body
+      const qrY = 310 * scale; // Approximate Y position
+      const qrSize = 88 * scale;
+      await overlayQROnCanvas(frontCanvas, qrDataUrl, qrX, qrY, qrSize);
     }
     
     // CRITICAL FIX: Calculate PDF dimensions at exactly 72 DPI
@@ -230,7 +237,10 @@ export const openCapturedPDFInTab = async (frontId, backId, sizeKey = "card") =>
   if (accId) {
     const qrDataUrl = await generateQRCodeDataUrl(accId, 512);
     const scale = 3;
-    await overlayQROnCanvas(canvas, qrDataUrl, 14 * scale, 256 * scale, 88 * scale);
+    const qrX = 12 * scale;
+    const qrY = 310 * scale;
+    const qrSize = 88 * scale;
+    await overlayQROnCanvas(canvas, qrDataUrl, qrX, qrY, qrSize);
   }
   
   const pdf = new jsPDF({
@@ -271,7 +281,10 @@ export const getCapturedPDFBlob = async (frontId, backId, sizeKey = "card") => {
   if (accId) {
     const qrDataUrl = await generateQRCodeDataUrl(accId, 512);
     const scale = 3;
-    await overlayQROnCanvas(canvas, qrDataUrl, 14 * scale, 256 * scale, 88 * scale);
+    const qrX = 12 * scale;
+    const qrY = 310 * scale;
+    const qrSize = 88 * scale;
+    await overlayQROnCanvas(canvas, qrDataUrl, qrX, qrY, qrSize);
   }
   
   const pdf = new jsPDF({
@@ -313,7 +326,10 @@ export const downloadAsImages = async (frontId, backId, baseName, size = "hd") =
   const accId = element?.getAttribute("data-accreditation-id");
   if (accId) {
     const qrDataUrl = await generateQRCodeDataUrl(accId, 512);
-    await overlayQROnCanvas(canvas, qrDataUrl, 14 * scale, 256 * scale, 88 * scale);
+    const qrX = 12 * scale;
+    const qrY = 310 * scale;
+    const qrSize = 88 * scale;
+    await overlayQROnCanvas(canvas, qrDataUrl, qrX, qrY, qrSize);
   }
   
   const a1 = document.createElement("a");
