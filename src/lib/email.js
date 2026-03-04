@@ -106,6 +106,64 @@ export const sendRejectionEmail = async ({
 };
 
 /**
+ * Send custom email with optional PDF attachment
+ * @param {Object} params
+ * @param {string} params.to - recipient email
+ * @param {string} params.name - recipient name
+ * @param {string} params.subject - email subject
+ * @param {string} params.body - email body (plain text, will be wrapped in HTML)
+ * @param {string|null} params.pdfBase64 - base64 PDF data (without data: prefix)
+ * @param {string|null} params.pdfFileName - PDF attachment filename
+ */
+export const sendCustomEmail = async ({
+  to,
+  name,
+  subject,
+  body,
+  pdfBase64 = null,
+  pdfFileName = null
+}) => {
+  try {
+    console.log("[Email] Sending custom email to:", to);
+    const payload = {
+      to,
+      name,
+      customSubject: subject,
+      customBody: body,
+      type: "custom"
+    };
+    if (pdfBase64) {
+      payload.pdfBase64 = pdfBase64;
+      payload.pdfFileName = pdfFileName || "accreditation.pdf";
+    }
+    const response = await fetch(
+      `${SUPABASE_URL}/functions/v1/send-accreditation-email`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify(payload)
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("[Email] Custom email send failed:", data);
+      return { success: false, error: data.error || "Failed to send email" };
+    }
+
+    console.log("[Email] Custom email sent successfully:", data);
+    return { success: true, data };
+  } catch (error) {
+    console.error("[Email] Email service error:", error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
  * Generic send accreditation email function (legacy support)
  */
 export const sendAccreditationEmail = async ({
