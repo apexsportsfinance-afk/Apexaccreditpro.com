@@ -221,6 +221,9 @@ export const EventCategoriesAPI = {
 };
 
 // --- ACCREDITATIONS API ---
+// Lightweight column list that EXCLUDES huge base64 columns (photo_url, id_document_url)
+const ACCREDITATION_LIST_COLUMNS = "id,event_id,first_name,last_name,gender,date_of_birth,nationality,club,role,email,photo_url,status,zone_code,badge_number,accreditation_id,remarks,badge_color,updated_by,expires_at,created_at,updated_at";
+
 export const AccreditationsAPI = {
   // EFFICIENT: Get just stats without fetching all rows
   getStats: async () => {
@@ -267,7 +270,7 @@ export const AccreditationsAPI = {
     const data = await handleResponse(
       supabase
         .from("accreditations")
-        .select("*")
+        .select(ACCREDITATION_LIST_COLUMNS)
         .order("created_at", { ascending: false })
         .limit(limit)
     );
@@ -278,20 +281,20 @@ export const AccreditationsAPI = {
     const data = await handleResponse(
       supabase
         .from("accreditations")
-        .select("*")
+        .select(ACCREDITATION_LIST_COLUMNS)
         .order("created_at", { ascending: false })
         .range(offset, offset + limit - 1)
     );
     return (data || []).map(mapAccreditationFromDB);
   },
   getByEventId: async (eventId, options = {}) => {
-    const { limit = 1000, offset = 0, status = null } = options;
+    const { limit = 5000, offset = 0, status = null } = options;
     
     // Use a factory function for retry support
     const queryFactory = () => {
       let query = supabase
         .from("accreditations")
-        .select("*")
+        .select(ACCREDITATION_LIST_COLUMNS)
         .eq("event_id", eventId)
         .order("created_at", { ascending: false });
       
@@ -414,24 +417,39 @@ export const AccreditationsAPI = {
     return mapAccreditationFromDB(data);
   },
   bulkApprove: async (ids, zoneCode) => {
-    // Track per-role counters within this bulk batch on top of existing DB counts
+    const { getBadgePrefix } = await import("./utils");
+    // Batch-fetch all accreditations in one query instead of N+1
+    const { data: accRows, error: accErr } = await supabase
+      .from("accreditations")
+      .select("id, role, event_id")
+      .in("id", ids);
+    if (accErr) throw accErr;
+    const accMap = {};
+    (accRows || []).forEach(r => {
+      accMap[r.id] = { role: r.role || "Unknown", eventId: r.event_id };
+    });
+    // Get all unique role+event combos and batch count
     const roleCountCache = {};
-    for (let i = 0; i < ids.length; i++) {
-      const id = ids[i];
-      const acc = await AccreditationsAPI.getById(id);
-      const role = acc.role || "Unknown";
-      const { getBadgePrefix } = await import("./utils");
-      const prefix = getBadgePrefix(role);
-      // Get existing approved count for this role+event from DB (only once per role)
-      if (roleCountCache[role] === undefined) {
+    const uniqueRoles = [...new Set(ids.map(id => accMap[id]?.role).filter(Boolean))];
+    const sampleEventId = accMap[ids[0]]?.eventId;
+    if (sampleEventId && uniqueRoles.length > 0) {
+      await Promise.all(uniqueRoles.map(async (role) => {
         const { count } = await supabase
           .from("accreditations")
           .select("id", { count: "exact", head: true })
-          .eq("event_id", acc.eventId)
+          .eq("event_id", sampleEventId)
           .eq("role", role)
           .eq("status", "approved");
         roleCountCache[role] = count || 0;
-      }
+      }));
+    }
+    // Now approve each in sequence (lightweight, no extra fetches)
+    for (const id of ids) {
+      const acc = accMap[id];
+      if (!acc) continue;
+      const role = acc.role;
+      const prefix = getBadgePrefix(role);
+      if (roleCountCache[role] === undefined) roleCountCache[role] = 0;
       roleCountCache[role] += 1;
       const badgeNumber = `${prefix}-${String(roleCountCache[role]).padStart(3, "0")}`;
       await AccreditationsAPI.approve(id, zoneCode, badgeNumber, role);
