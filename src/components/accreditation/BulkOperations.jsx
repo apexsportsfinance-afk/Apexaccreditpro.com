@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { Download, FileSpreadsheet, FileText, Edit, CheckCircle } from "lucide-react";
+import { Download, FileSpreadsheet, FileText, Edit, CheckCircle, Mail } from "lucide-react";
 import Button from "../ui/Button";
 import Modal from "../ui/Modal";
 import Select from "../ui/Select";
 import { exportToExcel, exportTableToPDF } from "./ExportUtils";
 import { bulkDownloadPDFs } from "./cardExport";
+import ComposeEmailModal from "./ComposeEmailModal";
 
 export default function BulkOperations({ 
   selectedRows, 
@@ -20,6 +21,7 @@ export default function BulkOperations({
   const [editField, setEditField] = useState("status");
   const [editValue, setEditValue] = useState("");
   const [downloading, setDownloading] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
 
   const selectAllFiltered = () => onClearSelection(filteredData.map(r => r.id));
 
@@ -156,6 +158,14 @@ export default function BulkOperations({
             >
               Download Cards
             </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowEmailModal(true)}
+              icon={Mail}
+            >
+              Bulk Email
+            </Button>
           </>
         )}
         <Button variant="ghost" size="sm" onClick={handleExportExcel} icon={FileSpreadsheet}>
@@ -220,6 +230,16 @@ export default function BulkOperations({
           </div>
         </div>
       </Modal>
+
+      {/* Bulk Email Compose Modal */}
+      <ComposeEmailModal
+        isOpen={showEmailModal}
+        onClose={() => setShowEmailModal(false)}
+        recipients={filteredData.filter(r => selectedRows.includes(r.id))}
+        event={event}
+        zones={zones}
+        isBulk={true}
+      />
     </>
   );
 }
