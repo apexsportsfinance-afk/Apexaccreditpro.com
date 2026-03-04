@@ -150,114 +150,27 @@ const AquaticsHeader = ({ event }) => {
         position: "relative",
         overflow: "hidden",
         flexShrink: 0,
-        background: "linear-gradient(135deg, #0a1628 0%, #1e3a5f 30%, #2d5a87 50%, #1e3a5f 70%, #0a1628 100%)",
+        background: "linear-gradient(145deg, #0c1929 0%, #1a3a5c 40%, #0d2847 100%)",
       }}
     >
-      {/* Animated gradient overlay */}
+      {/* Simple elegant gradient overlay */}
       <div
         style={{
           position: "absolute",
           inset: 0,
-          background: "linear-gradient(45deg, rgba(6, 182, 212, 0.15) 0%, transparent 40%, rgba(37, 99, 235, 0.15) 60%, transparent 100%)",
+          background: "linear-gradient(180deg, rgba(255,255,255,0.08) 0%, transparent 50%, rgba(0,0,0,0.2) 100%)",
         }}
       />
       
-      {/* Glowing orbs for depth */}
+      {/* Subtle bottom accent line */}
       <div
-        style={{
-          position: "absolute",
-          top: "-20px",
-          left: "-20px",
-          width: "80px",
-          height: "80px",
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(6, 182, 212, 0.3) 0%, transparent 70%)",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          bottom: "-30px",
-          right: "-30px",
-          width: "100px",
-          height: "100px",
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(37, 99, 235, 0.25) 0%, transparent 70%)",
-        }}
-      />
-      
-      {/* Subtle wave lines */}
-      <svg
         style={{
           position: "absolute",
           bottom: 0,
           left: 0,
-          width: "100%",
-          height: "40px",
-          opacity: 0.1,
-        }}
-        viewBox="0 0 320 40"
-        preserveAspectRatio="none"
-      >
-        <path
-          d="M0,20 Q40,10 80,20 T160,20 T240,20 T320,20 L320,40 L0,40 Z"
-          fill="white"
-        />
-        <path
-          d="M0,25 Q40,15 80,25 T160,25 T240,25 T320,25 L320,40 L0,40 Z"
-          fill="white"
-          opacity="0.5"
-        />
-      </svg>
-      
-      {/* Sparkle accents */}
-      <div
-        style={{
-          position: "absolute",
-          top: "15px",
-          right: "25px",
-          width: "4px",
-          height: "4px",
-          borderRadius: "50%",
-          backgroundColor: "rgba(255, 255, 255, 0.6)",
-          boxShadow: "0 0 8px rgba(255, 255, 255, 0.4)",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          top: "35px",
-          right: "60px",
-          width: "3px",
-          height: "3px",
-          borderRadius: "50%",
-          backgroundColor: "rgba(6, 182, 212, 0.7)",
-          boxShadow: "0 0 6px rgba(6, 182, 212, 0.5)",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          bottom: "20px",
-          left: "40px",
-          width: "3px",
-          height: "3px",
-          borderRadius: "50%",
-          backgroundColor: "rgba(255, 255, 255, 0.5)",
-          boxShadow: "0 0 6px rgba(255, 255, 255, 0.3)",
-        }}
-      />
-      
-      {/* Shimmer line */}
-      <div
-        style={{
-          position: "absolute",
-          top: "50%",
-          left: 0,
           right: 0,
-          height: "1px",
-          background: "linear-gradient(to right, transparent 0%, rgba(255,255,255,0.2) 20%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0.2) 80%, transparent 100%)",
-          transform: "translateY(-50%)",
+          height: "3px",
+          background: "linear-gradient(90deg, transparent 0%, rgba(6, 182, 212, 0.6) 50%, transparent 100%)",
         }}
       />
       
@@ -271,7 +184,7 @@ const AquaticsHeader = ({ event }) => {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "10px 20px",
+          padding: "12px 24px",
         }}
       >
         {logoUrl ? (
@@ -279,10 +192,10 @@ const AquaticsHeader = ({ event }) => {
             src={logoUrl}
             alt="Event Logo"
             style={{
-              maxHeight: "80px",
-              maxWidth: "280px",
+              maxHeight: "76px",
+              maxWidth: "260px",
               objectFit: "contain",
-              filter: "drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3))",
+              filter: "drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4))",
             }}
             crossOrigin="anonymous"
           />
@@ -291,41 +204,29 @@ const AquaticsHeader = ({ event }) => {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: "12px",
+              justifyContent: "center",
             }}
           >
             <div
               style={{
-                width: "50px",
-                height: "50px",
+                width: "56px",
+                height: "56px",
                 borderRadius: "50%",
                 background: "linear-gradient(135deg, #06b6d4 0%, #2563eb 100%)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                boxShadow: "0 4px 12px rgba(6, 182, 212, 0.4)",
+                boxShadow: "0 4px 16px rgba(6, 182, 212, 0.5)",
               }}
             >
               <svg
-                style={{ width: "28px", height: "28px", color: "white" }}
+                style={{ width: "30px", height: "30px", color: "white" }}
                 viewBox="0 0 24 24"
                 fill="currentColor"
               >
-                <path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z" />
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
               </svg>
             </div>
-            <span
-              style={{
-                fontSize: "18px",
-                fontWeight: "bold",
-                color: "white",
-                textTransform: "uppercase",
-                letterSpacing: "0.15em",
-                textShadow: "0 2px 4px rgba(0, 0, 0, 0.3)",
-              }}
-            >
-              ACCREDITATION
-            </span>
           </div>
         )}
       </div>
@@ -367,8 +268,8 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
         const verifyUrl = `${window.location.origin}/verify/${verifyId}`;
         const url = await QRCode.toDataURL(verifyUrl, {
           errorCorrectionLevel: "H",
-          margin: 1,
-          width: 200,
+          margin: 2,
+          width: 400,
           color: { dark: "#0f172a", light: "#ffffff" }
         });
         setQrDataUrl(url);
@@ -437,8 +338,8 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
               <p style={{ fontSize: "9px", color: "#334155", fontFamily: "monospace", fontWeight: "bold" }}>BADGE: {accreditation?.badgeNumber || "---"}</p>
             </div>
             {qrDataUrl ? (
-              <div style={{ marginTop: "8px", padding: "3px", backgroundColor: "white", border: "1px solid #e2e8f0" }}>
-                <img src={qrDataUrl} alt="QR Verify" style={{ width: "96px", height: "96px", display: "block", imageRendering: "pixelated" }} />
+              <div style={{ marginTop: "8px", padding: "4px", backgroundColor: "white", border: "2px solid #e2e8f0", borderRadius: "4px" }}>
+                <img src={qrDataUrl} alt="QR Verify" style={{ width: "88px", height: "88px", display: "block", imageRendering: "crisp-edges" }} />
               </div>
             ) : (
               <div style={{ marginTop: "8px", width: "96px", height: "96px", backgroundColor: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -455,18 +356,16 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
             <p style={{ fontSize: "13px", color: "#334155", marginTop: "10px", lineHeight: 1.3, wordBreak: "break-word" }}>
               {accreditation?.club || "Club Name"}
             </p>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
-              <p style={{ fontSize: "11px", color: "#64748b" }}>
-                {accreditation?.role || "Participant"}
-              </p>
-              {isAthlete && age !== null && (
-                <span style={{ fontSize: "11px", color: "#1e40af", fontWeight: "bold", backgroundColor: "#dbeafe", padding: "1px 6px", borderRadius: "9999px" }}>
-                  Age: {age}
-                </span>
-              )}
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "10px", fontSize: "12px", color: "#475569" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "6px", fontSize: "12px", color: "#475569" }}>
+              <span style={{ fontWeight: 500 }}>{accreditation?.role || "Participant"}</span>
+              <span style={{ color: "#cbd5e1" }}>|</span>
               <span style={{ fontWeight: 500 }}>{accreditation?.gender || "Gender"}</span>
+              {isAthlete && age !== null && (
+                <>
+                  <span style={{ color: "#cbd5e1" }}>|</span>
+                  <span style={{ fontWeight: "bold", color: "#1e40af" }}>Age: {age}</span>
+                </>
+              )}
             </div>
             <div style={{ marginTop: "12px", height: "30px", display: "flex", alignItems: "center", gap: "8px" }}>
               {countryData?.flag && (
