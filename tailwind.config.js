@@ -6,76 +6,67 @@ export default {
   ],
   theme: {
     extend: {
-      colors: {
-        primary: {
-          50: "#e0f7fa",
-          100: "#b2ebf2",
-          200: "#80deea",
-          300: "#4dd0e1",
-          400: "#26c6da",
-          500: "#00bcd4",
-          600: "#00acc1",
-          700: "#0097a7",
-          800: "#00838f",
-          900: "#006064",
-          950: "#004d40"
-        },
-        ocean: {
-          50: "#e3f2fd",
-          100: "#bbdefb",
-          200: "#90caf9",
-          300: "#64b5f6",
-          400: "#42a5f5",
-          500: "#2196f3",
-          600: "#1e88e5",
-          700: "#1976d2",
-          800: "#1565c0",
-          900: "#0d47a1"
-        },
-        pool: {
-          50: "#e8f5e9",
-          100: "#c8e6c9",
-          200: "#a5d6a7",
-          300: "#81c784",
-          400: "#66bb6a",
-          500: "#4caf50",
-          600: "#43a047",
-          700: "#388e3c",
-          800: "#2e7d32",
-          900: "#1b5e20"
-        },
-        aqua: {
-          50: "#e0f7fa",
-          100: "#b2ebf2",
-          200: "#80deea",
-          300: "#4dd0e1",
-          400: "#26c6da",
-          500: "#00bcd4",
-          600: "#00acc1",
-          700: "#0097a7",
-          800: "#00838f",
-          900: "#006064"
-        },
-        swim: {
-          deep: "#003d52",
-          mid: "#005f73",
-          bright: "#0077a8",
-          light: "#0095c8"
-        },
-        slate: {
-          850: "#0c1929",
-          950: "#061019"
-        }
-      },
       fontFamily: {
-        sans: ["Nunito", "system-ui", "sans-serif"],
+        sans: ["Nunito", "sans-serif"],
         mono: ["JetBrains Mono", "monospace"]
       },
-      backgroundImage: {
-        "swim-gradient": "linear-gradient(135deg, #003d52 0%, #005f73 25%, #0077a8 50%, #006080 75%, #004a6e 100%)",
-        "pool-waves": "linear-gradient(180deg, #003d52 0%, #005f73 50%, #006080 100%)",
-        "aqua-gradient": "linear-gradient(135deg, #00bcd4 0%, #2196f3 50%, #0097a7 100%)",
-        "card-gradient": "linear-gradient(135deg, rgba(0,119,168,0.3) 0%, rgba(0,150,200,0.15) 100%)"
+      colors: {
+        primary: {
+          50: "#f0f9ff",
+          100: "#e0f2fe",
+          200: "#bae6fd",
+          300: "#7dd3fc",
+          400: "#38bdf8",
+          500: "#0ea5e9",
+          600: "#0284c7",
+          700: "#0369a1",
+          800: "#075985",
+          900: "#0c4a6e",
+          950: "#082f49"
+        },
+        ocean: {
+          50: "#ecfeff",
+          100: "#cffafe",
+          200: "#a5f3fc",
+          300: "#67e8f9",
+          400: "#22d3ee",
+          500: "#06b6d4",
+          600: "#0891b2",
+          700: "#0e7490",
+          800: "#155e75",
+          900: "#164e63",
+          950: "#083344"
+        },
+        aqua: {
+          300: "#67e8f9",
+          400: "#22d3ee",
+          500: "#06b6d4",
+          600: "#0891b2",
+          700: "#0e7490"
+        },
+        "swim-deep": "#050d1f"
+      },
+      animation: {
+        "wave-slow": "wave 8s ease-in-out infinite",
+        "wave-medium": "wave 6s ease-in-out infinite reverse",
+        "wave-fast": "wave 4s ease-in-out infinite",
+        shimmer: "shimmer 2s linear infinite"
+      },
+      keyframes: {
+        wave: {
+          "0%, 100%": { transform: "translateX(0) translateY(0)" },
+          "25%": { transform: "translateX(-10px) translateY(-5px)" },
+          "75%": { transform: "translateX(10px) translateY(5px)" }
+        },
+        shimmer: {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" }
+        }
+      },
+      boxShadow: {
+        "glow-cyan": "0 0 20px rgba(6, 182, 212, 0.3)",
+        "glow-blue": "0 0 20px rgba(59, 130, 246, 0.3)",
+        "glow-primary": "0 0 20px rgba(14, 165, 233, 0.3)"
       }
     }
   },
