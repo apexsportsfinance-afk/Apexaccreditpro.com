@@ -17,7 +17,8 @@ import {
   ChevronDown,
   PlusCircle,
   X,
-  FileText
+  FileText,
+  AlertCircle
 } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { Card, CardHeader, CardContent } from "../../components/ui/Card";
@@ -41,10 +42,16 @@ const DOCUMENT_OPTIONS = [
   { id: "guardian_id", label: "Parent or Guardian ID" }
 ];
 
+const COLOR_PRESETS = [
+  "#2563eb", "#7c3aed", "#0d9488", "#d97706", "#e11d48",
+  "#475569", "#b45309", "#059669", "#dc2626", "#1d4ed8",
+  "#6d28d9", "#0369a1", "#047857", "#b91c1c", "#0891b2"
+];
+
 export default function Events() {
   const [events, setEvents] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
-  const [allAccreditations, setAllAccreditations] = useState([]);
+  const [eventCounts, setEventCounts] = useState({});
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [selectedEventForTemplate, setSelectedEventForTemplate] = useState(null);
   const [editingEvent, setEditingEvent] = useState(null);
@@ -68,6 +75,9 @@ export default function Events() {
   const [savingNewCategory, setSavingNewCategory] = useState(false);
   const [deleteCategoryModal, setDeleteCategoryModal] = useState({ open: false, category: null });
   const [deletingCategory, setDeletingCategory] = useState(false);
+  const [editColorModal, setEditColorModal] = useState({ open: false, category: null });
+  const [editingColor, setEditingColor] = useState("#2563eb");
+  const [savingColor, setSavingColor] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     slug: "",
@@ -100,10 +110,17 @@ export default function Events() {
   }, []);
 
   const loadEvents = async () => {
-    const data = await EventsAPI.getAll();
-    const accreditationsData = await AccreditationsAPI.getAll();
-    setEvents(data);
-    setAllAccreditations(accreditationsData);
+    try {
+      const data = await EventsAPI.getAll();
+      setEvents(data);
+      if (data.length > 0) {
+        const eventIds = data.map(e => e.id);
+        const counts = await AccreditationsAPI.getCountsByEventIds(eventIds);
+        setEventCounts(counts);
+      }
+    } catch (error) {
+      console.error("Failed to load events:", error);
+    }
   };
 
   const loadCategories = async () => {
@@ -179,43 +196,17 @@ export default function Events() {
     }));
   };
 
-  const handleFileUpload = async (e, field) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please upload an image file");
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("File size must be less than 5MB");
-      return;
-    }
-
-    try {
-      const base64 = await fileToBase64(file);
-      setFormData((prev) => ({ ...prev, [field]: base64 }));
-      toast.success("Image uploaded successfully");
-    } catch {
-      toast.error("Failed to upload image");
-    }
-  };
-
   const handleTemplateFileUpload = async (e, field) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     if (!file.type.startsWith("image/")) {
       toast.error("Please upload an image file");
       return;
     }
-
     if (file.size > 5 * 1024 * 1024) {
       toast.error("File size must be less than 5MB");
       return;
     }
-
     try {
       const base64 = await fileToBase64(file);
       setTemplateData((prev) => ({ ...prev, [field]: base64 }));
@@ -242,12 +233,10 @@ export default function Events() {
       toast.error("Please fill in all required fields");
       return;
     }
-
     if (!formData.requiredDocuments || formData.requiredDocuments.length === 0) {
       toast.error("Please select at least one required document");
       return;
     }
-
     const saveEvent = async () => {
       try {
         if (editingEvent) {
@@ -272,7 +261,6 @@ export default function Events() {
         }
       }
     };
-
     saveEvent();
   };
 
@@ -358,7 +346,6 @@ export default function Events() {
   const buildCategoryHierarchy = () => {
     const mainCategories = availableCategories.filter(cat => !cat.parentId);
     const subCategories = availableCategories.filter(cat => cat.parentId);
-
     return mainCategories.map(main => ({
       ...main,
       children: subCategories.filter(sub => sub.parentId === main.id)
@@ -368,16 +355,13 @@ export default function Events() {
   const getFilteredHierarchy = () => {
     const hierarchy = buildCategoryHierarchy();
     const searchLower = categorySearch.toLowerCase().trim();
-
     if (!searchLower) return hierarchy;
-
     return hierarchy
       .map(group => {
         const groupMatches = group.name.toLowerCase().includes(searchLower);
         const matchingChildren = group.children.filter(child =>
           child.name.toLowerCase().includes(searchLower)
         );
-
         if (groupMatches || matchingChildren.length > 0) {
           return {
             ...group,
@@ -393,9 +377,7 @@ export default function Events() {
     const childIds = availableCategories
       .filter(c => c.parentId === groupId)
       .map(c => c.id);
-
     const allSelected = childIds.every(id => selectedCategories.includes(id));
-
     if (allSelected) {
       setSelectedCategories(prev => prev.filter(id => !childIds.includes(id)));
     } else {
@@ -434,11 +416,7 @@ export default function Events() {
   };
 
   const handleAddCategory = () => {
-    setNewCategoryData({
-      name: "",
-      parentId: "",
-      badgeColor: "#2563eb"
-    });
+    setNewCategoryData({ name: "", parentId: "", badgeColor: "#2563eb" });
     setAddCategoryModal(true);
   };
 
@@ -447,14 +425,12 @@ export default function Events() {
       toast.error("Please enter a category name");
       return;
     }
-
     setSavingNewCategory(true);
     try {
       const slug = newCategoryData.name
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-|-$/g, "");
-
       await CategoriesAPI.create({
         name: newCategoryData.name,
         slug: slug,
@@ -462,7 +438,6 @@ export default function Events() {
         badgeColor: newCategoryData.badgeColor,
         status: "active"
       });
-
       toast.success("Category created successfully");
       setAddCategoryModal(false);
       await loadCategories();
@@ -481,7 +456,6 @@ export default function Events() {
 
   const confirmDeleteCategory = async () => {
     if (!deleteCategoryModal.category) return;
-
     setDeletingCategory(true);
     try {
       const inUse = await CategoriesAPI.isInUse(deleteCategoryModal.category.id);
@@ -490,7 +464,6 @@ export default function Events() {
         setDeletingCategory(false);
         return;
       }
-
       await CategoriesAPI.delete(deleteCategoryModal.category.id);
       toast.success("Category deleted successfully");
       setDeleteCategoryModal({ open: false, category: null });
@@ -501,6 +474,28 @@ export default function Events() {
       toast.error("Failed to delete category: " + (error.message || "Unknown error"));
     } finally {
       setDeletingCategory(false);
+    }
+  };
+
+  const handleEditCategoryColor = (category, e) => {
+    e.stopPropagation();
+    setEditingColor(category.badgeColor || "#2563eb");
+    setEditColorModal({ open: true, category });
+  };
+
+  const saveEditedColor = async () => {
+    if (!editColorModal.category) return;
+    setSavingColor(true);
+    try {
+      await CategoriesAPI.update(editColorModal.category.id, { badgeColor: editingColor });
+      toast.success("Category color updated!");
+      setEditColorModal({ open: false, category: null });
+      await loadCategories();
+    } catch (error) {
+      console.error("Color update error:", error);
+      toast.error("Failed to update color: " + (error.message || "Unknown error"));
+    } finally {
+      setSavingColor(false);
     }
   };
 
@@ -571,17 +566,17 @@ export default function Events() {
         <EmptyState
           icon={Calendar}
           title="No Events Yet"
-          description="Create your first event to start accepting accreditation registrations"
+          description="Create your first event to start managing accreditations"
           action={() => handleOpenModal()}
           actionLabel="Create Event"
           actionIcon={Plus}
         />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {events.map((event, index) => {
-            const accreditations = (Array.isArray(allAccreditations) ? allAccreditations : []).filter((a) => a.eventId === event.id);
-            const pending = accreditations.filter((a) => a.status === "pending").length;
-            const approved = accreditations.filter((a) => a.status === "approved").length;
+            const counts = eventCounts[event.id] || { total: 0, pending: 0, approved: 0 };
+            const pending = counts.pending;
+            const approved = counts.approved;
 
             return (
               <motion.div
@@ -658,7 +653,7 @@ export default function Events() {
 
                     <div className="grid grid-cols-3 gap-4 py-4 border-t border-b border-slate-800">
                       <div className="text-center">
-                        <p className="text-2xl font-bold text-white">{accreditations.length}</p>
+                        <p className="text-2xl font-bold text-white">{counts.total}</p>
                         <p className="text-lg text-slate-500">Total</p>
                       </div>
                       <div className="text-center">
@@ -1020,7 +1015,7 @@ export default function Events() {
                 {(templateData.sponsorLogos || []).length < 6 && (
                   <label className="flex flex-col items-center justify-center w-24 h-16 border-2 border-dashed border-slate-600 rounded-md cursor-pointer hover:border-primary-500 transition-colors">
                     <Upload className="w-4 h-4 text-slate-500" />
-                    <span className="text-[10px] text-slate-500 mt-0.5">Add</span>
+                    <span className="text-lg text-slate-500 mt-0.5">Add</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -1061,7 +1056,7 @@ export default function Events() {
         </div>
       </Modal>
 
-      {/* Categories Modal with Hierarchical Structure */}
+      {/* Categories Modal */}
       <Modal
         isOpen={categoriesModalOpen}
         onClose={() => setCategoriesModalOpen(false)}
@@ -1074,7 +1069,6 @@ export default function Events() {
             <span className="text-white font-medium">{selectedEventForCategories?.name}</span>
           </p>
 
-          {/* Search Input and Add Button */}
           <div className="flex gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
@@ -1100,7 +1094,7 @@ export default function Events() {
               <div className="text-center py-8 text-slate-500">
                 <Tags className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p className="text-lg">No categories available.</p>
-                <p className="text-lg">Create categories in the Categories section first.</p>
+                <p className="text-lg">Create categories using the Add Category button above.</p>
               </div>
             ) : getFilteredHierarchy().length === 0 && categorySearch.trim() ? (
               <div className="text-center py-8 text-slate-500">
@@ -1116,7 +1110,6 @@ export default function Events() {
 
                   return (
                     <div key={group.id} className="border border-slate-700 rounded-lg overflow-hidden">
-                      {/* Group Header */}
                       <div
                         className={`flex items-center justify-between p-4 cursor-pointer transition-colors ${
                           fullySelected
@@ -1145,7 +1138,6 @@ export default function Events() {
                           />
                         </div>
 
-                        {/* Select All Button */}
                         <button
                           type="button"
                           onClick={(e) => {
@@ -1162,7 +1154,6 @@ export default function Events() {
                         </button>
                       </div>
 
-                      {/* Subcategories */}
                       {isExpanded && group.children.length > 0 && (
                         <div className="p-3 bg-slate-900/50 grid grid-cols-2 md:grid-cols-3 gap-2">
                           {group.children.map((category) => {
@@ -1190,7 +1181,15 @@ export default function Events() {
                                     <Check className="w-4 h-4 text-primary-400 flex-shrink-0" />
                                   )}
                                 </div>
-                                {/* Delete button on hover */}
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleEditCategoryColor(category, e)}
+                                  className="absolute -top-2 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover/cat:opacity-100 transition-opacity hover:brightness-110"
+                                  title="Edit badge color"
+                                  style={{ backgroundColor: category.badgeColor || "#2563eb", borderColor: "rgba(255,255,255,0.4)", borderWidth: "2px" }}
+                                >
+                                  <Edit className="w-3 h-3 text-white" />
+                                </button>
                                 <button
                                   type="button"
                                   onClick={(e) => handleDeleteCategory(category, e)}
@@ -1271,17 +1270,35 @@ export default function Events() {
           </div>
 
           <div>
-            <label className="block text-lg font-medium text-slate-300 mb-1.5">
+            <label className="block text-lg font-medium text-slate-300 mb-2">
               Badge Color
             </label>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 mb-3">
               <input
                 type="color"
                 value={newCategoryData.badgeColor}
                 onChange={(e) => setNewCategoryData(prev => ({ ...prev, badgeColor: e.target.value }))}
                 className="w-12 h-10 rounded cursor-pointer border border-slate-700"
               />
-              <span className="text-lg text-slate-400">{newCategoryData.badgeColor}</span>
+              <span className="text-lg text-slate-400 font-mono">{newCategoryData.badgeColor}</span>
+              <div
+                className="w-8 h-8 rounded-full border-2 border-white/20"
+                style={{ backgroundColor: newCategoryData.badgeColor }}
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {COLOR_PRESETS.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => setNewCategoryData(prev => ({ ...prev, badgeColor: color }))}
+                  className={`w-8 h-8 rounded-full border-2 transition-all ${
+                    newCategoryData.badgeColor === color ? "border-white scale-110" : "border-transparent hover:border-white/50"
+                  }`}
+                  style={{ backgroundColor: color }}
+                  title={color}
+                />
+              ))}
             </div>
           </div>
 
@@ -1306,6 +1323,67 @@ export default function Events() {
         </div>
       </Modal>
 
+      {/* Edit Category Color Modal */}
+      <Modal
+        isOpen={editColorModal.open}
+        onClose={() => setEditColorModal({ open: false, category: null })}
+        title="Edit Badge Color"
+      >
+        <div className="p-6 space-y-4">
+          <p className="text-lg text-slate-400 font-extralight">
+            Change badge color for <span className="text-white font-medium">{editColorModal.category?.name}</span>
+          </p>
+
+          <div className="flex items-center gap-3 mb-3">
+            <input
+              type="color"
+              value={editingColor}
+              onChange={(e) => setEditingColor(e.target.value)}
+              className="w-12 h-10 rounded cursor-pointer border border-slate-700"
+            />
+            <span className="text-lg text-slate-400 font-mono">{editingColor}</span>
+            <div
+              className="w-8 h-8 rounded-full border-2 border-white/20"
+              style={{ backgroundColor: editingColor }}
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {COLOR_PRESETS.map((color) => (
+              <button
+                key={color}
+                type="button"
+                onClick={() => setEditingColor(color)}
+                className={`w-8 h-8 rounded-full border-2 transition-all ${
+                  editingColor === color ? "border-white scale-110" : "border-transparent hover:border-white/50"
+                }`}
+                style={{ backgroundColor: color }}
+                title={color}
+              />
+            ))}
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <Button
+              variant="secondary"
+              onClick={() => setEditColorModal({ open: false, category: null })}
+              className="flex-1"
+              disabled={savingColor}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={saveEditedColor}
+              className="flex-1"
+              loading={savingColor}
+              disabled={savingColor}
+            >
+              Save Color
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Delete Category Confirmation Modal */}
       <Modal
         isOpen={deleteCategoryModal.open}
@@ -1314,19 +1392,15 @@ export default function Events() {
       >
         <div className="p-6 space-y-4">
           <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
-            <Trash2 className="w-6 h-6 text-red-400 flex-shrink-0" />
+            <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0" />
             <div>
               <p className="text-lg font-semibold text-red-400">Delete this category?</p>
               <p className="text-lg text-slate-300 font-extralight mt-1">
-                This will permanently remove the category and unassign it from all events.
+                Category <span className="font-bold text-white">{deleteCategoryModal.category?.name}</span> will be permanently removed.
               </p>
             </div>
           </div>
-          <p className="text-lg text-slate-300 font-extralight">
-            Are you sure you want to delete{" "}
-            <span className="font-semibold text-white">{deleteCategoryModal.category?.name}</span>?
-          </p>
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 pt-2">
             <Button
               variant="secondary"
               onClick={() => setDeleteCategoryModal({ open: false, category: null })}
@@ -1337,7 +1411,6 @@ export default function Events() {
             </Button>
             <Button
               variant="danger"
-              icon={Trash2}
               onClick={confirmDeleteCategory}
               className="flex-1"
               loading={deletingCategory}
@@ -1345,51 +1418,6 @@ export default function Events() {
             >
               {deletingCategory ? "Deleting..." : "Delete Category"}
             </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Share Link Modal */}
-      <Modal
-        isOpen={shareModal.open}
-        onClose={() => setShareModal({ open: false, slug: "" })}
-        title="Share Registration Link"
-      >
-        <div className="p-6 space-y-4">
-          <p className="text-lg text-slate-300 font-extralight">
-            Copy the registration link below and share it with participants.
-          </p>
-          <div className="flex gap-2">
-            <input
-              id="share-link-input"
-              type="text"
-              readOnly
-              value={getRegistrationLink(shareModal.slug)}
-              className="flex-1 px-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-lg text-white text-lg font-mono"
-              onFocus={(e) => e.target.select()}
-            />
-            <Button onClick={handleManualCopy} icon={Copy}>
-              Copy
-            </Button>
-          </div>
-          <div className="flex gap-3 pt-2">
-            <Button
-              variant="secondary"
-              className="flex-1"
-              onClick={() => setShareModal({ open: false, slug: "" })}
-            >
-              Close
-            </Button>
-            <a
-              href={getRegistrationLink(shareModal.slug)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1"
-            >
-              <Button variant="primary" icon={ExternalLink} className="w-full">
-                Open Link
-              </Button>
-            </a>
           </div>
         </div>
       </Modal>
@@ -1402,19 +1430,15 @@ export default function Events() {
       >
         <div className="p-6 space-y-4">
           <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
-            <Trash2 className="w-6 h-6 text-red-400 flex-shrink-0" />
+            <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0" />
             <div>
-              <p className="text-lg font-semibold text-red-400">This action is permanent</p>
+              <p className="text-lg font-semibold text-red-400">Permanently delete this event?</p>
               <p className="text-lg text-slate-300 font-extralight mt-1">
-                Deleting this event will also remove all its accreditations, zones, and categories permanently.
+                Event <span className="font-bold text-white">{deleteModal.event?.name}</span> and ALL related data (accreditations, zones, categories) will be permanently removed. This action cannot be undone.
               </p>
             </div>
           </div>
-          <p className="text-lg text-slate-300 font-extralight">
-            Are you sure you want to delete{" "}
-            <span className="font-semibold text-white">{deleteModal.event?.name}</span>?
-          </p>
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 pt-2">
             <Button
               variant="secondary"
               onClick={() => setDeleteModal({ open: false, event: null })}
@@ -1425,13 +1449,37 @@ export default function Events() {
             </Button>
             <Button
               variant="danger"
-              icon={Trash2}
               onClick={confirmDelete}
               className="flex-1"
               loading={deleting}
               disabled={deleting}
             >
               {deleting ? "Deleting..." : "Delete Event"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Share Link Modal */}
+      <Modal
+        isOpen={shareModal.open}
+        onClose={() => setShareModal({ open: false, slug: "" })}
+        title="Copy Registration Link"
+      >
+        <div className="p-6 space-y-4">
+          <p className="text-lg text-slate-400 font-extralight">
+            Copy this link to share the registration form:
+          </p>
+          <div className="flex gap-2">
+            <input
+              id="share-link-input"
+              type="text"
+              readOnly
+              value={getRegistrationLink(shareModal.slug)}
+              className="flex-1 px-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-lg text-white text-lg focus:outline-none"
+            />
+            <Button onClick={handleManualCopy} icon={Copy}>
+              Copy
             </Button>
           </div>
         </div>
