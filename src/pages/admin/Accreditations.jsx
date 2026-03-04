@@ -40,6 +40,7 @@ import {
   sendRejectionEmail
 } from "../../lib/email";
 import ComposeEmailModal from "../../components/accreditation/ComposeEmailModal";
+import { generatePdfAttachment } from "../../lib/pdfEmailHelper";
 import {
   formatDate,
   getStatusColor,
@@ -313,32 +314,55 @@ export default function Accreditations() {
       const eventData = events.find((e) => e.id === accreditation.eventId);
       const role = accreditation.role || "Unknown";
       const prefix = ROLE_BADGE_PREFIXES[role] || role.substring(0, 3).toUpperCase() || "GEN";
-      const { count: existingCount } = await supabase
-        .from("accreditations")
-        .select("id", { count: "exact", head: true })
-        .eq("event_id", accreditation.eventId)
-        .eq("role", role)
-        .eq("status", "approved");
-      const badgeNumber = `${prefix}-${String((existingCount || 0) + 1).padStart(3, "0")}`;
+      const isReApproval = accreditation.status === "approved";
+      let badgeNumber = accreditation.badgeNumber;
+      if (!isReApproval || !badgeNumber) {
+        const { count: existingCount } = await supabase
+          .from("accreditations")
+          .select("id", { count: "exact", head: true })
+          .eq("event_id", accreditation.eventId)
+          .eq("role", role)
+          .eq("status", "approved");
+        badgeNumber = `${prefix}-${String((existingCount || 0) + 1).padStart(3, "0")}`;
+      }
       const zoneCodeString = approveData.zoneCodes.join(",");
       await AccreditationsAPI.approve(accreditation.id, zoneCodeString, badgeNumber);
       await refreshAccreditations();
-      const emailResult = await sendApprovalEmail({
-        to: accreditation.email,
-        name: `${accreditation.firstName} ${accreditation.lastName}`,
-        eventName: eventData?.name || "Event",
-        eventLocation: eventData?.location || "",
-        eventDates: eventData ? `${eventData.startDate} - ${eventData.endDate}` : "",
-        role: accreditation.role,
-        accreditationId: badgeNumber,
-        badgeNumber: badgeNumber,
-        zoneCode: zoneCodeString,
-        reportingTimes: eventData?.reportingTimes || ""
-      });
+      // Generate PDF attachment for approved accreditation
+      const updatedAcc = { ...accreditation, badgeNumber, zoneCode: zoneCodeString, status: "approved" };
+      let pdfData = null;
+      try {
+        console.log("[Approve] Generating PDF for:", accreditation.email);
+        pdfData = await generatePdfAttachment(updatedAcc, eventData, zones);
+      } catch (pdfErr) {
+        console.warn("[Approve] PDF generation failed:", pdfErr);
+      }
+      // ALWAYS send email on approve / re-approve
+      let emailResult = { success: false };
+      try {
+        console.log("[Approve] Sending approval email to:", accreditation.email);
+        emailResult = await sendApprovalEmail({
+          to: accreditation.email,
+          name: `${accreditation.firstName} ${accreditation.lastName}`,
+          eventName: eventData?.name || "Event",
+          eventLocation: eventData?.location || "",
+          eventDates: eventData ? `${eventData.startDate} - ${eventData.endDate}` : "",
+          role: accreditation.role,
+          accreditationId: badgeNumber,
+          badgeNumber: badgeNumber,
+          zoneCode: zoneCodeString,
+          reportingTimes: eventData?.reportingTimes || "",
+          pdfBase64: pdfData?.pdfBase64 || null,
+          pdfFileName: pdfData?.pdfFileName || null
+        });
+      } catch (emailErr) {
+        console.error("[Approve] Email send error:", emailErr);
+      }
       if (emailResult.success) {
-        toast.success("Accreditation approved and email sent!");
+        toast.success(`Accreditation ${isReApproval ? "re-approved" : "approved"} and email with PDF sent!`);
       } else {
-        toast.success("Accreditation approved! Email notification may have failed.");
+        console.warn("[Approve] Email failed:", emailResult.error);
+        toast.success(`Accreditation ${isReApproval ? "re-approved" : "approved"}! Email notification may have failed.`);
       }
       setApproveModal({ open: false, accreditation: null });
     } catch (error) {
@@ -365,18 +389,26 @@ export default function Accreditations() {
       const eventData = events.find((e) => e.id === accreditation.eventId);
       await AccreditationsAPI.reject(accreditation.id, rejectRemarks);
       await refreshAccreditations();
-      const emailResult = await sendRejectionEmail({
-        to: accreditation.email,
-        name: `${accreditation.firstName} ${accreditation.lastName}`,
-        eventName: eventData?.name || "Event",
-        role: accreditation.role,
-        remarks: rejectRemarks,
-        resubmitUrl: eventData?.slug ? `${window.location.origin}/register/${eventData.slug}` : null
-      });
+      // ALWAYS send rejection email
+      let emailResult = { success: false };
+      try {
+        console.log("[Reject] Sending rejection email to:", accreditation.email);
+        emailResult = await sendRejectionEmail({
+          to: accreditation.email,
+          name: `${accreditation.firstName} ${accreditation.lastName}`,
+          eventName: eventData?.name || "Event",
+          role: accreditation.role,
+          remarks: rejectRemarks,
+          resubmitUrl: eventData?.slug ? `${window.location.origin}/register/${eventData.slug}` : null
+        });
+      } catch (emailErr) {
+        console.error("[Reject] Email send error:", emailErr);
+      }
       if (emailResult.success) {
         toast.success("Accreditation rejected and email sent!");
       } else {
-        toast.success("Accreditation rejected! Email notification may have failed.");
+        console.warn("[Reject] Email failed:", emailResult.error);
+        toast.success("Accreditation rejected! Email may have failed.");
       }
       setRejectModal({ open: false, accreditation: null });
     } catch (error) {
@@ -401,12 +433,64 @@ export default function Accreditations() {
       toast.error("Please select zone access");
       return;
     }
-    const zoneCodeString = approveData.zoneCodes.join(",");
-    await AccreditationsAPI.bulkApprove(selectedRows, zoneCodeString);
-    toast.success(`${selectedRows.length} accreditations approved`);
-    setBulkApproveModal(false);
-    setSelectedRows([]);
-    await refreshAccreditations();
+    setApproving(true);
+    try {
+      const zoneCodeString = approveData.zoneCodes.join(",");
+      await AccreditationsAPI.bulkApprove(selectedRows, zoneCodeString);
+      await refreshAccreditations();
+      // Send approval emails for each approved accreditation
+      const updatedAccData = await AccreditationsAPI.getByEventId(selectedEvent);
+      let emailsSent = 0;
+      let emailsFailed = 0;
+      for (const rowId of selectedRows) {
+        const acc = updatedAccData.find((a) => a.id === rowId);
+        if (!acc || !acc.email) continue;
+        const eventData = events.find((e) => e.id === acc.eventId);
+        // Generate PDF attachment
+        let pdfData = null;
+        try {
+          pdfData = await generatePdfAttachment(acc, eventData, zones);
+        } catch (pdfErr) {
+          console.warn(`[BulkApprove] PDF failed for ${acc.email}:`, pdfErr);
+        }
+        try {
+          const emailResult = await sendApprovalEmail({
+            to: acc.email,
+            name: `${acc.firstName} ${acc.lastName}`,
+            eventName: eventData?.name || "Event",
+            eventLocation: eventData?.location || "",
+            eventDates: eventData ? `${eventData.startDate} - ${eventData.endDate}` : "",
+            role: acc.role,
+            accreditationId: acc.badgeNumber || acc.accreditationId,
+            badgeNumber: acc.badgeNumber || "",
+            zoneCode: acc.zoneCode || zoneCodeString,
+            reportingTimes: eventData?.reportingTimes || "",
+            pdfBase64: pdfData?.pdfBase64 || null,
+            pdfFileName: pdfData?.pdfFileName || null
+          });
+          if (emailResult.success) {
+            emailsSent++;
+          } else {
+            emailsFailed++;
+          }
+        } catch (emailErr) {
+          console.error(`[BulkApprove] Email failed for ${acc.email}:`, emailErr);
+          emailsFailed++;
+        }
+      }
+      if (emailsFailed === 0) {
+        toast.success(`${selectedRows.length} approved and ${emailsSent} emails sent!`);
+      } else {
+        toast.success(`${selectedRows.length} approved. Emails: ${emailsSent} sent, ${emailsFailed} failed.`);
+      }
+      setBulkApproveModal(false);
+      setSelectedRows([]);
+    } catch (error) {
+      console.error("Bulk approve error:", error);
+      toast.error("Failed to bulk approve. Please try again.");
+    } finally {
+      setApproving(false);
+    }
   };
 
   const handleBulkEdit = async (ids, updates) => {
