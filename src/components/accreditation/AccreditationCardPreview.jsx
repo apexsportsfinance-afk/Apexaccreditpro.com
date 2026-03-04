@@ -136,7 +136,10 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
   const zoneCodes = accreditation?.zoneCode?.split(",").map(z => z.trim()).filter(Boolean) || [];
   const countryData = COUNTRIES.find(c => c.code === accreditation?.nationality);
   const countryName = getCountryName(accreditation?.nationality);
-  const age = accreditation?.dateOfBirth && event?.ageCalculationYear
+  
+  // Calculate age ONLY for Athletes
+  const isAthlete = accreditation?.role?.toLowerCase() === "athlete";
+  const age = isAthlete && accreditation?.dateOfBirth && event?.ageCalculationYear
     ? calculateAge(accreditation.dateOfBirth, event.ageCalculationYear)
     : null;
 
@@ -203,7 +206,73 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
         )}
 
         {/* HEADER */}
-        <div style={{ position: "relative", height: "100px", background: "linear-gradient(to right, #22d3ee, #7dd3fc, #22d3ee)", overflow: "hidden", flexShrink: 0 }}>
+        <div style={{ position: "relative", height: "100px", background: "linear-gradient(135deg, #0077b6 0%, #00b4d8 50%, #90e0ef 100%)", overflow: "hidden", flexShrink: 0 }}>
+          {/* Aquatics Design - Bubbles, Waves, and Water Elements */}
+          <svg 
+            style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", opacity: 1 }} 
+            viewBox="0 0 320 100" 
+            preserveAspectRatio="xMidYMid slice"
+          >
+            <defs>
+              {/* Gradient for bubbles */}
+              <radialGradient id="bubbleGrad" cx="30%" cy="30%" r="70%">
+                <stop offset="0%" stopColor="rgba(255,255,255,0.6)" />
+                <stop offset="100%" stopColor="rgba(255,255,255,0.1)" />
+              </radialGradient>
+              {/* Wave gradient */}
+              <linearGradient id="waveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="rgba(0,180,216,0.3)" />
+                <stop offset="50%" stopColor="rgba(144,224,239,0.4)" />
+                <stop offset="100%" stopColor="rgba(0,180,216,0.3)" />
+              </linearGradient>
+            </defs>
+            
+            {/* Curved wave lines - flowing water effect */}
+            <path d="M0,75 Q40,65 80,75 T160,75 T240,75 T320,75" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="2" />
+            <path d="M0,80 Q50,70 100,80 T200,80 T300,80 T400,80" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" />
+            <path d="M0,85 Q60,78 120,85 T240,85 T360,85" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+            
+            {/* Additional flowing curves at top */}
+            <path d="M-20,30 Q30,20 80,30 T180,25 T280,30 T380,28" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" />
+            <path d="M-10,40 Q40,32 90,40 T190,38 T290,40" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+            
+            {/* Large bubbles */}
+            <circle cx="30" cy="25" r="12" fill="url(#bubbleGrad)" />
+            <circle cx="290" cy="35" r="15" fill="url(#bubbleGrad)" />
+            <circle cx="50" cy="70" r="10" fill="url(#bubbleGrad)" />
+            <circle cx="270" cy="75" r="8" fill="url(#bubbleGrad)" />
+            
+            {/* Medium bubbles */}
+            <circle cx="15" cy="55" r="6" fill="rgba(255,255,255,0.25)" />
+            <circle cx="305" cy="20" r="7" fill="rgba(255,255,255,0.2)" />
+            <circle cx="45" cy="45" r="5" fill="rgba(255,255,255,0.22)" />
+            <circle cx="280" cy="55" r="6" fill="rgba(255,255,255,0.18)" />
+            <circle cx="25" cy="85" r="4" fill="rgba(255,255,255,0.2)" />
+            <circle cx="295" cy="85" r="5" fill="rgba(255,255,255,0.15)" />
+            
+            {/* Small bubbles scattered */}
+            <circle cx="10" cy="40" r="3" fill="rgba(255,255,255,0.2)" />
+            <circle cx="35" cy="60" r="2.5" fill="rgba(255,255,255,0.18)" />
+            <circle cx="55" cy="30" r="2" fill="rgba(255,255,255,0.22)" />
+            <circle cx="20" cy="70" r="2" fill="rgba(255,255,255,0.15)" />
+            <circle cx="310" cy="50" r="3" fill="rgba(255,255,255,0.2)" />
+            <circle cx="285" cy="25" r="2" fill="rgba(255,255,255,0.18)" />
+            <circle cx="300" cy="65" r="2.5" fill="rgba(255,255,255,0.15)" />
+            <circle cx="265" cy="90" r="2" fill="rgba(255,255,255,0.12)" />
+            
+            {/* Tiny accent bubbles */}
+            <circle cx="8" cy="20" r="1.5" fill="rgba(255,255,255,0.15)" />
+            <circle cx="42" cy="15" r="1" fill="rgba(255,255,255,0.12)" />
+            <circle cx="60" cy="50" r="1.5" fill="rgba(255,255,255,0.1)" />
+            <circle cx="315" cy="35" r="1" fill="rgba(255,255,255,0.12)" />
+            <circle cx="275" cy="45" r="1.5" fill="rgba(255,255,255,0.1)" />
+            <circle cx="12" cy="92" r="1" fill="rgba(255,255,255,0.1)" />
+            <circle cx="308" cy="92" r="1.5" fill="rgba(255,255,255,0.08)" />
+            
+            {/* Wave arcs at bottom */}
+            <path d="M-10,95 Q25,88 60,95 T130,95 T200,95 T270,95 T340,95" fill="none" stroke="rgba(0,119,182,0.3)" strokeWidth="3" />
+            <path d="M0,100 Q40,92 80,100 T160,100 T240,100 T320,100" fill="rgba(0,119,182,0.15)" />
+          </svg>
           <div style={{ position: "relative", zIndex: 10, display: "flex", height: "100%", width: "100%", alignItems: "center", justifyContent: "center", padding: "0 16px" }}>
             {event?.logoUrl ? (
               <img src={event.logoUrl} alt="Logo" style={{ maxHeight: "85px", maxWidth: "100%", objectFit: "contain" }} crossOrigin="anonymous" />
@@ -265,15 +334,19 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
             <p style={{ fontSize: "14px", color: "#334155", marginTop: "12px", lineHeight: 1.3, wordBreak: "break-word" }}>
               {accreditation?.club || "Club Name"}
             </p>
-            <p style={{ fontSize: "12px", color: "#64748b", marginTop: "4px" }}>
-              {accreditation?.role || "Participant"}
-            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "4px" }}>
+              <p style={{ fontSize: "12px", color: "#64748b" }}>
+                {accreditation?.role || "Participant"}
+              </p>
+              {/* Show age only for Athletes */}
+              {isAthlete && age !== null && (
+                <span style={{ fontSize: "12px", color: "#1e40af", fontWeight: "bold", backgroundColor: "#dbeafe", padding: "2px 8px", borderRadius: "9999px" }}>
+                  Age: {age}
+                </span>
+              )}
+            </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "12px", fontSize: "13px", color: "#475569" }}>
-              {age !== null && (
-                <span style={{ fontWeight: 500 }}>{age} Y</span>
-              )}
-              {age !== null && <span style={{ color: "#cbd5e1" }}>|</span>}
               <span style={{ fontWeight: 500 }}>{accreditation?.gender || "Gender"}</span>
             </div>
 
@@ -283,14 +356,14 @@ export const CardInner = ({ accreditation, event, zones = [], idSuffix = "" }) =
                 <img
                   src={`https://flagcdn.com/w80/${countryData.flag}.png`}
                   alt="Flag"
-                  style={{ width: "44px", height: "30px", borderRadius: "4px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", objectFit: "cover", border: "1px solid #e2e8f0", display: "inline-block", verticalAlign: "top", marginRight: "12px" }}
+                  style={{ width: "44px", height: "30px", minWidth: "44px", minHeight: "30px", maxWidth: "44px", maxHeight: "30px", borderRadius: "4px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", objectFit: "cover", border: "1px solid #e2e8f0", display: "inline-block", verticalAlign: "top", marginRight: "12px", flexShrink: 0 }}
                   crossOrigin="anonymous"
                 />
               )}
               {countryNameUrl ? (
-                <img src={countryNameUrl} alt={countryName} style={{ height: "30px", display: "inline-block", verticalAlign: "top" }} />
+                <img src={countryNameUrl} alt={countryName} style={{ height: "30px" }} />
               ) : (
-                <span style={{ fontSize: "16px", fontWeight: "bold", color: "#1e40af", display: "inline-block", verticalAlign: "top", lineHeight: "30px" }}>
+                <span style={{ fontSize: "16px", fontWeight: "bold", color: "#1e40af", lineHeight: "30px" }}>
                   {countryName}
                 </span>
               )}
