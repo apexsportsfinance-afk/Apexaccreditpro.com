@@ -939,16 +939,19 @@ export default function Events() {
             </div>
 
             <div>
-              <label className="block text-lg font-medium text-slate-300 mb-2">
-                Event Logo
+              <label className="block text-lg font-medium text-slate-300 mb-1">
+                Card Header Image (Logo / Banner)
               </label>
+              <p className="text-lg text-slate-500 mb-2">
+                This image fills the entire top of the accreditation card. Recommended size: <span className="text-cyan-400 font-medium">960 x 300 px</span> (3.2:1 ratio). The card renders at 320 x 100px and scales up 3x for print quality.
+              </p>
               <div className="flex items-center gap-4">
                 {templateData.logoUrl ? (
-                  <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-slate-700">
+                  <div className="relative rounded-lg overflow-hidden border border-slate-700" style={{ width: "320px", height: "100px" }}>
                     <img
                       src={templateData.logoUrl}
-                      alt="Logo"
-                      className="w-full h-full object-contain bg-white p-1"
+                      alt="Header"
+                      className="w-full h-full object-cover"
                     />
                     <button
                       onClick={() => setTemplateData((prev) => ({ ...prev, logoUrl: "" }))}
@@ -958,8 +961,10 @@ export default function Events() {
                     </button>
                   </div>
                 ) : (
-                  <label className="flex flex-col items-center justify-center w-20 h-20 border-2 border-dashed border-slate-600 rounded-lg cursor-pointer hover:border-primary-500 transition-colors">
-                    <ImageIcon className="w-5 h-5 text-slate-500" />
+                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-600 rounded-lg cursor-pointer hover:border-primary-500 transition-colors" style={{ width: "320px", height: "100px" }}>
+                    <Upload className="w-6 h-6 text-slate-500 mb-1" />
+                    <span className="text-lg text-slate-500">Upload Header Image</span>
+                    <span className="text-lg text-slate-600">960 x 300 px recommended</span>
                     <input
                       type="file"
                       accept="image/*"
