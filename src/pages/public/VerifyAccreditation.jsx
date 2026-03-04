@@ -37,11 +37,34 @@ export default function VerifyAccreditation() {
       }
 
       try {
-        const { data: accData, error: accError } = await supabase
+        // First try by accreditation_id and badge_number (string columns)
+        let accData = null;
+        let accError = null;
+
+        const { data: d1, error: e1 } = await supabase
           .from("accreditations")
           .select("*")
-          .or(`accreditation_id.eq.${id},badge_number.eq.${id},id.eq.${id}`)
-          .single();
+          .or(`accreditation_id.eq.${id},badge_number.eq.${id}`)
+          .limit(1)
+          .maybeSingle();
+
+        if (d1) {
+          accData = d1;
+        } else {
+          // If not found, try by UUID id (only if it looks like a valid UUID)
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          if (uuidRegex.test(id)) {
+            const { data: d2, error: e2 } = await supabase
+              .from("accreditations")
+              .select("*")
+              .eq("id", id)
+              .maybeSingle();
+            accData = d2;
+            accError = e2;
+          } else {
+            accError = e1;
+          }
+        }
 
         if (accError || !accData) {
           setError("Accreditation not found");
