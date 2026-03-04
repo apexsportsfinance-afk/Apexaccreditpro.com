@@ -184,7 +184,7 @@ const captureEl = async (el, scale) => {
   return canvas;
 };
 
-const buildPDF = async (accreditation, event, zones, scale, sizeKey) => {
+export const buildPDF = async (accreditation, event, zones, scale, sizeKey) => {
   const size = PDF_SIZES[sizeKey] || PDF_SIZES.a6;
   const isLandscape = size.width > size.height;
 
