@@ -119,6 +119,8 @@ export const generateBadgeNumber = (role, index) => {
 };
 
 // Role badge prefixes for accreditation badge numbers
+// NOTE: These prefixes are used to generate badge numbers like ATH-001, COA-002, etc.
+// When a category has a custom badgePrefix defined, it will be used instead
 export const ROLE_BADGE_PREFIXES = {
   "Athlete": "ATH",
   "Official": "OFF",
@@ -145,6 +147,12 @@ export const ROLE_BADGE_PREFIXES = {
   "Guest": "GST",
   "Sponsor Representative": "SPR",
   "Dignitary": "DIG"
+};
+
+// Get badge prefix for a role - checks custom prefix first, then falls back to defaults
+export const getBadgePrefix = (role, customPrefix = null) => {
+  if (customPrefix) return customPrefix;
+  return ROLE_BADGE_PREFIXES[role] || role?.substring(0, 3)?.toUpperCase() || "GEN";
 };
 
 // Role groups for hierarchical categorization
