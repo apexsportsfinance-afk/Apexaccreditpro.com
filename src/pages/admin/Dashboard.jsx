@@ -28,32 +28,47 @@ export default function Dashboard() {
   const [recentAccreditations, setRecentAccreditations] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
   const [events, setEvents] = useState([]);
-  const [allAccreditations, setAllAccreditations] = useState([]);
+  const [eventCounts, setEventCounts] = useState({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
-    const allEvents = await EventsAPI.getAll();
-    const allAccreditations = await AccreditationsAPI.getAll();
-    const activityLogs = await AuditAPI.getRecent(10);
+    setLoading(true);
+    try {
+      // Parallel loading for faster initial render
+      const [allEvents, accStats, recentAcc, activityLogs] = await Promise.all([
+        EventsAPI.getAll(),
+        AccreditationsAPI.getStats(),
+        AccreditationsAPI.getRecent(5),
+        AuditAPI.getRecent(10)
+      ]);
 
-    setEvents(allEvents);
-    setAllAccreditations(allAccreditations);
-    setStats({
-      totalEvents: allEvents.length,
-      totalAccreditations: allAccreditations.length,
-      pending: allAccreditations.filter((a) => a.status === "pending").length,
-      approved: allAccreditations.filter((a) => a.status === "approved").length,
-      rejected: allAccreditations.filter((a) => a.status === "rejected").length
-    });
-    setRecentAccreditations(
-      allAccreditations
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-        .slice(0, 5)
-    );
-    setRecentActivity(activityLogs);
+      setEvents(allEvents);
+      setStats({
+        totalEvents: allEvents.length,
+        totalAccreditations: accStats.total,
+        pending: accStats.pending,
+        approved: accStats.approved,
+        rejected: accStats.rejected
+      });
+      setRecentAccreditations(recentAcc);
+      setRecentActivity(activityLogs);
+
+      // Load per-event counts in background (non-blocking)
+      if (allEvents.length > 0) {
+        const eventIds = allEvents.map(e => e.id);
+        AccreditationsAPI.getCountsByEventIds(eventIds)
+          .then(counts => setEventCounts(counts))
+          .catch(err => console.error("Failed to load event counts:", err));
+      }
+    } catch (error) {
+      console.error("Dashboard load error:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getActivityIcon = (action) => {
@@ -210,35 +225,32 @@ export default function Dashboard() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {events.map((event) => {
-                const eventAccreditations = allAccreditations.filter((a) => a.eventId === event.id);
-                const pending = eventAccreditations.filter((a) => a.status === "pending").length;
-                const approved = eventAccreditations.filter((a) => a.status === "approved").length;
+                const counts = eventCounts[event.id] || { total: 0, pending: 0, approved: 0 };
+                const pending = counts.pending;
+                const approved = counts.approved;
                 return (
-                  <Link
+                  <motion.div
                     key={event.id}
-                    to={`/admin/accreditations?event=${event.id}`}
-                    className="block"
+                    className="bg-gradient-to-br from-swim-deep/60 via-primary-950/50 to-ocean-950/40 border border-primary-500/30 rounded-xl p-4 hover:border-primary-400/60 transition-all shadow-lg shadow-primary-900/20 hover:shadow-primary-500/20"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                   >
-                    <motion.div
-                      whileHover={{ scale: 1.02 }}
-                      className="bg-gradient-to-br from-swim-deep/60 via-primary-950/50 to-ocean-950/40 border border-primary-500/30 rounded-xl p-4 hover:border-primary-400/60 transition-all shadow-lg shadow-primary-900/20 hover:shadow-primary-500/20"
-                    >
-                      <h3 className="text-lg font-semibold text-white mb-2 truncate">
-                        {event.name}
-                      </h3>
-                      <p className="text-lg text-slate-400 mb-3">
-                        {formatDate(event.startDate)} - {formatDate(event.endDate)}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-lg text-slate-500">
-                          {eventAccreditations.length} registrations
-                        </span>
-                        {pending > 0 && (
-                          <Badge variant="warning">{pending} pending</Badge>
-                        )}
+                    <h3 className="text-lg font-semibold text-white mb-2 truncate">
+                      {event.name}
+                    </h3>
+                    <p className="text-lg text-slate-400 mb-3">
+                      {formatDate(event.startDate)} - {formatDate(event.endDate)}
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-lg text-slate-500">
+                        {counts.total} registrations
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="warning">{pending} pending</Badge>
+                        <Badge variant="success">{approved} approved</Badge>
                       </div>
-                    </motion.div>
-                  </Link>
+                    </div>
+                  </motion.div>
                 );
               })}
             </div>
