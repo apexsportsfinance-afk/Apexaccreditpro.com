@@ -339,11 +339,11 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
               <p style={{ fontSize: "9px", color: "#334155", fontFamily: "monospace", fontWeight: "bold" }}>BADGE: {accreditation?.badgeNumber || "---"}</p>
             </div>
             {qrDataUrl ? (
-              <div data-qr-code="true" style={{ marginTop: "8px", padding: "6px", backgroundColor: "white", border: "2px solid #e2e8f0", borderRadius: "4px" }}>
-                <img src={qrDataUrl} alt="QR Verify" style={{ width: "80px", height: "80px", display: "block", imageRendering: "pixelated" }} crossOrigin="anonymous" />
+              <div data-qr-code="true" style={{ marginTop: "6px", padding: "4px", backgroundColor: "white", border: "2px solid #e2e8f0", borderRadius: "4px" }}>
+                <img src={qrDataUrl} alt="QR Verify" style={{ width: "105px", height: "105px", display: "block", imageRendering: "pixelated" }} crossOrigin="anonymous" />
               </div>
             ) : (
-              <div style={{ marginTop: "8px", width: "92px", height: "92px", backgroundColor: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ marginTop: "6px", width: "113px", height: "113px", backgroundColor: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <p style={{ fontSize: "8px", color: "#94a3b8", textAlign: "center" }}>QR loading...</p>
               </div>
             )}
