@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { Download, FileSpreadsheet, FileText, Edit, CheckCircle, Mail } from "lucide-react";
+import { Download, FileSpreadsheet, FileText, Edit, CheckCircle, Mail, Image as ImageIcon } from "lucide-react";
 import Button from "../ui/Button";
 import Modal from "../ui/Modal";
 import Select from "../ui/Select";
 import { exportToExcel, exportTableToPDF } from "./ExportUtils";
 import { bulkDownloadPDFs } from "./cardExport";
 import ComposeEmailModal from "./ComposeEmailModal";
+import { bulkDownloadPhotos } from "../../lib/imageDownload";
 
 export default function BulkOperations({ 
   selectedRows, 
@@ -22,6 +23,7 @@ export default function BulkOperations({
   const [editValue, setEditValue] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [downloadingPhotos, setDownloadingPhotos] = useState(false);
 
   const selectAllFiltered = () => onClearSelection(filteredData.map(r => r.id));
 
@@ -35,6 +37,20 @@ export default function BulkOperations({
       console.error("Bulk download error:", err);
     } finally {
       setDownloading(false);
+    }
+  };
+
+  const handleBulkDownloadPhotos = async () => {
+    if (selectedRows.length === 0) return;
+    setDownloadingPhotos(true);
+    try {
+      const selectedData = filteredData.filter(r => selectedRows.includes(r.id));
+      const count = await bulkDownloadPhotos(selectedData, event?.name || "event");
+      console.log(`Downloaded ${count} photos`);
+    } catch (err) {
+      console.error("Bulk photo download error:", err);
+    } finally {
+      setDownloadingPhotos(false);
     }
   };
 
@@ -165,6 +181,15 @@ export default function BulkOperations({
               icon={Mail}
             >
               Bulk Email
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleBulkDownloadPhotos}
+              loading={downloadingPhotos}
+              icon={ImageIcon}
+            >
+              Download Photos
             </Button>
           </>
         )}
