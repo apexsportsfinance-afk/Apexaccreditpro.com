@@ -139,7 +139,7 @@ const useZoneBadgePngs = (codes) => {
   return badges;
 };
 
-// PROFESSIONALLY DESIGNED AQUATICS HEADER
+// PROFESSIONAL AQUATICS HEADER - NO WHITE BACKGROUND
 const AquaticsHeader = ({ event }) => {
   const logoUrl = event?.logoUrl;
 
@@ -151,75 +151,70 @@ const AquaticsHeader = ({ event }) => {
         position: "relative",
         overflow: "hidden",
         flexShrink: 0,
-        background: "linear-gradient(135deg, #001f3f 0%, #003366 25%, #004080 50%, #003366 75%, #001f3f 100%)",
-        boxShadow: "inset 0 2px 4px rgba(255,255,255,0.1)",
+        background: "linear-gradient(180deg, #001a33 0%, #003d66 40%, #006699 100%)",
       }}
     >
-      {/* Animated Water Wave Pattern Overlay */}
+      {/* Water Ripple Pattern Overlay */}
       <div
         style={{
           position: "absolute",
           inset: 0,
-          opacity: 0.15,
-          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%2300d4ff' fill-opacity='1' d='M0,160L48,176C96,192,192,224,288,213.3C384,203,480,149,576,138.7C672,128,768,160,864,181.3C960,203,1056,213,1152,197.3C1248,181,1344,139,1392,117.3L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E")`,
-          backgroundSize: "200% 100%",
-          backgroundPosition: "bottom",
-          backgroundRepeat: "repeat-x",
+          opacity: 0.2,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='20' viewBox='0 0 100 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 10 Q 25 20 50 10 T 100 10' stroke='%2300ccff' stroke-width='2' fill='none' opacity='0.5'/%3E%3Cpath d='M0 15 Q 25 5 50 15 T 100 15' stroke='%2300ccff' stroke-width='1.5' fill='none' opacity='0.3'/%3E%3C/svg%3E")`,
+          backgroundSize: "100px 20px",
         }}
       />
 
-      {/* Secondary Wave Layer for Depth */}
+      {/* Deep Water Gradient Overlay */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "radial-gradient(ellipse at center top, rgba(0, 200, 255, 0.15) 0%, transparent 70%)",
+        }}
+      />
+
+      {/* Pool Tile Pattern at Bottom */}
       <div
         style={{
           position: "absolute",
           bottom: 0,
           left: 0,
           right: 0,
-          height: "40px",
-          opacity: 0.3,
-          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%2300ffff' fill-opacity='0.6' d='M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,224C672,245,768,267,864,261.3C960,256,1056,224,1152,197.3C1248,171,1344,149,1392,138.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E")`,
-          backgroundSize: "150% 100%",
-          backgroundPosition: "bottom",
+          height: "25px",
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='20' viewBox='0 0 40 20' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='40' height='20' fill='%23004080' opacity='0.3'/%3E%3Cpath d='M0 20 L40 20' stroke='%230080ff' stroke-width='1' opacity='0.4'/%3E%3C/svg%3E")`,
+          backgroundSize: "40px 20px",
+          opacity: 0.6,
         }}
       />
 
-      {/* Professional Side Accents - Aquatic Blue Glow */}
+      {/* Side Aquatic Accents */}
       <div
         style={{
           position: "absolute",
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: "4px",
-          background: "linear-gradient(180deg, #00d4ff 0%, #0099cc 50%, #0066aa 100%)",
-          boxShadow: "2px 0 8px rgba(0, 212, 255, 0.4)",
+          left: "15px",
+          top: "50%",
+          transform: "translateY(-50%)",
+          width: "3px",
+          height: "60px",
+          background: "linear-gradient(180deg, transparent 0%, #00d4ff 50%, transparent 100%)",
+          opacity: 0.6,
         }}
       />
       <div
         style={{
           position: "absolute",
-          right: 0,
-          top: 0,
-          bottom: 0,
-          width: "4px",
-          background: "linear-gradient(180deg, #00d4ff 0%, #0099cc 50%, #0066aa 100%)",
-          boxShadow: "-2px 0 8px rgba(0, 212, 255, 0.4)",
-        }}
-      />
-
-      {/* Top Shine Effect */}
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: "1px",
-          background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)",
+          right: "15px",
+          top: "50%",
+          transform: "translateY(-50%)",
+          width: "3px",
+          height: "60px",
+          background: "linear-gradient(180deg, transparent 0%, #00d4ff 50%, transparent 100%)",
+          opacity: 0.6,
         }}
       />
 
-      {/* Logo Container with Professional Frame */}
+      {/* Logo Container - NO BACKGROUND */}
       <div
         style={{
           position: "relative",
@@ -229,45 +224,38 @@ const AquaticsHeader = ({ event }) => {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "8px 20px",
+          padding: "10px 40px",
         }}
       >
         {logoUrl ? (
           <div
             style={{
               position: "relative",
-              padding: "6px 16px",
-              background: "rgba(255, 255, 255, 0.95)",
-              borderRadius: "8px",
-              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255,255,255,0.8)",
-              border: "2px solid rgba(0, 212, 255, 0.3)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              maxWidth: "280px",
-              maxHeight: "80px",
+              filter: "drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4))",
             }}
           >
-            {/* Inner glow effect */}
+            {/* Glow effect behind logo */}
             <div
               style={{
                 position: "absolute",
-                inset: "2px",
-                borderRadius: "6px",
-                background: "linear-gradient(135deg, rgba(0,212,255,0.1) 0%, transparent 50%, rgba(0,212,255,0.1) 100%)",
-                pointerEvents: "none",
+                width: "120%",
+                height: "120%",
+                background: "radial-gradient(circle, rgba(0, 212, 255, 0.3) 0%, transparent 70%)",
+                filter: "blur(10px)",
               }}
             />
             <img
               src={logoUrl}
               alt="Event Logo"
               style={{
-                maxHeight: "68px",
-                maxWidth: "240px",
+                maxHeight: "75px",
+                maxWidth: "260px",
                 objectFit: "contain",
                 position: "relative",
                 zIndex: 2,
-                filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.1))",
               }}
               crossOrigin="anonymous"
             />
@@ -276,85 +264,93 @@ const AquaticsHeader = ({ event }) => {
           <div
             style={{
               display: "flex",
+              flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              gap: "12px",
+              gap: "4px",
             }}
           >
             <div
               style={{
-                width: "60px",
-                height: "60px",
-                borderRadius: "50%",
-                background: "linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: "0 4px 20px rgba(0, 212, 255, 0.5), inset 0 2px 4px rgba(255,255,255,0.3)",
-                border: "3px solid rgba(255,255,255,0.2)",
+                fontSize: "22px",
+                fontWeight: "bold",
+                color: "white",
+                textShadow: "0 2px 8px rgba(0,0,0,0.5)",
+                letterSpacing: "1px",
+                textTransform: "uppercase",
               }}
             >
-              <svg
-                style={{ width: "32px", height: "32px", color: "white" }}
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-              </svg>
+              {event?.name || "Aquatics Championship"}
             </div>
             <div
               style={{
-                color: "white",
-                fontSize: "18px",
-                fontWeight: "bold",
-                textShadow: "0 2px 4px rgba(0,0,0,0.5)",
-                letterSpacing: "0.5px",
+                width: "60px",
+                height: "2px",
+                background: "linear-gradient(90deg, transparent, #00d4ff, transparent)",
               }}
-            >
-              {event?.name || "AQUATICS"}
-            </div>
+            />
           </div>
         )}
       </div>
 
-      {/* Bottom Professional Border */}
+      {/* Water Surface Line at Top */}
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: "2px",
+          background: "linear-gradient(90deg, transparent 0%, rgba(0, 212, 255, 0.6) 50%, transparent 100%)",
+        }}
+      />
+
+      {/* Professional Bottom Border - Water Effect */}
       <div
         style={{
           position: "absolute",
           bottom: 0,
           left: 0,
           right: 0,
-          height: "3px",
-          background: "linear-gradient(90deg, #0066aa 0%, #00d4ff 25%, #00ffff 50%, #00d4ff 75%, #0066aa 100%)",
-          boxShadow: "0 -2px 8px rgba(0, 212, 255, 0.4)",
+          height: "4px",
+          background: "linear-gradient(90deg, #004080 0%, #00a8e8 25%, #00d4ff 50%, #00a8e8 75%, #004080 100%)",
+          boxShadow: "0 -2px 10px rgba(0, 212, 255, 0.5)",
         }}
       />
 
-      {/* Corner Decorations - Water Drops */}
+      {/* Bubble Decorations */}
       <div
         style={{
           position: "absolute",
-          top: "8px",
-          left: "12px",
-          width: "8px",
-          height: "8px",
-          background: "rgba(0, 212, 255, 0.6)",
-          borderRadius: "50% 50% 50% 0",
-          transform: "rotate(-45deg)",
-          boxShadow: "0 0 8px rgba(0, 212, 255, 0.6)",
+          bottom: "10px",
+          left: "20px",
+          width: "6px",
+          height: "6px",
+          background: "rgba(255, 255, 255, 0.3)",
+          borderRadius: "50%",
+          boxShadow: "0 0 10px rgba(0, 212, 255, 0.5)",
         }}
       />
       <div
         style={{
           position: "absolute",
-          top: "8px",
-          right: "12px",
-          width: "8px",
-          height: "8px",
-          background: "rgba(0, 212, 255, 0.6)",
-          borderRadius: "50% 50% 50% 0",
-          transform: "rotate(135deg)",
-          boxShadow: "0 0 8px rgba(0, 212, 255, 0.6)",
+          bottom: "20px",
+          left: "35px",
+          width: "4px",
+          height: "4px",
+          background: "rgba(255, 255, 255, 0.2)",
+          borderRadius: "50%",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          bottom: "15px",
+          right: "25px",
+          width: "5px",
+          height: "5px",
+          background: "rgba(255, 255, 255, 0.25)",
+          borderRadius: "50%",
         }}
       />
     </div>
@@ -397,8 +393,8 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
         const url = await QRCode.toDataURL(verifyUrl, {
           errorCorrectionLevel: "H",
           margin: 2,
-          width: 1024, // HIGH RESOLUTION for crisp printing
-          color: { dark: "#000000", light: "#ffffff" } // Pure black for better contrast
+          width: 1024,
+          color: { dark: "#000000", light: "#ffffff" }
         });
         setQrDataUrl(url);
       } catch (err) {
@@ -432,7 +428,7 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
           </div>
         )}
 
-        {/* PROFESSIONAL AQUATICS HEADER */}
+        {/* PROFESSIONAL AQUATICS HEADER - NO WHITE BACKGROUND */}
         <AquaticsHeader event={event} />
 
         <div style={{ height: "6px", backgroundColor: "white", flexShrink: 0 }} />
@@ -521,7 +517,7 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
                     width: "68px", 
                     height: "68px", 
                     display: "block", 
-                    imageRendering: "pixelated" // CRITICAL: Prevents blur
+                    imageRendering: "pixelated"
                   }} 
                   crossOrigin="anonymous" 
                 />
