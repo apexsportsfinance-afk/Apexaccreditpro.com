@@ -49,7 +49,9 @@ export const sendApprovalEmail = async ({
   accreditationId,
   badgeNumber,
   zoneCode,
-  reportingTimes
+  reportingTimes,
+  pdfBase64 = null,
+  pdfFileName = null
 }) => {
   try {
     console.log("[Email] Sending approval email to:", to);
@@ -94,7 +96,9 @@ export const sendApprovalEmail = async ({
           reportingTimes,
           type: "approved",
           templateBody: customBody || null,
-          templateSubject: customSubject || null
+          templateSubject: customSubject || null,
+          pdfBase64: pdfBase64 || undefined,
+          pdfFileName: pdfFileName || undefined
         })
       }
     );
