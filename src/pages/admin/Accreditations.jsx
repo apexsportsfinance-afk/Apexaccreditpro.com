@@ -17,6 +17,7 @@ import {
   Plus,
   AlertCircle
   ,Mail
+  ,Image as ImageIcon
 } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Select from "../../components/ui/Select";
@@ -65,6 +66,7 @@ import {
 import { exportToExcel, exportTableToPDF } from "../../components/accreditation/ExportUtils";
 import { bulkDownloadPDFs } from "../../components/accreditation/cardExport";
 import BulkOperations from "../../components/accreditation/BulkOperations";
+import { downloadSinglePhoto, downloadFullRecord, bulkDownloadPhotos } from "../../lib/imageDownload";
 
 export default function Accreditations() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -106,6 +108,7 @@ export default function Accreditations() {
   const [loading, setLoading] = useState(true);
   const initializedRef = React.useRef(false);
   const [emailModal, setEmailModal] = useState({ open: false, accreditation: null });
+  const [imageDownloadingId, setImageDownloadingId] = useState(null);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -567,6 +570,34 @@ export default function Accreditations() {
     }
   }, [toast]);
 
+  const handleDownloadPhoto = useCallback(async (accreditation) => {
+    if (imageDownloadingId === accreditation.id) return;
+    setImageDownloadingId(accreditation.id);
+    try {
+      await downloadSinglePhoto(accreditation, "photo");
+      toast.success("Photo downloaded!");
+    } catch (err) {
+      console.error("Photo download error:", err);
+      toast.error("Failed to download photo: " + (err.message || "Unknown error"));
+    } finally {
+      setImageDownloadingId(null);
+    }
+  }, [imageDownloadingId, toast]);
+
+  const handleDownloadAllDocs = useCallback(async (accreditation) => {
+    if (imageDownloadingId === accreditation.id) return;
+    setImageDownloadingId(accreditation.id);
+    try {
+      const count = await downloadFullRecord(accreditation);
+      toast.success(`${count} file(s) downloaded!`);
+    } catch (err) {
+      console.error("Document download error:", err);
+      toast.error("Failed to download: " + (err.message || "Unknown error"));
+    } finally {
+      setImageDownloadingId(null);
+    }
+  }, [imageDownloadingId, toast]);
+
   const columns = [
     {
       key: "name",
@@ -703,6 +734,14 @@ export default function Accreditations() {
               </button>
             </>
           )}
+          <button
+            onClick={(e) => { e.stopPropagation(); handleDownloadPhoto(row); }}
+            className="p-2 rounded-lg hover:bg-orange-500/20 transition-colors"
+            title="Download Uploaded Photo"
+            disabled={!row.photoUrl || imageDownloadingId === row.id}
+          >
+            <ImageIcon className={`w-4 h-4 ${row.photoUrl ? "text-orange-300" : "text-slate-600"}`} />
+          </button>
           <button
             onClick={(e) => { e.stopPropagation(); setEmailModal({ open: true, accreditation: row }); }}
             className="p-2 rounded-lg hover:bg-violet-500/20 transition-colors"
@@ -987,6 +1026,33 @@ export default function Accreditations() {
                 <p className="text-lg text-slate-300">{viewModal.accreditation.remarks}</p>
               </div>
             )}
+
+            {/* Uploaded Documents Section */}
+            <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
+              <h4 className="text-lg font-semibold text-cyan-400 mb-3">Uploaded Documents</h4>
+              <div className="flex flex-wrap gap-3">
+                {viewModal.accreditation.photoUrl ? (
+                  <button
+                    onClick={() => handleDownloadPhoto(viewModal.accreditation)}
+                    disabled={imageDownloadingId === viewModal.accreditation.id}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/40 rounded-lg text-orange-300 transition-colors disabled:opacity-50"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                    <span className="text-lg font-medium">Download Photo</span>
+                  </button>
+                ) : (
+                  <span className="text-lg text-slate-500">No photo uploaded</span>
+                )}
+                <button
+                  onClick={() => handleDownloadAllDocs(viewModal.accreditation)}
+                  disabled={imageDownloadingId === viewModal.accreditation.id || (!viewModal.accreditation.photoUrl && !viewModal.accreditation.idDocumentUrl)}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 rounded-lg text-cyan-300 transition-colors disabled:opacity-50"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="text-lg font-medium">Download All Documents</span>
+                </button>
+              </div>
+            </div>
 
             <div className="flex gap-3">
               <Button
