@@ -139,9 +139,10 @@ const useZoneBadgePngs = (codes) => {
   return badges;
 };
 
+// PROFESSIONALLY DESIGNED AQUATICS HEADER
 const AquaticsHeader = ({ event }) => {
   const logoUrl = event?.logoUrl;
-  
+
   return (
     <div
       style={{
@@ -150,31 +151,75 @@ const AquaticsHeader = ({ event }) => {
         position: "relative",
         overflow: "hidden",
         flexShrink: 0,
-        background: "linear-gradient(145deg, #0c1929 0%, #1a3a5c 40%, #0d2847 100%)",
+        background: "linear-gradient(135deg, #001f3f 0%, #003366 25%, #004080 50%, #003366 75%, #001f3f 100%)",
+        boxShadow: "inset 0 2px 4px rgba(255,255,255,0.1)",
       }}
     >
-      {/* Simple elegant gradient overlay */}
+      {/* Animated Water Wave Pattern Overlay */}
       <div
         style={{
           position: "absolute",
           inset: 0,
-          background: "linear-gradient(180deg, rgba(255,255,255,0.08) 0%, transparent 50%, rgba(0,0,0,0.2) 100%)",
+          opacity: 0.15,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%2300d4ff' fill-opacity='1' d='M0,160L48,176C96,192,192,224,288,213.3C384,203,480,149,576,138.7C672,128,768,160,864,181.3C960,203,1056,213,1152,197.3C1248,181,1344,139,1392,117.3L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E")`,
+          backgroundSize: "200% 100%",
+          backgroundPosition: "bottom",
+          backgroundRepeat: "repeat-x",
         }}
       />
-      
-      {/* Subtle bottom accent line */}
+
+      {/* Secondary Wave Layer for Depth */}
       <div
         style={{
           position: "absolute",
           bottom: 0,
           left: 0,
           right: 0,
-          height: "3px",
-          background: "linear-gradient(90deg, transparent 0%, rgba(6, 182, 212, 0.6) 50%, transparent 100%)",
+          height: "40px",
+          opacity: 0.3,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%2300ffff' fill-opacity='0.6' d='M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,224C672,245,768,267,864,261.3C960,256,1056,224,1152,197.3C1248,171,1344,149,1392,138.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E")`,
+          backgroundSize: "150% 100%",
+          backgroundPosition: "bottom",
         }}
       />
-      
-      {/* Logo container - centered */}
+
+      {/* Professional Side Accents - Aquatic Blue Glow */}
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: "4px",
+          background: "linear-gradient(180deg, #00d4ff 0%, #0099cc 50%, #0066aa 100%)",
+          boxShadow: "2px 0 8px rgba(0, 212, 255, 0.4)",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: "4px",
+          background: "linear-gradient(180deg, #00d4ff 0%, #0099cc 50%, #0066aa 100%)",
+          boxShadow: "-2px 0 8px rgba(0, 212, 255, 0.4)",
+        }}
+      />
+
+      {/* Top Shine Effect */}
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: "1px",
+          background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)",
+        }}
+      />
+
+      {/* Logo Container with Professional Frame */}
       <div
         style={{
           position: "relative",
@@ -184,52 +229,134 @@ const AquaticsHeader = ({ event }) => {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "12px 24px",
+          padding: "8px 20px",
         }}
       >
         {logoUrl ? (
-          <img
-            src={logoUrl}
-            alt="Event Logo"
+          <div
             style={{
-              maxHeight: "76px",
-              maxWidth: "260px",
-              objectFit: "contain",
-              filter: "drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4))",
+              position: "relative",
+              padding: "6px 16px",
+              background: "rgba(255, 255, 255, 0.95)",
+              borderRadius: "8px",
+              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255,255,255,0.8)",
+              border: "2px solid rgba(0, 212, 255, 0.3)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              maxWidth: "280px",
+              maxHeight: "80px",
             }}
-            crossOrigin="anonymous"
-          />
+          >
+            {/* Inner glow effect */}
+            <div
+              style={{
+                position: "absolute",
+                inset: "2px",
+                borderRadius: "6px",
+                background: "linear-gradient(135deg, rgba(0,212,255,0.1) 0%, transparent 50%, rgba(0,212,255,0.1) 100%)",
+                pointerEvents: "none",
+              }}
+            />
+            <img
+              src={logoUrl}
+              alt="Event Logo"
+              style={{
+                maxHeight: "68px",
+                maxWidth: "240px",
+                objectFit: "contain",
+                position: "relative",
+                zIndex: 2,
+                filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.1))",
+              }}
+              crossOrigin="anonymous"
+            />
+          </div>
         ) : (
           <div
             style={{
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              gap: "12px",
             }}
           >
             <div
               style={{
-                width: "56px",
-                height: "56px",
+                width: "60px",
+                height: "60px",
                 borderRadius: "50%",
-                background: "linear-gradient(135deg, #06b6d4 0%, #2563eb 100%)",
+                background: "linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                boxShadow: "0 4px 16px rgba(6, 182, 212, 0.5)",
+                boxShadow: "0 4px 20px rgba(0, 212, 255, 0.5), inset 0 2px 4px rgba(255,255,255,0.3)",
+                border: "3px solid rgba(255,255,255,0.2)",
               }}
             >
               <svg
-                style={{ width: "30px", height: "30px", color: "white" }}
+                style={{ width: "32px", height: "32px", color: "white" }}
                 viewBox="0 0 24 24"
                 fill="currentColor"
               >
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
               </svg>
             </div>
+            <div
+              style={{
+                color: "white",
+                fontSize: "18px",
+                fontWeight: "bold",
+                textShadow: "0 2px 4px rgba(0,0,0,0.5)",
+                letterSpacing: "0.5px",
+              }}
+            >
+              {event?.name || "AQUATICS"}
+            </div>
           </div>
         )}
       </div>
+
+      {/* Bottom Professional Border */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: "3px",
+          background: "linear-gradient(90deg, #0066aa 0%, #00d4ff 25%, #00ffff 50%, #00d4ff 75%, #0066aa 100%)",
+          boxShadow: "0 -2px 8px rgba(0, 212, 255, 0.4)",
+        }}
+      />
+
+      {/* Corner Decorations - Water Drops */}
+      <div
+        style={{
+          position: "absolute",
+          top: "8px",
+          left: "12px",
+          width: "8px",
+          height: "8px",
+          background: "rgba(0, 212, 255, 0.6)",
+          borderRadius: "50% 50% 50% 0",
+          transform: "rotate(-45deg)",
+          boxShadow: "0 0 8px rgba(0, 212, 255, 0.6)",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          top: "8px",
+          right: "12px",
+          width: "8px",
+          height: "8px",
+          background: "rgba(0, 212, 255, 0.6)",
+          borderRadius: "50% 50% 50% 0",
+          transform: "rotate(135deg)",
+          boxShadow: "0 0 8px rgba(0, 212, 255, 0.6)",
+        }}
+      />
     </div>
   );
 };
@@ -259,6 +386,7 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
   const nameFontSize = getNameFontSize(accreditation?.firstName, accreditation?.lastName);
   const fullName = `${accreditation?.firstName || "FIRST"} ${accreditation?.lastName || "LAST"}`;
 
+  // HIGH-RES QR CODE GENERATION
   const [qrDataUrl, setQrDataUrl] = React.useState(null);
 
   React.useEffect(() => {
@@ -268,9 +396,9 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
         const verifyUrl = `${window.location.origin}/verify/${verifyId}`;
         const url = await QRCode.toDataURL(verifyUrl, {
           errorCorrectionLevel: "H",
-          margin: 1,
-          width: 512,
-          color: { dark: "#0f172a", light: "#ffffff" }
+          margin: 2,
+          width: 1024, // HIGH RESOLUTION for crisp printing
+          color: { dark: "#000000", light: "#ffffff" } // Pure black for better contrast
         });
         setQrDataUrl(url);
       } catch (err) {
@@ -304,6 +432,7 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
           </div>
         )}
 
+        {/* PROFESSIONAL AQUATICS HEADER */}
         <AquaticsHeader event={event} />
 
         <div style={{ height: "6px", backgroundColor: "white", flexShrink: 0 }} />
@@ -385,7 +514,17 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
           <div style={{ flexShrink: 0 }}>
             {qrDataUrl ? (
               <div data-qr-code="true" style={{ padding: "2px", backgroundColor: "white", border: "2px solid #e2e8f0", borderRadius: "4px" }}>
-                <img src={qrDataUrl} alt="QR Verify" style={{ width: "68px", height: "68px", display: "block", imageRendering: "pixelated" }} crossOrigin="anonymous" />
+                <img 
+                  src={qrDataUrl} 
+                  alt="QR Verify" 
+                  style={{ 
+                    width: "68px", 
+                    height: "68px", 
+                    display: "block", 
+                    imageRendering: "pixelated" // CRITICAL: Prevents blur
+                  }} 
+                  crossOrigin="anonymous" 
+                />
               </div>
             ) : (
               <div style={{ width: "72px", height: "72px", backgroundColor: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "4px" }}>
@@ -393,10 +532,10 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
               </div>
             )}
           </div>
-          {/* Zone badges - right half */}
+          {/* Zone badges - right half with MULTI-ZONE SUPPORT */}
           <div style={{ flex: 1, display: "flex", alignItems: "flex-end", justifyContent: "flex-end", gap: "4px", flexWrap: "wrap", height: "100%", paddingBottom: "2px" }}>
             {zoneCodes.length > 0 ? (
-              zoneCodes.slice(0, 6).map((code, index) => (
+              zoneCodes.map((code, index) => (
                 zoneBadgePngs[code] ? (
                   <img key={index} src={zoneBadgePngs[code]} alt={code} style={{ width: "28px", height: "28px", display: "block" }} />
                 ) : (
