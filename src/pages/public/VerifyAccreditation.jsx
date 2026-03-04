@@ -1,219 +1,335 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
-import { motion } from "motion/react";
-import {
-  Shield,
-  CheckCircle,
-  AlertCircle,
-  User,
-  Calendar,
-  MapPin,
-  Flag,
-  Building,
-  Loader2,
-  Waves
-} from "lucide-react";
-import SwimmingBackground from "../../components/ui/SwimmingBackground";
-import { AccreditationsAPI, EventsAPI, ZonesAPI } from "../../lib/storage";
+import { useParams, Link } from "react-router-dom";
+import { CheckCircle, XCircle, AlertTriangle, Loader2, Shield, Calendar, MapPin, User, Building, Flag, Award } from "lucide-react";
 import { supabase } from "../../lib/supabase";
-import { getCountryName, calculateAge, formatDate, isExpired } from "../../lib/utils";
+import { getCountryName, COUNTRIES, calculateAge, isExpired } from "../../lib/utils";
+import SwimmingBackground from "../../components/ui/SwimmingBackground";
+
+const InfoRow = ({ icon: Icon, label, value }) => {
+  if (!value || value === "---") return null;
+  return (
+    <div className="flex items-start gap-3 py-2">
+      <Icon className="w-4 h-4 text-slate-400 mt-1 flex-shrink-0" />
+      <div>
+        <p className="text-lg text-slate-400">{label}</p>
+        <p className="text-lg font-medium text-slate-800">{value || "---"}</p>
+      </div>
+    </div>
+  );
+};
 
 export default function VerifyAccreditation() {
   const { id } = useParams();
+  const [loading, setLoading] = useState(true);
   const [accreditation, setAccreditation] = useState(null);
   const [event, setEvent] = useState(null);
   const [zones, setZones] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [verificationStatus, setVerificationStatus] = useState("loading");
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        let acc = null;
+    const verify = async () => {
+      if (!id) {
+        setError("No accreditation ID provided");
+        setVerificationStatus("invalid");
+        setLoading(false);
+        return;
+      }
 
-        const { data: byAccId } = await supabase
+      try {
+        const { data: accData, error: accError } = await supabase
           .from("accreditations")
           .select("*")
-          .eq("accreditation_id", id)
-          .maybeSingle();
+          .or(`accreditation_id.eq.${id},badge_number.eq.${id},id.eq.${id}`)
+          .single();
 
-        if (byAccId) {
-          acc = mapFromDB(byAccId);
-        } else {
-          const { data: byBadge } = await supabase
-            .from("accreditations")
-            .select("*")
-            .eq("badge_number", id)
-            .maybeSingle();
-
-          if (byBadge) {
-            acc = mapFromDB(byBadge);
-          } else {
-            const { data: byUuid } = await supabase
-              .from("accreditations")
-              .select("*")
-              .eq("id", id)
-              .maybeSingle();
-
-            if (byUuid) {
-              acc = mapFromDB(byUuid);
-            }
-          }
-        }
-
-        if (!acc) {
-          setError("Accreditation not found. The QR code may be invalid.");
+        if (accError || !accData) {
+          setError("Accreditation not found");
+          setVerificationStatus("invalid");
           setLoading(false);
           return;
         }
 
-        setAccreditation(acc);
+        const formattedAcc = {
+          id: accData.id,
+          firstName: accData.first_name,
+          lastName: accData.last_name,
+          email: accData.email,
+          dateOfBirth: accData.date_of_birth,
+          gender: accData.gender,
+          nationality: accData.nationality,
+          club: accData.club,
+          role: accData.role,
+          zoneCode: accData.zone_code,
+          photoUrl: accData.photo_url,
+          status: accData.status,
+          accreditationId: accData.accreditation_id,
+          badgeNumber: accData.badge_number,
+          eventId: accData.event_id,
+          expiresAt: accData.expires_at,
+          createdAt: accData.created_at,
+        };
 
-        if (acc.eventId) {
-          const eventData = await EventsAPI.getById(acc.eventId);
-          setEvent(eventData);
-          const zonesData = await ZonesAPI.getByEventId(acc.eventId);
-          setZones(zonesData);
+        setAccreditation(formattedAcc);
+
+        if (formattedAcc.eventId) {
+          const { data: eventData } = await supabase
+            .from("events")
+            .select("*")
+            .eq("id", formattedAcc.eventId)
+            .single();
+
+          if (eventData) {
+            setEvent({
+              id: eventData.id,
+              name: eventData.name,
+              location: eventData.location,
+              startDate: eventData.start_date,
+              endDate: eventData.end_date,
+              logoUrl: eventData.logo_url,
+              ageCalculationYear: eventData.age_calculation_year,
+            });
+          }
+
+          const { data: zonesData } = await supabase
+            .from("zones")
+            .select("*")
+            .eq("event_id", formattedAcc.eventId);
+
+          if (zonesData) {
+            setZones(
+              zonesData.map((z) => ({
+                id: z.id,
+                code: z.code,
+                name: z.name,
+                description: z.description,
+                color: z.color,
+              }))
+            );
+          }
+        }
+
+        if (formattedAcc.status === "revoked" || formattedAcc.status === "suspended") {
+          setVerificationStatus("revoked");
+        } else if (isExpired(formattedAcc.expiresAt)) {
+          setVerificationStatus("expired");
+        } else if (formattedAcc.status === "active" || formattedAcc.status === "approved") {
+          setVerificationStatus("valid");
+        } else {
+          setVerificationStatus("pending");
         }
       } catch (err) {
         console.error("Verification error:", err);
-        setError("Failed to verify accreditation. Please try again.");
+        setError("An error occurred during verification");
+        setVerificationStatus("invalid");
       } finally {
         setLoading(false);
       }
     };
 
-    loadData();
+    verify();
   }, [id]);
 
-  const mapFromDB = (db) => ({
-    id: db.id,
-    eventId: db.event_id,
-    firstName: db.first_name,
-    lastName: db.last_name,
-    gender: db.gender,
-    dateOfBirth: db.date_of_birth,
-    nationality: db.nationality,
-    club: db.club,
-    role: db.role,
-    email: db.email,
-    photoUrl: db.photo_url,
-    status: db.status,
-    zoneCode: db.zone_code,
-    badgeNumber: db.badge_number,
-    accreditationId: db.accreditation_id,
-    expiresAt: db.expires_at,
-    createdAt: db.created_at
-  });
+  const getStatusConfig = () => {
+    switch (verificationStatus) {
+      case "valid":
+        return {
+          icon: CheckCircle,
+          color: "text-emerald-500",
+          bgColor: "bg-emerald-500/10",
+          borderColor: "border-emerald-500/30",
+          title: "Valid Accreditation",
+          description: "This accreditation is active and verified.",
+        };
+      case "expired":
+        return {
+          icon: AlertTriangle,
+          color: "text-amber-500",
+          bgColor: "bg-amber-500/10",
+          borderColor: "border-amber-500/30",
+          title: "Expired Accreditation",
+          description: "This accreditation has expired.",
+        };
+      case "revoked":
+        return {
+          icon: XCircle,
+          color: "text-red-500",
+          bgColor: "bg-red-500/10",
+          borderColor: "border-red-500/30",
+          title: "Revoked Accreditation",
+          description: "This accreditation has been revoked or suspended.",
+        };
+      case "pending":
+        return {
+          icon: AlertTriangle,
+          color: "text-yellow-500",
+          bgColor: "bg-yellow-500/10",
+          borderColor: "border-yellow-500/30",
+          title: "Pending Accreditation",
+          description: "This accreditation is pending approval.",
+        };
+      default:
+        return {
+          icon: XCircle,
+          color: "text-red-500",
+          bgColor: "bg-red-500/10",
+          borderColor: "border-red-500/30",
+          title: "Invalid Accreditation",
+          description: error || "This accreditation could not be verified.",
+        };
+    }
+  };
 
-  const expired = accreditation ? isExpired(accreditation.expiresAt) : false;
-  const zoneCodes = accreditation?.zoneCode?.split(",").map(z => z.trim()).filter(Boolean) || [];
-  const countryName = accreditation ? getCountryName(accreditation.nationality) : "";
-  const age = accreditation?.dateOfBirth && event?.ageCalculationYear
-    ? calculateAge(accreditation.dateOfBirth, event.ageCalculationYear)
+  const statusConfig = getStatusConfig();
+  const StatusIcon = statusConfig.icon;
+
+  const countryData = accreditation?.nationality
+    ? COUNTRIES.find((c) => c.code === accreditation.nationality)
     : null;
+
+  const age =
+    accreditation?.dateOfBirth && event?.ageCalculationYear
+      ? calculateAge(accreditation.dateOfBirth, event.ageCalculationYear)
+      : null;
+
+  const zoneCodes = accreditation?.zoneCode
+    ? accreditation.zoneCode.split(",").map((z) => z.trim()).filter(Boolean)
+    : [];
 
   if (loading) {
     return (
       <SwimmingBackground>
-        <div id="verify_loading" className="min-h-screen flex items-center justify-center">
+        <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
-            <Loader2 className="w-12 h-12 text-cyan-500 animate-spin mx-auto mb-4" />
-            <p className="text-lg text-cyan-600">Verifying accreditation...</p>
+            <Loader2 className="w-12 h-12 animate-spin text-cyan-500 mx-auto mb-4" />
+            <p className="text-lg text-slate-300">Verifying accreditation...</p>
           </div>
         </div>
       </SwimmingBackground>
     );
   }
 
-  if (error || !accreditation) {
-    return (
-      <SwimmingBackground>
-        <div id="verify_error" className="min-h-screen flex items-center justify-center p-4">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center max-w-md">
-            <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-slate-800 mb-2">Verification Failed</h1>
-            <p className="text-lg text-slate-500">{error || "Accreditation not found."}</p>
-          </motion.div>
-        </div>
-      </SwimmingBackground>
-    );
-  }
-
-  const isApproved = accreditation.status === "approved";
-
   return (
     <SwimmingBackground>
-      <div id="verify_page" className="min-h-screen py-8 px-4">
-        <div className="max-w-lg mx-auto">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <div className={`rounded-2xl overflow-hidden shadow-2xl border-2 ${expired ? "border-red-400" : isApproved ? "border-emerald-400" : "border-amber-400"}`}>
-              <div className={`p-6 text-center text-white ${expired ? "bg-gradient-to-r from-red-600 to-red-700" : isApproved ? "bg-gradient-to-r from-emerald-600 to-cyan-600" : "bg-gradient-to-r from-amber-500 to-orange-500"}`}>
-                <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-3">
-                  {expired ? (
-                    <AlertCircle className="w-8 h-8 text-white" />
-                  ) : isApproved ? (
-                    <CheckCircle className="w-8 h-8 text-white" />
-                  ) : (
-                    <Shield className="w-8 h-8 text-white" />
-                  )}
-                </div>
-                <h1 className="text-2xl font-bold">
-                  {expired ? "EXPIRED" : isApproved ? "VERIFIED" : accreditation.status?.toUpperCase()}
-                </h1>
-                <p className="text-lg text-white/80 mt-1">Accreditation {expired ? "has expired" : isApproved ? "is valid" : "is " + accreditation.status}</p>
+      <div className="min-h-screen py-8 px-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="text-center mb-8">
+            <Link to="/" className="inline-block">
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <Shield className="w-8 h-8 text-cyan-400" />
+                <span className="text-2xl font-bold text-white">AccreditPro</span>
               </div>
+            </Link>
+            <h1 className="text-xl font-semibold text-white">Accreditation Verification</h1>
+          </div>
 
-              <div className="bg-white p-6 space-y-5">
-                <div className="flex items-center gap-4">
-                  {accreditation.photoUrl ? (
-                    <img src={accreditation.photoUrl} alt="Photo" className="w-20 h-24 rounded-lg object-cover border-2 border-slate-200" />
-                  ) : (
-                    <div className="w-20 h-24 rounded-lg bg-slate-100 flex items-center justify-center">
-                      <User className="w-10 h-10 text-slate-300" />
-                    </div>
-                  )}
-                  <div>
-                    <h2 className="text-2xl font-bold text-slate-800">
+          <div className={`rounded-2xl border ${statusConfig.borderColor} ${statusConfig.bgColor} p-6 mb-6`}>
+            <div className="flex items-center gap-4">
+              <div className={`w-16 h-16 rounded-full ${statusConfig.bgColor} flex items-center justify-center`}>
+                <StatusIcon className={`w-8 h-8 ${statusConfig.color}`} />
+              </div>
+              <div>
+                <h2 className={`text-xl font-bold ${statusConfig.color}`}>{statusConfig.title}</h2>
+                <p className="text-lg text-slate-300">{statusConfig.description}</p>
+              </div>
+            </div>
+          </div>
+
+          {accreditation && (
+            <div className="bg-white/95 backdrop-blur rounded-2xl shadow-xl overflow-hidden">
+              {event?.logoUrl && (
+                <div className="h-24 bg-gradient-to-r from-cyan-500 to-blue-600 flex items-center justify-center p-4">
+                  <img
+                    src={event.logoUrl}
+                    alt={event.name}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
+              )}
+
+              <div className="p-6">
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="w-24 h-28 rounded-lg overflow-hidden border-2 border-slate-200 flex-shrink-0">
+                    {accreditation.photoUrl ? (
+                      <img
+                        src={accreditation.photoUrl}
+                        alt="Photo"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-slate-100 flex items-center justify-center">
+                        <User className="w-10 h-10 text-slate-300" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-slate-900">
                       {accreditation.firstName} {accreditation.lastName}
-                    </h2>
-                    <span className="inline-block mt-1 px-3 py-1 rounded-full text-lg font-bold text-white bg-blue-600">
-                      {accreditation.role}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <InfoRow icon={Building} label="Club" value={accreditation.club} />
-                  <InfoRow icon={Flag} label="Country" value={countryName} />
-                  {age !== null && <InfoRow icon={User} label="Age" value={`${age} years`} />}
-                  <InfoRow icon={User} label="Gender" value={accreditation.gender} />
-                  <InfoRow icon={Calendar} label="ID" value={accreditation.accreditationId || "---"} />
-                  <InfoRow icon={Shield} label="Badge" value={accreditation.badgeNumber || "---"} />
-                </div>
-
-                {event && (
-                  <div className="p-4 bg-cyan-50 rounded-lg border border-cyan-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Waves className="w-5 h-5 text-cyan-600" />
-                      <h3 className="text-lg font-bold text-cyan-800">Event</h3>
+                    </h3>
+                    <div className="inline-block mt-2 px-3 py-1 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-lg font-medium">
+                      {accreditation.role || "Participant"}
                     </div>
-                    <p className="text-lg font-medium text-slate-800">{event.name}</p>
-                    <p className="text-lg text-slate-500">{event.location}</p>
-                    <p className="text-lg text-slate-500">{formatDate(event.startDate)} - {formatDate(event.endDate)}</p>
+                    <p className="mt-2 text-lg text-slate-500">
+                      ID: {accreditation.badgeNumber || accreditation.accreditationId?.split("-")?.pop() || "---"}
+                    </p>
                   </div>
-                )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 border-t border-slate-100 pt-4">
+                  <InfoRow icon={Building} label="Club/Organization" value={accreditation.club} />
+                  <InfoRow icon={User} label="Age" value={age ? `${age} years` : null} />
+                  <InfoRow icon={User} label="Gender" value={accreditation.gender} />
+                  <InfoRow
+                    icon={Flag}
+                    label="Nationality"
+                    value={
+                      countryData ? (
+                        <span className="flex items-center gap-2">
+                          <img
+                            src={`https://flagcdn.com/w40/${countryData.flag}.png`}
+                            alt=""
+                            className="w-5 h-4 rounded"
+                          />
+                          {getCountryName(accreditation.nationality)}
+                        </span>
+                      ) : (
+                        getCountryName(accreditation.nationality)
+                      )
+                    }
+                  />
+                  {event && (
+                    <>
+                      <InfoRow icon={Award} label="Event" value={event.name} />
+                      <InfoRow icon={MapPin} label="Location" value={event.location} />
+                      <InfoRow
+                        icon={Calendar}
+                        label="Event Dates"
+                        value={
+                          event.startDate && event.endDate
+                            ? `${new Date(event.startDate).toLocaleDateString()} - ${new Date(event.endDate).toLocaleDateString()}`
+                            : null
+                        }
+                      />
+                    </>
+                  )}
+                </div>
 
                 {zoneCodes.length > 0 && (
-                  <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                    <h3 className="text-lg font-bold text-slate-700 mb-2">Access</h3>
+                  <div className="mt-6 pt-4 border-t border-slate-100">
+                    <p className="text-lg text-slate-500 mb-3">Access Zones</p>
                     <div className="flex flex-wrap gap-2">
-                      {zoneCodes.map((code, i) => {
-                        const zoneInfo = zones.find(z => z.code === code);
+                      {zoneCodes.map((code, idx) => {
+                        const zoneInfo = zones.find((z) => z.code === code);
                         return (
-                          <span key={i} className="px-3 py-1 rounded-md text-lg font-bold text-white bg-slate-700">
-                            {code}{zoneInfo ? ` - ${zoneInfo.name}` : ""}
-                          </span>
+                          <div
+                            key={idx}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 text-white"
+                          >
+                            <span className="font-bold text-lg">{code}</span>
+                            {zoneInfo?.name && (
+                              <span className="text-lg text-slate-300">- {zoneInfo.name}</span>
+                            )}
+                          </div>
                         );
                       })}
                     </div>
@@ -221,27 +337,29 @@ export default function VerifyAccreditation() {
                 )}
 
                 {accreditation.expiresAt && (
-                  <p className={`text-lg text-center font-medium ${expired ? "text-red-600" : "text-emerald-600"}`}>
-                    {expired ? "Expired: " : "Valid until: "}{formatDate(accreditation.expiresAt)}
-                  </p>
+                  <div className="mt-6 pt-4 border-t border-slate-100">
+                    <p className="text-lg text-slate-500">
+                      {isExpired(accreditation.expiresAt) ? "Expired" : "Valid Until"}:{" "}
+                      <span className="font-medium text-slate-700">
+                        {new Date(accreditation.expiresAt).toLocaleDateString()}
+                      </span>
+                    </p>
+                  </div>
                 )}
               </div>
             </div>
-          </motion.div>
+          )}
+
+          <div className="text-center mt-8">
+            <p className="text-lg text-slate-400">
+              Verified at {new Date().toLocaleString()}
+            </p>
+            <Link to="/" className="text-lg text-cyan-400 hover:text-cyan-300 mt-2 inline-block">
+              Return to Home
+            </Link>
+          </div>
         </div>
       </div>
     </SwimmingBackground>
-  );
-}
-
-function InfoRow({ icon: Icon, label, value }) {
-  return (
-    <div className="flex items-start gap-2">
-      <Icon className="w-4 h-4 text-slate-400 mt-1 flex-shrink-0" />
-      <div>
-        <p className="text-lg text-slate-400">{label}</p>
-        <p className="text-lg font-medium text-slate-800">{value || "---"}</p>
-      </div>
-    </div>
   );
 }
