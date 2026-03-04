@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion } from "motion/react";
+import EditAccreditationModal from "../../components/EditAccreditationModal";
 import {
   Filter,
   Download,
@@ -8,25 +9,16 @@ import {
   XCircle,
   Eye,
   Trash2,
-  RefreshCw,
-  FileDown,
   Loader2,
-  ExternalLink,
-  Printer,
   Edit,
-  Save,
   Link,
-  Clock,
   Copy,
   Check,
-  FileSpreadsheet,
-  FileText,
-  Plus
+  Plus,
+  AlertCircle
 } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Select from "../../components/ui/Select";
-import Input from "../../components/ui/Input";
-import SearchableSelect from "../../components/ui/SearchableSelect";
 import Badge from "../../components/ui/Badge";
 import Modal from "../../components/ui/Modal";
 import DataTable from "../../components/ui/DataTable";
@@ -38,8 +30,9 @@ import BadgeGenerator from "../../components/accreditation/BadgeGenerator";
 import {
   EventsAPI,
   AccreditationsAPI,
-  ZonesAPI
-} from "../../lib/api";
+  ZonesAPI,
+  EventCategoriesAPI
+} from "../../lib/storage";
 import { supabase } from "../../lib/supabase";
 import {
   sendApprovalEmail,
@@ -54,8 +47,6 @@ import {
   ROLE_BADGE_PREFIXES,
   COUNTRIES,
   printPdfBlob,
-  validateFile,
-  fileToBase64,
   isExpired,
   getExpirationLabel,
   getExpirationStatusColor
@@ -70,6 +61,7 @@ import {
 } from "../../lib/pdfCapture";
 import { exportToExcel, exportTableToPDF } from "../../components/accreditation/ExportUtils";
 import { bulkDownloadPDFs } from "../../components/accreditation/cardExport";
+import BulkOperations from "../../components/accreditation/BulkOperations";
 
 export default function Accreditations() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -78,18 +70,15 @@ export default function Accreditations() {
   const [events, setEvents] = useState([]);
   const [accreditations, setAccreditations] = useState([]);
   const [zones, setZones] = useState([]);
-  const [selectedEvent, setSelectedEvent] = useState(searchParams.get("event") || "");
-  const [filters, setFilters] = useState({
-    status: "",
-    role: "",
-    nationality: ""
-  });
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [eventCategories, setEventCategories] = useState([]);
+  const [filters, setFilters] = useState({ status: "", role: "", nationality: "" });
   const [selectedRows, setSelectedRows] = useState([]);
   const [viewModal, setViewModal] = useState({ open: false, accreditation: null });
   const [approveModal, setApproveModal] = useState({ open: false, accreditation: null });
   const [rejectModal, setRejectModal] = useState({ open: false, accreditation: null });
   const [bulkApproveModal, setBulkApproveModal] = useState(false);
-  const [approveData, setApproveData] = useState({ zoneCode: "" });
+  const [approveData, setApproveData] = useState({ zoneCodes: [] });
   const [rejectRemarks, setRejectRemarks] = useState("");
   const [downloadingId, setDownloadingId] = useState(null);
   const [pdfPreviewModal, setPdfPreviewModal] = useState({ open: false, accreditation: null });
@@ -100,74 +89,105 @@ export default function Accreditations() {
   const [selectedPdfSize, setSelectedPdfSize] = useState("a6");
   const [selectedImageSize, setSelectedImageSize] = useState("medium");
   const [editModal, setEditModal] = useState({ open: false, accreditation: null });
-  const [editFormData, setEditFormData] = useState({
-    firstName: "",
-    lastName: "",
-    gender: "",
-    dateOfBirth: "",
-    nationality: "",
-    club: "",
-    role: "",
-    email: "",
-    photoUrl: null,
-    idDocumentUrl: null,
-    zoneCode: ""
-  });
   const [editSaving, setEditSaving] = useState(false);
-  const [editErrors, setEditErrors] = useState({});
-
-  // Share link state
+  const [loadingCategories, setLoadingCategories] = useState(false);
   const [shareLinkModal, setShareLinkModal] = useState({ open: false, accreditation: null });
-  const [shareLinkData, setShareLinkData] = useState({
-    expiryDate: "",
-    expiryTime: "23:59"
-  });
+  const [shareLinkData, setShareLinkData] = useState({ expiryDate: "", expiryTime: "23:59" });
   const [generatedLink, setGeneratedLink] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
   const [updatingExpiry, setUpdatingExpiry] = useState(false);
-
-  // Delete confirmation state
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ open: false, accreditation: null });
   const [deleting, setDeleting] = useState(false);
-
-  // NEW: Bulk operations loading state
   const [bulkDownloading, setBulkDownloading] = useState(false);
+  const [bulkEditing, setBulkEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const initializedRef = React.useRef(false);
 
   useEffect(() => {
-    loadData();
+    const initializeData = async () => {
+      setLoading(true);
+      try {
+        const allEvents = await EventsAPI.getAll();
+        setEvents(allEvents);
+        const eventParam = searchParams.get("event");
+        const targetEventId = eventParam || (allEvents.length > 0 ? allEvents[0].id : null);
+        if (targetEventId) {
+          setSelectedEvent(targetEventId);
+          const [accData, zoneData] = await Promise.all([
+            AccreditationsAPI.getByEventId(targetEventId),
+            ZonesAPI.getByEventId(targetEventId)
+          ]);
+          setAccreditations(accData);
+          setZones(zoneData);
+          try {
+            const { data: ecData } = await supabase
+              .from("event_categories")
+              .select("*, category:categories(*)")
+              .eq("event_id", targetEventId);
+            if (ecData) setEventCategories(ecData);
+          } catch (ecErr) {
+            console.warn("Event categories load failed (non-critical):", ecErr);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load initial data:", error);
+        const errorMessage = error.message?.includes("Access denied")
+          ? "Access denied. Please log in again."
+          : error.message?.includes("Network error") || error.message === "Failed to fetch"
+            ? "Network error. Please check your internet connection and refresh the page."
+            : "Failed to load data. Please refresh the page.";
+        toast.error(errorMessage);
+      } finally {
+        setLoading(false);
+        initializedRef.current = true;
+      }
+    };
+    initializeData();
   }, []);
 
   useEffect(() => {
-    if (selectedEvent) {
-      const loadEventData = async () => {
-        setAccreditations(await AccreditationsAPI.getByEventId(selectedEvent));
-        setZones(await ZonesAPI.getByEventId(selectedEvent));
-      };
-      loadEventData();
-      searchParams.set("event", selectedEvent);
-      setSearchParams(searchParams);
-    } else {
-      AccreditationsAPI.getAll().then(setAccreditations);
-    }
+    if (!selectedEvent || !initializedRef.current) return;
+    const loadEventData = async () => {
+      setLoading(true);
+      try {
+        const [accData, zoneData] = await Promise.all([
+          AccreditationsAPI.getByEventId(selectedEvent),
+          ZonesAPI.getByEventId(selectedEvent)
+        ]);
+        setAccreditations(accData);
+        setZones(zoneData);
+        searchParams.set("event", selectedEvent);
+        setSearchParams(searchParams);
+        try {
+          const { data: ecData } = await supabase
+            .from("event_categories")
+            .select("*, category:categories(*)")
+            .eq("event_id", selectedEvent);
+          if (ecData) setEventCategories(ecData);
+        } catch (ecErr) {
+          console.warn("Event categories (non-critical):", ecErr);
+        }
+      } catch (error) {
+        console.error("Failed to load event data:", error);
+        toast.error("Failed to load accreditations. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadEventData();
     setSelectedRows([]);
   }, [selectedEvent]);
 
-  const loadData = async () => {
-    const allEvents = await EventsAPI.getAll();
-    setEvents(allEvents);
-    const eventParam = searchParams.get("event");
-    if (eventParam) {
-      setSelectedEvent(eventParam);
-      setAccreditations(await AccreditationsAPI.getByEventId(eventParam));
-      setZones(await ZonesAPI.getByEventId(eventParam));
-    } else if (allEvents.length > 0) {
-      setSelectedEvent(allEvents[0].id);
-      setAccreditations(await AccreditationsAPI.getByEventId(allEvents[0].id));
-      setZones(await ZonesAPI.getByEventId(allEvents[0].id));
+  const refreshAccreditations = useCallback(async () => {
+    if (!selectedEvent) return;
+    try {
+      const accData = await AccreditationsAPI.getByEventId(selectedEvent);
+      setAccreditations(accData);
+    } catch (error) {
+      console.error("Failed to refresh accreditations:", error);
     }
-  };
+  }, [selectedEvent]);
 
-  // IMPORTANT: Define filteredAccreditations BEFORE functions that use it
   const filteredAccreditations = useMemo(() => {
     return (Array.isArray(accreditations) ? accreditations : []).filter((acc) => {
       if (filters.status && acc.status !== filters.status) return false;
@@ -179,59 +199,245 @@ export default function Accreditations() {
 
   const currentEvent = events.find((e) => e.id === selectedEvent);
 
-  // NOW define the export functions that use filteredAccreditations
-  const handleExportExcel = useCallback(() => {
-    const dataToExport = selectedRows.length > 0 
-      ? filteredAccreditations.filter(r => selectedRows.includes(r.id))
-      : filteredAccreditations;
-    
-    const eventName = currentEvent?.name || "export";
-    exportToExcel(dataToExport, `accreditations-${eventName}`);
-    toast.success("Excel file downloaded!");
-  }, [selectedRows, filteredAccreditations, currentEvent, toast]);
-
-  const handleExportPDF = useCallback(async () => {
-    const dataToExport = selectedRows.length > 0 
-      ? filteredAccreditations.filter(r => selectedRows.includes(r.id))
-      : filteredAccreditations;
-    
-    const columns = [
-      { key: "accreditationId", header: "ID" },
-      { key: "badgeNumber", header: "Badge" },
-      { key: "firstName", header: "First Name" },
-      { key: "lastName", header: "Last Name" },
-      { key: "role", header: "Role" },
-      { key: "club", header: "Club" },
-      { key: "nationality", header: "Country" },
-      { key: "status", header: "Status" },
-    ];
-    
-    await exportTableToPDF(dataToExport, columns, "Accreditations List");
-    toast.success("PDF file downloaded!");
-  }, [selectedRows, filteredAccreditations, toast]);
-
-  const handleBulkDownloadCards = useCallback(async () => {
-    if (selectedRows.length === 0) return;
-    setBulkDownloading(true);
+  const handleOpenEdit = useCallback(async (accreditation) => {
+    setEditModal({ open: true, accreditation });
+    setLoadingCategories(true);
     try {
-      const selectedData = filteredAccreditations.filter(r => selectedRows.includes(r.id));
-      await bulkDownloadPDFs(selectedData, currentEvent, zones, "a6");
-      toast.success(`Downloaded ${selectedRows.length} cards!`);
+      const eventCats = await EventCategoriesAPI.getByEventId(accreditation.eventId);
+      setEventCategories(eventCats);
     } catch (err) {
-      toast.error("Failed to download cards");
+      console.error("Failed to load event categories:", err);
+      setEventCategories([]);
     } finally {
-      setBulkDownloading(false);
+      setLoadingCategories(false);
     }
-  }, [selectedRows, filteredAccreditations, currentEvent, zones, toast]);
+  }, []);
+
+  const handleOpenShareLink = useCallback((accreditation) => {
+    const defaultDate = accreditation.expiresAt
+      ? new Date(accreditation.expiresAt).toISOString().split("T")[0]
+      : "";
+    const defaultTime = accreditation.expiresAt
+      ? new Date(accreditation.expiresAt).toTimeString().slice(0, 5)
+      : "23:59";
+    setShareLinkData({ expiryDate: defaultDate, expiryTime: defaultTime });
+    setGeneratedLink("");
+    setLinkCopied(false);
+    setShareLinkModal({ open: true, accreditation });
+  }, []);
+
+  const generateShareLink = useCallback(async () => {
+    if (!shareLinkData.expiryDate) {
+      toast.error("Please select an expiry date");
+      return;
+    }
+    setUpdatingExpiry(true);
+    try {
+      const expiryDateTime = new Date(`${shareLinkData.expiryDate}T${shareLinkData.expiryTime}:00`);
+      if (expiryDateTime <= new Date()) {
+        toast.error("Expiry date must be in the future");
+        setUpdatingExpiry(false);
+        return;
+      }
+      await AccreditationsAPI.update(shareLinkModal.accreditation.id, {
+        expiresAt: expiryDateTime.toISOString()
+      });
+      const accreditationId = shareLinkModal.accreditation.accreditationId || shareLinkModal.accreditation.id;
+      const link = `${window.location.origin}/accreditation/${accreditationId}`;
+      setGeneratedLink(link);
+      await refreshAccreditations();
+      toast.success("Expiry updated and link generated!");
+    } catch (error) {
+      console.error("Error generating link:", error);
+      toast.error("Failed to generate link: " + (error.message || "Unknown error"));
+    } finally {
+      setUpdatingExpiry(false);
+    }
+  }, [shareLinkData, shareLinkModal.accreditation, toast, refreshAccreditations]);
+
+  const copyShareLink = useCallback(async () => {
+    if (!generatedLink) return;
+    try {
+      await navigator.clipboard.writeText(generatedLink);
+      setLinkCopied(true);
+      toast.success("Link copied to clipboard!");
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      const input = document.getElementById("share-link-input");
+      if (input) {
+        input.select();
+        document.execCommand("copy");
+        setLinkCopied(true);
+        toast.success("Link copied!");
+        setTimeout(() => setLinkCopied(false), 2000);
+      }
+    }
+  }, [generatedLink, toast]);
+
+  const handleOpenDeleteConfirm = useCallback((accreditation) => {
+    setDeleteConfirmModal({ open: true, accreditation });
+  }, []);
+
+  const confirmDeleteAccreditation = useCallback(async () => {
+    if (!deleteConfirmModal.accreditation) return;
+    setDeleting(true);
+    try {
+      await AccreditationsAPI.delete(deleteConfirmModal.accreditation.id);
+      toast.success("Accreditation permanently deleted");
+      setDeleteConfirmModal({ open: false, accreditation: null });
+      await refreshAccreditations();
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast.error("Failed to delete: " + (error.message || "Unknown error"));
+    } finally {
+      setDeleting(false);
+    }
+  }, [deleteConfirmModal.accreditation, toast, refreshAccreditations]);
+
+  const handleApprove = (accreditation) => {
+    setApproveData({ zoneCodes: [] });
+    setApproveModal({ open: true, accreditation });
+  };
+
+  const confirmApprove = async () => {
+    if (!approveData.zoneCodes || approveData.zoneCodes.length === 0) {
+      toast.error("Please select zone access");
+      return;
+    }
+    setApproving(true);
+    try {
+      const accreditation = approveModal.accreditation;
+      const eventData = events.find((e) => e.id === accreditation.eventId);
+      const role = accreditation.role || "Unknown";
+      const prefix = ROLE_BADGE_PREFIXES[role] || role.substring(0, 3).toUpperCase() || "GEN";
+      const { count: existingCount } = await supabase
+        .from("accreditations")
+        .select("id", { count: "exact", head: true })
+        .eq("event_id", accreditation.eventId)
+        .eq("role", role)
+        .eq("status", "approved");
+      const badgeNumber = `${prefix}-${String((existingCount || 0) + 1).padStart(3, "0")}`;
+      const zoneCodeString = approveData.zoneCodes.join(",");
+      await AccreditationsAPI.approve(accreditation.id, zoneCodeString, badgeNumber);
+      await refreshAccreditations();
+      const emailResult = await sendApprovalEmail({
+        to: accreditation.email,
+        name: `${accreditation.firstName} ${accreditation.lastName}`,
+        eventName: eventData?.name || "Event",
+        eventLocation: eventData?.location || "",
+        eventDates: eventData ? `${eventData.startDate} - ${eventData.endDate}` : "",
+        role: accreditation.role,
+        accreditationId: badgeNumber,
+        badgeNumber: badgeNumber,
+        zoneCode: zoneCodeString,
+        reportingTimes: eventData?.reportingTimes || ""
+      });
+      if (emailResult.success) {
+        toast.success("Accreditation approved and email sent!");
+      } else {
+        toast.success("Accreditation approved! Email notification may have failed.");
+      }
+      setApproveModal({ open: false, accreditation: null });
+    } catch (error) {
+      console.error("Approval error:", error);
+      toast.error("Failed to complete approval. Please try again.");
+    } finally {
+      setApproving(false);
+    }
+  };
+
+  const handleReject = (accreditation) => {
+    setRejectRemarks("");
+    setRejectModal({ open: true, accreditation });
+  };
+
+  const confirmReject = async () => {
+    if (!rejectRemarks.trim()) {
+      toast.error("Please provide rejection remarks");
+      return;
+    }
+    setRejecting(true);
+    try {
+      const accreditation = rejectModal.accreditation;
+      const eventData = events.find((e) => e.id === accreditation.eventId);
+      await AccreditationsAPI.reject(accreditation.id, rejectRemarks);
+      await refreshAccreditations();
+      const emailResult = await sendRejectionEmail({
+        to: accreditation.email,
+        name: `${accreditation.firstName} ${accreditation.lastName}`,
+        eventName: eventData?.name || "Event",
+        role: accreditation.role,
+        remarks: rejectRemarks,
+        resubmitUrl: eventData?.slug ? `${window.location.origin}/register/${eventData.slug}` : null
+      });
+      if (emailResult.success) {
+        toast.success("Accreditation rejected and email sent!");
+      } else {
+        toast.success("Accreditation rejected! Email notification may have failed.");
+      }
+      setRejectModal({ open: false, accreditation: null });
+    } catch (error) {
+      console.error("Rejection error:", error);
+      toast.error("Failed to complete rejection. Please try again.");
+    } finally {
+      setRejecting(false);
+    }
+  };
+
+  const handleBulkApprove = () => {
+    if (selectedRows.length === 0) {
+      toast.warning("No accreditations selected");
+      return;
+    }
+    setApproveData({ zoneCodes: [] });
+    setBulkApproveModal(true);
+  };
+
+  const confirmBulkApprove = async () => {
+    if (!approveData.zoneCodes || approveData.zoneCodes.length === 0) {
+      toast.error("Please select zone access");
+      return;
+    }
+    const zoneCodeString = approveData.zoneCodes.join(",");
+    await AccreditationsAPI.bulkApprove(selectedRows, zoneCodeString);
+    toast.success(`${selectedRows.length} accreditations approved`);
+    setBulkApproveModal(false);
+    setSelectedRows([]);
+    await refreshAccreditations();
+  };
+
+  const handleBulkEdit = async (ids, updates) => {
+    if (!ids || ids.length === 0) return;
+    setBulkEditing(true);
+    try {
+      await AccreditationsAPI.bulkUpdate(ids, updates);
+      toast.success(`${ids.length} accreditations updated successfully`);
+      setSelectedRows([]);
+      await refreshAccreditations();
+    } catch (error) {
+      console.error("Bulk edit error:", error);
+      toast.error("Failed to update accreditations: " + (error.message || "Unknown error"));
+    } finally {
+      setBulkEditing(false);
+    }
+  };
+
+  const handlePreviewPDF = useCallback(async (accreditation) => {
+    setPdfPreviewLoading(true);
+    setPdfPreviewModal({ open: true, accreditation });
+    setTimeout(() => { setPdfPreviewLoading(false); }, 500);
+  }, []);
+
+  const closePdfPreviewModal = useCallback(() => {
+    setPdfPreviewModal({ open: false, accreditation: null });
+  }, []);
 
   const handleDownloadPDF = useCallback(async (accreditation, openInBrowser = false) => {
     const id = accreditation.id;
     if (downloadingId === id) return;
     setDownloadingId(id);
-
     try {
       const fileName = `${accreditation.firstName}_${accreditation.lastName}_${selectedPdfSize.toUpperCase()}_${accreditation.accreditationId || "accreditation"}.pdf`;
-
       if (openInBrowser) {
         await openCapturedPDFInTab("accreditation-front-card", "accreditation-back-card", selectedPdfSize);
         toast.success("PDF opened in new tab!");
@@ -251,7 +457,6 @@ export default function Accreditations() {
     const id = accreditation.id;
     if (downloadingId === id) return;
     setDownloadingId(id);
-
     try {
       const baseFileName = `${accreditation.firstName}_${accreditation.lastName}_${selectedImageSize}_${accreditation.accreditationId || "card"}`;
       await downloadAsImages("accreditation-front-card", "accreditation-back-card", baseFileName, selectedImageSize);
@@ -274,318 +479,6 @@ export default function Accreditations() {
       toast.error("Failed to print: " + (err.message || "Unknown error"));
     }
   }, [toast]);
-
-  const handlePreviewPDF = useCallback(async (accreditation) => {
-    setPdfPreviewLoading(true);
-    setPdfPreviewModal({ open: true, accreditation });
-    setTimeout(() => {
-      setPdfPreviewLoading(false);
-    }, 500);
-  }, []);
-
-  const closePdfPreviewModal = useCallback(() => {
-    setPdfPreviewModal({ open: false, accreditation: null });
-  }, []);
-
-  const handleOpenEdit = useCallback((accreditation) => {
-    setEditFormData({
-      firstName: accreditation.firstName || "",
-      lastName: accreditation.lastName || "",
-      gender: accreditation.gender || "",
-      dateOfBirth: accreditation.dateOfBirth || "",
-      nationality: accreditation.nationality || "",
-      club: accreditation.club || "",
-      role: accreditation.role || "",
-      email: accreditation.email || "",
-      photoUrl: accreditation.photoUrl || null,
-      idDocumentUrl: accreditation.idDocumentUrl || null,
-      zoneCode: accreditation.zoneCode || ""
-    });
-    setEditErrors({});
-    setEditModal({ open: true, accreditation });
-  }, []);
-
-  const handleEditInputChange = (e) => {
-    const { name, value } = e.target;
-    setEditFormData((prev) => ({ ...prev, [name]: value }));
-    if (editErrors[name]) {
-      setEditErrors((prev) => ({ ...prev, [name]: null }));
-    }
-  };
-
-  const handleEditFileChange = async (e, field) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const validation = validateFile(file);
-    if (!validation.valid) {
-      setEditErrors((prev) => ({ ...prev, [field]: validation.error }));
-      return;
-    }
-    try {
-      const base64 = await fileToBase64(file);
-      setEditFormData((prev) => ({ ...prev, [field]: base64 }));
-      setEditErrors((prev) => ({ ...prev, [field]: null }));
-    } catch {
-      setEditErrors((prev) => ({ ...prev, [field]: "Failed to process file" }));
-    }
-  };
-
-  const handleSaveEdit = async () => {
-    const newErrors = {};
-    if (!editFormData.firstName.trim()) newErrors.firstName = "First name is required";
-    if (!editFormData.lastName.trim()) newErrors.lastName = "Last name is required";
-    if (!editFormData.gender) newErrors.gender = "Gender is required";
-    if (!editFormData.dateOfBirth) newErrors.dateOfBirth = "Date of birth is required";
-    if (!editFormData.nationality) newErrors.nationality = "Nationality is required";
-    if (!editFormData.club.trim()) newErrors.club = "Club is required";
-    if (!editFormData.role) newErrors.role = "Role is required";
-    if (!editFormData.email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editFormData.email)) {
-      newErrors.email = "Invalid email format";
-    }
-    setEditErrors(newErrors);
-    if (Object.keys(newErrors).length > 0) return;
-
-    setEditSaving(true);
-    try {
-      const updatePayload = {
-        firstName: editFormData.firstName,
-        lastName: editFormData.lastName,
-        gender: editFormData.gender,
-        dateOfBirth: editFormData.dateOfBirth,
-        nationality: editFormData.nationality,
-        club: editFormData.club,
-        role: editFormData.role,
-        email: editFormData.email,
-        photoUrl: editFormData.photoUrl,
-        idDocumentUrl: editFormData.idDocumentUrl
-      };
-      if (editModal.accreditation.status === "approved" && editFormData.zoneCode) {
-        updatePayload.zoneCode = editFormData.zoneCode;
-      }
-      await AccreditationsAPI.update(editModal.accreditation.id, updatePayload);
-      toast.success("Accreditation updated successfully");
-      setEditModal({ open: false, accreditation: null });
-      setAccreditations(await AccreditationsAPI.getByEventId(selectedEvent));
-    } catch (error) {
-      console.error("Edit save error:", error);
-      toast.error("Failed to save changes: " + (error.message || "Unknown error"));
-    } finally {
-      setEditSaving(false);
-    }
-  };
-
-  // Share link handlers
-  const handleOpenShareLink = useCallback((accreditation) => {
-    const defaultDate = accreditation.expiresAt
-      ? new Date(accreditation.expiresAt).toISOString().split("T")[0]
-      : "";
-    const defaultTime = accreditation.expiresAt
-      ? new Date(accreditation.expiresAt).toTimeString().slice(0, 5)
-      : "23:59";
-    setShareLinkData({
-      expiryDate: defaultDate,
-      expiryTime: defaultTime
-    });
-    setGeneratedLink("");
-    setLinkCopied(false);
-    setShareLinkModal({ open: true, accreditation });
-  }, []);
-
-  const generateShareLink = useCallback(async () => {
-    if (!shareLinkData.expiryDate) {
-      toast.error("Please select an expiry date");
-      return;
-    }
-
-    setUpdatingExpiry(true);
-    try {
-      const expiryDateTime = new Date(`${shareLinkData.expiryDate}T${shareLinkData.expiryTime}:00`);
-
-      if (expiryDateTime <= new Date()) {
-        toast.error("Expiry date must be in the future");
-        setUpdatingExpiry(false);
-        return;
-      }
-
-      await AccreditationsAPI.update(shareLinkModal.accreditation.id, {
-        expiresAt: expiryDateTime.toISOString()
-      });
-
-      const accreditationId = shareLinkModal.accreditation.accreditationId || shareLinkModal.accreditation.id;
-      const link = `${window.location.origin}/accreditation/${accreditationId}`;
-      setGeneratedLink(link);
-
-      setAccreditations(await AccreditationsAPI.getByEventId(selectedEvent));
-      toast.success("Expiry updated and link generated!");
-    } catch (error) {
-      console.error("Error generating link:", error);
-      toast.error("Failed to generate link: " + (error.message || "Unknown error"));
-    } finally {
-      setUpdatingExpiry(false);
-    }
-  }, [shareLinkData, shareLinkModal.accreditation, selectedEvent, toast]);
-
-  const copyShareLink = useCallback(async () => {
-    if (!generatedLink) return;
-    try {
-      await navigator.clipboard.writeText(generatedLink);
-      setLinkCopied(true);
-      toast.success("Link copied to clipboard!");
-      setTimeout(() => setLinkCopied(false), 2000);
-    } catch {
-      const input = document.getElementById("share-link-input");
-      if (input) {
-        input.select();
-        document.execCommand("copy");
-        setLinkCopied(true);
-        toast.success("Link copied!");
-        setTimeout(() => setLinkCopied(false), 2000);
-      }
-    }
-  }, [generatedLink, toast]);
-
-  // Delete handlers
-  const handleOpenDeleteConfirm = useCallback((accreditation) => {
-    setDeleteConfirmModal({ open: true, accreditation });
-  }, []);
-
-  const confirmDeleteAccreditation = useCallback(async () => {
-    if (!deleteConfirmModal.accreditation) return;
-    setDeleting(true);
-    try {
-      await AccreditationsAPI.delete(deleteConfirmModal.accreditation.id);
-      toast.success("Accreditation permanently deleted");
-      setDeleteConfirmModal({ open: false, accreditation: null });
-      setAccreditations(await AccreditationsAPI.getByEventId(selectedEvent));
-    } catch (error) {
-      console.error("Delete error:", error);
-      toast.error("Failed to delete: " + (error.message || "Unknown error"));
-    } finally {
-      setDeleting(false);
-    }
-  }, [deleteConfirmModal.accreditation, selectedEvent, toast]);
-
-  const handleApprove = (accreditation) => {
-    setApproveData({ zoneCode: "" });
-    setApproveModal({ open: true, accreditation });
-  };
-
-  const confirmApprove = async () => {
-    if (!approveData.zoneCode) {
-      toast.error("Please select zone access");
-      return;
-    }
-
-    setApproving(true);
-    try {
-      const accreditation = approveModal.accreditation;
-      const eventData = events.find((e) => e.id === accreditation.eventId);
-      const role = accreditation.role || "Unknown";
-      const prefix = ROLE_BADGE_PREFIXES[role] || role.substring(0, 3).toUpperCase() || "GEN";
-      const { count: existingCount } = await supabase
-        .from("accreditations")
-        .select("id", { count: "exact", head: true })
-        .eq("event_id", accreditation.eventId)
-        .eq("role", role)
-        .eq("status", "approved");
-      const badgeNumber = `${prefix}-${String((existingCount || 0) + 1).padStart(3, "0")}`;
-      const approvedRecord = await AccreditationsAPI.approve(
-        accreditation.id,
-        approveData.zoneCode,
-        badgeNumber
-      );
-      const updatedAccreditations = await AccreditationsAPI.getByEventId(selectedEvent);
-      setAccreditations(updatedAccreditations);
-      const emailResult = await sendApprovalEmail({
-        to: accreditation.email,
-        name: `${accreditation.firstName} ${accreditation.lastName}`,
-        eventName: eventData?.name || "Event",
-        eventLocation: eventData?.location || "",
-        eventDates: eventData ? `${eventData.startDate} - ${eventData.endDate}` : "",
-        role: accreditation.role,
-        accreditationId: approvedRecord?.accreditationId || badgeNumber,
-        badgeNumber: badgeNumber,
-        zoneCode: approveData.zoneCode,
-        reportingTimes: eventData?.reportingTimes || ""
-      });
-      if (emailResult.success) {
-        toast.success("Accreditation approved and email sent!");
-      } else {
-        toast.success("Accreditation approved! Email notification may have failed.");
-        console.warn("Email send failed:", emailResult.error);
-      }
-      setApproveModal({ open: false, accreditation: null });
-    } catch (error) {
-      console.error("Approval error:", error);
-      toast.error("Failed to complete approval. Please try again.");
-    } finally {
-      setApproving(false);
-    }
-  };
-
-  const handleReject = (accreditation) => {
-    setRejectRemarks("");
-    setRejectModal({ open: true, accreditation });
-  };
-
-  const confirmReject = async () => {
-    if (!rejectRemarks.trim()) {
-      toast.error("Please provide rejection remarks");
-      return;
-    }
-
-    setRejecting(true);
-    try {
-      const accreditation = rejectModal.accreditation;
-      const eventData = events.find((e) => e.id === accreditation.eventId);
-      await AccreditationsAPI.reject(accreditation.id, rejectRemarks);
-      setAccreditations(await AccreditationsAPI.getByEventId(selectedEvent));
-      const emailResult = await sendRejectionEmail({
-        to: accreditation.email,
-        name: `${accreditation.firstName} ${accreditation.lastName}`,
-        eventName: eventData?.name || "Event",
-        role: accreditation.role,
-        remarks: rejectRemarks,
-        resubmitUrl: eventData?.slug ? `${window.location.origin}/register/${eventData.slug}` : null
-      });
-      if (emailResult.success) {
-        toast.success("Accreditation rejected and email sent!");
-      } else {
-        toast.success("Accreditation rejected! Email notification may have failed.");
-        console.warn("Email send failed:", emailResult.error);
-      }
-      setRejectModal({ open: false, accreditation: null });
-    } catch (error) {
-      console.error("Rejection error:", error);
-      toast.error("Failed to complete rejection. Please try again.");
-    } finally {
-      setRejecting(false);
-    }
-  };
-
-  const handleBulkApprove = () => {
-    if (selectedRows.length === 0) {
-      toast.warning("No accreditations selected");
-      return;
-    }
-    setApproveData({ zoneCode: "" });
-    setBulkApproveModal(true);
-  };
-
-  const confirmBulkApprove = async () => {
-    if (!approveData.zoneCode) {
-      toast.error("Please select zone access");
-      return;
-    }
-
-    await AccreditationsAPI.bulkApprove(selectedRows, approveData.zoneCode);
-    toast.success(`${selectedRows.length} accreditations approved`);
-    setBulkApproveModal(false);
-    setSelectedRows([]);
-    setAccreditations(await AccreditationsAPI.getByEventId(selectedEvent));
-  };
 
   const columns = [
     {
@@ -624,27 +517,19 @@ export default function Accreditations() {
         <Badge className={getRoleColor(row.role)}>{row.role}</Badge>
       )
     },
-    {
-      key: "club",
-      header: "Club",
-      sortable: true
-    },
+    { key: "club", header: "Club", sortable: true },
     {
       key: "nationality",
       header: "Country",
       sortable: true,
-      render: (row) => (
-        <span className="text-lg">{row.nationality}</span>
-      )
+      render: (row) => <span className="text-lg">{row.nationality}</span>
     },
     {
       key: "status",
       header: "Status",
       sortable: true,
       render: (row) => (
-        <Badge className={getStatusColor(row.status)}>
-          {row.status}
-        </Badge>
+        <Badge className={getStatusColor(row.status)}>{row.status}</Badge>
       )
     },
     {
@@ -670,9 +555,7 @@ export default function Accreditations() {
       header: "Submitted",
       sortable: true,
       render: (row) => (
-        <span className="text-lg text-slate-400">
-          {formatDate(row.createdAt)}
-        </span>
+        <span className="text-lg text-slate-400">{formatDate(row.createdAt)}</span>
       )
     },
     {
@@ -681,40 +564,28 @@ export default function Accreditations() {
       render: (row) => (
         <div className="flex items-center gap-2">
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setViewModal({ open: true, accreditation: row });
-            }}
+            onClick={(e) => { e.stopPropagation(); setViewModal({ open: true, accreditation: row }); }}
             className="p-2 rounded-lg hover:bg-primary-800/30 transition-colors"
             title="View Details"
           >
             <Eye className="w-4 h-4 text-white" />
           </button>
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleOpenEdit(row);
-            }}
+            onClick={(e) => { e.stopPropagation(); handleOpenEdit(row); }}
             className="p-2 rounded-lg hover:bg-blue-500/20 transition-colors"
             title="Edit"
           >
             <Edit className="w-4 h-4 text-blue-300" />
           </button>
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleApprove(row);
-            }}
+            onClick={(e) => { e.stopPropagation(); handleApprove(row); }}
             className="p-2 rounded-lg hover:bg-emerald-500/20 transition-colors"
             title={row.status === "approved" ? "Re-approve" : "Approve"}
           >
             <CheckCircle className="w-4 h-4 text-emerald-300" />
           </button>
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleReject(row);
-            }}
+            onClick={(e) => { e.stopPropagation(); handleReject(row); }}
             className="p-2 rounded-lg hover:bg-red-500/20 transition-colors"
             title={row.status === "rejected" ? "Already rejected" : "Reject"}
           >
@@ -723,32 +594,30 @@ export default function Accreditations() {
           {row.status === "approved" && (
             <>
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handlePreviewPDF(row);
-                }}
+                onClick={(e) => { e.stopPropagation(); handlePreviewPDF(row); }}
                 className="p-2 rounded-lg hover:bg-primary-500/20 transition-colors"
                 title="Preview and Download PDF"
               >
                 <Eye className="w-4 h-4 text-cyan-300" />
               </button>
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setBadgeGeneratorModal({ open: true, accreditation: row });
-                }}
+                onClick={(e) => { e.stopPropagation(); setBadgeGeneratorModal({ open: true, accreditation: row }); }}
                 className="p-2 rounded-lg hover:bg-emerald-500/20 transition-colors"
                 title="Generate Simple Badge with QR"
               >
                 <Download className="w-4 h-4 text-emerald-300" />
               </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleOpenShareLink(row); }}
+                className="p-2 rounded-lg hover:bg-cyan-500/20 transition-colors"
+                title="Share Link"
+              >
+                <Link className="w-4 h-4 text-cyan-300" />
+              </button>
             </>
           )}
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleOpenDeleteConfirm(row);
-            }}
+            onClick={(e) => { e.stopPropagation(); handleOpenDeleteConfirm(row); }}
             className="p-2 rounded-lg hover:bg-red-500/20 transition-colors"
             title="Delete"
           >
@@ -765,7 +634,7 @@ export default function Accreditations() {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white">Accreditations</h1>
-          <p className="text-slate-400 mt-1">Manage participant accreditations</p>
+          <p className="text-lg text-slate-400 mt-1 font-extralight">Manage participant accreditations</p>
         </div>
         <Button variant="primary" icon={Plus}>
           Add Accreditation
@@ -781,10 +650,7 @@ export default function Accreditations() {
                 label="Event"
                 value={selectedEvent}
                 onChange={(e) => setSelectedEvent(e.target.value)}
-                options={events.map((e) => ({
-                  value: e.id,
-                  label: e.name
-                }))}
+                options={events.map((e) => ({ value: e.id, label: e.name }))}
                 placeholder="Select an event"
               />
             </div>
@@ -792,9 +658,7 @@ export default function Accreditations() {
               <Select
                 label="Status"
                 value={filters.status}
-                onChange={(e) =>
-                  setFilters((prev) => ({ ...prev, status: e.target.value }))
-                }
+                onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
                 options={[
                   { value: "pending", label: "Pending" },
                   { value: "approved", label: "Approved" },
@@ -805,75 +669,45 @@ export default function Accreditations() {
               <Select
                 label="Role"
                 value={filters.role}
-                onChange={(e) =>
-                  setFilters((prev) => ({ ...prev, role: e.target.value }))
+                onChange={(e) => setFilters((prev) => ({ ...prev, role: e.target.value }))}
+                options={
+                  eventCategories && eventCategories.length > 0
+                    ? eventCategories.map((cat) => {
+                        const categoryData = cat.category || cat;
+                        const name = categoryData?.name || cat?.name;
+                        return name ? { value: name, label: name } : null;
+                      }).filter(Boolean)
+                    : ROLES.map((r) => ({ value: r, label: r }))
                 }
-                options={ROLES.map((r) => ({ value: r, label: r }))}
                 placeholder="All Roles"
               />
               <Select
                 label="Country"
                 value={filters.nationality}
-                onChange={(e) =>
-                  setFilters((prev) => ({ ...prev, nationality: e.target.value }))
-                }
+                onChange={(e) => setFilters((prev) => ({ ...prev, nationality: e.target.value }))}
                 options={COUNTRIES.map((c) => ({ value: c.code, label: c.name }))}
                 placeholder="All Countries"
               />
             </div>
           </div>
 
-          {/* Bulk Operations Toolbar */}
-          <div className="flex flex-wrap items-center gap-3 mb-4 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
-            <div className="flex items-center gap-2 mr-auto">
-              <span className="text-slate-300 font-medium">{selectedRows.length} selected</span>
-              {selectedRows.length > 0 && (
-                <button 
-                  onClick={() => setSelectedRows([])} 
-                  className="text-sm text-cyan-400 hover:text-cyan-300"
-                >
-                  Clear
-                </button>
-              )}
-              <button 
-                onClick={() => setSelectedRows(filteredAccreditations.map(r => r.id))} 
-                className="text-sm text-cyan-400 hover:text-cyan-300 ml-2"
-              >
-                Select All ({filteredAccreditations.length})
-              </button>
+          <BulkOperations
+            selectedRows={selectedRows}
+            filteredData={filteredAccreditations}
+            event={currentEvent}
+            zones={zones}
+            eventCategories={eventCategories}
+            onClearSelection={setSelectedRows}
+            onBulkEdit={handleBulkEdit}
+            onBulkApprove={handleBulkApprove}
+          />
+
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <Loader2 className="w-12 h-12 text-primary-500 animate-spin mb-4" />
+              <p className="text-lg text-slate-400">Loading accreditations...</p>
             </div>
-
-            {selectedRows.length > 0 && (
-              <>
-                <Button 
-                  variant="secondary" 
-                  size="sm" 
-                  onClick={handleBulkApprove}
-                  icon={CheckCircle}
-                >
-                  Bulk Approve
-                </Button>
-                <Button 
-                  variant="secondary" 
-                  size="sm" 
-                  onClick={handleBulkDownloadCards} 
-                  loading={bulkDownloading}
-                  icon={Download}
-                >
-                  Download Cards
-                </Button>
-              </>
-            )}
-            <Button variant="ghost" size="sm" onClick={handleExportExcel} icon={FileSpreadsheet}>
-              Export Excel
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleExportPDF} icon={FileText}>
-              Export PDF
-            </Button>
-          </div>
-
-          {/* Table */}
-          {!selectedEvent ? (
+          ) : !selectedEvent ? (
             <EmptyState
               icon={Filter}
               title="Select an Event"
@@ -900,7 +734,62 @@ export default function Accreditations() {
         </CardContent>
       </Card>
 
-      {/* All Modals remain the same... */}
+      {/* Edit Accreditation Modal */}
+      <EditAccreditationModal
+        isOpen={editModal.open}
+        onClose={() => setEditModal({ open: false, accreditation: null })}
+        accreditation={editModal.accreditation}
+        zones={zones}
+        eventCategories={eventCategories}
+        saving={editSaving}
+        currentEvent={currentEvent}
+        onSave={(data) => {
+          const saveEdit = async () => {
+            setEditSaving(true);
+            try {
+              const updatePayload = {
+                firstName: data.firstName,
+                lastName: data.lastName,
+                gender: data.gender,
+                dateOfBirth: data.dateOfBirth,
+                nationality: data.nationality,
+                club: data.club,
+                role: data.role,
+                email: data.email,
+                photoUrl: data.photoUrl,
+                zoneCode: data.zoneCode || (data.zoneCodes ? data.zoneCodes.join(",") : "")
+              };
+              if (data.roleChanged && editModal.accreditation.status === "approved") {
+                const newRole = data.role;
+                const prefix = ROLE_BADGE_PREFIXES[newRole] || newRole.substring(0, 3).toUpperCase() || "GEN";
+                const { count: existingCount } = await supabase
+                  .from("accreditations")
+                  .select("id", { count: "exact", head: true })
+                  .eq("event_id", editModal.accreditation.eventId)
+                  .eq("role", newRole)
+                  .eq("status", "approved")
+                  .neq("id", editModal.accreditation.id);
+                const newBadgeNumber = `${prefix}-${String((existingCount || 0) + 1).padStart(3, "0")}`;
+                updatePayload.badgeNumber = newBadgeNumber;
+                await AccreditationsAPI.update(editModal.accreditation.id, updatePayload);
+                toast.success(`Accreditation updated! New badge number: ${newBadgeNumber}`);
+              } else {
+                await AccreditationsAPI.update(editModal.accreditation.id, updatePayload);
+                toast.success("Accreditation updated successfully");
+              }
+              setEditModal({ open: false, accreditation: null });
+              await refreshAccreditations();
+            } catch (error) {
+              console.error("Edit save error:", error);
+              toast.error("Failed to save changes: " + (error.message || "Unknown error"));
+            } finally {
+              setEditSaving(false);
+            }
+          };
+          saveEdit();
+        }}
+      />
+
       {/* View Modal */}
       <Modal
         isOpen={viewModal.open}
@@ -976,26 +865,20 @@ export default function Accreditations() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
                     <p className="text-lg text-slate-500">Accreditation ID</p>
-                    <p className="text-lg font-mono text-white">
-                      {viewModal.accreditation.accreditationId}
-                    </p>
+                    <p className="text-lg font-mono text-white">{viewModal.accreditation.accreditationId}</p>
                   </div>
                   <div>
                     <p className="text-lg text-slate-500">Badge Number</p>
-                    <p className="text-lg font-mono text-white">
-                      {viewModal.accreditation.badgeNumber}
-                    </p>
+                    <p className="text-lg font-mono text-white">{viewModal.accreditation.badgeNumber}</p>
                   </div>
                   <div>
                     <p className="text-lg text-slate-500">Zone Access</p>
-                    <p className="text-lg font-mono text-white">
-                      {viewModal.accreditation.zoneCode}
-                    </p>
+                    <p className="text-lg font-mono text-white">{viewModal.accreditation.zoneCode}</p>
                   </div>
                   <div>
                     <p className="text-lg text-slate-500">Valid Until</p>
                     <p className="text-lg font-mono text-white">
-                      {viewModal.accreditation.expiresAt 
+                      {viewModal.accreditation.expiresAt
                         ? formatDate(viewModal.accreditation.expiresAt)
                         : "No expiration"}
                     </p>
@@ -1064,6 +947,17 @@ export default function Accreditations() {
                 >
                   Preview and Download PDF
                 </Button>
+                <Button
+                  variant="secondary"
+                  icon={Link}
+                  className="flex-1"
+                  onClick={() => {
+                    setViewModal({ open: false, accreditation: null });
+                    handleOpenShareLink(viewModal.accreditation);
+                  }}
+                >
+                  Share Link
+                </Button>
               </div>
             )}
           </div>
@@ -1083,18 +977,82 @@ export default function Accreditations() {
               {approveModal.accreditation?.firstName} {approveModal.accreditation?.lastName}
             </span>
           </p>
-          <Select
-            label="Zone Access"
-            value={approveData.zoneCode}
-            onChange={(e) =>
-              setApproveData((prev) => ({ ...prev, zoneCode: e.target.value }))
-            }
-            options={[
-              ...zones.map((z) => ({ value: z.code, label: `${z.code} - ${z.name}` })),
-              { value: zones.map((z) => z.code).join(","), label: "All Zones" }
-            ]}
-            required
-          />
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="block text-lg font-medium text-slate-300">
+                Zone Access <span className="text-red-400">*</span>
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setApproveData((prev) => ({ ...prev, zoneCodes: zones.map((z) => z.code) }))}
+                  className="text-lg text-cyan-400 hover:text-cyan-300"
+                >
+                  Select All
+                </button>
+                <span className="text-slate-600">|</span>
+                <button
+                  type="button"
+                  onClick={() => setApproveData((prev) => ({ ...prev, zoneCodes: [] }))}
+                  className="text-lg text-slate-400 hover:text-slate-300"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+            {zones && zones.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-60 overflow-y-auto">
+                {zones.map((zone) => {
+                  const isSelected = approveData.zoneCodes.includes(zone.code);
+                  return (
+                    <button
+                      key={zone.id}
+                      type="button"
+                      onClick={() => {
+                        setApproveData((prev) => {
+                          const current = prev.zoneCodes || [];
+                          if (current.includes(zone.code)) {
+                            return { ...prev, zoneCodes: current.filter((z) => z !== zone.code) };
+                          } else {
+                            return { ...prev, zoneCodes: [...current, zone.code] };
+                          }
+                        });
+                      }}
+                      className={`p-3 rounded-lg border-2 transition-all duration-200 text-left ${
+                        isSelected
+                          ? "border-primary-500 bg-primary-500/20"
+                          : "border-slate-700 hover:border-slate-600 bg-slate-800/50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-8 h-8 rounded-md flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
+                          style={{ backgroundColor: zone.color || "#2563eb" }}
+                        >
+                          {zone.code}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-lg font-medium truncate ${isSelected ? "text-white" : "text-slate-300"}`}>
+                            {zone.name}
+                          </p>
+                        </div>
+                        {isSelected && (
+                          <Check className="w-4 h-4 text-primary-400 flex-shrink-0" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+                <p className="text-lg text-amber-400">No zones defined for this event.</p>
+              </div>
+            )}
+            <p className="text-lg text-slate-500">
+              {approveData.zoneCodes?.length || 0} zone(s) selected
+            </p>
+          </div>
           <div className="flex gap-3 pt-4">
             <Button
               variant="secondary"
@@ -1174,31 +1132,87 @@ export default function Accreditations() {
           <p className="text-lg text-slate-300">
             Approve <span className="font-semibold text-white">{selectedRows.length}</span> selected accreditations
           </p>
-          <Select
-            label="Zone Access for All"
-            value={approveData.zoneCode}
-            onChange={(e) =>
-              setApproveData((prev) => ({ ...prev, zoneCode: e.target.value }))
-            }
-            options={[
-              ...zones.map((z) => ({ value: z.code, label: `${z.code} - ${z.name}` })),
-              { value: zones.map((z) => z.code).join(","), label: "All Zones" }
-            ]}
-            required
-          />
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="block text-lg font-medium text-slate-300">
+                Zone Access for All <span className="text-red-400">*</span>
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setApproveData((prev) => ({ ...prev, zoneCodes: zones.map((z) => z.code) }))}
+                  className="text-lg text-cyan-400 hover:text-cyan-300"
+                >
+                  Select All
+                </button>
+                <span className="text-slate-600">|</span>
+                <button
+                  type="button"
+                  onClick={() => setApproveData((prev) => ({ ...prev, zoneCodes: [] }))}
+                  className="text-lg text-slate-400 hover:text-slate-300"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+            {zones && zones.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-60 overflow-y-auto">
+                {zones.map((zone) => {
+                  const isSelected = approveData.zoneCodes.includes(zone.code);
+                  return (
+                    <button
+                      key={zone.id}
+                      type="button"
+                      onClick={() => {
+                        setApproveData((prev) => {
+                          const current = prev.zoneCodes || [];
+                          if (current.includes(zone.code)) {
+                            return { ...prev, zoneCodes: current.filter((z) => z !== zone.code) };
+                          } else {
+                            return { ...prev, zoneCodes: [...current, zone.code] };
+                          }
+                        });
+                      }}
+                      className={`p-3 rounded-lg border-2 transition-all duration-200 text-left ${
+                        isSelected
+                          ? "border-primary-500 bg-primary-500/20"
+                          : "border-slate-700 hover:border-slate-600 bg-slate-800/50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-8 h-8 rounded-md flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
+                          style={{ backgroundColor: zone.color || "#2563eb" }}
+                        >
+                          {zone.code}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-lg font-medium truncate ${isSelected ? "text-white" : "text-slate-300"}`}>
+                            {zone.name}
+                          </p>
+                        </div>
+                        {isSelected && (
+                          <Check className="w-4 h-4 text-primary-400 flex-shrink-0" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+                <p className="text-lg text-amber-400">No zones defined for this event.</p>
+              </div>
+            )}
+            <p className="text-lg text-slate-500">
+              {approveData.zoneCodes?.length || 0} zone(s) selected
+            </p>
+          </div>
           <div className="flex gap-3 pt-4">
-            <Button
-              variant="secondary"
-              onClick={() => setBulkApproveModal(false)}
-              className="flex-1"
-            >
+            <Button variant="secondary" onClick={() => setBulkApproveModal(false)} className="flex-1">
               Cancel
             </Button>
-            <Button
-              variant="success"
-              onClick={confirmBulkApprove}
-              className="flex-1"
-            >
+            <Button variant="success" onClick={confirmBulkApprove} className="flex-1">
               Approve All
             </Button>
           </div>
@@ -1227,6 +1241,7 @@ export default function Accreditations() {
                     accreditation={pdfPreviewModal.accreditation}
                     event={events.find(e => e.id === pdfPreviewModal.accreditation.eventId)}
                     zones={zones}
+                    eventCategories={eventCategories}
                   />
                 </div>
 
@@ -1261,47 +1276,38 @@ export default function Accreditations() {
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex flex-wrap gap-3">
                   <Button
                     variant="primary"
-                    icon={downloadingId === pdfPreviewModal.accreditation.id ? Loader2 : Download}
+                    icon={Download}
+                    onClick={() => handleDownloadPDF(pdfPreviewModal.accreditation)}
                     loading={downloadingId === pdfPreviewModal.accreditation.id}
                     className="flex-1"
-                    onClick={() => handleDownloadPDF(pdfPreviewModal.accreditation, false)}
-                    disabled={downloadingId === pdfPreviewModal.accreditation.id}
                   >
-                    Download PDF ({PDF_SIZES[selectedPdfSize]?.label.split(" ")[0]})
+                    Download PDF
                   </Button>
                   <Button
                     variant="secondary"
-                    icon={ExternalLink}
-                    className="flex-1"
+                    icon={Eye}
                     onClick={() => handleDownloadPDF(pdfPreviewModal.accreditation, true)}
-                    disabled={downloadingId === pdfPreviewModal.accreditation.id}
+                    className="flex-1"
                   >
-                    Open in New Tab
+                    Open in Browser
                   </Button>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-3">
                   <Button
                     variant="secondary"
-                    icon={downloadingId === pdfPreviewModal.accreditation.id ? Loader2 : FileDown}
+                    onClick={() => handleDownloadImages(pdfPreviewModal.accreditation)}
                     loading={downloadingId === pdfPreviewModal.accreditation.id}
                     className="flex-1"
-                    onClick={() => handleDownloadImages(pdfPreviewModal.accreditation)}
-                    disabled={downloadingId === pdfPreviewModal.accreditation.id}
                   >
-                    Download as Images ({IMAGE_SIZES[selectedImageSize]?.label.split(" ")[0]})
+                    Download Images
                   </Button>
                   <Button
-                    variant="secondary"
-                    icon={Printer}
-                    className="flex-1"
+                    variant="ghost"
                     onClick={handlePrintPDF}
-                    disabled={downloadingId === pdfPreviewModal.accreditation.id}
+                    className="flex-1"
                   >
-                    Print Card
+                    Print
                   </Button>
                 </div>
               </>
@@ -1310,158 +1316,23 @@ export default function Accreditations() {
         )}
       </Modal>
 
-      {/* Edit Modal */}
-      <Modal
-        isOpen={editModal.open}
-        onClose={() => setEditModal({ open: false, accreditation: null })}
-        title="Edit Accreditation"
-        size="lg"
-      >
-        {editModal.accreditation && (
-          <div className="p-6 space-y-6">
-            <p className="text-lg text-slate-400 font-extralight">
-              Editing accreditation for{" "}
-              <span className="font-semibold text-white">
-                {editModal.accreditation.firstName} {editModal.accreditation.lastName}
-              </span>
-            </p>
-
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white">Personal Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  label="First Name"
-                  name="firstName"
-                  value={editFormData.firstName}
-                  onChange={handleEditInputChange}
-                  error={editErrors.firstName}
-                  required
-                  placeholder="First name"
-                />
-                <Input
-                  label="Last Name"
-                  name="lastName"
-                  value={editFormData.lastName}
-                  onChange={handleEditInputChange}
-                  error={editErrors.lastName}
-                  required
-                  placeholder="Last name"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Select
-                  label="Gender"
-                  name="gender"
-                  value={editFormData.gender}
-                  onChange={handleEditInputChange}
-                  error={editErrors.gender}
-                  required
-                  options={[
-                    { value: "Male", label: "Male" },
-                    { value: "Female", label: "Female" }
-                  ]}
-                />
-                <Input
-                  label="Date of Birth"
-                  name="dateOfBirth"
-                  type="date"
-                  value={editFormData.dateOfBirth}
-                  onChange={handleEditInputChange}
-                  error={editErrors.dateOfBirth}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white">Affiliation</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <SearchableSelect
-                  label="Nationality"
-                  value={editFormData.nationality}
-                  onChange={(e) => handleEditInputChange({ target: { name: "nationality", value: e.target.value } })}
-                  error={editErrors.nationality}
-                  required
-                  options={COUNTRIES.map((c) => ({ value: c.code, label: c.name }))}
-                  placeholder="Select country"
-                />
-                <Input
-                  label="Club/Organization"
-                  name="club"
-                  value={editFormData.club}
-                  onChange={handleEditInputChange}
-                  error={editErrors.club}
-                  required
-                  placeholder="Club or organization"
-                />
-              </div>
-
-              <Select
-                label="Role"
-                name="role"
-                value={editFormData.role}
-                onChange={handleEditInputChange}
-                error={editErrors.role}
-                required
-                options={ROLES.map((r) => ({ value: r, label: r }))}
-              />
-            </div>
-
-            {editModal.accreditation.status === "approved" && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-white">Zone Access</h3>
-                <Select
-                  label="Zone Access"
-                  name="zoneCode"
-                  value={editFormData.zoneCode}
-                  onChange={handleEditInputChange}
-                  options={[
-                    ...zones.map((z) => ({ value: z.code, label: `${z.code} - ${z.name}` })),
-                    { value: zones.map((z) => z.code).join(","), label: "All Zones" }
-                  ]}
-                  placeholder="Select zone access"
-                />
-              </div>
-            )}
-
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white">Contact</h3>
-              <Input
-                label="Email Address"
-                name="email"
-                type="email"
-                value={editFormData.email}
-                onChange={handleEditInputChange}
-                error={editErrors.email}
-                required
-                placeholder="email@example.com"
-              />
-            </div>
-
-            <div className="flex gap-3 pt-4">
-              <Button
-                variant="secondary"
-                onClick={() => setEditModal({ open: false, accreditation: null })}
-                className="flex-1"
-                disabled={editSaving}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                icon={Save}
-                onClick={handleSaveEdit}
-                className="flex-1"
-                loading={editSaving}
-                disabled={editSaving}
-              >
-                {editSaving ? "Saving..." : "Save Changes"}
-              </Button>
-            </div>
+      {/* Badge Generator Modal */}
+      {badgeGeneratorModal.accreditation && (
+        <Modal
+          isOpen={badgeGeneratorModal.open}
+          onClose={() => setBadgeGeneratorModal({ open: false, accreditation: null })}
+          title="Badge Generator"
+          size="lg"
+        >
+          <div className="p-6">
+            <BadgeGenerator
+              accreditation={badgeGeneratorModal.accreditation}
+              event={events.find(e => e.id === badgeGeneratorModal.accreditation.eventId)}
+              zones={zones}
+            />
           </div>
-        )}
-      </Modal>
+        </Modal>
+      )}
 
       {/* Share Link Modal */}
       <Modal
@@ -1469,143 +1340,113 @@ export default function Accreditations() {
         onClose={() => setShareLinkModal({ open: false, accreditation: null })}
         title="Share Accreditation Link"
       >
-        {shareLinkModal.accreditation && (
-          <div className="p-6 space-y-6">
-            <div className="bg-slate-800/50 rounded-lg p-4 border border-primary-800/30">
-              <p className="text-lg text-slate-400 font-extralight">
-                Generate a shareable link for{" "}
-                <span className="font-semibold text-white">
-                  {shareLinkModal.accreditation.firstName} {shareLinkModal.accreditation.lastName}
-                </span>
-              </p>
+        <div className="p-6 space-y-4">
+          <p className="text-lg text-slate-400 font-extralight">
+            Generate a shareable link for{" "}
+            <span className="text-white font-medium">
+              {shareLinkModal.accreditation?.firstName} {shareLinkModal.accreditation?.lastName}
+            </span>
+          </p>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-lg font-medium text-slate-300 mb-1.5">
+                Expiry Date <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="date"
+                value={shareLinkData.expiryDate}
+                onChange={(e) => setShareLinkData(prev => ({ ...prev, expiryDate: e.target.value }))}
+                className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-lg"
+              />
             </div>
-
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Expiry Date"
-                  type="date"
-                  value={shareLinkData.expiryDate}
-                  onChange={(e) => setShareLinkData(prev => ({ ...prev, expiryDate: e.target.value }))}
-                  min={new Date().toISOString().split("T")[0]}
-                  required
-                />
-                <Input
-                  label="Expiry Time"
-                  type="time"
-                  value={shareLinkData.expiryTime}
-                  onChange={(e) => setShareLinkData(prev => ({ ...prev, expiryTime: e.target.value }))}
-                  required
-                />
-              </div>
-
-              <Button
-                variant="primary"
-                icon={Clock}
-                onClick={generateShareLink}
-                loading={updatingExpiry}
-                disabled={updatingExpiry || !shareLinkData.expiryDate}
-                className="w-full"
-              >
-                {updatingExpiry ? "Generating..." : "Generate Link"}
-              </Button>
-            </div>
-
-            {generatedLink && (
-              <div className="space-y-3">
-                <label className="block text-lg font-medium text-slate-300">
-                  Shareable Link
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    id="share-link-input"
-                    type="text"
-                    value={generatedLink}
-                    readOnly
-                    className="flex-1 px-4 py-2.5 bg-slate-800/50 border border-primary-800/30 rounded-lg text-white text-lg font-mono"
-                  />
-                  <Button
-                    variant={linkCopied ? "success" : "secondary"}
-                    icon={linkCopied ? Check : Copy}
-                    onClick={copyShareLink}
-                  >
-                    {linkCopied ? "Copied!" : "Copy"}
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            <div className="flex gap-3 pt-4">
-              <Button
-                variant="secondary"
-                onClick={() => setShareLinkModal({ open: false, accreditation: null })}
-                className="flex-1"
-              >
-                Close
-              </Button>
+            <div>
+              <label className="block text-lg font-medium text-slate-300 mb-1.5">
+                Expiry Time
+              </label>
+              <input
+                type="time"
+                value={shareLinkData.expiryTime}
+                onChange={(e) => setShareLinkData(prev => ({ ...prev, expiryTime: e.target.value }))}
+                className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-lg"
+              />
             </div>
           </div>
-        )}
+
+          <Button
+            onClick={generateShareLink}
+            loading={updatingExpiry}
+            disabled={updatingExpiry}
+            className="w-full"
+          >
+            Generate Link
+          </Button>
+
+          {generatedLink && (
+            <div className="space-y-2">
+              <label className="block text-lg font-medium text-slate-300">
+                Generated Link
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="share-link-input"
+                  type="text"
+                  readOnly
+                  value={generatedLink}
+                  className="flex-1 px-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-lg text-white text-lg focus:outline-none"
+                />
+                <Button
+                  onClick={copyShareLink}
+                  icon={linkCopied ? Check : Copy}
+                  variant={linkCopied ? "success" : "secondary"}
+                >
+                  {linkCopied ? "Copied!" : "Copy"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Confirm Modal */}
       <Modal
         isOpen={deleteConfirmModal.open}
-        onClose={() => setDeleteConfirmModal({ open: false, accreditation: null })}
+        onClose={() => !deleting && setDeleteConfirmModal({ open: false, accreditation: null })}
         title="Delete Accreditation"
       >
-        {deleteConfirmModal.accreditation && (
-          <div className="p-6 space-y-4">
-            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-              <p className="text-lg text-red-300">
-                Are you sure you want to permanently delete the accreditation for{" "}
-                <span className="font-semibold text-white">
-                  {deleteConfirmModal.accreditation.firstName} {deleteConfirmModal.accreditation.lastName}
-                </span>
-                ? This action cannot be undone.
+        <div className="p-6 space-y-4">
+          <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+            <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0" />
+            <div>
+              <p className="text-lg font-semibold text-red-400">Permanently delete this accreditation?</p>
+              <p className="text-lg text-slate-300 font-extralight mt-1">
+                This will permanently remove the accreditation for{" "}
+                <span className="text-white font-medium">
+                  {deleteConfirmModal.accreditation?.firstName} {deleteConfirmModal.accreditation?.lastName}
+                </span>. This action cannot be undone.
               </p>
             </div>
-            <div className="flex gap-3 pt-4">
-              <Button
-                variant="secondary"
-                onClick={() => setDeleteConfirmModal({ open: false, accreditation: null })}
-                className="flex-1"
-                disabled={deleting}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                icon={Trash2}
-                onClick={confirmDeleteAccreditation}
-                className="flex-1"
-                loading={deleting}
-                disabled={deleting}
-              >
-                {deleting ? "Deleting..." : "Delete Permanently"}
-              </Button>
-            </div>
           </div>
-        )}
-      </Modal>
-
-      {/* Badge Generator Modal */}
-      <Modal
-        isOpen={badgeGeneratorModal.open}
-        onClose={() => setBadgeGeneratorModal({ open: false, accreditation: null })}
-        title="Generate Simple Badge"
-        size="xl"
-      >
-        {badgeGeneratorModal.accreditation && (
-          <div className="p-6">
-            <BadgeGenerator
-              accreditation={badgeGeneratorModal.accreditation}
-              event={events.find(e => e.id === badgeGeneratorModal.accreditation.eventId)}
-              zones={zones}
-              onClose={() => setBadgeGeneratorModal({ open: false, accreditation: null })}
-            />
+          <div className="flex gap-3 pt-2">
+            <Button
+              variant="secondary"
+              onClick={() => setDeleteConfirmModal({ open: false, accreditation: null })}
+              className="flex-1"
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={confirmDeleteAccreditation}
+              className="flex-1"
+              loading={deleting}
+              disabled={deleting}
+            >
+              {deleting ? "Deleting..." : "Delete Permanently"}
+            </Button>
           </div>
-        )}
+        </div>
       </Modal>
     </div>
   );
