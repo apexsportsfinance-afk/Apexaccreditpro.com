@@ -296,7 +296,7 @@ export default function Home() {
           </section>
         </main>
 
-        {/* Footer */}
+        {/* Footer - UPDATED WITH YOUR ATTRIBUTION */}
         <footer className="relative py-8">
           <div className="absolute inset-0 bg-slate-900/85 backdrop-blur-md" />
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -311,13 +311,9 @@ export default function Home() {
               </div>
               <p className="text-sm text-slate-400 font-medium">
                 AI vibe coded development by{" "}
-                <a href="https://biela.dev/" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300 transition-colors font-semibold">
-                  Biela.dev
-                </a>
+                <span className="text-cyan-400 font-semibold">Basit Ali Shah</span>
                 , powered by{" "}
-                <a href="https://teachmecode.ae/" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300 transition-colors font-semibold">
-                  TeachMeCode® Institute
-                </a>
+                <span className="text-cyan-400 font-semibold">Apex Sports Academy LLC</span>
               </p>
             </div>
           </div>
