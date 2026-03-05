@@ -1,56 +1,93 @@
-import React, { Suspense } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
+import React, { Suspense, lazy } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { ToastProvider } from "./components/ui/Toast";
+import { AuthProvider } from "./contexts/AuthContext";
 import ScrollToTop from "./components/layout/ScrollToTop";
 import AdminLayout from "./components/layout/AdminLayout";
+import { Loader2 } from "lucide-react";
 
-import Home from "./pages/public/Home";
+// Eagerly load login/public pages (above-the-fold)
 import Login from "./pages/public/Login";
+import Home from "./pages/public/Home";
+import Register from "./pages/public/Register";
+import VerifyAccreditation from "./pages/public/VerifyAccreditation";
 
-const Register = React.lazy(() => import("./pages/public/Register"));
-const VerifyAccreditation = React.lazy(() => import("./pages/public/VerifyAccreditation"));
-const Dashboard = React.lazy(() => import("./pages/admin/Dashboard"));
-const Accreditations = React.lazy(() => import("./pages/admin/Accreditations"));
-const Events = React.lazy(() => import("./pages/admin/Events"));
-const Zones = React.lazy(() => import("./pages/admin/Zones"));
-const Users = React.lazy(() => import("./pages/admin/Users"));
-const AuditLog = React.lazy(() => import("./pages/admin/AuditLog"));
-const Settings = React.lazy(() => import("./pages/admin/Settings"));
+// Lazy load ALL admin pages — heavy, only loaded when admin navigates
+const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
+const Events = lazy(() => import("./pages/admin/Events"));
+const Accreditations = lazy(() => import("./pages/admin/Accreditations"));
+const Zones = lazy(() => import("./pages/admin/Zones"));
+const Users = lazy(() => import("./pages/admin/Users"));
+const Settings = lazy(() => import("./pages/admin/Settings"));
+const AuditLog = lazy(() => import("./pages/admin/AuditLog"));
 
 const PageLoader = () => (
-  <div className="flex items-center justify-center py-20">
-    <div className="animate-spin w-10 h-10 border-3 border-cyan-400 border-t-transparent rounded-full" />
+  <div id="app_pageloader" className="flex items-center justify-center min-h-screen bg-swim-deep">
+    <div className="flex flex-col items-center gap-4">
+      <Loader2 className="w-12 h-12 text-primary-500 animate-spin" />
+      <p className="text-lg text-slate-400 font-extralight">Loading...</p>
+    </div>
   </div>
 );
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <ToastProvider>
-          <ScrollToTop />
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register/:slug" element={<Register />} />
-              <Route path="/verify/:id" element={<VerifyAccreditation />} />
-              <Route path="/accreditation/:id" element={<VerifyAccreditation />} />
-              <Route path="/admin" element={<AdminLayout />}>
-                <Route index element={<Dashboard />} />
-                <Route path="accreditations" element={<Accreditations />} />
-                <Route path="events" element={<Events />} />
-                <Route path="zones" element={<Zones />} />
-                <Route path="users" element={<Users />} />
-                <Route path="audit" element={<AuditLog />} />
-                <Route path="settings" element={<Settings />} />
-              </Route>
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Suspense>
-        </ToastProvider>
-      </AuthProvider>
-    </BrowserRouter>
+    <Router>
+      <ScrollToTop />
+      <ToastProvider>
+        <AuthProvider>
+          <Routes>
+            {/* Public routes — no lazy loading */}
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register/:slug" element={<Register />} />
+            <Route path="/verify/:id" element={<VerifyAccreditation />} />
+            <Route path="/accreditation/:id" element={<VerifyAccreditation />} />
+
+            {/* Admin routes — all lazy loaded */}
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="dashboard" element={
+                <Suspense fallback={<PageLoader />}>
+                  <Dashboard />
+                </Suspense>
+              } />
+              <Route path="events" element={
+                <Suspense fallback={<PageLoader />}>
+                  <Events />
+                </Suspense>
+              } />
+              <Route path="accreditations" element={
+                <Suspense fallback={<PageLoader />}>
+                  <Accreditations />
+                </Suspense>
+              } />
+              <Route path="zones" element={
+                <Suspense fallback={<PageLoader />}>
+                  <Zones />
+                </Suspense>
+              } />
+              <Route path="users" element={
+                <Suspense fallback={<PageLoader />}>
+                  <Users />
+                </Suspense>
+              } />
+              <Route path="settings" element={
+                <Suspense fallback={<PageLoader />}>
+                  <Settings />
+                </Suspense>
+              } />
+              <Route path="audit" element={
+                <Suspense fallback={<PageLoader />}>
+                  <AuditLog />
+                </Suspense>
+              } />
+            </Route>
+
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </AuthProvider>
+      </ToastProvider>
+    </Router>
   );
 }
