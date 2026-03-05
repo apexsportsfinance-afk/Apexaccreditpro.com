@@ -1,48 +1,40 @@
 import { supabase } from "./supabase";
 
-// Retry configuration
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
 
-// Sleep helper for retry delays
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Enhanced error handler with retry logic for transient failures
 const handleResponse = async (promiseFactory, retries = MAX_RETRIES) => {
   let lastError = null;
-  
+
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      // If promiseFactory is a function, call it. Otherwise use it directly.
       const promise = typeof promiseFactory === "function" ? promiseFactory() : promiseFactory;
       const { data, error } = await promise;
-      
+
       if (error) {
         console.error(`Supabase Error (attempt ${attempt}/${retries}):`, error);
         lastError = error;
-        
-        // Don't retry for specific error types
-        if (error.code === "PGRST116" || // Not found
-            error.code === "23505" || // Unique constraint violation
-            error.code === "42501" || // RLS policy violation
+
+        if (error.code === "PGRST116" ||
+            error.code === "23505" ||
+            error.code === "42501" ||
             error.message?.includes("JWT")) {
           throw error;
         }
-        
-        // Retry for transient errors
+
         if (attempt < retries) {
-          console.log(`Retrying in ${RETRY_DELAY}ms...`);
           await sleep(RETRY_DELAY * attempt);
           continue;
         }
         throw error;
       }
-      
+
       return data;
     } catch (err) {
       lastError = err;
-      
-      // Network errors - retry
+
       if (err.message === "Failed to fetch" || err.name === "TypeError") {
         console.warn(`Network error (attempt ${attempt}/${retries}):`, err.message);
         if (attempt < retries) {
@@ -50,11 +42,11 @@ const handleResponse = async (promiseFactory, retries = MAX_RETRIES) => {
           continue;
         }
       }
-      
+
       throw err;
     }
   }
-  
+
   throw lastError || new Error("Max retries exceeded");
 };
 
@@ -96,7 +88,6 @@ export const EventsAPI = {
     return mapEventFromDB(data);
   },
   delete: async (id) => {
-    // Delete all related data first (accreditations, zones, event_categories)
     await handleResponse(supabase.from("accreditations").delete().eq("event_id", id));
     await handleResponse(supabase.from("zones").delete().eq("event_id", id));
     await supabase.from("event_categories").delete().eq("event_id", id);
@@ -206,7 +197,6 @@ export const EventCategoriesAPI = {
     }));
   },
   setForEvent: async (eventId, categoryIds) => {
-    // Delete existing then insert new
     await handleResponse(
       supabase.from("event_categories").delete().eq("event_id", eventId)
     );
@@ -221,28 +211,25 @@ export const EventCategoriesAPI = {
 };
 
 // --- ACCREDITATIONS API ---
-// Lightweight column list that EXCLUDES huge base64 columns (photo_url, id_document_url)
 const ACCREDITATION_LIST_COLUMNS = "id,event_id,first_name,last_name,gender,date_of_birth,nationality,club,role,email,photo_url,status,zone_code,badge_number,accreditation_id,remarks,badge_color,updated_by,expires_at,created_at,updated_at";
 
 export const AccreditationsAPI = {
-  // EFFICIENT: Get just stats without fetching all rows
   getStats: async () => {
-    const { data, error } = await supabase
-      .from("accreditations")
-      .select("status");
-    if (error) {
-      console.error("getStats error:", error);
-      return { total: 0, pending: 0, approved: 0, rejected: 0 };
-    }
-    const rows = data || [];
+    // Use count queries instead of fetching all rows — much faster
+    const [totalRes, pendingRes, approvedRes, rejectedRes] = await Promise.all([
+      supabase.from("accreditations").select("*", { count: "exact", head: true }),
+      supabase.from("accreditations").select("*", { count: "exact", head: true }).eq("status", "pending"),
+      supabase.from("accreditations").select("*", { count: "exact", head: true }).eq("status", "approved"),
+      supabase.from("accreditations").select("*", { count: "exact", head: true }).eq("status", "rejected")
+    ]);
     return {
-      total: rows.length,
-      pending: rows.filter(r => r.status === "pending").length,
-      approved: rows.filter(r => r.status === "approved").length,
-      rejected: rows.filter(r => r.status === "rejected").length
+      total: totalRes.count || 0,
+      pending: pendingRes.count || 0,
+      approved: approvedRes.count || 0,
+      rejected: rejectedRes.count || 0
     };
   },
-  // EFFICIENT: Get counts grouped by event_id
+
   getCountsByEventIds: async (eventIds) => {
     if (!eventIds || eventIds.length === 0) return {};
     const { data, error } = await supabase
@@ -265,7 +252,7 @@ export const AccreditationsAPI = {
     });
     return counts;
   },
-  // EFFICIENT: Get only recent N accreditations
+
   getRecent: async (limit = 5) => {
     const data = await handleResponse(
       supabase
@@ -276,6 +263,7 @@ export const AccreditationsAPI = {
     );
     return (data || []).map(mapAccreditationFromDB);
   },
+
   getAll: async (options = {}) => {
     const { limit = 500, offset = 0 } = options;
     const data = await handleResponse(
@@ -287,47 +275,45 @@ export const AccreditationsAPI = {
     );
     return (data || []).map(mapAccreditationFromDB);
   },
+
   getByEventId: async (eventId, options = {}) => {
     const { limit = 5000, offset = 0, status = null } = options;
-    
-    // Use a factory function for retry support
+
     const queryFactory = () => {
       let query = supabase
         .from("accreditations")
         .select(ACCREDITATION_LIST_COLUMNS)
         .eq("event_id", eventId)
         .order("created_at", { ascending: false });
-      
+
       if (status) {
         query = query.eq("status", status);
       }
-      
+
       return query.range(offset, offset + limit - 1);
     };
-    
+
     try {
       const data = await handleResponse(queryFactory);
       return (data || []).map(mapAccreditationFromDB);
     } catch (error) {
-      // Provide more context in error message
       console.error(`Failed to fetch accreditations for event ${eventId}:`, error);
-      
-      // Check for RLS policy issues
+
       if (error.code === "42501" || error.message?.includes("row-level security")) {
         throw new Error("Access denied. Please ensure you are logged in with proper permissions.");
       }
-      
-      // Re-throw with enhanced message
+
       throw new Error(`Failed to load accreditations: ${error.message || "Network error. Please check your connection and try again."}`);
     }
   },
+
   getById: async (id) => {
     const data = await handleResponse(
       supabase.from("accreditations").select("*").eq("id", id).single()
     ).catch(() => null);
     return data ? mapAccreditationFromDB(data) : null;
   },
-  // Check if name already exists for this event
+
   checkDuplicateName: async (eventId, firstName, lastName) => {
     const { data, error } = await supabase
       .from("accreditations")
@@ -341,13 +327,14 @@ export const AccreditationsAPI = {
       return { isDuplicate: false };
     }
     if (data && data.length > 0) {
-      return { 
-        isDuplicate: true, 
+      return {
+        isDuplicate: true,
         existingRecord: mapAccreditationFromDB(data[0])
       };
     }
     return { isDuplicate: false };
   },
+
   create: async (accreditation) => {
     const dbAccreditation = mapAccreditationToDB(accreditation);
     dbAccreditation.status = "pending";
@@ -358,13 +345,13 @@ export const AccreditationsAPI = {
       AuditAPI.log("accreditation_submitted", { accreditationId: data.id });
       return mapAccreditationFromDB(data);
     } catch (error) {
-      // Check if it's a unique constraint violation (duplicate name)
       if (error.code === "23505" && error.message.includes("idx_accreditations_unique_name_per_event")) {
         throw new Error("DUPLICATE_NAME: An athlete with this name has already registered for this event.");
       }
       throw error;
     }
   },
+
   update: async (id, updates) => {
     const dbUpdates = mapAccreditationToDB(updates);
     delete dbUpdates.id;
@@ -374,6 +361,7 @@ export const AccreditationsAPI = {
     AuditAPI.log("accreditation_updated", { accreditationId: id });
     return mapAccreditationFromDB(data);
   },
+
   adminEdit: async (id, updates, adminUserId) => {
     const dbUpdates = mapAccreditationToDB(updates);
     delete dbUpdates.id;
@@ -388,6 +376,7 @@ export const AccreditationsAPI = {
     });
     return mapAccreditationFromDB(data);
   },
+
   approve: async (id, zoneCode, badgeNumber, role = null) => {
     const accreditationId = `ACC-2025-${id.substring(0, 8).toUpperCase()}`;
     const updateData = {
@@ -396,7 +385,6 @@ export const AccreditationsAPI = {
       badge_number: badgeNumber,
       accreditation_id: accreditationId
     };
-    // If role is provided, update it to keep badge prefix in sync
     if (role) {
       updateData.role = role;
     }
@@ -406,6 +394,7 @@ export const AccreditationsAPI = {
     AuditAPI.log("accreditation_approved", { accreditationId: id, badgeNumber });
     return mapAccreditationFromDB(data);
   },
+
   reject: async (id, remarks) => {
     const data = await handleResponse(
       supabase.from("accreditations").update({
@@ -416,9 +405,9 @@ export const AccreditationsAPI = {
     AuditAPI.log("accreditation_rejected", { accreditationId: id, remarks });
     return mapAccreditationFromDB(data);
   },
+
   bulkApprove: async (ids, zoneCode) => {
     const { getBadgePrefix } = await import("./utils");
-    // Batch-fetch all accreditations in one query instead of N+1
     const { data: accRows, error: accErr } = await supabase
       .from("accreditations")
       .select("id, role, event_id")
@@ -428,7 +417,6 @@ export const AccreditationsAPI = {
     (accRows || []).forEach(r => {
       accMap[r.id] = { role: r.role || "Unknown", eventId: r.event_id };
     });
-    // Get all unique role+event combos and batch count
     const roleCountCache = {};
     const uniqueRoles = [...new Set(ids.map(id => accMap[id]?.role).filter(Boolean))];
     const sampleEventId = accMap[ids[0]]?.eventId;
@@ -443,7 +431,6 @@ export const AccreditationsAPI = {
         roleCountCache[role] = count || 0;
       }));
     }
-    // Now approve each in sequence (lightweight, no extra fetches)
     for (const id of ids) {
       const acc = accMap[id];
       if (!acc) continue;
@@ -455,31 +442,36 @@ export const AccreditationsAPI = {
       await AccreditationsAPI.approve(id, zoneCode, badgeNumber, role);
     }
   },
+
+  // OPTIMIZED: single batch UPDATE via .in() for small sets, parallel chunks for large sets
   bulkUpdate: async (ids, updates) => {
     if (!ids || ids.length === 0) return;
     const dbUpdates = mapAccreditationToDB(updates);
     delete dbUpdates.id;
-    
-    // Update each record
-    const results = [];
-    for (const id of ids) {
-      try {
-        const data = await handleResponse(
-          supabase.from("accreditations").update(dbUpdates).eq("id", id).select().single()
-        );
-        results.push(mapAccreditationFromDB(data));
-      } catch (err) {
-        console.warn(`Failed to update accreditation ${id}:`, err);
-      }
+
+    // For large batches: split into chunks of 100 and run in parallel
+    const CHUNK_SIZE = 100;
+    const chunks = [];
+    for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+      chunks.push(ids.slice(i, i + CHUNK_SIZE));
     }
-    
-    AuditAPI.log("accreditations_bulk_updated", { 
-      count: ids.length, 
-      fields: Object.keys(updates) 
+
+    try {
+      await Promise.all(chunks.map(chunk =>
+        handleResponse(
+          supabase.from("accreditations").update(dbUpdates).in("id", chunk)
+        )
+      ));
+    } catch (err) {
+      console.warn("Bulk update partial failure:", err);
+    }
+
+    AuditAPI.log("accreditations_bulk_updated", {
+      count: ids.length,
+      fields: Object.keys(updates)
     });
-    
-    return results;
   },
+
   delete: async (id) => {
     await handleResponse(supabase.from("accreditations").delete().eq("id", id));
     AuditAPI.log("accreditation_deleted", { accreditationId: id });
@@ -748,7 +740,6 @@ export const UsersAPI = {
 // --- AUDIT API ---
 export const AuditAPI = {
   log: (action, details) => {
-    // Fire-and-forget — never blocks callers
     supabase.auth.getSession().then(({ data: { session } }) => {
       const userId = session?.user?.id || "system";
       const userName = session?.user?.user_metadata?.name || session?.user?.email || "System";
