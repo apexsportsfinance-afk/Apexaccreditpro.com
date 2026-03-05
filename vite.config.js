@@ -18,31 +18,55 @@ export default defineConfig({
     },
   },
   resolve: {
-    alias: { "@": "/src" },
+    alias: { "@": "/src" }
   },
   build: {
+    target: "esnext",
+    minify: "esbuild",
+    cssMinify: true,
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        entryFileNames: "js/[name]-[hash]-v3.js",
-        chunkFileNames: "js/[name]-[hash]-v3.js",
-        assetFileNames: (info) => {
-          if (info.name.endsWith(".css"))
-            return "css/[name]-[hash]-v3[extname]";
-          return "assets/[name]-[hash]-v3[extname]";
-        },
+        // Manual chunk splitting — heavy libs only load when needed
         manualChunks: {
-          vendor: ["react", "react-dom", "react-router-dom"],
-          supabase: ["@supabase/supabase-js"],
-          pdf: ["jspdf", "jspdf-autotable"],
-          canvas: ["html2canvas"],
-          motion: ["motion"],
+          "vendor-react": ["react", "react-dom", "react-router-dom"],
+          "vendor-supabase": ["@supabase/supabase-js"],
+          "vendor-motion": ["motion"],
+          "vendor-pdf": ["jspdf", "jspdf-autotable"],
+          "vendor-canvas": ["html2canvas"],
+          "vendor-qr": ["qrcode"],
+          "vendor-zip": ["jszip"],
+          "vendor-xlsx": ["xlsx"],
+          "vendor-icons": ["lucide-react"],
         },
-      },
+        entryFileNames: "js/[name]-[hash]-v4.js",
+        chunkFileNames: "js/[name]-[hash]-v4.js",
+        assetFileNames: (info) => {
+          if (info.name?.endsWith(".css")) return "css/[name]-[hash]-v4[extname]";
+          return "assets/[name]-[hash]-v4[extname]";
+        },
+      }
     },
-    commonjsOptions: { transformMixedEsModules: true },
+    commonjsOptions: { transformMixedEsModules: true }
   },
   optimizeDeps: {
-    include: ["html2canvas", "jspdf", "jspdf-autotable"],
-    esbuildOptions: { target: "esnext" },
-  },
+    include: [
+      "react",
+      "react-dom",
+      "react-router-dom",
+      "@supabase/supabase-js",
+      "motion",
+      "lucide-react",
+      "date-fns"
+    ],
+    exclude: [
+      "html2canvas",
+      "jspdf",
+      "jspdf-autotable",
+      "jszip",
+      "qrcode",
+      "xlsx"
+    ],
+    esbuildOptions: { target: "esnext" }
+  }
 });
