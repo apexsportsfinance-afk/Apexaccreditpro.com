@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo } from "react";
 import { getCountryName, calculateAge, COUNTRIES, isExpired } from "../../lib/utils";
 import QRCode from "qrcode";
 
@@ -113,6 +113,7 @@ const useCountryNamePng = (name, fontSize = 14) => {
 
 const useZoneBadgePngs = (codes) => {
   const [badges, setBadges] = React.useState({});
+  const codesKey = codes.join(",");
   React.useEffect(() => {
     if (!codes || codes.length === 0) return;
     const result = {};
@@ -135,64 +136,35 @@ const useZoneBadgePngs = (codes) => {
       result[code] = canvas.toDataURL("image/png");
     });
     setBadges(result);
-  }, [codes.join(",")]);
+  }, [codesKey]);
   return badges;
 };
 
-const AquaticsHeader = ({ event }) => {
+const AquaticsHeader = memo(function AquaticsHeader({ event }) {
   const logoUrl = event?.logoUrl;
 
   return (
-    <div
-      style={{
-        height: "100px",
-        width: "100%",
-        position: "relative",
-        overflow: "hidden",
-        flexShrink: 0,
-      }}
-    >
+    <div style={{ height: "100px", width: "100%", position: "relative", overflow: "hidden", flexShrink: 0 }}>
       {logoUrl ? (
         <img
           src={logoUrl}
           alt="Event Header"
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            objectPosition: "center",
-            display: "block",
-          }}
+          style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", display: "block" }}
           crossOrigin="anonymous"
         />
       ) : (
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <div
-            style={{
-              width: "56px",
-              height: "56px",
-              borderRadius: "50%",
-              background: "linear-gradient(135deg, #06b6d4 0%, #2563eb 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 4px 16px rgba(6, 182, 212, 0.5)",
-            }}
-          >
-            <svg
-              style={{ width: "30px", height: "30px", color: "white" }}
-              viewBox="0 0 24 24"
-              fill="currentColor"
-            >
+        <div style={{
+          width: "100%", height: "100%",
+          background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)",
+          display: "flex", alignItems: "center", justifyContent: "center"
+        }}>
+          <div style={{
+            width: "56px", height: "56px", borderRadius: "50%",
+            background: "linear-gradient(135deg, #06b6d4 0%, #2563eb 100%)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: "0 4px 16px rgba(6, 182, 212, 0.5)"
+          }}>
+            <svg style={{ width: "30px", height: "30px", color: "white" }} viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
             </svg>
           </div>
@@ -200,9 +172,10 @@ const AquaticsHeader = ({ event }) => {
       )}
     </div>
   );
-};
+});
 
-export const CardInner = ({ accreditation, event, zones = [], eventCategories = [], idSuffix = "" }) => {
+// Memoized CardInner — prevents expensive re-renders on every parent state change
+export const CardInner = memo(function CardInner({ accreditation, event, zones = [], eventCategories = [], idSuffix = "" }) {
   const categoryColor = resolveCategoryColor(accreditation?.role, eventCategories);
   const matchingZone = zones.find(z => z.name?.toLowerCase() === accreditation?.role?.toLowerCase());
   const zoneColor = matchingZone?.color || null;
@@ -230,6 +203,7 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
   const [qrDataUrl, setQrDataUrl] = React.useState(null);
 
   React.useEffect(() => {
+    let cancelled = false;
     const generateQR = async () => {
       try {
         const verifyId = accreditation?.accreditationId || accreditation?.badgeNumber || accreditation?.id || "unknown";
@@ -240,12 +214,13 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
           width: 512,
           color: { dark: "#0f172a", light: "#ffffff" }
         });
-        setQrDataUrl(url);
+        if (!cancelled) setQrDataUrl(url);
       } catch (err) {
         console.error("QR generation error:", err);
       }
     };
     if (accreditation) generateQR();
+    return () => { cancelled = true; };
   }, [accreditation?.id, accreditation?.status, accreditation?.accreditationId, accreditation?.badgeNumber]);
 
   return (
@@ -273,7 +248,6 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
         )}
 
         <AquaticsHeader event={event} />
-
         <div style={{ height: "6px", backgroundColor: "white", flexShrink: 0 }} />
 
         {/* ROLE BANNER */}
@@ -347,9 +321,8 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
           </div>
         </div>
 
-        {/* QR CODE + ZONE NUMBERS - shared bottom row */}
+        {/* QR CODE + ZONE NUMBERS */}
         <div style={{ height: "80px", width: "100%", backgroundColor: "white", display: "flex", alignItems: "flex-start", padding: "2px 12px 4px 12px", gap: "8px", flexShrink: 0 }}>
-          {/* QR Code - left half */}
           <div style={{ flexShrink: 0 }}>
             {qrDataUrl ? (
               <div data-qr-code="true" style={{ padding: "2px", backgroundColor: "white", border: "2px solid #e2e8f0", borderRadius: "4px" }}>
@@ -361,7 +334,6 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
               </div>
             )}
           </div>
-          {/* Zone badges - right half */}
           <div style={{ flex: 1, display: "flex", alignItems: "flex-end", justifyContent: "flex-end", gap: "4px", flexWrap: "wrap", height: "100%", paddingBottom: "2px" }}>
             {zoneCodes.length > 0 ? (
               zoneCodes.slice(0, 6).map((code, index) => (
@@ -472,9 +444,9 @@ export const CardInner = ({ accreditation, event, zones = [], eventCategories = 
       </div>
     </>
   );
-};
+});
 
-const AccreditationCardPreview = ({ accreditation, event, zones = [], eventCategories = [] }) => {
+const AccreditationCardPreview = memo(function AccreditationCardPreview({ accreditation, event, zones = [], eventCategories = [] }) {
   return (
     <div id="accreditation-card-preview" style={{ display: "inline-block", fontFamily: "sans-serif" }}>
       <div style={{ display: "flex", flexDirection: "row", gap: "24px", alignItems: "flex-start" }}>
@@ -482,6 +454,6 @@ const AccreditationCardPreview = ({ accreditation, event, zones = [], eventCateg
       </div>
     </div>
   );
-};
+});
 
 export default AccreditationCardPreview;
