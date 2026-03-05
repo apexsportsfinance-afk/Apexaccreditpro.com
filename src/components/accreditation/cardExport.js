@@ -3,16 +3,15 @@ import { jsPDF } from "jspdf";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { CardInner } from "./AccreditationCardPreview";
-import QRCode from "qrcode";
 
 const CARD_W_PX = 320;
 const CARD_H_PX = 454;
 
 export const PDF_SIZES = {
-  card: { width: 85.6, height: 54, label: "ID Card (85.6×54 mm)" },
-  a6: { width: 105, height: 148, label: "A6 (105×148 mm)" },
-  a5: { width: 148, height: 210, label: "A5 (148×210 mm)" },
-  a4: { width: 210, height: 297, label: "A4 (210×297 mm)" },
+  card: { width: 85.6, height: 54, label: "ID Card (85.6x54 mm)" },
+  a6: { width: 105, height: 148, label: "A6 (105x148 mm)" },
+  a5: { width: 148, height: 210, label: "A5 (148x210 mm)" },
+  a4: { width: 210, height: 297, label: "A4 (210x297 mm)" },
 };
 
 export const IMAGE_SIZES = {
@@ -118,12 +117,8 @@ const renderOffscreenCard = (accreditation, event, zones) =>
     const root = createRoot(container);
 
     const cleanup = () => {
-      try {
-        root.unmount();
-      } catch (_) {}
-      try {
-        if (container.parentNode) document.body.removeChild(container);
-      } catch (_) {}
+      try { root.unmount(); } catch (_) {}
+      try { if (container.parentNode) document.body.removeChild(container); } catch (_) {}
     };
 
     root.render(
@@ -188,11 +183,7 @@ export const buildPDF = async (accreditation, event, zones, scale, sizeKey) => {
   const size = PDF_SIZES[sizeKey] || PDF_SIZES.a6;
   const isLandscape = size.width > size.height;
 
-  const { frontEl, backEl, cleanup } = await renderOffscreenCard(
-    accreditation,
-    event,
-    zones
-  );
+  const { frontEl, backEl, cleanup } = await renderOffscreenCard(accreditation, event, zones);
 
   const pdf = new jsPDF({
     orientation: isLandscape ? "landscape" : "portrait",
@@ -206,10 +197,7 @@ export const buildPDF = async (accreditation, event, zones, scale, sizeKey) => {
     pdf.addImage(
       frontCanvas.toDataURL("image/png", 1.0),
       "PNG",
-      0,
-      0,
-      size.width,
-      size.height,
+      0, 0, size.width, size.height,
       undefined,
       "FAST"
     );
@@ -220,10 +208,7 @@ export const buildPDF = async (accreditation, event, zones, scale, sizeKey) => {
       pdf.addImage(
         backCanvas.toDataURL("image/png", 1.0),
         "PNG",
-        0,
-        0,
-        size.width,
-        size.height,
+        0, 0, size.width, size.height,
         undefined,
         "FAST"
       );
@@ -236,11 +221,7 @@ export const buildPDF = async (accreditation, event, zones, scale, sizeKey) => {
 };
 
 const captureCardDataUrls = async (accreditation, event, zones, scale) => {
-  const { frontEl, backEl, cleanup } = await renderOffscreenCard(
-    accreditation,
-    event,
-    zones
-  );
+  const { frontEl, backEl, cleanup } = await renderOffscreenCard(accreditation, event, zones);
 
   let frontDataUrl = null;
   let backDataUrl = null;
@@ -298,12 +279,7 @@ export const printCard = async (
   scale = IMAGE_SIZES["hd"].scale,
   sizeKey = "a6"
 ) => {
-  const { frontDataUrl, backDataUrl } = await captureCardDataUrls(
-    accreditation,
-    event,
-    zones,
-    scale
-  );
+  const { frontDataUrl, backDataUrl } = await captureCardDataUrls(accreditation, event, zones, scale);
 
   const PAGE_W_MM = 85.6;
   const PAGE_H_MM = parseFloat(((CARD_H_PX / CARD_W_PX) * PAGE_W_MM).toFixed(2));
@@ -332,8 +308,7 @@ ${backPageHtml}
 </html>`;
 
   const iframe = document.createElement("iframe");
-  iframe.style.cssText =
-    "position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;border:none;visibility:hidden;";
+  iframe.style.cssText = "position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;border:none;visibility:hidden;";
   document.body.appendChild(iframe);
 
   const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
@@ -345,14 +320,9 @@ ${backPageHtml}
     const images = Array.from(iframeDoc.querySelectorAll("img"));
     if (!images.length) return resolve();
     let loaded = 0;
-    const done = () => {
-      if (++loaded >= images.length) resolve();
-    };
+    const done = () => { if (++loaded >= images.length) resolve(); };
     images.forEach((img) => {
-      if (img.complete) {
-        done();
-        return;
-      }
+      if (img.complete) { done(); return; }
       img.onload = done;
       img.onerror = done;
     });
@@ -369,32 +339,15 @@ ${backPageHtml}
     if (pw) {
       pw.document.write(printHtml);
       pw.document.close();
-      setTimeout(() => {
-        pw.focus();
-        pw.print();
-        pw.close();
-      }, 600);
+      setTimeout(() => { pw.focus(); pw.print(); pw.close(); }, 600);
     }
   }
 
-  setTimeout(() => {
-    if (iframe.parentNode) document.body.removeChild(iframe);
-  }, 30000);
+  setTimeout(() => { if (iframe.parentNode) document.body.removeChild(iframe); }, 30000);
 };
 
-export const downloadAsImages = async (
-  accreditation,
-  event,
-  zones,
-  baseName,
-  scale = IMAGE_SIZES["4k"].scale
-) => {
-  const { frontDataUrl, backDataUrl } = await captureCardDataUrls(
-    accreditation,
-    event,
-    zones,
-    scale
-  );
+export const downloadAsImages = async (accreditation, event, zones, baseName, scale = IMAGE_SIZES["4k"].scale) => {
+  const { frontDataUrl, backDataUrl } = await captureCardDataUrls(accreditation, event, zones, scale);
 
   const a1 = document.createElement("a");
   a1.download = `${baseName}_front.png`;
@@ -402,6 +355,8 @@ export const downloadAsImages = async (
   document.body.appendChild(a1);
   a1.click();
   document.body.removeChild(a1);
+  // Revoke URL to free memory
+  URL.revokeObjectURL(frontDataUrl);
 
   if (backDataUrl) {
     await new Promise((r) => setTimeout(r, 500));
@@ -411,35 +366,50 @@ export const downloadAsImages = async (
     document.body.appendChild(a2);
     a2.click();
     document.body.removeChild(a2);
+    URL.revokeObjectURL(backDataUrl);
   }
 };
 
 /**
- * Bulk download PDFs for multiple accreditations as a ZIP archive
+ * Bulk download PDFs with CONCURRENCY LIMITING to prevent browser OOM crashes.
+ * Processes max 3 cards simultaneously, shows progress via onProgress callback.
  */
 export const bulkDownloadPDFs = async (
   accreditations,
   event,
   zones,
-  sizeKey = "a6"
+  sizeKey = "a6",
+  onProgress = null
 ) => {
   if (!accreditations || accreditations.length === 0) return;
+
+  const CONCURRENCY = 3; // Max simultaneous PDF renders — prevents OOM
+  const scale = IMAGE_SIZES["4k"].scale;
 
   try {
     const JSZip = (await import("jszip")).default;
     const zip = new JSZip();
-    const scale = IMAGE_SIZES["4k"].scale;
+    let completed = 0;
+    let failed = 0;
 
-    for (let i = 0; i < accreditations.length; i++) {
-      const acc = accreditations[i];
-      try {
-        const pdf = await buildPDF(acc, event, zones, scale, sizeKey);
-        const pdfBlob = pdf.output("blob");
-        const fileName = `${acc.firstName || "Unknown"}_${acc.lastName || "Unknown"}_${acc.badgeNumber || acc.id || i}.pdf`;
-        zip.file(fileName, pdfBlob);
-      } catch (err) {
-        console.warn(`Failed to generate PDF for ${acc.firstName} ${acc.lastName}:`, err);
-      }
+    // Process in concurrent batches instead of sequential or all-at-once
+    for (let i = 0; i < accreditations.length; i += CONCURRENCY) {
+      const batch = accreditations.slice(i, i + CONCURRENCY);
+
+      await Promise.all(batch.map(async (acc) => {
+        try {
+          const pdf = await buildPDF(acc, event, zones, scale, sizeKey);
+          const pdfBlob = pdf.output("blob");
+          const fileName = `${acc.firstName || "Unknown"}_${acc.lastName || "Unknown"}_${acc.badgeNumber || acc.id || i}.pdf`;
+          zip.file(fileName, pdfBlob);
+          completed++;
+          onProgress?.(completed, accreditations.length, failed);
+        } catch (err) {
+          console.warn(`Failed PDF for ${acc.firstName} ${acc.lastName}:`, err);
+          failed++;
+          onProgress?.(completed, accreditations.length, failed);
+        }
+      }));
     }
 
     const zipBlob = await zip.generateAsync({ type: "blob" });
@@ -451,6 +421,8 @@ export const bulkDownloadPDFs = async (
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+    return { completed, failed };
   } catch (err) {
     console.error("Bulk download error:", err);
     throw new Error("Failed to create bulk download: " + (err.message || "Unknown error"));
