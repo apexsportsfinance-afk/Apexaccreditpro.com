@@ -1,8 +1,49 @@
-import React, { useState, useMemo, useCallback, useRef } from "react";
+import React, { useState, useMemo, useCallback, useRef, memo } from "react";
 import { ChevronUp, ChevronDown, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "../../lib/utils";
 
-const ROWS_PER_PAGE_OPTIONS = [25, 50, 100, 200];
+const ROWS_PER_PAGE_OPTIONS = [25, 50, 100, 200, 500];
+
+// Memoized row — prevents entire table from re-rendering when a single row changes
+const TableRow = memo(function TableRow({ row, columns, selectable, selectedRows, onSelectRow, onRowClick }) {
+  const isSelected = selectedRows.includes(row.id);
+
+  const handleCheckboxChange = useCallback((e) => {
+    e.stopPropagation();
+    onSelectRow(row.id);
+  }, [row.id, onSelectRow]);
+
+  const handleRowClick = useCallback(() => {
+    onRowClick?.(row);
+  }, [row, onRowClick]);
+
+  return (
+    <tr
+      className={cn(
+        "bg-slate-900/50 hover:bg-slate-800/70 transition-colors duration-100",
+        onRowClick && "cursor-pointer",
+        isSelected && "bg-cyan-900/20 border-l-2 border-l-cyan-500"
+      )}
+      onClick={handleRowClick}
+    >
+      {selectable && (
+        <td className="w-10 px-4 py-3" onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={handleCheckboxChange}
+            className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500/40"
+          />
+        </td>
+      )}
+      {columns.map((column) => (
+        <td key={column.key} className="px-4 py-3 text-lg text-slate-200">
+          {column.render ? column.render(row) : row[column.key]}
+        </td>
+      ))}
+    </tr>
+  );
+});
 
 export default function DataTable({
   data = [],
@@ -31,7 +72,7 @@ export default function DataTable({
     debounceRef.current = setTimeout(() => {
       setDebouncedQuery(val);
       setCurrentPage(1);
-    }, 200);
+    }, 300);
   }, []);
 
   const handleSort = useCallback((key) => {
@@ -42,28 +83,36 @@ export default function DataTable({
     setCurrentPage(1);
   }, []);
 
+  // Create a lowercase lookup for search to avoid repeated toLowerCase calls
+  const searchLower = useMemo(() => debouncedQuery.toLowerCase(), [debouncedQuery]);
+
   const filteredData = useMemo(() => {
     let result = data;
-    if (debouncedQuery && searchFields.length > 0) {
-      const query = debouncedQuery.toLowerCase();
+
+    if (searchLower && searchFields.length > 0) {
       result = result.filter((item) =>
         searchFields.some((field) => {
           const value = field.split(".").reduce((obj, key) => obj?.[key], item);
-          return String(value || "").toLowerCase().includes(query);
+          return String(value || "").toLowerCase().includes(searchLower);
         })
       );
     }
+
     if (sortConfig.key) {
       result = [...result].sort((a, b) => {
-        const aValue = sortConfig.key.split(".").reduce((obj, key) => obj?.[key], a);
-        const bValue = sortConfig.key.split(".").reduce((obj, key) => obj?.[key], b);
-        if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
-        if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
+        const aVal = a[sortConfig.key];
+        const bVal = b[sortConfig.key];
+        if (aVal == null && bVal == null) return 0;
+        if (aVal == null) return sortConfig.direction === "asc" ? -1 : 1;
+        if (bVal == null) return sortConfig.direction === "asc" ? 1 : -1;
+        if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
         return 0;
       });
     }
+
     return result;
-  }, [data, debouncedQuery, searchFields, sortConfig]);
+  }, [data, searchLower, searchFields, sortConfig]);
 
   const totalPages = Math.max(1, Math.ceil(filteredData.length / rowsPerPage));
   const safePage = Math.min(currentPage, totalPages);
@@ -73,17 +122,21 @@ export default function DataTable({
     return filteredData.slice(start, start + rowsPerPage);
   }, [filteredData, safePage, rowsPerPage]);
 
+  // Memoize selectedRows Set for O(1) includes() lookups instead of O(n)
+  const selectedRowsSet = useMemo(() => new Set(selectedRows), [selectedRows]);
+  const selectedRowsSetForChild = useMemo(() => [...selectedRowsSet], [selectedRowsSet]);
+
   const handleSelectAll = useCallback(() => {
     if (!onSelectRows) return;
     const pageIds = paginatedData.map((item) => item.id);
-    const allPageSelected = pageIds.every((id) => selectedRows.includes(id));
+    const allPageSelected = pageIds.every((id) => selectedRowsSet.has(id));
     if (allPageSelected) {
       onSelectRows(selectedRows.filter((id) => !pageIds.includes(id)));
     } else {
       const newSelected = new Set([...selectedRows, ...pageIds]);
       onSelectRows([...newSelected]);
     }
-  }, [paginatedData, selectedRows, onSelectRows]);
+  }, [paginatedData, selectedRows, selectedRowsSet, onSelectRows]);
 
   const handleSelectAllFiltered = useCallback(() => {
     if (!onSelectRows) return;
@@ -92,20 +145,20 @@ export default function DataTable({
 
   const handleSelectRow = useCallback((id) => {
     if (!onSelectRows) return;
-    if (selectedRows.includes(id)) {
+    if (selectedRowsSet.has(id)) {
       onSelectRows(selectedRows.filter((rowId) => rowId !== id));
     } else {
       onSelectRows([...selectedRows, id]);
     }
-  }, [selectedRows, onSelectRows]);
+  }, [selectedRows, selectedRowsSet, onSelectRows]);
 
-  const allPageSelected = paginatedData.length > 0 && paginatedData.every((r) => selectedRows.includes(r.id));
+  const allPageSelected = paginatedData.length > 0 && paginatedData.every((r) => selectedRowsSet.has(r.id));
 
   const goToPage = useCallback((page) => {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)));
   }, [totalPages]);
 
-  const getPageNumbers = () => {
+  const getPageNumbers = useCallback(() => {
     const pages = [];
     const maxVisible = 5;
     let start = Math.max(1, safePage - Math.floor(maxVisible / 2));
@@ -117,7 +170,7 @@ export default function DataTable({
       pages.push(i);
     }
     return pages;
-  };
+  }, [safePage, totalPages]);
 
   return (
     <div className={cn("space-y-3", className)}>
@@ -198,31 +251,15 @@ export default function DataTable({
               </tr>
             ) : (
               paginatedData.map((row) => (
-                <tr
+                <TableRow
                   key={row.id}
-                  className={cn(
-                    "bg-slate-900/50 hover:bg-slate-800/70 transition-colors duration-100",
-                    onRowClick && "cursor-pointer",
-                    selectedRows.includes(row.id) && "bg-cyan-900/20 border-l-2 border-l-cyan-500"
-                  )}
-                  onClick={() => onRowClick?.(row)}
-                >
-                  {selectable && (
-                    <td className="w-10 px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={selectedRows.includes(row.id)}
-                        onChange={() => handleSelectRow(row.id)}
-                        className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500/40"
-                      />
-                    </td>
-                  )}
-                  {columns.map((column) => (
-                    <td key={column.key} className="px-4 py-3 text-lg text-slate-200">
-                      {column.render ? column.render(row) : row[column.key]}
-                    </td>
-                  ))}
-                </tr>
+                  row={row}
+                  columns={columns}
+                  selectable={selectable}
+                  selectedRows={selectedRowsSetForChild}
+                  onSelectRow={handleSelectRow}
+                  onRowClick={onRowClick}
+                />
               ))
             )}
           </tbody>
