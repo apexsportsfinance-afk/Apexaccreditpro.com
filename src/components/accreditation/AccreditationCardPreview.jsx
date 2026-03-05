@@ -1,6 +1,6 @@
 import React, { memo } from "react";
 import { getCountryName, calculateAge, COUNTRIES, isExpired } from "../../lib/utils";
-import QRCode from "qrcode";
+import * as QRCode from "qrcode";
 
 const roleColors = {
   athlete: { bg: "bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500", hex: "#2563eb" },
