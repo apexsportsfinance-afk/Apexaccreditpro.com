@@ -667,7 +667,11 @@ export const UsersAPI = {
     };
   },
   logout: async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut({ scope: "local" });
+    } catch (err) {
+      console.warn("SignOut error (session may already be invalid):", err);
+    }
   },
   create: async (userData) => {
     try {
