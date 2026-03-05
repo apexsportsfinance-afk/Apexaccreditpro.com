@@ -91,8 +91,13 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    await UsersAPI.logout();
-    setUser(null);
+    try {
+      await UsersAPI.logout();
+    } catch (err) {
+      console.warn("Logout error:", err);
+    } finally {
+      setUser(null);
+    }
   };
 
   const hasPermission = (permission) => {
