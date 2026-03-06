@@ -3,9 +3,6 @@ import html2canvas from "html2canvas";
 import AccreditationCardPreview, { CardInner } from "./AccreditationCardPreview";
 import { useToast } from "../ui/Toast";
 
-/**
- * AccreditationCard component - Wrapper for displaying and downloading accreditation cards
- */
 const AccreditationCard = ({ accreditation, event, zones = [] }) => {
   const [downloadingId, setDownloadingId] = useState(null);
   const toast = useToast();
@@ -25,22 +22,20 @@ const AccreditationCard = ({ accreditation, event, zones = [] }) => {
     });
   };
 
-  const handleDownloadPDF = useCallback(async (openInBrowser = false) => {
+  const handleDownloadPNG = useCallback(async () => {
     const id = accreditation?.id;
     if (!id || downloadingId === id) return;
     setDownloadingId(id);
 
     try {
-      // Capture front card
       const frontCanvas = await captureElement("accreditation-front-card", 3);
-      // Create download link for PNG
       const link = document.createElement("a");
       link.download = `${accreditation.firstName}_${accreditation.lastName}_Card.png`;
       link.href = frontCanvas.toDataURL("image/png", 1.0);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      // Small delay for back card
+
       if (document.getElementById("accreditation-back-card")) {
         await new Promise(r => setTimeout(r, 300));
         const backCanvas = await captureElement("accreditation-back-card", 3);
@@ -70,10 +65,10 @@ const AccreditationCard = ({ accreditation, event, zones = [] }) => {
 
   return (
     <div id="accreditation-card-wrapper" className="inline-block">
-      <AccreditationCardPreview 
-        accreditation={accreditation} 
-        event={event} 
-        zones={zones} 
+      <AccreditationCardPreview
+        accreditation={accreditation}
+        event={event}
+        zones={zones}
       />
     </div>
   );
