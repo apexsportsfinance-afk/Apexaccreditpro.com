@@ -675,19 +675,28 @@ export const UsersAPI = {
   },
   create: async (userData) => {
     try {
-      const response = await fetch(
-        "https://dixelomafeobabahqeqg.supabase.co/functions/v1/manage-users",
-        {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Not authenticated. Please log in again.");
+      const EDGE_URL = "https://dixelomafeobabahqeqg.supabase.co/functions/v1/manage-users";
+      let response;
+      try {
+        response = await fetch(EDGE_URL, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+            "Authorization": `Bearer ${session.access_token}`
           },
           body: JSON.stringify({ action: "create", ...userData })
-        }
-      );
+        });
+      } catch (networkErr) {
+        throw new Error("Network error: unable to reach the server. Please check your connection.");
+      }
+      if (!response.ok) {
+        let errMsg = `Request failed with status ${response.status}`;
+        try { const d = await response.json(); if (d.error) errMsg = d.error; } catch (_) { /* non-JSON body */ }
+        throw new Error(errMsg);
+      }
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to create user");
       AuditAPI.log("user_created", { email: userData.email, role: userData.role });
       return data.user;
     } catch (error) {
@@ -697,19 +706,28 @@ export const UsersAPI = {
   },
   update: async (id, updates) => {
     try {
-      const response = await fetch(
-        "https://dixelomafeobabahqeqg.supabase.co/functions/v1/manage-users",
-        {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Not authenticated. Please log in again.");
+      const EDGE_URL = "https://dixelomafeobabahqeqg.supabase.co/functions/v1/manage-users";
+      let response;
+      try {
+        response = await fetch(EDGE_URL, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+            "Authorization": `Bearer ${session.access_token}`
           },
           body: JSON.stringify({ action: "update", id, ...updates })
-        }
-      );
+        });
+      } catch (networkErr) {
+        throw new Error("Network error: unable to reach the server. Please check your connection.");
+      }
+      if (!response.ok) {
+        let errMsg = `Request failed with status ${response.status}`;
+        try { const d = await response.json(); if (d.error) errMsg = d.error; } catch (_) { /* non-JSON body */ }
+        throw new Error(errMsg);
+      }
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to update user");
       AuditAPI.log("user_updated", { userId: id });
       return data.user;
     } catch (error) {
@@ -719,19 +737,28 @@ export const UsersAPI = {
   },
   delete: async (id) => {
     try {
-      const response = await fetch(
-        "https://dixelomafeobabahqeqg.supabase.co/functions/v1/manage-users",
-        {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Not authenticated. Please log in again.");
+      const EDGE_URL = "https://dixelomafeobabahqeqg.supabase.co/functions/v1/manage-users";
+      let response;
+      try {
+        response = await fetch(EDGE_URL, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+            "Authorization": `Bearer ${session.access_token}`
           },
           body: JSON.stringify({ action: "delete", id })
-        }
-      );
+        });
+      } catch (networkErr) {
+        throw new Error("Network error: unable to reach the server. Please check your connection.");
+      }
+      if (!response.ok) {
+        let errMsg = `Request failed with status ${response.status}`;
+        try { const d = await response.json(); if (d.error) errMsg = d.error; } catch (_) { /* non-JSON body */ }
+        throw new Error(errMsg);
+      }
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to delete user");
       AuditAPI.log("user_deleted", { userId: id });
       return true;
     } catch (error) {
