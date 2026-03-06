@@ -1,11 +1,88 @@
-import React, { useState, useEffect } from "react";
-import { Upload, X, Check, User, Camera, AlertTriangle, Info } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Upload, X, Check, User, Camera, AlertTriangle, Info, Plus } from "lucide-react";
 import Button from "./ui/Button";
 import Input from "./ui/Input";
 import Select from "./ui/Select";
 import SearchableSelect from "./ui/SearchableSelect";
 import Modal from "./ui/Modal";
 import { COUNTRIES, ROLES, validateFile, fileToBase64, ROLE_BADGE_PREFIXES, getBadgePrefix } from "../lib/utils";
+
+function ZoneAccessSelector({ zones, selectedRole, selectedCodes, onToggle, onSelectAll, onClearAll }) {
+  const roleZones = useMemo(() => {
+    if (!selectedRole || zones.length === 0) return zones;
+    const filtered = zones.filter(z => {
+      const ar = z.allowedRoles || [];
+      return ar.length === 0 || ar.includes(selectedRole);
+    });
+    return filtered.length > 0 ? filtered : zones;
+  }, [zones, selectedRole]);
+
+  const hasRoleFilter = selectedRole && roleZones.length < zones.length;
+
+  return (
+    <>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        {hasRoleFilter && (
+          <p className="text-lg text-cyan-400 font-extralight">
+            Showing {roleZones.length} zone(s) linked to role <span className="font-medium">{selectedRole}</span>
+          </p>
+        )}
+        <div className="flex gap-2 ml-auto">
+          <button type="button" onClick={() => onSelectAll(roleZones)} className="text-lg text-cyan-400 hover:text-cyan-300">
+            Select Shown
+          </button>
+          <span className="text-slate-600">|</span>
+          <button type="button" onClick={onClearAll} className="text-lg text-slate-400 hover:text-slate-300">
+            Clear
+          </button>
+          {hasRoleFilter && (
+            <>
+              <span className="text-slate-600">|</span>
+              <button type="button" onClick={() => onSelectAll(zones)} className="text-lg text-slate-500 hover:text-slate-300">
+                All zones
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {roleZones.map(zone => {
+          const isSelected = selectedCodes.includes(zone.code);
+          return (
+            <button
+              key={zone.id}
+              type="button"
+              onClick={() => onToggle(zone.code)}
+              className={`p-3 rounded-lg border-2 transition-all duration-200 text-left ${
+                isSelected
+                  ? "border-primary-500 bg-primary-500/20"
+                  : "border-slate-700 hover:border-slate-600 bg-slate-800/50"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-8 h-8 rounded-md flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
+                  style={{ backgroundColor: zone.color || "#2563eb" }}
+                >
+                  {zone.code}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-lg font-medium truncate ${isSelected ? "text-white" : "text-slate-300"}`}>
+                    {zone.name}
+                  </p>
+                </div>
+                {isSelected && <Check className="w-4 h-4 text-primary-400 flex-shrink-0" />}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-lg text-slate-500 font-extralight">
+        {selectedCodes.length} zone(s) selected
+      </p>
+    </>
+  );
+}
 
 export default function EditAccreditationModal({
   isOpen,
@@ -31,12 +108,14 @@ export default function EditAccreditationModal({
   });
   const [errors, setErrors] = useState({});
   const [originalRole, setOriginalRole] = useState("");
+  const [customRoleMode, setCustomRoleMode] = useState(false);
 
   useEffect(() => {
     if (accreditation) {
       const zc = accreditation.zoneCode
         ? accreditation.zoneCode.split(",").map(z => z.trim()).filter(Boolean)
         : [];
+      const role = accreditation.role || "";
       setFormData({
         firstName: accreditation.firstName || "",
         lastName: accreditation.lastName || "",
@@ -44,21 +123,52 @@ export default function EditAccreditationModal({
         dateOfBirth: accreditation.dateOfBirth || "",
         nationality: accreditation.nationality || "",
         club: accreditation.club || "",
-        role: accreditation.role || "",
+        role: role,
         email: accreditation.email || "",
         photoUrl: accreditation.photoUrl || null,
         zoneCodes: zc
       });
-      setOriginalRole(accreditation.role || "");
+      setOriginalRole(role);
       setErrors({});
+      const roleOpts = getRoleOptionsInternal(eventCategories);
+      const isKnownRole = roleOpts.some(o => o.value === role);
+      setCustomRoleMode(role !== "" && !isKnownRole);
     }
-  }, [accreditation]);
+  }, [accreditation, eventCategories]);
+
+  const getRoleOptionsInternal = (cats) => {
+    if (cats && cats.length > 0) {
+      return cats.map(cat => {
+        const categoryData = cat.category || cat;
+        const name = categoryData?.name || cat?.name;
+        if (name) return { value: name, label: name };
+        return null;
+      }).filter(Boolean);
+    }
+    return ROLES.map(r => ({ value: r, label: r }));
+  };
+
+  const getRoleOptions = () => getRoleOptionsInternal(eventCategories);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: null }));
+    }
+  };
+
+  const handleRoleChange = (e) => {
+    const value = e.target.value;
+    if (value === "__custom__") {
+      setCustomRoleMode(true);
+      setFormData(prev => ({ ...prev, role: "" }));
+    } else {
+      setCustomRoleMode(false);
+      setFormData(prev => ({ ...prev, role: value }));
+    }
+    if (errors.role) {
+      setErrors(prev => ({ ...prev, role: null }));
     }
   };
 
@@ -94,24 +204,13 @@ export default function EditAccreditationModal({
     });
   };
 
-  const selectAllZones = () => {
-    setFormData(prev => ({ ...prev, zoneCodes: zones.map(z => z.code) }));
+  const selectAllZones = (zoneList) => {
+    const list = Array.isArray(zoneList) ? zoneList : zones;
+    setFormData(prev => ({ ...prev, zoneCodes: list.map(z => z.code) }));
   };
 
   const clearAllZones = () => {
     setFormData(prev => ({ ...prev, zoneCodes: [] }));
-  };
-
-  const getRoleOptions = () => {
-    if (eventCategories && eventCategories.length > 0) {
-      return eventCategories.map(cat => {
-        const categoryData = cat.category || cat;
-        const name = categoryData?.name || cat?.name;
-        if (name) return { value: name, label: name };
-        return null;
-      }).filter(Boolean);
-    }
-    return ROLES.map(r => ({ value: r, label: r }));
   };
 
   const getAge = () => {
@@ -163,6 +262,10 @@ export default function EditAccreditationModal({
 
   if (!accreditation) return null;
 
+  const roleOptions = getRoleOptions();
+  const isKnownRole = roleOptions.some(o => o.value === formData.role);
+  const selectValue = customRoleMode || (!isKnownRole && formData.role !== "") ? "__custom__" : formData.role;
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Edit Accreditation" size="lg">
       <div id="edit-accreditation-modal" className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
@@ -178,7 +281,6 @@ export default function EditAccreditationModal({
           )}
         </div>
 
-        {/* Badge number info for approved accreditations */}
         {isApproved && accreditation?.badgeNumber && (
           <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3 flex items-center gap-3">
             <Info className="w-5 h-5 text-cyan-400 flex-shrink-0" />
@@ -193,7 +295,6 @@ export default function EditAccreditationModal({
           </div>
         )}
 
-        {/* Role change warning for approved accreditations */}
         {roleChanged && (
           <div className="bg-amber-500/10 border border-amber-500/40 rounded-lg p-3 flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
@@ -208,7 +309,7 @@ export default function EditAccreditationModal({
           </div>
         )}
 
-        {/* Photo + Personal Info Section */}
+        {/* Photo Section */}
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-white border-b border-slate-700 pb-2">Personal Information</h3>
           <div className="flex items-start gap-4">
@@ -318,7 +419,6 @@ export default function EditAccreditationModal({
           />
         </div>
 
-        {/* Show age for Athletes */}
         {isAthlete && age !== null && (
           <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-3">
             <p className="text-lg text-cyan-400 font-extralight">
@@ -360,15 +460,32 @@ export default function EditAccreditationModal({
           <Select
             label="Role *"
             name="role"
-            value={formData.role}
-            onChange={handleInputChange}
-            options={getRoleOptions()}
+            value={selectValue}
+            onChange={handleRoleChange}
+            options={[...roleOptions, { value: "__custom__", label: "Other / Enter manually..." }]}
             placeholder="Select a category"
             required
           />
+          {(customRoleMode || (!isKnownRole && formData.role !== "")) && (
+            <div className="space-y-2">
+              <label className="block text-lg font-medium text-slate-300">Custom Role Name</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={formData.role}
+                  onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
+                  placeholder="e.g. Technical Director"
+                  className="flex-1 bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-lg focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+              <p className="text-lg text-cyan-400 font-extralight">
+                Type any role name. This will be saved as-is on the accreditation.
+              </p>
+            </div>
+          )}
           {eventCategories && eventCategories.length > 0 ? (
             <p className="text-lg text-emerald-400 font-extralight">
-              {getRoleOptions().length} categories available from event settings
+              {roleOptions.length} categories available from event settings
             </p>
           ) : (
             <p className="text-lg text-amber-400 font-extralight">
@@ -381,64 +498,14 @@ export default function EditAccreditationModal({
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-white border-b border-slate-700 pb-2">Zone Access</h3>
           {zones && zones.length > 0 ? (
-            <>
-              <div className="flex items-center justify-end">
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={selectAllZones}
-                    className="text-lg text-cyan-400 hover:text-cyan-300"
-                  >
-                    Select All
-                  </button>
-                  <span className="text-slate-600">|</span>
-                  <button
-                    type="button"
-                    onClick={clearAllZones}
-                    className="text-lg text-slate-400 hover:text-slate-300"
-                  >
-                    Clear
-                  </button>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {zones.map(zone => {
-                  const isSelected = formData.zoneCodes.includes(zone.code);
-                  return (
-                    <button
-                      key={zone.id}
-                      type="button"
-                      onClick={() => toggleZone(zone.code)}
-                      className={`p-3 rounded-lg border-2 transition-all duration-200 text-left ${
-                        isSelected
-                          ? "border-primary-500 bg-primary-500/20"
-                          : "border-slate-700 hover:border-slate-600 bg-slate-800/50"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-8 h-8 rounded-md flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
-                          style={{ backgroundColor: zone.color || "#2563eb" }}
-                        >
-                          {zone.code}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-lg font-medium truncate ${isSelected ? "text-white" : "text-slate-300"}`}>
-                            {zone.name}
-                          </p>
-                        </div>
-                        {isSelected && (
-                          <Check className="w-4 h-4 text-primary-400 flex-shrink-0" />
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="text-lg text-slate-500 font-extralight">
-                {formData.zoneCodes.length} zone(s) selected
-              </p>
-            </>
+            <ZoneAccessSelector
+              zones={zones}
+              selectedRole={formData.role}
+              selectedCodes={formData.zoneCodes}
+              onToggle={toggleZone}
+              onSelectAll={selectAllZones}
+              onClearAll={clearAllZones}
+            />
           ) : (
             <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
               <p className="text-lg text-amber-400 font-extralight">
