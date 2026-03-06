@@ -1,12 +1,11 @@
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
-import QRCode from "qrcode";
 
 export const PDF_SIZES = {
-  a4:   { width: 210, height: 297, label: "A4 (210×297 mm)", dpi: 72 },
-  a5:   { width: 148, height: 210, label: "A5 (148×210 mm)", dpi: 72 },
-  a6:   { width: 105, height: 148, label: "A6 (105×148 mm)", dpi: 72 },
-  card: { width: 320, height: 454, label: "Exact Card Size", dpi: 96 }, // Screen DPI
+  a4:   { width: 210, height: 297, label: "A4 (210x297 mm)", dpi: 72 },
+  a5:   { width: 148, height: 210, label: "A5 (148x210 mm)", dpi: 72 },
+  a6:   { width: 105, height: 148, label: "A6 (105x148 mm)", dpi: 72 },
+  card: { width: 320, height: 454, label: "Exact Card Size", dpi: 96 },
 };
 
 export const IMAGE_SIZES = {
@@ -51,7 +50,7 @@ const captureElement = async (elementId, scale = 4) => {
       box-sizing: border-box !important;
     `;
 
-    const images = element.querySelectorAll('img');
+    const images = element.querySelectorAll("img");
     await Promise.all(
       Array.from(images).map(img =>
         new Promise(resolve => {
@@ -79,110 +78,98 @@ const captureElement = async (elementId, scale = 4) => {
   } finally {
     if (originalNextSibling) originalParent.insertBefore(element, originalNextSibling);
     else originalParent.appendChild(element);
-
     element.style.cssText = originalCssText;
   }
 };
 
 export const downloadCapturedPDF = async (frontId, backId, fileName, sizeKey = "card") => {
   try {
-    // Capture the card with QR code included (no hiding, just capture as-is)
     const { canvas: frontCanvas, width, height } = await captureElement(frontId, 4);
-    
-    // CRITICAL FIX: Calculate PDF dimensions at exactly 72 DPI
-    // PDF uses 72 DPI by default, so we convert pixels to points (1:1 ratio)
-    const pdfWidth = width;   // pixels = points at 72 DPI
-    const pdfHeight = height; // pixels = points at 72 DPI
-    
+    const pdfWidth = width;
+    const pdfHeight = height;
+
     const pdf = new jsPDF({
       orientation: pdfWidth > pdfHeight ? "l" : "p",
-      unit: "pt",  // Points - 1 point = 1/72 inch = 1 pixel at 72 DPI
+      unit: "pt",
       format: [pdfWidth, pdfHeight],
       compress: false,
       putOnlyUsedFonts: true,
       floatPrecision: 16
     });
-    
-    // Add image at EXACT pixel dimensions
+
     pdf.addImage(
-      frontCanvas.toDataURL('image/png'), 
-      'PNG', 
-      0, 
-      0, 
-      pdfWidth, 
-      pdfHeight,
+      frontCanvas.toDataURL("image/png"),
+      "PNG",
+      0, 0, pdfWidth, pdfHeight,
       undefined,
-      'NONE'  // No compression
+      "NONE"
     );
 
     if (backId) {
       const { canvas: backCanvas, width: bw, height: bh } = await captureElement(backId, 4);
       pdf.addPage([bw, bh]);
       pdf.addImage(
-        backCanvas.toDataURL('image/png'), 
-        'PNG', 
-        0, 
-        0, 
-        bw, 
-        bh,
+        backCanvas.toDataURL("image/png"),
+        "PNG",
+        0, 0, bw, bh,
         undefined,
-        'NONE'
+        "NONE"
       );
     }
 
     pdf.save(fileName);
   } catch (error) {
-    console.error('PDF Error:', error);
+    console.error("PDF Error:", error);
     throw new Error(`Failed to generate PDF: ${error.message}`);
   }
 };
 
-export const openCapturedPDFInTab = async (frontId, backId, sizeKey = "card") => {  
+export const openCapturedPDFInTab = async (frontId, backId, sizeKey = "card") => {
   const { canvas, width, height } = await captureElement(frontId, 4);
-   
+
   const pdf = new jsPDF({
     orientation: width > height ? "l" : "p",
     unit: "pt",
     format: [width, height]
   });
-  
-  pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, width, height);
+
+  pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, width, height);
 
   if (backId) {
     const { canvas: bc, width: bw, height: bh } = await captureElement(backId, 4);
     pdf.addPage([bw, bh]);
-    pdf.addImage(bc.toDataURL('image/png'), 'PNG', 0, 0, bw, bh);
+    pdf.addImage(bc.toDataURL("image/png"), "PNG", 0, 0, bw, bh);
   }
 
-  window.open(pdf.output('bloburl'), '_blank');
+  window.open(pdf.output("bloburl"), "_blank");
 };
 
 export const getCapturedPDFBlob = async (frontId, backId, sizeKey = "card") => {
   const { canvas, width, height } = await captureElement(frontId, 4);
-   
+
   const pdf = new jsPDF({
     orientation: width > height ? "l" : "p",
     unit: "pt",
     format: [width, height],
     compress: false
   });
-  
-  pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, width, height);
+
+  pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, width, height);
 
   if (backId) {
     const { canvas: bc, width: bw, height: bh } = await captureElement(backId, 4);
     pdf.addPage([bw, bh]);
-    pdf.addImage(bc.toDataURL('image/png'), 'PNG', 0, 0, bw, bh);
+    pdf.addImage(bc.toDataURL("image/png"), "PNG", 0, 0, bw, bh);
   }
 
-  return pdf.output('blob');
+  return pdf.output("blob");
 };
 
 export const downloadAsImages = async (frontId, backId, baseName, size = "hd") => {
   const scale = IMAGE_SIZES[size]?.scale || 2;
-  
+
   const { canvas } = await captureElement(frontId, scale);
-   
+
   const a1 = document.createElement("a");
   a1.download = `${baseName}_front.png`;
   a1.href = canvas.toDataURL("image/png", 1.0);
