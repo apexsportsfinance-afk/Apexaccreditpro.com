@@ -10,6 +10,10 @@ export default defineConfig({
     allowedHosts: true,
     watch: { usePolling: true },
     proxy: {
+      "/api": {
+        target: "http://localhost:3001",
+        changeOrigin: true
+      },
       "/flags": {
         target: "https://flagcdn.com",
         changeOrigin: true,
@@ -56,14 +60,14 @@ export default defineConfig({
       "@supabase/supabase-js",
       "motion",
       "lucide-react",
-      "date-fns"
+      "date-fns",
+      "qrcode"
     ],
     exclude: [
       "html2canvas",
       "jspdf",
       "jspdf-autotable",
       "jszip",
-      "qrcode",
       "xlsx"
     ],
     esbuildOptions: { target: "esnext" }
