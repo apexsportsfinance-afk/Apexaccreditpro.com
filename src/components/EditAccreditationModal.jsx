@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Upload, X, Check, User, Camera, AlertTriangle, Info, Plus } from "lucide-react";
+import { Upload, X, Check, User, Camera, AlertTriangle, Info, Plus, Clock, CalendarX, Calendar } from "lucide-react";
 import Button from "./ui/Button";
 import Input from "./ui/Input";
 import Select from "./ui/Select";
 import SearchableSelect from "./ui/SearchableSelect";
 import Modal from "./ui/Modal";
 import { COUNTRIES, ROLES, validateFile, fileToBase64, ROLE_BADGE_PREFIXES, getBadgePrefix } from "../lib/utils";
+import { uploadToStorage } from "../lib/uploadToStorage";
 
 function ZoneAccessSelector({ zones, selectedRole, selectedCodes, onToggle, onSelectAll, onClearAll }) {
   const roleZones = useMemo(() => {
@@ -106,6 +107,8 @@ export default function EditAccreditationModal({
     photoUrl: null,
     zoneCodes: []
   });
+  const [expiryMode, setExpiryMode] = useState("none");
+  const [customExpiryDate, setCustomExpiryDate] = useState("");
   const [errors, setErrors] = useState({});
   const [originalRole, setOriginalRole] = useState("");
   const [customRoleMode, setCustomRoleMode] = useState(false);
@@ -130,6 +133,13 @@ export default function EditAccreditationModal({
       });
       setOriginalRole(role);
       setErrors({});
+      if (accreditation.expiresAt) {
+        setExpiryMode("custom");
+        setCustomExpiryDate(new Date(accreditation.expiresAt).toISOString().split("T")[0]);
+      } else {
+        setExpiryMode("none");
+        setCustomExpiryDate("");
+      }
       const roleOpts = getRoleOptionsInternal(eventCategories);
       const isKnownRole = roleOpts.some(o => o.value === role);
       setCustomRoleMode(role !== "" && !isKnownRole);
@@ -181,11 +191,12 @@ export default function EditAccreditationModal({
       return;
     }
     try {
-      const base64 = await fileToBase64(file);
-      setFormData(prev => ({ ...prev, photoUrl: base64 }));
+      const data = await uploadToStorage(file, "edits");
+
+      setFormData(prev => ({ ...prev, photoUrl: data.url }));
       setErrors(prev => ({ ...prev, photoUrl: null }));
-    } catch {
-      setErrors(prev => ({ ...prev, photoUrl: "Failed to process image" }));
+    } catch (err) {
+      setErrors(prev => ({ ...prev, photoUrl: "Failed to upload image: " + (err.message || "") }));
     }
   };
 
@@ -250,13 +261,23 @@ export default function EditAccreditationModal({
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = "Invalid email format";
     }
+    if (expiryMode === "custom" && !customExpiryDate) {
+      newErrors.expiryDate = "Please select a date or choose No expiration";
+    }
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
+    let expiresAt = null;
+    if (expiryMode === "event" && currentEvent?.endDate) {
+      expiresAt = new Date(currentEvent.endDate + "T23:59:00").toISOString();
+    } else if (expiryMode === "custom" && customExpiryDate) {
+      expiresAt = new Date(customExpiryDate + "T23:59:00").toISOString();
+    }
     onSave({
       ...formData,
       zoneCode: formData.zoneCodes.join(","),
       roleChanged,
-      originalRole
+      originalRole,
+      expiresAt
     });
   };
 
@@ -527,6 +548,77 @@ export default function EditAccreditationModal({
             error={errors.email}
             required
           />
+        </div>
+
+        {/* Expiry Section */}
+        <div className="space-y-3">
+          <h3 className="text-lg font-semibold text-white border-b border-slate-700 pb-2">Accreditation Expiry</h3>
+          <p className="text-lg text-slate-400 font-extralight">
+            Control when this accreditation expires. Expired accreditations will show as EXPIRED on scans.
+          </p>
+          <div className="grid grid-cols-1 gap-2">
+            <button
+              type="button"
+              onClick={() => setExpiryMode("none")}
+              className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
+                expiryMode === "none"
+                  ? "border-primary-500 bg-primary-500/20"
+                  : "border-slate-700 hover:border-slate-600 bg-slate-800/50"
+              }`}
+            >
+              <CalendarX className={`w-5 h-5 flex-shrink-0 ${expiryMode === "none" ? "text-primary-400" : "text-slate-500"}`} />
+              <div className="flex-1">
+                <p className={`text-lg font-medium ${expiryMode === "none" ? "text-white" : "text-slate-300"}`}>No expiration</p>
+                <p className="text-lg text-slate-500 font-extralight">Accreditation never expires</p>
+              </div>
+              {expiryMode === "none" && <Check className="w-4 h-4 text-primary-400 ml-auto" />}
+            </button>
+            {currentEvent?.endDate && (
+              <button
+                type="button"
+                onClick={() => setExpiryMode("event")}
+                className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
+                  expiryMode === "event"
+                    ? "border-cyan-500 bg-cyan-500/20"
+                    : "border-slate-700 hover:border-slate-600 bg-slate-800/50"
+                }`}
+              >
+                <Calendar className={`w-5 h-5 flex-shrink-0 ${expiryMode === "event" ? "text-cyan-400" : "text-slate-500"}`} />
+                <div className="flex-1">
+                  <p className={`text-lg font-medium ${expiryMode === "event" ? "text-white" : "text-slate-300"}`}>Expire on event end date</p>
+                  <p className="text-lg text-slate-500 font-extralight">Expires: {currentEvent.endDate}</p>
+                </div>
+                {expiryMode === "event" && <Check className="w-4 h-4 text-cyan-400 ml-auto" />}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setExpiryMode("custom")}
+              className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
+                expiryMode === "custom"
+                  ? "border-amber-500 bg-amber-500/20"
+                  : "border-slate-700 hover:border-slate-600 bg-slate-800/50"
+              }`}
+            >
+              <Clock className={`w-5 h-5 flex-shrink-0 ${expiryMode === "custom" ? "text-amber-400" : "text-slate-500"}`} />
+              <div className="flex-1">
+                <p className={`text-lg font-medium ${expiryMode === "custom" ? "text-white" : "text-slate-300"}`}>Custom expiry date</p>
+                <p className="text-lg text-slate-500 font-extralight">Set a specific date</p>
+              </div>
+              {expiryMode === "custom" && <Check className="w-4 h-4 text-amber-400 ml-auto" />}
+            </button>
+          </div>
+          {expiryMode === "custom" && (
+            <div className="mt-2">
+              <Input
+                label="Custom Expiry Date"
+                type="date"
+                value={customExpiryDate}
+                onChange={(e) => setCustomExpiryDate(e.target.value)}
+                error={errors.expiryDate}
+              />
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}

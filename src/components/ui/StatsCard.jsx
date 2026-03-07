@@ -1,51 +1,48 @@
 import React from "react";
 import { motion } from "motion/react";
 import { cn } from "../../lib/utils";
-import { TrendingUp, TrendingDown } from "lucide-react";
 
-export default function StatsCard({
+export function StatsCard({
   title,
   value,
-  change,
-  changeType = "neutral",
   icon: Icon,
   iconColor = "text-primary-400",
+  change,
+  changeType = "neutral",
   className
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "bg-slate-900/50 border border-slate-800 rounded-xl p-6",
+        "bg-gradient-to-br from-swim-deep/60 via-primary-950/50 to-ocean-950/40 border border-primary-500/20 rounded-xl p-5 shadow-lg shadow-primary-900/20",
         className
       )}
     >
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-lg font-medium text-slate-400">{title}</p>
-          <p className="text-3xl font-bold text-white mt-2 font-mono">{value}</p>
-          {change !== undefined && (
-            <div className={cn(
-              "flex items-center gap-1 mt-2 text-lg",
-              changeType === "positive" ? "text-emerald-400" : 
-              changeType === "negative" ? "text-red-400" : "text-slate-400"
+          <p className="text-lg text-slate-400 font-extralight mb-1">{title}</p>
+          <p className="text-3xl font-bold text-white">{value}</p>
+          {change && (
+            <p className={cn(
+              "text-lg mt-1 font-extralight",
+              changeType === "positive" && "text-emerald-400",
+              changeType === "negative" && "text-red-400",
+              changeType === "neutral" && "text-slate-500"
             )}>
-              {changeType === "positive" ? (
-                <TrendingUp className="w-4 h-4" />
-              ) : changeType === "negative" ? (
-                <TrendingDown className="w-4 h-4" />
-              ) : null}
-              <span>{change}</span>
-            </div>
+              {change}
+            </p>
           )}
         </div>
         {Icon && (
-          <div className={cn("p-3 rounded-xl bg-slate-800", iconColor)}>
-            <Icon className="w-6 h-6" />
+          <div className="p-3 rounded-xl bg-primary-500/10 border border-primary-500/20">
+            <Icon className={cn("w-6 h-6", iconColor)} />
           </div>
         )}
       </div>
     </motion.div>
   );
 }
+
+export default StatsCard;

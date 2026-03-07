@@ -38,7 +38,6 @@ export default function Dashboard() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Parallel loading for faster initial render
       const [allEvents, accStats, recentAcc, activityLogs] = await Promise.all([
         EventsAPI.getAll(),
         AccreditationsAPI.getStats(),
@@ -57,7 +56,6 @@ export default function Dashboard() {
       setRecentAccreditations(recentAcc);
       setRecentActivity(activityLogs);
 
-      // Load per-event counts in background (non-blocking)
       if (allEvents.length > 0) {
         const eventIds = allEvents.map(e => e.id);
         AccreditationsAPI.getCountsByEventIds(eventIds)

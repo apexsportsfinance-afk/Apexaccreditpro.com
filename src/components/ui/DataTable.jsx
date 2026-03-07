@@ -4,7 +4,6 @@ import { cn } from "../../lib/utils";
 
 const ROWS_PER_PAGE_OPTIONS = [25, 50, 100, 200, 500];
 
-// Memoized row — prevents entire table from re-rendering when a single row changes
 const TableRow = memo(function TableRow({ row, columns, selectable, selectedRows, onSelectRow, onRowClick }) {
   const isSelected = selectedRows.includes(row.id);
 
@@ -83,7 +82,6 @@ export default function DataTable({
     setCurrentPage(1);
   }, []);
 
-  // Create a lowercase lookup for search to avoid repeated toLowerCase calls
   const searchLower = useMemo(() => debouncedQuery.toLowerCase(), [debouncedQuery]);
 
   const filteredData = useMemo(() => {
@@ -122,7 +120,6 @@ export default function DataTable({
     return filteredData.slice(start, start + rowsPerPage);
   }, [filteredData, safePage, rowsPerPage]);
 
-  // Memoize selectedRows Set for O(1) includes() lookups instead of O(n)
   const selectedRowsSet = useMemo(() => new Set(selectedRows), [selectedRows]);
   const selectedRowsSetForChild = useMemo(() => [...selectedRowsSet], [selectedRowsSet]);
 

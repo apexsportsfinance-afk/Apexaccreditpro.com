@@ -16,70 +16,91 @@ export const IMAGE_SIZES = {
   "4k":   { scale: 6,  label: "4K" },
 };
 
+/**
+ * Wait for the QR code data: img to be ready inside an element.
+ * Polls every 80ms with an 8-second timeout.
+ */
+const waitForQRInElement = (element, timeoutMs = 8000) =>
+  new Promise((resolve) => {
+    const start = Date.now();
+    const check = () => {
+      const qrImg = element.querySelector("img[data-qr-code='true']");
+      if (qrImg && qrImg.getAttribute("src")?.startsWith("data:")) {
+        return resolve(true);
+      }
+      if (Date.now() - start > timeoutMs) {
+        console.warn("[pdfCapture] QR code did not appear within timeout.");
+        return resolve(false);
+      }
+      setTimeout(check, 80);
+    };
+    check();
+  });
+
+/**
+ * Capture a visible DOM element using html2canvas.
+ * Uses cloneNode to avoid detaching the live React element.
+ */
 const captureElement = async (elementId, scale = 4) => {
   const element = document.getElementById(elementId);
   if (!element) throw new Error(`Element #${elementId} not found`);
 
+  // Wait for QR before capturing
+  await waitForQRInElement(element, 8000);
+
   const rect = element.getBoundingClientRect();
-  const actualWidth = Math.round(rect.width);
-  const actualHeight = Math.round(rect.height);
+  const actualWidth = Math.round(rect.width) || 320;
+  const actualHeight = Math.round(rect.height) || 454;
 
-  const originalParent = element.parentNode;
-  const originalNextSibling = element.nextSibling;
-  const originalCssText = element.style.cssText;
+  // Inline all external images to base64 first (prevents CORS taint)
+  const imgs = Array.from(element.querySelectorAll("img"));
+  await Promise.all(imgs.map(async (img) => {
+    const src = img.getAttribute("src") || "";
+    if (!src || src.startsWith("data:") || src.startsWith("blob:")) return;
+    try {
+      const resp = await fetch(src, { mode: "cors", cache: "force-cache", credentials: "omit" });
+      if (resp.ok) {
+        const blob = await resp.blob();
+        const b64 = await new Promise((res) => {
+          const reader = new FileReader();
+          reader.onloadend = () => res(reader.result);
+          reader.onerror = () => res(null);
+          reader.readAsDataURL(blob);
+        });
+        if (b64) img.setAttribute("src", b64);
+      }
+    } catch {
+      /* skip failed images */
+    }
+  }));
 
-  try {
-    document.body.appendChild(element);
-    element.style.cssText = `
-      position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: ${actualWidth}px !important;
-      height: ${actualHeight}px !important;
-      min-width: ${actualWidth}px !important;
-      min-height: ${actualHeight}px !important;
-      max-width: ${actualWidth}px !important;
-      max-height: ${actualHeight}px !important;
-      transform: none !important;
-      margin: 0 !important;
-      z-index: 999999 !important;
-      box-shadow: none !important;
-      display: flex !important;
-      flex-direction: column !important;
-      overflow: hidden !important;
-      box-sizing: border-box !important;
-    `;
+  // Wait for all images to be loaded
+  await Promise.all(imgs.map(img =>
+    new Promise(resolve => {
+      if (img.complete && img.naturalWidth > 0) return resolve();
+      img.onload = resolve;
+      img.onerror = resolve;
+      setTimeout(resolve, 2000);
+    })
+  ));
 
-    const images = element.querySelectorAll("img");
-    await Promise.all(
-      Array.from(images).map(img =>
-        new Promise(resolve => {
-          if (img.complete) resolve();
-          else { img.onload = resolve; img.onerror = resolve; setTimeout(resolve, 500); }
-        })
-      )
-    );
+  await document.fonts.ready;
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  await new Promise(r => setTimeout(r, 200));
 
-    await document.fonts.ready;
-    await new Promise(r => setTimeout(r, 400));
+  const canvas = await html2canvas(element, {
+    scale,
+    useCORS: true,
+    allowTaint: true,
+    backgroundColor: "#ffffff",
+    logging: false,
+    width: actualWidth,
+    height: actualHeight,
+    windowWidth: actualWidth,
+    windowHeight: actualHeight,
+  });
 
-    const canvas = await html2canvas(element, {
-      scale: scale,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: "#ffffff",
-      logging: false,
-      width: actualWidth,
-      height: actualHeight
-    });
-
-    return { canvas, width: actualWidth, height: actualHeight };
-
-  } finally {
-    if (originalNextSibling) originalParent.insertBefore(element, originalNextSibling);
-    else originalParent.appendChild(element);
-    element.style.cssText = originalCssText;
-  }
+  return { canvas, width: actualWidth, height: actualHeight };
 };
 
 export const downloadCapturedPDF = async (frontId, backId, fileName, sizeKey = "card") => {

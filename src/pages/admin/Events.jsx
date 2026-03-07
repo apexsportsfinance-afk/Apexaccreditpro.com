@@ -20,21 +20,15 @@ import {
   FileText,
   AlertCircle
 } from "lucide-react";
-import { Button } from "../../components/ui/Button";
-import { Card, CardHeader, CardContent } from "../../components/ui/Card";
-import { Badge } from "../../components/ui/Badge";
-import { Modal } from "../../components/ui/Modal";
-import { Input } from "../../components/ui/Input";
-import { EmptyState } from "../../components/ui/EmptyState";
+import Button from "../../components/ui/Button";
+import Card, { CardHeader, CardContent } from "../../components/ui/Card";
+import Badge from "../../components/ui/Badge";
+import Modal from "../../components/ui/Modal";
+import Input from "../../components/ui/Input";
+import EmptyState from "../../components/ui/EmptyState";
 import { useToast } from "../../components/ui/Toast";
-import {
-  EventsAPI,
-  AccreditationsAPI,
-  CategoriesAPI,
-  EventCategoriesAPI
-} from "../../lib/storage";
+import { EventsAPI, AccreditationsAPI, EventCategoriesAPI, CategoriesAPI } from "../../lib/storage";
 import { formatDate, fileToBase64 } from "../../lib/utils";
-
 const DOCUMENT_OPTIONS = [
   { id: "picture", label: "Picture" },
   { id: "passport", label: "Passport" },

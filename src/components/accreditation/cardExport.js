@@ -96,6 +96,29 @@ const inlineAllImages = async (container) => {
   );
 };
 
+/**
+ * Wait for the QR code image inside the card to be generated.
+ * The QR is set via React state (qrDataUrl) so we poll for
+ * the img[data-qr-code] to have a valid data: src.
+ */
+const waitForQR = (container, timeoutMs = 8000) =>
+  new Promise((resolve) => {
+    const start = Date.now();
+    const check = () => {
+      const qrImg = container.querySelector("img[data-qr-code='true']");
+      if (qrImg && qrImg.getAttribute("src")?.startsWith("data:")) {
+        return resolve(true);
+      }
+      if (Date.now() - start > timeoutMs) {
+        // QR didn't load in time — continue anyway so card still exports
+        console.warn("[cardExport] QR code did not appear within timeout, exporting without QR.");
+        return resolve(false);
+      }
+      setTimeout(check, 80);
+    };
+    check();
+  });
+
 const renderOffscreenCard = (accreditation, event, zones) =>
   new Promise((resolve, reject) => {
     const SUFFIX = `_cap_${Date.now()}`;
@@ -147,9 +170,12 @@ const renderOffscreenCard = (accreditation, event, zones) =>
         return setTimeout(poll, 100);
       }
 
+      // Wait specifically for QR code to be generated before capturing
+      await waitForQR(container, 8000);
+
       await inlineAllImages(container);
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-      await new Promise((r) => setTimeout(r, 200));
+      await new Promise((r) => setTimeout(r, 300));
 
       resolve({ frontEl, backEl, cleanup });
     };
@@ -355,7 +381,6 @@ export const downloadAsImages = async (accreditation, event, zones, baseName, sc
   document.body.appendChild(a1);
   a1.click();
   document.body.removeChild(a1);
-  // Revoke URL to free memory
   URL.revokeObjectURL(frontDataUrl);
 
   if (backDataUrl) {
@@ -370,10 +395,6 @@ export const downloadAsImages = async (accreditation, event, zones, baseName, sc
   }
 };
 
-/**
- * Bulk download PDFs with CONCURRENCY LIMITING to prevent browser OOM crashes.
- * Processes max 3 cards simultaneously, shows progress via onProgress callback.
- */
 export const bulkDownloadPDFs = async (
   accreditations,
   event,
@@ -383,7 +404,7 @@ export const bulkDownloadPDFs = async (
 ) => {
   if (!accreditations || accreditations.length === 0) return;
 
-  const CONCURRENCY = 3; // Max simultaneous PDF renders — prevents OOM
+  const CONCURRENCY = 3;
   const scale = IMAGE_SIZES["4k"].scale;
 
   try {
@@ -392,7 +413,6 @@ export const bulkDownloadPDFs = async (
     let completed = 0;
     let failed = 0;
 
-    // Process in concurrent batches instead of sequential or all-at-once
     for (let i = 0; i < accreditations.length; i += CONCURRENCY) {
       const batch = accreditations.slice(i, i + CONCURRENCY);
 

@@ -37,7 +37,6 @@ export default function Login() {
   return (
     <SwimmingBackground>
       <div id="login_page" className="min-h-screen flex items-center justify-center p-4 relative">
-        {/* Decorative swimming elements */}
         <div className="absolute top-20 left-10 opacity-20">
           <Droplets className="w-12 h-12 text-cyan-500 animate-bounce" style={{ animationDuration: "3s" }} />
         </div>
@@ -57,7 +56,6 @@ export default function Login() {
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-cyan-400 via-blue-500 to-ocean-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-cyan-500/30 relative overflow-hidden">
               <Shield className="w-10 h-10 text-white relative z-10" />
               <div className="absolute inset-0 bg-gradient-to-t from-blue-600/30 to-transparent" />
-              {/* Water ripple effect */}
               <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-cyan-300/40 to-transparent animate-pulse" />
             </div>
             <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 via-blue-600 to-ocean-500 mb-2">
@@ -71,7 +69,6 @@ export default function Login() {
             noValidate
             className="bg-white/80 backdrop-blur-xl border border-cyan-200/80 rounded-2xl p-6 lg:p-8 space-y-6 shadow-xl shadow-cyan-200/30 relative overflow-hidden"
           >
-            {/* Decorative pool lane lines */}
             <div className="absolute top-0 left-1/4 w-px h-full bg-gradient-to-b from-cyan-200/0 via-cyan-200/30 to-cyan-200/0 pointer-events-none" />
             <div className="absolute top-0 right-1/4 w-px h-full bg-gradient-to-b from-cyan-200/0 via-cyan-200/30 to-cyan-200/0 pointer-events-none" />
 

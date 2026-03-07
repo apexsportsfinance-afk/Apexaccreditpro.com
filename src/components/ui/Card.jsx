@@ -1,60 +1,40 @@
 import React from "react";
-import { motion } from "motion/react";
 import { cn } from "../../lib/utils";
 
-function Card({
-  children,
-  className,
-  hover = false,
-  ...props
-}) {
-  const Component = hover ? motion.div : "div";
+export function Card({ children, className, ...props }) {
   return (
-    <Component
+    <div
       className={cn(
-        "bg-slate-900/80 border border-slate-700/50 rounded-xl backdrop-blur-sm shadow-xl shadow-black/30",
+        "bg-gradient-to-br from-swim-deep/60 via-primary-950/50 to-ocean-950/40 border border-primary-500/20 rounded-xl shadow-xl shadow-primary-900/20",
         className
       )}
-      {...(hover && {
-        whileHover: { scale: 1.01, borderColor: "rgba(6, 182, 212, 0.4)" },
-        transition: { duration: 0.15 }
-      })}
       {...props}
     >
       {children}
-    </Component>
+    </div>
   );
 }
 
-function CardHeader({ children, className }) {
+export function CardHeader({ children, className, ...props }) {
   return (
-    <div className={cn(
-      "px-5 py-4 border-b border-slate-700/50 bg-slate-800/40",
-      className
-    )}>
+    <div
+      className={cn(
+        "px-6 py-4 border-b border-primary-500/20",
+        className
+      )}
+      {...props}
+    >
       {children}
     </div>
   );
 }
 
-function CardContent({ children, className }) {
+export function CardContent({ children, className, ...props }) {
   return (
-    <div className={cn("p-5", className)}>
+    <div className={cn("px-6 py-4", className)} {...props}>
       {children}
     </div>
   );
 }
 
-function CardFooter({ children, className }) {
-  return (
-    <div className={cn(
-      "px-5 py-4 border-t border-slate-700/50 bg-slate-800/20",
-      className
-    )}>
-      {children}
-    </div>
-  );
-}
-
-export { Card, CardHeader, CardContent, CardFooter };
 export default Card;

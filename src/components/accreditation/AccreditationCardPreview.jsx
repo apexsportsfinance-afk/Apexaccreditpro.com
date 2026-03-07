@@ -1,6 +1,6 @@
-import React, { memo } from "react";
+import React, { memo, useState, useEffect, useRef } from "react";
+import * as QRCodeLib from "qrcode";
 import { getCountryName, calculateAge, COUNTRIES, isExpired } from "../../lib/utils";
-
 const CARD_FONT = '"Gill Sans MT", "Gill Sans", Calibri, sans-serif';
 const CARD_FONT_SIZE = 11;
 
@@ -119,9 +119,7 @@ const useZoneBadgePngs = (codes, zones = []) => {
   React.useEffect(() => {
     if (!codes || codes.length === 0) return;
     const result = {};
-    // Dynamic sizing based on number of zones
     const count = codes.length;
-    // Smaller box, larger font for compactness and readability
     const DISPLAY = count <= 4 ? 32 : count <= 6 ? 28 : 24;
     const BADGE_SIZE = DISPLAY * 2;
     const FONT_SIZE = count <= 4 ? 15 : count <= 6 ? 13 : 11;
@@ -207,30 +205,52 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
   const nameFontSize = getNameFontSize(accreditation?.firstName, accreditation?.lastName);
   const fullName = `${accreditation?.firstName || "FIRST"} ${accreditation?.lastName || "LAST"}`;
 
-  const [qrDataUrl, setQrDataUrl] = React.useState(null);
+  // ── QR CODE BLOCK (injected from new AccreditationCardPreview) ──────────────
+  const [qrDataUrl, setQrDataUrl] = useState(null);
+  const genRef = useRef(0);
 
-  React.useEffect(() => {
-    let cancelled = false;
-    const generateQR = async () => {
+  useEffect(() => {
+    genRef.current += 1;
+    const currentGen = genRef.current;
+    setQrDataUrl(null);
+
+    const verifyUrl = accreditation?.accreditationId
+      ? `${window.location.origin}/verify/${accreditation.accreditationId}`
+      : accreditation?.badgeNumber
+      ? `${window.location.origin}/verify/${accreditation.badgeNumber}`
+      : accreditation?.id
+      ? `${window.location.origin}/verify/${accreditation.id}`
+      : null;
+
+    if (!verifyUrl) return;
+
+    const generate = async () => {
       try {
-        const QRCode = await import("qrcode");
-        const lib = QRCode.default || QRCode;
-        const verifyId = accreditation?.accreditationId || accreditation?.badgeNumber || accreditation?.id || "unknown";
-        const verifyUrl = `${window.location.origin}/verify/${verifyId}`;
+        const lib = QRCodeLib.default || QRCodeLib;
         const url = await lib.toDataURL(verifyUrl, {
           errorCorrectionLevel: "H",
+          type: "image/png",
           margin: 1,
           width: 512,
           color: { dark: "#0f172a", light: "#ffffff" }
         });
-        if (!cancelled) setQrDataUrl(url);
+        if (genRef.current === currentGen) {
+          setQrDataUrl(url);
+        }
       } catch (err) {
-        console.error("QR generation error:", err);
+        console.error("[QR] Generation failed:", err);
       }
     };
-    if (accreditation) generateQR();
-    return () => { cancelled = true; };
-  }, [accreditation?.id, accreditation?.status, accreditation?.accreditationId, accreditation?.badgeNumber]);
+
+    generate();
+  }, [
+    accreditation?.id,
+    accreditation?.status,
+    accreditation?.accreditationId,
+    accreditation?.badgeNumber,
+    idSuffix
+  ]);
+  // ── END QR CODE BLOCK ────────────────────────────────────────────────────────
 
   const cardFont = { fontFamily: CARD_FONT };
 
@@ -337,8 +357,9 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
           </div>
         </div>
 
-        {/* QR CODE + ZONE BADGES */}
+        {/* QR CODE + ZONE BADGES — 84px white strip */}
         <div style={{ height: "84px", width: "100%", backgroundColor: "white", display: "flex", alignItems: "center", padding: "4px 12px 4px 12px", gap: "10px", flexShrink: 0 }}>
+          {/* QR Code — bottom-left */}
           <div style={{ flexShrink: 0 }}>
             {qrDataUrl ? (
               <div data-qr-code="true" style={{ padding: "2px", backgroundColor: "white", border: "2px solid #e2e8f0", borderRadius: "4px" }}>
@@ -350,12 +371,12 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
               </div>
             )}
           </div>
-          {/* Zone badges - compact, single row when possible */}
-          <div style={{ 
-            flex: 1, 
-            display: "flex", 
-            alignItems: "center", 
-            justifyContent: "flex-end", 
+          {/* Zone badges */}
+          <div style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
             gap: zoneCodes.length <= 4 ? "6px" : zoneCodes.length <= 6 ? "4px" : "3px",
             flexWrap: "nowrap",
             height: "100%"
@@ -363,25 +384,24 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
             {zoneCodes.length > 0 ? (
               zoneCodes.slice(0, 8).map((code, index) => {
                 const zoneInfo = zones.find(z => z.code === code);
-                const zoneColor = (zoneInfo && zoneInfo.color) ? zoneInfo.color : "#0f172a";
-                // Dynamic sizing based on zone count
+                const zBgColor = (zoneInfo && zoneInfo.color) ? zoneInfo.color : "#0f172a";
                 const count = zoneCodes.length;
                 const boxSize = count <= 4 ? 32 : count <= 6 ? 28 : 24;
                 const fontSize = count <= 4 ? 15 : count <= 6 ? 13 : 11;
                 return zoneBadgePngs[code] ? (
                   <img key={index} src={zoneBadgePngs[code]} alt={code} style={{ width: `${boxSize}px`, height: `${boxSize}px`, display: "block", imageRendering: "crisp-edges" }} />
                 ) : (
-                  <div key={index} style={{ 
-                    backgroundColor: zoneColor, 
-                    color: "white", 
-                    width: `${boxSize}px`, 
-                    height: `${boxSize}px`, 
-                    lineHeight: `${boxSize}px`, 
-                    textAlign: "center", 
-                    borderRadius: "3px", 
-                    fontSize: `${fontSize}px`, 
-                    fontWeight: 700, 
-                    ...cardFont 
+                  <div key={index} style={{
+                    backgroundColor: zBgColor,
+                    color: "white",
+                    width: `${boxSize}px`,
+                    height: `${boxSize}px`,
+                    lineHeight: `${boxSize}px`,
+                    textAlign: "center",
+                    borderRadius: "3px",
+                    fontSize: `${fontSize}px`,
+                    fontWeight: 700,
+                    ...cardFont
                   }}>
                     {code}
                   </div>

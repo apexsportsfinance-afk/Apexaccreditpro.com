@@ -39,7 +39,7 @@ export const GlobalSettingsAPI = {
   }
 };
 
-// --- SPORT EVENTS API (meet programme entries) ---
+// --- SPORT EVENTS API ---
 export const SportEventsAPI = {
   getByEventId: async (eventId) => {
     const { data, error } = await supabase

@@ -15,9 +15,9 @@ import {
   Copy,
   Check,
   Plus,
-  AlertCircle
-  ,Mail
-  ,Image as ImageIcon
+  AlertCircle,
+  Mail,
+  Image as ImageIcon
 } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Select from "../../components/ui/Select";
@@ -892,6 +892,7 @@ export default function Accreditations() {
                 photoUrl: data.photoUrl,
                 zoneCode: data.zoneCode || (data.zoneCodes ? data.zoneCodes.join(",") : "")
               };
+              updatePayload.expiresAt = data.expiresAt !== undefined ? data.expiresAt : null;
               if (data.roleChanged && editModal.accreditation.status === "approved") {
                 const newRole = data.role;
                 const prefix = ROLE_BADGE_PREFIXES[newRole] || newRole.substring(0, 3).toUpperCase() || "GEN";

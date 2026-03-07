@@ -6,13 +6,11 @@ import ScrollToTop from "./components/layout/ScrollToTop";
 import AdminLayout from "./components/layout/AdminLayout";
 import { Loader2 } from "lucide-react";
 
-// Eagerly load login/public pages (above-the-fold)
 import Login from "./pages/public/Login";
 import Home from "./pages/public/Home";
 import Register from "./pages/public/Register";
 import VerifyAccreditation from "./pages/public/VerifyAccreditation";
 
-// Lazy load ALL admin pages — heavy, only loaded when admin navigates
 const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
 const Events = lazy(() => import("./pages/admin/Events"));
 const Accreditations = lazy(() => import("./pages/admin/Accreditations"));
@@ -20,6 +18,7 @@ const Zones = lazy(() => import("./pages/admin/Zones"));
 const Users = lazy(() => import("./pages/admin/Users"));
 const Settings = lazy(() => import("./pages/admin/Settings"));
 const AuditLog = lazy(() => import("./pages/admin/AuditLog"));
+const QRSystem = lazy(() => import("./pages/admin/QRSystem"));
 
 const PageLoader = () => (
   <div id="app_pageloader" className="flex items-center justify-center min-h-screen bg-swim-deep">
@@ -37,50 +36,37 @@ export default function App() {
       <ToastProvider>
         <AuthProvider>
           <Routes>
-            {/* Public routes — no lazy loading */}
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register/:slug" element={<Register />} />
             <Route path="/verify/:id" element={<VerifyAccreditation />} />
             <Route path="/accreditation/:id" element={<VerifyAccreditation />} />
 
-            {/* Admin routes — all lazy loaded */}
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<Navigate to="/admin/dashboard" replace />} />
               <Route path="dashboard" element={
-                <Suspense fallback={<PageLoader />}>
-                  <Dashboard />
-                </Suspense>
+                <Suspense fallback={<PageLoader />}><Dashboard /></Suspense>
               } />
               <Route path="events" element={
-                <Suspense fallback={<PageLoader />}>
-                  <Events />
-                </Suspense>
+                <Suspense fallback={<PageLoader />}><Events /></Suspense>
               } />
               <Route path="accreditations" element={
-                <Suspense fallback={<PageLoader />}>
-                  <Accreditations />
-                </Suspense>
+                <Suspense fallback={<PageLoader />}><Accreditations /></Suspense>
               } />
               <Route path="zones" element={
-                <Suspense fallback={<PageLoader />}>
-                  <Zones />
-                </Suspense>
+                <Suspense fallback={<PageLoader />}><Zones /></Suspense>
+              } />
+              <Route path="qr-system" element={
+                <Suspense fallback={<PageLoader />}><QRSystem /></Suspense>
               } />
               <Route path="users" element={
-                <Suspense fallback={<PageLoader />}>
-                  <Users />
-                </Suspense>
+                <Suspense fallback={<PageLoader />}><Users /></Suspense>
               } />
               <Route path="settings" element={
-                <Suspense fallback={<PageLoader />}>
-                  <Settings />
-                </Suspense>
+                <Suspense fallback={<PageLoader />}><Settings /></Suspense>
               } />
               <Route path="audit" element={
-                <Suspense fallback={<PageLoader />}>
-                  <AuditLog />
-                </Suspense>
+                <Suspense fallback={<PageLoader />}><AuditLog /></Suspense>
               } />
             </Route>
 

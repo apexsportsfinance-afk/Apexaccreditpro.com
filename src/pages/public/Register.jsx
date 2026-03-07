@@ -13,8 +13,10 @@ import {
   Waves,
   Droplets,
   Timer,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from "lucide-react";
+import { Calendar, Clock, MapPin } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
@@ -23,6 +25,8 @@ import Modal from "../../components/ui/Modal";
 import SwimmingBackground from "../../components/ui/SwimmingBackground";
 import { EventsAPI, AccreditationsAPI, EventCategoriesAPI, CategoriesAPI } from "../../lib/storage";
 import { COUNTRIES, ROLES, validateFile, fileToBase64 } from "../../lib/utils";
+import { SportEventsAPI } from "../../lib/broadcastApi";
+import { uploadToStorage } from "../../lib/uploadToStorage";
 
 const DEFAULT_DOCUMENTS = [
   { id: "picture", label: "Picture", accept: "image/jpeg,image/png,image/webp" },
@@ -48,6 +52,8 @@ export default function Register() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState({});
+  const [uploadingDocs, setUploadingDocs] = useState({});
+  const [sportEvents, setSportEvents] = useState([]);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -61,6 +67,7 @@ export default function Register() {
     idDocument: null,
     documents: {}
   });
+  const [selectedSportEvents, setSelectedSportEvents] = useState([]);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsModalOpen, setTermsModalOpen] = useState(false);
   const [duplicateError, setDuplicateError] = useState(null);
@@ -82,6 +89,10 @@ export default function Register() {
           console.error("Failed to load categories:", err);
           setEventCategories([]);
         }
+        try {
+          const evs = await SportEventsAPI.getByEventId(eventData.id);
+          setSportEvents(evs);
+        } catch { /* silent — sport events optional */ }
       }
       setLoading(false);
     };
@@ -121,12 +132,16 @@ export default function Register() {
       return;
     }
 
+    setUploadingDocs(prev => ({...prev, [field]: true}));
     try {
-      const base64 = await fileToBase64(file);
-      setFormData((prev) => ({ ...prev, [field]: base64 }));
+      const data = await uploadToStorage(file, "registrations");
+      
+      setFormData((prev) => ({ ...prev, [field]: data.url }));
       setErrors((prev) => ({ ...prev, [field]: null }));
-    } catch {
-      setErrors((prev) => ({ ...prev, [field]: "Failed to process file" }));
+    } catch (err) {
+      setErrors((prev) => ({ ...prev, [field]: "Failed to upload file. " + (err.message || "") }));
+    } finally {
+      setUploadingDocs(prev => ({...prev, [field]: false}));
     }
   };
 
@@ -140,15 +155,19 @@ export default function Register() {
       return;
     }
 
+    setUploadingDocs(prev => ({...prev, [docId]: true}));
     try {
-      const base64 = await fileToBase64(file);
+      const data = await uploadToStorage(file, "documents");
+
       setFormData((prev) => ({
         ...prev,
-        documents: { ...prev.documents, [docId]: base64 }
+        documents: { ...prev.documents, [docId]: data.url }
       }));
       setErrors((prev) => ({ ...prev, [`doc_${docId}`]: null }));
-    } catch {
-      setErrors((prev) => ({ ...prev, [`doc_${docId}`]: "Failed to process file" }));
+    } catch (err) {
+      setErrors((prev) => ({ ...prev, [`doc_${docId}`]: "Failed to upload file. " + (err.message || "") }));
+    } finally {
+      setUploadingDocs(prev => ({...prev, [docId]: false}));
     }
   };
 
@@ -169,6 +188,12 @@ export default function Register() {
     if (!termsAccepted) {
       newErrors.terms = "You must accept the terms and conditions";
     }
+    const reqDocs = getRequiredDocuments();
+    reqDocs.forEach((doc) => {
+      if (!formData.documents[doc.id]) {
+        newErrors[`doc_${doc.id}`] = `${doc.label} is required`;
+      }
+    });
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -519,6 +544,62 @@ export default function Register() {
               </div>
             </div>
 
+            {/* Event Details section — shown only when Athlete role is selected and sport events exist */}
+            {formData.role && formData.role.toLowerCase().includes("athlete") && sportEvents.length > 0 && (
+              <div className="space-y-4 relative z-[1]">
+                <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">
+                  <Calendar className="w-6 h-6 text-cyan-600" />
+                  Event Schedule
+                </h2>
+                <p className="text-lg text-slate-600 font-extralight">
+                  Select the events you want to participate in:
+                </p>
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                  {sportEvents.map((ev, i) => (
+                    <div
+                      key={ev.id || i}
+                      onClick={() => {
+                        const isSelected = selectedSportEvents.some(s => s.eventCode === ev.eventCode);
+                        setSelectedSportEvents(prev => 
+                          isSelected 
+                            ? prev.filter(s => s.eventCode !== ev.eventCode)
+                            : [...prev, ev]
+                        );
+                      }}
+                      className={`w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                        selectedSportEvents.some(s => s.eventCode === ev.eventCode)
+                          ? "border-cyan-500 bg-cyan-100"
+                          : "border-cyan-200 bg-cyan-50 hover:border-cyan-400 hover:bg-cyan-100/60"
+                      }`}
+                    >
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                        selectedSportEvents.some(s => s.eventCode === ev.eventCode)
+                          ? "border-cyan-500 bg-cyan-500"
+                          : "border-cyan-300 bg-white"
+                      }`}>
+                        {selectedSportEvents.some(s => s.eventCode === ev.eventCode) && (
+                          <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
+                            <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="2"/>
+                          </svg>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-slate-800 font-extralight text-lg">{ev.eventName}</span>
+                        {ev.gender && (
+                          <span className="text-slate-500 font-extralight text-lg ml-2">({ev.gender})</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {selectedSportEvents.length > 0 && (
+                  <p className="text-lg text-cyan-700 font-extralight">
+                    {selectedSportEvents.length} event{selectedSportEvents.length !== 1 ? "s" : ""} selected
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="space-y-4 relative z-[1]">
               <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">
                 <Mail className="w-6 h-6 text-cyan-600" />
@@ -556,6 +637,11 @@ export default function Register() {
                       onChange={(e) => handleDocumentFileChange(e, doc.id)}
                       className="w-full text-lg text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-lg file:font-medium file:bg-gradient-to-r file:from-cyan-500 file:to-blue-600 file:text-white hover:file:from-cyan-600 hover:file:to-blue-700"
                     />
+                    {uploadingDocs[doc.id] && (
+                      <p className="text-lg text-amber-500 mt-1 flex items-center gap-1">
+                        <Loader2 className="w-4 h-4 animate-spin" /> Uploading...
+                      </p>
+                    )}
                     {errors[`doc_${doc.id}`] && (
                       <p className="text-lg text-red-500 mt-1">{errors[`doc_${doc.id}`]}</p>
                     )}

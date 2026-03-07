@@ -16,7 +16,7 @@ export default function AdminLayout() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-swim-deep via-primary-900 to-ocean-900 flex items-center justify-center">
-        <div className="animate-spin w-10 h-10 border-3 border-primary-400 border-t-transparent rounded-full shadow-lg shadow-primary-500/30" />
+        <div className="animate-spin w-10 h-10 border-2 border-primary-400 border-t-transparent rounded-full shadow-lg shadow-primary-500/30" />
       </div>
     );
   }

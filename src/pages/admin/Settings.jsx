@@ -8,6 +8,7 @@ import Badge from "../../components/ui/Badge";
 import { useToast } from "../../components/ui/Toast";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
+import { uploadToStorage } from "../../lib/uploadToStorage";
 
 const SUPABASE_URL = "https://dixelomafeobabahqeqg.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpeGVsb21hZmVvYmFiYWhxZXFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzMzA4MzYsImV4cCI6MjA4NjkwNjgzNn0.YD1lj0T6kFoM2XyeYonIC3bmLiPkKBvmXEHEr5VMaGM";
@@ -68,6 +69,73 @@ export default function Settings() {
       console.error("Failed to load email templates:", err);
     } finally {
       setLoadingTemplates(false);
+    }
+  };
+
+  const [migrating, setMigrating] = useState(false);
+  const [migrationStatus, setMigrationStatus] = useState("");
+
+  const handleMigrateImages = async () => {
+    setMigrating(true);
+    try {
+      setMigrationStatus("Fetching IDs...");
+      const { data: accs, error } = await supabase.from('accreditations').select('id');
+      if (error) throw error;
+      
+      let updated = 0;
+      for (const { id } of accs) {
+        setMigrationStatus(`Checking ${id.substring(0,8)}...`);
+        const { data: row } = await supabase.from('accreditations').select('photo_url, id_document_url').eq('id', id).single();
+        if (!row) continue;
+        
+        let updates = {};
+        
+        const processBase64 = async (base64Str, type) => {
+          if (!base64Str || !base64Str.startsWith('data:')) return null;
+          const mimeMatches = base64Str.match(/^data:([A-Za-z-+/]+);base64,/);
+          if (!mimeMatches) return null;
+          const mimeType = mimeMatches[1];
+          const ext = mimeType.split('/')[1] || 'jpg';
+          const filename = `${type}-${id}.${ext}`;
+          
+          try {
+            const res = await fetch(base64Str);
+            const blob = await res.blob();
+            const file = new File([blob], filename, { type: mimeType });
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('type', type);
+            formData.append('id', id);
+            
+            const result = await uploadToStorage(file, type === "photo" ? "registrations" : "documents");
+            return result.url;
+          } catch(e) {
+            console.error(e);
+            return null;
+          }
+        };
+
+        const newPhotoUrl = await processBase64(row.photo_url, 'photo');
+        if (newPhotoUrl) updates.photo_url = newPhotoUrl;
+        
+        const newIdDocUrl = await processBase64(row.id_document_url, 'iddoc');
+        if (newIdDocUrl) updates.id_document_url = newIdDocUrl;
+        
+        if (Object.keys(updates).length > 0) {
+           setMigrationStatus(`Updating ${id.substring(0,8)}...`);
+           const { error: updateError } = await supabase.from('accreditations').update(updates).eq('id', id);
+           if (!updateError) updated++;
+        }
+      }
+      setMigrationStatus(`Done! Migrated ${updated} records.`);
+      toast.success(`Successfully migrated ${updated} records.`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Migration failed");
+      setMigrationStatus("Failed");
+    } finally {
+      setMigrating(false);
     }
   };
 
@@ -261,7 +329,6 @@ export default function Settings() {
                   <Server className="w-4 h-4 text-violet-400" />
                   Server Settings
                 </h3>
-
                 <div className="space-y-3">
                   <div className="flex items-center justify-between py-2.5 px-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
                     <span className="text-lg text-slate-400 font-extralight">SMTP Host</span>
@@ -283,7 +350,6 @@ export default function Settings() {
                   <Shield className="w-4 h-4 text-violet-400" />
                   Authentication
                 </h3>
-
                 <div className="space-y-3">
                   <div className="flex items-center justify-between py-2.5 px-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
                     <span className="text-lg text-slate-400 font-extralight">Username</span>
@@ -382,7 +448,6 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {/* Email Template Editor */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -401,7 +466,6 @@ export default function Settings() {
         </CardHeader>
         <CardContent>
           <div className="space-y-5">
-            {/* Tab Selector */}
             <div className="flex gap-2">
               {[
                 { key: "approved", label: "Approval Email", color: "emerald" },
@@ -432,7 +496,6 @@ export default function Settings() {
               </div>
             ) : (
               <>
-                {/* Subject */}
                 <Input
                   label="Email Subject"
                   value={templates[templateTab]?.subject || ""}
@@ -445,7 +508,6 @@ export default function Settings() {
                   placeholder="Email subject line with {eventName} placeholder"
                 />
 
-                {/* Body */}
                 <div className="space-y-1.5">
                   <label className="block text-lg font-medium text-slate-300">
                     Email Body
@@ -464,7 +526,6 @@ export default function Settings() {
                   />
                 </div>
 
-                {/* Placeholders Info */}
                 <div className="p-4 rounded-lg bg-slate-800/30 border border-slate-700/50">
                   <p className="text-lg text-slate-300 font-medium mb-2">Available Placeholders:</p>
                   <div className="flex flex-wrap gap-2">
@@ -495,7 +556,6 @@ export default function Settings() {
                   </p>
                 </div>
 
-                {/* Actions */}
                 <div className="flex gap-3 pt-2">
                   <Button
                     variant="secondary"
@@ -603,6 +663,21 @@ export default function Settings() {
                   <span className="text-lg text-white font-medium">{item.value}</span>
                 </div>
               ))}
+              
+              <div className="pt-4 mt-2 border-t border-slate-700/50 flex flex-col gap-2">
+                <Button 
+                  onClick={handleMigrateImages} 
+                  loading={migrating} 
+                  variant="secondary" 
+                  icon={Database}
+                  className="w-full text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
+                >
+                  {migrating ? "Migrating DB Images..." : "Migrate Database Images to Supabase Storage"}
+                </Button>
+                {migrationStatus && (
+                  <p className="text-center text-sm text-slate-400 mt-1">{migrationStatus}</p>
+                )}
+              </div>
             </CardContent>
           </Card>
 

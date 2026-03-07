@@ -1,165 +1,125 @@
 import React, { useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "motion/react";
+import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
-  Users,
   Calendar,
-  MapPin,
+  Users,
   Settings,
-  LogOut,
+  ClipboardList,
+  Map,
+  QrCode,
+  Waves,
   ChevronLeft,
   ChevronRight,
-  Waves,
-  ClipboardList,
-  FileText
+  LogOut,
+  History
 } from "lucide-react";
-import { cn } from "../../lib/utils";
 import { useAuth } from "../../contexts/AuthContext";
 
-const navigation = [
-  { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
-  { name: "Accreditations", href: "/admin/accreditations", icon: ClipboardList },
-  { name: "Events", href: "/admin/events", icon: Calendar },
-  { name: "Zones", href: "/admin/zones", icon: MapPin },
-  { name: "Users", href: "/admin/users", icon: Users },
-  { name: "Audit Log", href: "/admin/audit", icon: FileText, adminOnly: true },
-  { name: "Settings", href: "/admin/settings", icon: Settings }
+const navItems = [
+  { to: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/admin/events", icon: Calendar, label: "Events" },
+  { to: "/admin/accreditations", icon: ClipboardList, label: "Accreditations" },
+  { to: "/admin/zones", icon: Map, label: "Zones" },
+  { to: "/admin/qr-system", icon: QrCode, label: "QR System" },
+  { to: "/admin/users", icon: Users, label: "Users" },
+  { to: "/admin/audit", icon: History, label: "Audit Log" },
+  { to: "/admin/settings", icon: Settings, label: "Settings" }
 ];
 
 export default function Sidebar() {
+  const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
-  const { user, logout, isSuperAdmin } = useAuth();
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-  };
-
-  const filteredNav = navigation.filter(
-    (item) => !item.adminOnly || isSuperAdmin
-  );
 
   return (
-    <motion.aside
-      initial={false}
-      animate={{ width: collapsed ? 80 : 280 }}
-      className="fixed left-0 top-0 h-screen bg-gradient-to-b from-swim-deep via-primary-950 to-ocean-950 border-r border-primary-500/20 z-40 flex flex-col shadow-2xl shadow-primary-900/30"
+    <aside
+      id="admin_sidebar"
+      className={`fixed left-0 top-0 h-full flex flex-col bg-slate-950/95 backdrop-blur-sm border-r border-slate-800/60 transition-all duration-300 z-40 ${
+        collapsed ? "w-20" : "w-[280px]"
+      }`}
     >
-      <div className="flex items-center justify-between p-4 border-b border-primary-500/20 bg-gradient-to-r from-primary-900/30 to-transparent">
-        <AnimatePresence mode="wait">
-          {!collapsed && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex items-center gap-3"
-            >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-400 via-ocean-500 to-aqua-500 flex items-center justify-center shadow-lg shadow-primary-500/40 animate-pulse">
-                <Waves className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-white">ApexAccreditation</h1>
-                <p className="text-lg text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-ocean-400">Professional Platform</p>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+      <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-800/60">
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-500 to-ocean-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary-500/20">
+          <Waves className="w-5 h-5 text-white" />
+        </div>
+        {!collapsed && (
+          <div className="overflow-hidden">
+            <p className="text-lg font-bold text-white leading-tight">ApexAccreditation</p>
+            <p className="text-lg text-slate-500 font-extralight leading-tight">Admin Panel</p>
+          </div>
+        )}
         <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="p-2 rounded-lg hover:bg-primary-500/20 transition-colors border border-transparent hover:border-primary-500/30"
+          onClick={() => setCollapsed(prev => !prev)}
+          className="ml-auto p-1.5 rounded-lg hover:bg-slate-800 text-slate-500 hover:text-white transition-colors flex-shrink-0"
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          {collapsed ? (
-            <ChevronRight className="w-5 h-5 text-primary-400" />
-          ) : (
-            <ChevronLeft className="w-5 h-5 text-primary-400" />
-          )}
+          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {filteredNav.map((item) => (
+      <nav className="flex-1 overflow-y-auto py-4 space-y-1 px-2">
+        {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink
-            key={item.name}
-            to={item.href}
-            end={item.href === "/admin"}
+            key={to}
+            to={to}
             className={({ isActive }) =>
-              cn(
-                "flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200",
+              `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
                 isActive
-                  ? "bg-gradient-to-r from-primary-500 via-ocean-500 to-aqua-600 text-white shadow-lg shadow-primary-500/40"
-                  : "text-primary-200/70 hover:text-white hover:bg-primary-500/20 hover:border-primary-500/30 border border-transparent"
-              )
+                  ? "bg-primary-500/20 text-primary-300 border border-primary-500/30 shadow-sm shadow-primary-500/10"
+                  : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+              }`
             }
+            title={collapsed ? label : undefined}
           >
-            <item.icon className="w-5 h-5 flex-shrink-0" />
-            <AnimatePresence mode="wait">
-              {!collapsed && (
-                <motion.span
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="text-lg font-medium"
-                >
-                  {item.name}
-                </motion.span>
-              )}
-            </AnimatePresence>
+            {({ isActive }) => (
+              <>
+                <Icon
+                  className={`w-5 h-5 flex-shrink-0 transition-colors ${
+                    isActive ? "text-primary-400" : "text-slate-500 group-hover:text-white"
+                  }`}
+                />
+                {!collapsed && (
+                  <span className="text-lg font-extralight truncate">{label}</span>
+                )}
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
 
-      <div className="p-4 border-t border-primary-500/20 bg-gradient-to-t from-primary-950/50 to-transparent">
-        <div className={cn(
-          "flex items-center gap-3 mb-4",
-          collapsed ? "justify-center" : ""
-        )}>
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 via-ocean-500 to-aqua-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary-500/30">
-            <span className="text-lg font-bold text-white">
-              {user?.name?.charAt(0) || "U"}
-            </span>
+      <div className="border-t border-slate-800/60 p-3">
+        {!collapsed ? (
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-600 to-ocean-600 flex items-center justify-center flex-shrink-0">
+              <span className="text-lg font-medium text-white">
+                {user?.email?.[0]?.toUpperCase() || "A"}
+              </span>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <p className="text-lg text-white font-extralight truncate">
+                {user?.email || "Admin"}
+              </p>
+            </div>
+            {logout && (
+              <button
+                onClick={logout}
+                className="p-1.5 rounded-lg hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-colors flex-shrink-0"
+                title="Log out"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            )}
           </div>
-          <AnimatePresence mode="wait">
-            {!collapsed && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex-1 min-w-0"
-              >
-                <p className="text-lg font-medium text-white truncate">
-                  {user?.name}
-                </p>
-                <p className="text-lg text-primary-400 truncate">
-                  {user?.role?.replace("_", " ")}
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-        <button
-          onClick={handleLogout}
-          className={cn(
-            "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors",
-            collapsed ? "justify-center" : ""
-          )}
-        >
-          <LogOut className="w-5 h-5" />
-          <AnimatePresence mode="wait">
-            {!collapsed && (
-              <motion.span
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="text-lg font-medium"
-              >
-                Logout
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </button>
+        ) : (
+          <div className="flex justify-center">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-600 to-ocean-600 flex items-center justify-center">
+              <span className="text-lg font-medium text-white">
+                {user?.email?.[0]?.toUpperCase() || "A"}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
-    </motion.aside>
+    </aside>
   );
 }

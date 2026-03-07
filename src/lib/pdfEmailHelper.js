@@ -30,8 +30,25 @@ export const generatePdfForAccreditation = async (accreditation, event, zones) =
     })
   );
 
-  // Wait for render + QR code generation
-  await new Promise((r) => setTimeout(r, 800));
+  // Wait for card DOM to appear
+  await new Promise((r) => setTimeout(r, 400));
+
+  // Wait specifically for QR code data URL to be set in the rendered card
+  await new Promise((resolve) => {
+    const start = Date.now();
+    const check = () => {
+      const qrImg = container.querySelector("img[data-qr-code='true']");
+      if (qrImg && qrImg.getAttribute("src")?.startsWith("data:")) {
+        return resolve(true);
+      }
+      if (Date.now() - start > 8000) {
+        console.warn("[pdfEmailHelper] QR code did not appear within timeout, exporting without QR.");
+        return resolve(false);
+      }
+      setTimeout(check, 80);
+    };
+    check();
+  });
 
   const frontEl = document.getElementById(`accreditation-front-card${SUFFIX}`);
   const backEl = document.getElementById(`accreditation-back-card${SUFFIX}`);

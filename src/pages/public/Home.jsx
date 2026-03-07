@@ -58,7 +58,7 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 via-blue-500 to-ocean-600 flex items-center justify-center shadow-lg shadow-cyan-500/30 relative overflow-hidden">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 via-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/30 relative overflow-hidden">
                   <Waves className="w-6 h-6 text-white relative z-10" />
                   <div className="absolute inset-0 bg-gradient-to-t from-blue-600/50 to-transparent" />
                 </div>
@@ -78,17 +78,14 @@ export default function Home() {
         <main>
           {/* Hero Section */}
           <section id="home_hero" className="py-20 lg:py-32 relative overflow-hidden">
-            {/* Dark overlay strip behind hero text */}
             <div className="absolute inset-0 bg-gradient-to-b from-slate-900/70 via-slate-900/50 to-slate-900/70 pointer-events-none" />
 
-            {/* Swimming pool lane markers */}
             <div className="absolute inset-0 pointer-events-none">
               <div className="absolute top-0 left-1/4 w-0.5 h-full bg-gradient-to-b from-cyan-300/10 via-cyan-400/20 to-cyan-300/10" />
               <div className="absolute top-0 left-1/2 w-0.5 h-full bg-gradient-to-b from-cyan-300/10 via-cyan-400/20 to-cyan-300/10" />
               <div className="absolute top-0 left-3/4 w-0.5 h-full bg-gradient-to-b from-cyan-300/10 via-cyan-400/20 to-cyan-300/10" />
             </div>
 
-            {/* Animated swimmer silhouettes */}
             <div className="absolute top-1/4 -left-20 opacity-10">
               <motion.div
                 animate={{ x: ["0%", "200vw"] }}
@@ -106,7 +103,6 @@ export default function Home() {
               </motion.div>
             </div>
 
-            {/* Water splash decorations */}
             <div className="absolute top-20 right-20 opacity-20">
               <Droplets className="w-16 h-16 text-cyan-300 animate-bounce" style={{ animationDuration: "3s" }} />
             </div>
@@ -145,7 +141,6 @@ export default function Home() {
                 </div>
               </motion.div>
 
-              {/* Stats section */}
               <motion.div
                 initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -157,19 +152,19 @@ export default function Home() {
                     <div className="text-center">
                       <Award className="w-12 h-12 text-cyan-400 mx-auto mb-2 drop-shadow-lg" />
                       <p className="text-2xl font-bold text-white">500+</p>
-                      <p className="text-sm text-cyan-300/80 font-medium">Events Managed</p>
+                      <p className="text-lg text-cyan-300/80 font-medium">Events Managed</p>
                     </div>
                     <div className="w-px h-16 bg-cyan-400/30" />
                     <div className="text-center">
                       <Users className="w-12 h-12 text-sky-400 mx-auto mb-2 drop-shadow-lg" />
                       <p className="text-2xl font-bold text-white">50K+</p>
-                      <p className="text-sm text-cyan-300/80 font-medium">Athletes Registered</p>
+                      <p className="text-lg text-cyan-300/80 font-medium">Athletes Registered</p>
                     </div>
                     <div className="w-px h-16 bg-cyan-400/30" />
                     <div className="text-center">
                       <Timer className="w-12 h-12 text-blue-400 mx-auto mb-2 drop-shadow-lg" />
                       <p className="text-2xl font-bold text-white">5 min</p>
-                      <p className="text-sm text-cyan-300/80 font-medium">Avg. Processing</p>
+                      <p className="text-lg text-cyan-300/80 font-medium">Avg. Processing</p>
                     </div>
                   </div>
                 </div>
@@ -179,9 +174,7 @@ export default function Home() {
 
           {/* Features Section */}
           <section id="home_features" className="py-20 relative">
-            {/* Solid dark backdrop for readability */}
             <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-md" />
-
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -213,7 +206,7 @@ export default function Home() {
                     <h3 className="text-lg font-bold text-white mb-2">
                       {feature.title}
                     </h3>
-                    <p className="text-sm text-slate-300 font-medium leading-relaxed">
+                    <p className="text-lg text-slate-300 font-medium leading-relaxed">
                       {feature.description}
                     </p>
                   </motion.div>
@@ -224,9 +217,7 @@ export default function Home() {
 
           {/* Roles Section */}
           <section id="home_roles" className="py-20 relative">
-            {/* Solid dark backdrop */}
             <div className="absolute inset-0 bg-slate-900/75 backdrop-blur-md" />
-
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
                 <motion.div
@@ -249,7 +240,7 @@ export default function Home() {
                     ].map((item, index) => (
                       <li key={index} className="flex items-start gap-3">
                         <CheckCircle className="w-5 h-5 text-cyan-400 mt-0.5 flex-shrink-0" />
-                        <span className="text-base text-slate-200 font-medium">{item}</span>
+                        <span className="text-lg text-slate-200 font-medium">{item}</span>
                       </li>
                     ))}
                   </ul>
@@ -267,8 +258,8 @@ export default function Home() {
                         <Waves className="w-6 h-6 text-white" />
                       </div>
                       <div>
-                        <p className="text-base font-bold text-white">Super Admin</p>
-                        <p className="text-sm text-cyan-400 font-semibold">Full Access</p>
+                        <p className="text-lg font-bold text-white">Super Admin</p>
+                        <p className="text-lg text-cyan-400 font-semibold">Full Access</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-700/40 border border-slate-600/30">
@@ -276,8 +267,8 @@ export default function Home() {
                         <Calendar className="w-6 h-6 text-white" />
                       </div>
                       <div>
-                        <p className="text-base font-bold text-white">Event Admin</p>
-                        <p className="text-sm text-cyan-400 font-semibold">Event Management</p>
+                        <p className="text-lg font-bold text-white">Event Admin</p>
+                        <p className="text-lg text-cyan-400 font-semibold">Event Management</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-700/40 border border-slate-600/30">
@@ -285,8 +276,8 @@ export default function Home() {
                         <Users className="w-6 h-6 text-white" />
                       </div>
                       <div>
-                        <p className="text-base font-bold text-white">Viewer</p>
-                        <p className="text-sm text-cyan-400 font-semibold">Read Only</p>
+                        <p className="text-lg font-bold text-white">Viewer</p>
+                        <p className="text-lg text-cyan-400 font-semibold">Read Only</p>
                       </div>
                     </div>
                   </div>
@@ -296,7 +287,7 @@ export default function Home() {
           </section>
         </main>
 
-        {/* Footer - UPDATED WITH YOUR ATTRIBUTION */}
+        {/* Footer */}
         <footer className="relative py-8">
           <div className="absolute inset-0 bg-slate-900/85 backdrop-blur-md" />
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -305,15 +296,19 @@ export default function Home() {
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-md shadow-cyan-500/30">
                   <Waves className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-base font-bold text-white tracking-wide">
+                <span className="text-lg font-bold text-white tracking-wide">
                   ApexAccreditation
                 </span>
               </div>
-              <p className="text-sm text-slate-400 font-medium">
+              <p className="text-lg text-slate-400 font-medium">
                 AI vibe coded development by{" "}
-                <span className="text-cyan-400 font-semibold">Basit Ali Shah</span>
+                <a href="https://biela.dev/" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300 transition-colors font-semibold">
+                  Biela.dev
+                </a>
                 , powered by{" "}
-                <span className="text-cyan-400 font-semibold">Apex Sports Academy LLC</span>
+                <a href="https://teachmecode.ae/" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300 transition-colors font-semibold">
+                  TeachMeCode Institute
+                </a>
               </p>
             </div>
           </div>

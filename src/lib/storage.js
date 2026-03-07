@@ -17,10 +17,12 @@ const handleResponse = async (promiseFactory, retries = MAX_RETRIES) => {
         console.error(`Supabase Error (attempt ${attempt}/${retries}):`, error);
         lastError = error;
 
-        if (error.code === "PGRST116" ||
-            error.code === "23505" ||
-            error.code === "42501" ||
-            error.message?.includes("JWT")) {
+        if (
+          error.code === "PGRST116" ||
+          error.code === "23505" ||
+          error.code === "42501" ||
+          error.message?.includes("JWT")
+        ) {
           throw error;
         }
 
@@ -211,11 +213,21 @@ export const EventCategoriesAPI = {
 };
 
 // --- ACCREDITATIONS API ---
-const ACCREDITATION_LIST_COLUMNS = "id,event_id,first_name,last_name,gender,date_of_birth,nationality,club,role,email,photo_url,status,zone_code,badge_number,accreditation_id,remarks,badge_color,updated_by,expires_at,created_at,updated_at";
+// All columns that exist in the accreditations table (excluding heavy/unused joins)
+const ACCREDITATION_LIST_COLUMNS = [
+  "id", "event_id", "first_name", "last_name", "gender", "date_of_birth",
+  "nationality", "club", "role", "email", "photo_url", "id_document_url",
+  "status", "zone_code", "badge_number", "accreditation_id", "remarks",
+  "badge_color", "updated_by", "created_by", "expires_at",
+  "created_at", "updated_at",
+  "custom_message", "custom_message_updated_at",
+  "selected_events", "selected_sport_events",
+  "heat_sheet_url", "event_result_url", "force_live",
+  "heat_sheet_updated_at", "event_result_updated_at"
+].join(",");
 
 export const AccreditationsAPI = {
   getStats: async () => {
-    // Use count queries instead of fetching all rows — much faster
     const [totalRes, pendingRes, approvedRes, rejectedRes] = await Promise.all([
       supabase.from("accreditations").select("*", { count: "exact", head: true }),
       supabase.from("accreditations").select("*", { count: "exact", head: true }).eq("status", "pending"),
@@ -276,26 +288,38 @@ export const AccreditationsAPI = {
     return (data || []).map(mapAccreditationFromDB);
   },
 
+  // FIXED: batched pagination — 500 rows per request, looped until complete
+  // Prevents "Failed to fetch" and statement timeout (57014) from massive single queries
   getByEventId: async (eventId, options = {}) => {
-    const { limit = 5000, offset = 0, status = null } = options;
-
-    const queryFactory = () => {
-      let query = supabase
-        .from("accreditations")
-        .select(ACCREDITATION_LIST_COLUMNS)
-        .eq("event_id", eventId)
-        .order("created_at", { ascending: false });
-
-      if (status) {
-        query = query.eq("status", status);
-      }
-
-      return query.range(offset, offset + limit - 1);
-    };
+    const { status = null, maxRecords = 3000 } = options;
+    const BATCH_SIZE = 500;
+    const allRows = [];
+    let batchOffset = 0;
 
     try {
-      const data = await handleResponse(queryFactory);
-      return (data || []).map(mapAccreditationFromDB);
+      while (allRows.length < maxRecords) {
+        const remaining = maxRecords - allRows.length;
+        const fetchSize = Math.min(BATCH_SIZE, remaining);
+
+        const batchData = await handleResponse(() => {
+          let q = supabase
+            .from("accreditations")
+            .select(ACCREDITATION_LIST_COLUMNS)
+            .eq("event_id", eventId)
+            .order("created_at", { ascending: false });
+          if (status) q = q.eq("status", status);
+          return q.range(batchOffset, batchOffset + fetchSize - 1);
+        });
+
+        const rows = batchData || [];
+        allRows.push(...rows);
+
+        // If we got fewer rows than requested, we've reached the end
+        if (rows.length < fetchSize) break;
+        batchOffset += fetchSize;
+      }
+
+      return allRows.map(mapAccreditationFromDB);
     } catch (error) {
       console.error(`Failed to fetch accreditations for event ${eventId}:`, error);
 
@@ -303,7 +327,13 @@ export const AccreditationsAPI = {
         throw new Error("Access denied. Please ensure you are logged in with proper permissions.");
       }
 
-      throw new Error(`Failed to load accreditations: ${error.message || "Network error. Please check your connection and try again."}`);
+      if (error.message === "Failed to fetch" || error.name === "TypeError") {
+        throw new Error("Network error. Please check your internet connection and try again.");
+      }
+
+      throw new Error(
+        `Failed to load accreditations: ${error.message || "Network error. Please check your connection and try again."}`
+      );
     }
   },
 
@@ -443,13 +473,11 @@ export const AccreditationsAPI = {
     }
   },
 
-  // OPTIMIZED: single batch UPDATE via .in() for small sets, parallel chunks for large sets
   bulkUpdate: async (ids, updates) => {
     if (!ids || ids.length === 0) return;
     const dbUpdates = mapAccreditationToDB(updates);
     delete dbUpdates.id;
 
-    // For large batches: split into chunks of 100 and run in parallel
     const CHUNK_SIZE = 100;
     const chunks = [];
     for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
@@ -531,6 +559,7 @@ function mapZoneToDB(zone) {
   if (zone.name !== undefined) map.name = zone.name;
   if (zone.color !== undefined) map.color = zone.color;
   if (zone.description !== undefined) map.description = zone.description;
+  if (zone.allowedRoles !== undefined) map.allowed_roles = zone.allowedRoles;
   return map;
 }
 
@@ -543,6 +572,7 @@ function mapZoneFromDB(db) {
     name: db.name,
     color: db.color,
     description: db.description,
+    allowedRoles: db.allowed_roles || [],
     createdAt: db.created_at
   };
 }
@@ -557,6 +587,7 @@ function mapCategoryToDB(cat) {
   if (cat.parentId !== undefined) map.parent_id = cat.parentId;
   if (cat.badgePrefix !== undefined) map.badge_prefix = cat.badgePrefix;
   if (cat.displayOrder !== undefined) map.display_order = cat.displayOrder;
+  if (cat.defaultZoneCodes !== undefined) map.default_zone_codes = cat.defaultZoneCodes;
   return map;
 }
 
@@ -572,6 +603,7 @@ function mapCategoryFromDB(db) {
     parentId: db.parent_id || null,
     badgePrefix: db.badge_prefix || null,
     displayOrder: db.display_order || 0,
+    defaultZoneCodes: db.default_zone_codes || null,
     createdAt: db.created_at,
     updatedAt: db.updated_at
   };
@@ -597,7 +629,17 @@ function mapAccreditationToDB(acc) {
   if (acc.remarks !== undefined) map.remarks = acc.remarks;
   if (acc.badgeColor !== undefined) map.badge_color = acc.badgeColor;
   if (acc.updatedBy !== undefined) map.updated_by = acc.updatedBy;
+  if (acc.createdBy !== undefined) map.created_by = acc.createdBy;
   if (acc.expiresAt !== undefined) map.expires_at = acc.expiresAt;
+  if (acc.customMessage !== undefined) map.custom_message = acc.customMessage;
+  if (acc.customMessageUpdatedAt !== undefined) map.custom_message_updated_at = acc.customMessageUpdatedAt;
+  if (acc.selectedEvents !== undefined) map.selected_events = acc.selectedEvents;
+  if (acc.selectedSportEvents !== undefined) map.selected_sport_events = acc.selectedSportEvents;
+  if (acc.heatSheetUrl !== undefined) map.heat_sheet_url = acc.heatSheetUrl;
+  if (acc.eventResultUrl !== undefined) map.event_result_url = acc.eventResultUrl;
+  if (acc.forceLive !== undefined) map.force_live = acc.forceLive;
+  if (acc.heatSheetUpdatedAt !== undefined) map.heat_sheet_updated_at = acc.heatSheetUpdatedAt;
+  if (acc.eventResultUpdatedAt !== undefined) map.event_result_updated_at = acc.eventResultUpdatedAt;
   return map;
 }
 
@@ -623,9 +665,19 @@ function mapAccreditationFromDB(db) {
     remarks: db.remarks,
     badgeColor: db.badge_color || "#2563eb",
     updatedBy: db.updated_by,
+    createdBy: db.created_by,
     expiresAt: db.expires_at,
     createdAt: db.created_at,
-    updatedAt: db.updated_at
+    updatedAt: db.updated_at,
+    customMessage: db.custom_message || "",
+    customMessageUpdatedAt: db.custom_message_updated_at,
+    selectedEvents: db.selected_events || [],
+    selectedSportEvents: db.selected_sport_events || [],
+    heatSheetUrl: db.heat_sheet_url || "",
+    eventResultUrl: db.event_result_url || "",
+    forceLive: db.force_live || false,
+    heatSheetUpdatedAt: db.heat_sheet_updated_at,
+    eventResultUpdatedAt: db.event_result_updated_at
   };
 }
 
@@ -758,7 +810,6 @@ export const UsersAPI = {
         try { const d = await response.json(); if (d.error) errMsg = d.error; } catch (_) { /* non-JSON body */ }
         throw new Error(errMsg);
       }
-      const data = await response.json();
       AuditAPI.log("user_deleted", { userId: id });
       return true;
     } catch (error) {

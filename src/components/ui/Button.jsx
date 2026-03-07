@@ -1,70 +1,55 @@
 import React from "react";
-import { motion } from "motion/react";
+import { Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 
 const variants = {
-  primary: "bg-gradient-to-r from-primary-500 via-ocean-500 to-aqua-600 hover:from-primary-400 hover:via-ocean-400 hover:to-aqua-500 text-white shadow-lg shadow-primary-500/40",
-  secondary: "bg-gradient-to-r from-swim-deep to-primary-900 hover:from-primary-900 hover:to-ocean-900 text-white border border-primary-500/30 hover:border-primary-400/50",
-  success: "bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:via-teal-400 hover:to-cyan-400 text-white shadow-lg shadow-emerald-500/40",
-  danger: "bg-gradient-to-r from-red-500 via-rose-500 to-pink-500 hover:from-red-400 hover:via-rose-400 hover:to-pink-400 text-white shadow-lg shadow-red-500/40",
-  warning: "bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 hover:from-amber-400 hover:via-orange-400 hover:to-yellow-400 text-white shadow-lg shadow-amber-500/40",
-  ghost: "bg-transparent hover:bg-primary-500/20 text-primary-300 hover:text-white",
-  outline: "bg-transparent border border-primary-400/50 hover:border-primary-300 text-primary-300 hover:text-primary-200 hover:bg-primary-500/10"
+  primary: "bg-gradient-to-r from-primary-600 via-ocean-600 to-aqua-700 hover:from-primary-500 hover:via-ocean-500 hover:to-aqua-600 text-white shadow-lg shadow-primary-900/30",
+  secondary: "bg-slate-800/80 border border-slate-700/60 text-slate-200 hover:bg-slate-700/80 hover:border-slate-600",
+  danger: "bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-900/30",
+  success: "bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-900/30",
+  ghost: "text-slate-400 hover:text-white hover:bg-slate-800/60",
+  outline: "border border-primary-500/50 text-primary-300 hover:bg-primary-500/10 hover:border-primary-400"
 };
 
 const sizes = {
-  sm: "px-3 py-1.5 text-lg",
-  md: "px-4 py-2 text-lg",
-  lg: "px-6 py-3 text-lg"
+  sm: "px-3 py-1.5 text-lg gap-1.5",
+  md: "px-4 py-2.5 text-lg gap-2",
+  lg: "px-6 py-3 text-xl gap-2.5"
 };
 
-function Button({
+export function Button({
   children,
   variant = "primary",
   size = "md",
-  className,
-  disabled,
-  loading,
   icon: Icon,
+  loading = false,
+  disabled = false,
+  className,
+  type = "button",
+  onClick,
   ...props
 }) {
   return (
-    <motion.button
-      whileHover={{ scale: disabled ? 1 : 1.02 }}
-      whileTap={{ scale: disabled ? 1 : 0.98 }}
+    <button
+      type={type}
+      disabled={disabled || loading}
+      onClick={onClick}
       className={cn(
-        "inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed",
-        variants[variant],
-        sizes[size],
+        "inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500/40 disabled:opacity-50 disabled:cursor-not-allowed",
+        variants[variant] || variants.primary,
+        sizes[size] || sizes.md,
         className
       )}
-      disabled={disabled || loading}
       {...props}
     >
       {loading ? (
-        <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-          <circle
-            className="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="4"
-            fill="none"
-          />
-          <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-          />
-        </svg>
+        <Loader2 className="w-4 h-4 animate-spin" />
       ) : Icon ? (
-        <Icon className="w-5 h-5" />
+        <Icon className="w-4 h-4 flex-shrink-0" />
       ) : null}
       {children}
-    </motion.button>
+    </button>
   );
 }
 
-export { Button };
 export default Button;

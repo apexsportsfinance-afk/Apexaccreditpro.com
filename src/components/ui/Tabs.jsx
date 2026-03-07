@@ -1,51 +1,26 @@
-import React, { useState } from "react";
-import { motion } from "motion/react";
+import React from "react";
 import { cn } from "../../lib/utils";
 
-export default function Tabs({ 
-  tabs, 
-  defaultTab, 
-  onChange,
-  className 
-}) {
-  const [activeTab, setActiveTab] = useState(defaultTab || tabs[0]?.value);
-
-  const handleTabChange = (value) => {
-    setActiveTab(value);
-    onChange?.(value);
-  };
-
+export function Tabs({ tabs = [], activeTab, onTabChange, className }) {
   return (
-    <div className={cn("space-y-6", className)}>
-      <div className="flex gap-1 p-1 bg-slate-800/50 rounded-xl">
-        {tabs.map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => handleTabChange(tab.value)}
-            className={cn(
-              "relative flex-1 px-4 py-2.5 text-lg font-medium rounded-lg transition-colors",
-              activeTab === tab.value
-                ? "text-white"
-                : "text-slate-400 hover:text-slate-300"
-            )}
-          >
-            {activeTab === tab.value && (
-              <motion.div
-                layoutId="activeTab"
-                className="absolute inset-0 bg-primary-600 rounded-lg"
-                transition={{ duration: 0.2 }}
-              />
-            )}
-            <span className="relative z-10 flex items-center justify-center gap-2">
-              {tab.icon && <tab.icon className="w-4 h-4" />}
-              {tab.label}
-            </span>
-          </button>
-        ))}
-      </div>
-      <div>
-        {tabs.find((t) => t.value === activeTab)?.content}
-      </div>
+    <div className={cn("flex gap-1 bg-slate-800/50 p-1 rounded-xl border border-slate-700/50", className)}>
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          onClick={() => onTabChange(tab.id)}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 rounded-lg text-lg font-medium transition-all duration-200",
+            activeTab === tab.id
+              ? "bg-gradient-to-r from-primary-600 to-ocean-600 text-white shadow-lg shadow-primary-900/30"
+              : "text-slate-400 hover:text-white hover:bg-slate-700/50"
+          )}
+        >
+          {tab.icon && <tab.icon className="w-4 h-4" />}
+          {tab.label}
+        </button>
+      ))}
     </div>
   );
 }
+
+export default Tabs;

@@ -3,9 +3,6 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 import { supabase } from "./supabase";
 
-/**
- * Load a saved email template from the database
- */
 export const getEmailTemplate = async (templateType) => {
   try {
     const { data, error } = await supabase
@@ -20,9 +17,6 @@ export const getEmailTemplate = async (templateType) => {
   }
 };
 
-/**
- * Replace placeholders in template text
- */
 const replacePlaceholders = (text, vars) => {
   if (!text) return text;
   return text
@@ -36,9 +30,6 @@ const replacePlaceholders = (text, vars) => {
     .replace(/\{email\}/g, vars.email || "");
 };
 
-/**
- * Send accreditation approval email via Edge Function
- */
 export const sendApprovalEmail = async ({
   to,
   name,
@@ -56,7 +47,6 @@ export const sendApprovalEmail = async ({
   try {
     console.log("[Email] Sending approval email to:", to);
 
-    // Try to load custom template
     const template = await getEmailTemplate("approved");
     let customBody = null;
     let customSubject = null;
@@ -118,9 +108,6 @@ export const sendApprovalEmail = async ({
   }
 };
 
-/**
- * Send accreditation rejection email via Edge Function
- */
 export const sendRejectionEmail = async ({
   to,
   name,
@@ -132,7 +119,6 @@ export const sendRejectionEmail = async ({
   try {
     console.log("[Email] Sending rejection email to:", to);
 
-    // Try to load custom template
     const template = await getEmailTemplate("rejected");
     let customBody = null;
     let customSubject = null;
@@ -191,16 +177,6 @@ export const sendRejectionEmail = async ({
   }
 };
 
-/**
- * Send custom email with optional PDF attachment
- * @param {Object} params
- * @param {string} params.to - recipient email
- * @param {string} params.name - recipient name
- * @param {string} params.subject - email subject
- * @param {string} params.body - email body (plain text, will be wrapped in HTML)
- * @param {string|null} params.pdfBase64 - base64 PDF data (without data: prefix)
- * @param {string|null} params.pdfFileName - PDF attachment filename
- */
 export const sendCustomEmail = async ({
   to,
   name,
@@ -249,9 +225,6 @@ export const sendCustomEmail = async ({
   }
 };
 
-/**
- * Generic send accreditation email function (legacy support)
- */
 export const sendAccreditationEmail = async ({
   to,
   name,
