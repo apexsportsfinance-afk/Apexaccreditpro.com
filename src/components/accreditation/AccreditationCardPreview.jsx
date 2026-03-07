@@ -310,10 +310,10 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
             </div>
             <div style={{ marginTop: "5px", textAlign: "left", width: "100%" }}>
               <p style={{ fontSize: `${CARD_FONT_SIZE}px`, color: "#334155", ...cardFont, lineHeight: 1.4, margin: 0 }}>
-                <strong style={{ fontWeight: "bold" }}>ID</strong> {idNumber}
+                <strong style={{ fontWeight: "bold" }}>ID:</strong> {idNumber}
               </p>
               <p style={{ fontSize: `${CARD_FONT_SIZE}px`, color: "#334155", ...cardFont, lineHeight: 1.4, margin: 0 }}>
-                <strong style={{ fontWeight: "bold" }}>BADGE</strong> <span style={{ fontWeight: "normal" }}>{accreditation?.badgeNumber || "---"}</span>
+                <strong style={{ fontWeight: "bold" }}>BADGE:</strong> <span style={{ fontWeight: "normal" }}>{accreditation?.badgeNumber || "---"}</span>
               </p>
             </div>
           </div>
@@ -337,7 +337,7 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
                 </>
               )}
             </div>
-            <div style={{ marginTop: "8px", height: "26px", display: "flex", alignItems: "center", gap: "6px" }}>
+            <div style={{ marginTop: "32px", height: "26px", display: "flex", alignItems: "center", gap: "6px" }}>
               {countryData?.flag && (
                 <img
                   src={`https://flagcdn.com/w80/${countryData.flag}.png`}
@@ -375,8 +375,9 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
           <div style={{
             flex: 1,
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-end",
             justifyContent: "flex-end",
+            paddingBottom: "4px",
             gap: zoneCodes.length <= 4 ? "6px" : zoneCodes.length <= 6 ? "4px" : "3px",
             flexWrap: "nowrap",
             height: "100%"
