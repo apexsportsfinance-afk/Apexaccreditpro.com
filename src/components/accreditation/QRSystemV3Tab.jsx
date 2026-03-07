@@ -7,6 +7,7 @@ import EventPdfSlots from "./EventPdfSlots";
 
 const TABS = [
   { id: "broadcast", label: "Broadcast Message", icon: MessageSquare },
+  { id: "event_pdfs", label: "Event Result PDF", icon: FileText },
   { id: "events", label: "Sport Events", icon: Calendar },
   { id: "pdf_fields", label: "Field Visibility", icon: Settings }
 ];
@@ -39,7 +40,7 @@ export default function QRSystemV3Tab({ eventId, onToast }) {
 
       {/* Tab content */}
       {activeTab === "broadcast" && (
-        <GlobalBroadcastPanel onToast={onToast} />
+        <GlobalBroadcastPanel eventId={eventId} onToast={onToast} />
       )}
       {activeTab === "events" && (
         <SportEventsManager eventId={eventId} onToast={onToast} />
