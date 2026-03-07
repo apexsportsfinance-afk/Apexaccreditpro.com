@@ -132,7 +132,7 @@ export default function VerifyAccreditation() {
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="relative z-10 w-full max-w-xl mx-auto px-4 py-8 md:py-12 flex flex-col items-center"
+        className="relative z-10 w-full max-w-xl mx-auto px-4 py-4 md:py-6 flex flex-col items-center"
       >
         {/* Banner Section */}
         {eventSettings["banner_url"] && (
@@ -144,24 +144,24 @@ export default function VerifyAccreditation() {
         {/* Premium Status Indicator */}
         <motion.div
           variants={itemVariants}
-          className={`w-full mb-8 flex items-center justify-between px-7 py-5 rounded-[2rem] border backdrop-blur-md transition-all ${
+          className={`w-full mb-6 flex items-center justify-between px-6 py-4 rounded-3xl border backdrop-blur-md transition-all ${
             expiry.isExpired
-              ? "bg-red-500/10 border-red-500/40 shadow-xl shadow-red-950/20"
-              : "bg-emerald-500/10 border-emerald-500/40 shadow-xl shadow-emerald-950/20"
+              ? "bg-red-500/10 border-red-500/40 shadow-lg shadow-red-950/20"
+              : "bg-emerald-500/10 border-emerald-500/40 shadow-lg shadow-emerald-950/20"
           }`}
         >
-          <div className="flex items-center gap-5 flex-1 min-w-0">
-            <div className={`p-3 rounded-2xl shadow-inner ${expiry.isExpired ? "bg-red-500/20" : "bg-emerald-500/20"}`}>
+          <div className="flex items-center gap-4 flex-1 min-w-0">
+            <div className={`p-2.5 rounded-xl shadow-inner ${expiry.isExpired ? "bg-red-500/20" : "bg-emerald-500/20"}`}>
               {expiry.isExpired
-                ? <XCircle className="w-8 h-8 text-red-500" />
-                : <CheckCircle className="w-8 h-8 text-emerald-500" />
+                ? <XCircle className="w-7 h-7 text-red-500" />
+                : <CheckCircle className="w-7 h-7 text-emerald-500" />
               }
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className={`font-black text-2xl leading-none uppercase tracking-tighter ${expiry.isExpired ? "text-red-400" : "text-emerald-400"}`}>
+              <h3 className={`font-black text-xl leading-none uppercase tracking-tighter ${expiry.isExpired ? "text-red-400" : "text-emerald-400"}`}>
                 {expiry.isExpired ? "Expired" : "Valid"} Accreditation
               </h3>
-              <p className="text-white/70 text-sm font-bold truncate mt-1.5 uppercase tracking-wide">
+              <p className="text-white/70 text-xs font-bold mt-1.5 uppercase tracking-wide leading-tight">
                 {data.events?.name}
               </p>
             </div>
@@ -171,13 +171,13 @@ export default function VerifyAccreditation() {
         {/* High-End Professional ID Card */}
         <motion.div 
           variants={itemVariants} 
-          className="w-full bg-white border border-slate-200 rounded-[2.5rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] overflow-hidden"
+          className="w-full bg-white border border-slate-200 rounded-[2rem] shadow-xl overflow-hidden"
         >
-          <div className="flex flex-col sm:flex-row p-6 gap-8 items-start">
+          <div className="flex flex-col sm:flex-row p-4 gap-6 items-start">
             {/* Left side: Large Portrait Photo */}
             <div className="relative flex-shrink-0 mx-auto sm:mx-0">
-              <div className="absolute -inset-1.5 bg-gradient-to-tr from-cyan-400 to-blue-500 rounded-[2rem] blur-md opacity-20"></div>
-              <div className="relative w-40 h-52 rounded-[1.8rem] overflow-hidden border-[3px] border-white bg-slate-100 shadow-xl">
+              <div className="absolute -inset-1 bg-gradient-to-tr from-cyan-400 to-blue-500 rounded-2xl blur-sm opacity-20"></div>
+              <div className="relative w-32 h-44 rounded-2xl overflow-hidden border-2 border-white bg-slate-100 shadow-lg">
                 {data.photo_url ? (
                   <img
                     src={data.photo_url}
@@ -186,12 +186,12 @@ export default function VerifyAccreditation() {
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-slate-300">
-                    <User className="w-20 h-20" />
+                    <User className="w-16 h-16" />
                   </div>
                 )}
                 {expiry.isExpired && (
                   <div className="absolute inset-0 bg-red-600/80 backdrop-blur-[2px] flex items-center justify-center">
-                    <span className="text-white font-black text-xs tracking-widest border-2 border-white px-3 py-1 rounded-md rotate-[-15deg] uppercase">
+                    <span className="text-white font-black text-[10px] tracking-widest border border-white px-2 py-0.5 rounded rotate-[-15deg] uppercase">
                       Expired
                     </span>
                   </div>
@@ -200,51 +200,51 @@ export default function VerifyAccreditation() {
             </div>
 
             {/* Right side: Information Architecture */}
-            <div className="flex-1 w-full flex flex-col pt-1">
+            <div className="flex-1 w-full flex flex-col">
               {/* Header: Name and ID */}
-              <div className="mb-6 border-b border-slate-100 pb-5">
-                <div className="flex flex-wrap items-baseline gap-x-3 mb-1">
-                    <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase leading-none">
+              <div className="mb-4 border-b border-slate-100 pb-3">
+                <div className="flex flex-wrap items-baseline gap-x-2 mb-1">
+                    <h1 className="text-2xl font-black text-slate-900 tracking-tighter uppercase leading-none">
                     {data.first_name}
                     </h1>
-                    <h1 className="text-3xl font-black text-cyan-600 tracking-tighter uppercase leading-none">
+                    <h1 className="text-2xl font-black text-cyan-600 tracking-tighter uppercase leading-none">
                     {data.last_name}
                     </h1>
                 </div>
-                <div className="mt-3 inline-flex items-center px-3 py-1 rounded bg-slate-100 text-[11px] text-slate-500 font-black tracking-[0.1em] uppercase border border-slate-200">
+                <div className="mt-2 inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-[10px] text-slate-500 font-black tracking-wider uppercase border border-slate-200">
                     Badge ID: #{data.badge_number}
                 </div>
               </div>
 
               {/* Grid Content */}
-              <div className="grid grid-cols-1 gap-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                    <ProfessionalRow 
                     light 
-                    icon={<ShieldCheck className="w-4 h-4 text-cyan-600" />} 
+                    icon={<ShieldCheck className="w-3.5 h-3.5 text-cyan-600" />} 
                     label="Role" 
                     value={data.role} 
                     />
                     {data.club && (
                         <ProfessionalRow 
                         light 
-                        icon={<Building className="w-4 h-4 text-slate-400" />} 
+                        icon={<Building className="w-3.5 h-3.5 text-slate-400" />} 
                         label="Club" 
                         value={data.club} 
                         />
                     )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2 border-t border-slate-50">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-slate-50">
                     {data.nationality && (
                     <ProfessionalRow
                         light
-                        icon={<MapPin className="w-4 h-4 text-slate-400" />}
+                        icon={<MapPin className="w-3.5 h-3.5 text-slate-400" />}
                         label="Citizenship"
                         value={
-                        <div className="flex items-center gap-2 text-slate-900 font-bold">
+                        <div className="flex items-center gap-1.5 text-xs text-slate-900 font-bold">
                             {getCountryFlag(data.nationality) && (
-                            <img src={getCountryFlag(data.nationality)} alt="flag" className="w-6 h-4 rounded-sm object-cover shadow-sm" />
+                            <img src={getCountryFlag(data.nationality)} alt="flag" className="w-5 h-3 rounded-sm object-cover shadow-sm" />
                             )}
                             <span className="truncate">{data.nationality}</span>
                         </div>
@@ -254,9 +254,9 @@ export default function VerifyAccreditation() {
                     {data.date_of_birth && (
                     <ProfessionalRow
                         light
-                        icon={<Cake className="w-4 h-4 text-slate-400" />}
+                        icon={<Cake className="w-3.5 h-3.5 text-slate-400" />}
                         label="Birthday"
-                        value={<span className="text-slate-900 font-bold">{new Date(data.date_of_birth).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
+                        value={<span className="text-xs text-slate-900 font-bold">{new Date(data.date_of_birth).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
                     />
                     )}
                 </div>
@@ -265,11 +265,10 @@ export default function VerifyAccreditation() {
                 {data.zone_code && (() => {
                     const codes = data.zone_code.split(",").map(z => z.trim()).filter(Boolean);
                     return codes.length > 0 ? (
-                    <div className="pt-4 mt-2">
-                         <p className="text-[10px] uppercase font-black tracking-widest text-slate-400 mb-2.5">Access Zones</p>
-                        <div className="flex flex-wrap gap-2">
+                    <div className="pt-2">
+                        <div className="flex flex-wrap gap-1.5">
                         {codes.map((code, i) => (
-                        <span key={i} className="px-5 py-2 rounded-xl text-sm font-black text-slate-700 bg-slate-100 border border-slate-200 shadow-sm uppercase">
+                        <span key={i} className="px-3 py-1 rounded-lg text-[10px] font-black text-slate-700 bg-slate-100 border border-slate-200 shadow-sm uppercase">
                             {code}
                         </span>
                         ))}
