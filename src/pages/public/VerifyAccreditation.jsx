@@ -141,46 +141,43 @@ export default function VerifyAccreditation() {
           </motion.div>
         )}
 
-        {/* Status Indicator */}
+        {/* Premium Status Indicator */}
         <motion.div
           variants={itemVariants}
-          className={`w-full mb-6 flex items-center justify-between px-6 py-4 rounded-3xl border backdrop-blur-md transition-all ${
+          className={`w-full mb-8 flex items-center justify-between px-7 py-5 rounded-[2rem] border backdrop-blur-md transition-all ${
             expiry.isExpired
-              ? "bg-red-500/10 border-red-500/40 shadow-lg shadow-red-950/20"
-              : "bg-emerald-500/10 border-emerald-500/40 shadow-lg shadow-emerald-950/20"
+              ? "bg-red-500/10 border-red-500/40 shadow-xl shadow-red-950/20"
+              : "bg-emerald-500/10 border-emerald-500/40 shadow-xl shadow-emerald-950/20"
           }`}
         >
-          <div className="flex items-center gap-4 flex-1">
-            <div className={`p-2.5 rounded-2xl ${expiry.isExpired ? "bg-red-500/20" : "bg-emerald-500/20"}`}>
+          <div className="flex items-center gap-5 flex-1 min-w-0">
+            <div className={`p-3 rounded-2xl shadow-inner ${expiry.isExpired ? "bg-red-500/20" : "bg-emerald-500/20"}`}>
               {expiry.isExpired
-                ? <XCircle className="w-6 h-6 text-red-500" />
-                : <CheckCircle className="w-6 h-6 text-emerald-500" />
+                ? <XCircle className="w-8 h-8 text-red-500" />
+                : <CheckCircle className="w-8 h-8 text-emerald-500" />
               }
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className={`font-black text-lg leading-tight uppercase tracking-tight ${expiry.isExpired ? "text-red-400" : "text-emerald-400"}`}>
-                {expiry.isExpired ? "Expired Accreditation" : "Valid Accreditation"}
+              <h3 className={`font-black text-2xl leading-none uppercase tracking-tighter ${expiry.isExpired ? "text-red-400" : "text-emerald-400"}`}>
+                {expiry.isExpired ? "Expired" : "Valid"} Accreditation
               </h3>
-              <p className="text-white/80 text-xs font-bold truncate mt-0.5">{data.events?.name}</p>
+              <p className="text-white/70 text-sm font-bold truncate mt-1.5 uppercase tracking-wide">
+                {data.events?.name}
+              </p>
             </div>
           </div>
-          {data.events?.logo_url && (
-            <div className="ml-4 pl-4 border-l border-white/10 hidden sm:block">
-               <img src={data.events.logo_url} alt="Logo" className="h-10 w-auto object-contain brightness-0 invert" />
-            </div>
-          )}
         </motion.div>
 
-        {/* Cohesive Compact Profile Card */}
+        {/* High-End Professional ID Card */}
         <motion.div 
           variants={itemVariants} 
-          className="w-full bg-slate-50 border border-white rounded-[2rem] shadow-2xl overflow-hidden"
+          className="w-full bg-white border border-slate-200 rounded-[2.5rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] overflow-hidden"
         >
-          <div className="flex p-5 gap-6 items-center">
-            {/* Left side: Small Photo */}
-            <div className="relative flex-shrink-0">
-              <div className="absolute -inset-1 bg-gradient-to-tr from-cyan-400 to-blue-500 rounded-2xl blur-sm opacity-20"></div>
-              <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden border-2 border-white bg-slate-200">
+          <div className="flex flex-col sm:flex-row p-6 gap-8 items-start">
+            {/* Left side: Large Portrait Photo */}
+            <div className="relative flex-shrink-0 mx-auto sm:mx-0">
+              <div className="absolute -inset-1.5 bg-gradient-to-tr from-cyan-400 to-blue-500 rounded-[2rem] blur-md opacity-20"></div>
+              <div className="relative w-40 h-52 rounded-[1.8rem] overflow-hidden border-[3px] border-white bg-slate-100 shadow-xl">
                 {data.photo_url ? (
                   <img
                     src={data.photo_url}
@@ -188,94 +185,101 @@ export default function VerifyAccreditation() {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-slate-400">
-                    <User className="w-10 h-10" />
+                  <div className="w-full h-full flex items-center justify-center text-slate-300">
+                    <User className="w-20 h-20" />
                   </div>
                 )}
                 {expiry.isExpired && (
-                  <div className="absolute inset-0 bg-red-600/70 backdrop-blur-[1px] flex items-center justify-center">
-                    <span className="text-white font-black text-[8px] tracking-tighter border border-white px-1.5 py-0.5 rounded rotate-[-15deg]">
-                      EXPIRED
+                  <div className="absolute inset-0 bg-red-600/80 backdrop-blur-[2px] flex items-center justify-center">
+                    <span className="text-white font-black text-xs tracking-widest border-2 border-white px-3 py-1 rounded-md rotate-[-15deg] uppercase">
+                      Expired
                     </span>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Right side: Name & Compact Details */}
-            <div className="flex-1 min-w-0 py-1">
-              <div className="mb-4">
-                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight uppercase leading-none">
-                  {data.first_name}
-                </h1>
-                <h1 className="text-xl sm:text-2xl font-black text-cyan-600 tracking-tight uppercase">
-                  {data.last_name}
-                </h1>
-                <div className="mt-2 inline-flex items-center gap-2">
-                   <span className="px-2 py-0.5 rounded-md bg-slate-200 border border-slate-300 text-[9px] text-slate-500 font-black tracking-wider uppercase">
-                    ID #{data.badge_number}
-                  </span>
-                  {data.events?.logo_url && (
-                    <img src={data.events.logo_url} alt="Event Logo" className="h-4 w-auto object-contain opacity-60 grayscale" />
-                  )}
+            {/* Right side: Information Architecture */}
+            <div className="flex-1 w-full flex flex-col pt-1">
+              {/* Header: Name and ID */}
+              <div className="mb-6 border-b border-slate-100 pb-5">
+                <div className="flex flex-wrap items-baseline gap-x-3 mb-1">
+                    <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase leading-none">
+                    {data.first_name}
+                    </h1>
+                    <h1 className="text-3xl font-black text-cyan-600 tracking-tighter uppercase leading-none">
+                    {data.last_name}
+                    </h1>
+                </div>
+                <div className="mt-3 inline-flex items-center px-3 py-1 rounded bg-slate-100 text-[11px] text-slate-500 font-black tracking-[0.1em] uppercase border border-slate-200">
+                    Badge ID: #{data.badge_number}
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <ProfessionalRow 
-                  light 
-                  icon={<ShieldCheck className="w-3.5 h-3.5 text-cyan-600" />} 
-                  label="Role" 
-                  value={data.role} 
-                />
-                {data.club && (
-                    <ProfessionalRow 
-                      light 
-                      icon={<Building className="w-3.5 h-3.5 text-slate-400" />} 
-                      label="Club" 
-                      value={data.club} 
+              {/* Grid Content */}
+              <div className="grid grid-cols-1 gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                   <ProfessionalRow 
+                    light 
+                    icon={<ShieldCheck className="w-4 h-4 text-cyan-600" />} 
+                    label="Role" 
+                    value={data.role} 
                     />
-                )}
-                {data.nationality && (
-                  <ProfessionalRow
-                    light
-                    icon={<MapPin className="w-3.5 h-3.5 text-slate-400" />}
-                    label="Citizenship"
-                    value={
-                      <div className="flex items-center gap-1.5 text-sm">
-                        {getCountryFlag(data.nationality) && (
-                          <img src={getCountryFlag(data.nationality)} alt="flag" className="w-5 h-3 rounded-sm object-cover" />
-                        )}
-                        <span className="truncate">{data.nationality}</span>
-                      </div>
-                    }
-                  />
-                )}
-                {data.date_of_birth && (
-                  <ProfessionalRow
-                    light
-                    icon={<Cake className="w-3.5 h-3.5 text-slate-400" />}
-                    label="Birthday"
-                    value={<span className="text-sm">{new Date(data.date_of_birth).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
-                  />
-                )}
+                    {data.club && (
+                        <ProfessionalRow 
+                        light 
+                        icon={<Building className="w-4 h-4 text-slate-400" />} 
+                        label="Club" 
+                        value={data.club} 
+                        />
+                    )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2 border-t border-slate-50">
+                    {data.nationality && (
+                    <ProfessionalRow
+                        light
+                        icon={<MapPin className="w-4 h-4 text-slate-400" />}
+                        label="Citizenship"
+                        value={
+                        <div className="flex items-center gap-2 text-slate-900 font-bold">
+                            {getCountryFlag(data.nationality) && (
+                            <img src={getCountryFlag(data.nationality)} alt="flag" className="w-6 h-4 rounded-sm object-cover shadow-sm" />
+                            )}
+                            <span className="truncate">{data.nationality}</span>
+                        </div>
+                        }
+                    />
+                    )}
+                    {data.date_of_birth && (
+                    <ProfessionalRow
+                        light
+                        icon={<Cake className="w-4 h-4 text-slate-400" />}
+                        label="Birthday"
+                        value={<span className="text-slate-900 font-bold">{new Date(data.date_of_birth).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
+                    />
+                    )}
+                </div>
+
+                {/* Integrated Zone Codes */}
+                {data.zone_code && (() => {
+                    const codes = data.zone_code.split(",").map(z => z.trim()).filter(Boolean);
+                    return codes.length > 0 ? (
+                    <div className="pt-4 mt-2">
+                         <p className="text-[10px] uppercase font-black tracking-widest text-slate-400 mb-2.5">Access Zones</p>
+                        <div className="flex flex-wrap gap-2">
+                        {codes.map((code, i) => (
+                        <span key={i} className="px-5 py-2 rounded-xl text-sm font-black text-slate-700 bg-slate-100 border border-slate-200 shadow-sm uppercase">
+                            {code}
+                        </span>
+                        ))}
+                        </div>
+                    </div>
+                    ) : null;
+                })()}
               </div>
             </div>
           </div>
-          
-          {/* Zone Codes - as a subtle footer strip on the card */}
-          {data.zone_code && (() => {
-                const codes = data.zone_code.split(",").map(z => z.trim()).filter(Boolean);
-                return codes.length > 0 ? (
-                  <div className="px-5 py-2.5 bg-slate-100 border-t border-slate-200 flex flex-wrap gap-2">
-                    {codes.map((code, i) => (
-                      <span key={i} className="px-3 py-1 rounded-md text-[10px] font-black text-slate-600 bg-white border border-slate-200 shadow-sm uppercase">
-                        {code}
-                      </span>
-                    ))}
-                  </div>
-                ) : null;
-          })()}
         </motion.div>
 
         {/* Messaging & Events Sections */}
