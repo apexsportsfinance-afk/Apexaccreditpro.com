@@ -1,29 +1,49 @@
 import { supabase } from "./supabase";
 
 /**
- * Download a base64 data URL or remote URL as a file
+ * Fetch a URL and return a blob
  */
-const downloadDataUrl = (dataUrl, fileName) => {
+const fetchAsBlob = async (url) => {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("Failed to fetch image");
+  return await response.blob();
+};
+
+/**
+ * Detect file extension from base64 data URL or remote URL
+ */
+const getExtFromUrl = (url) => {
+  if (!url) return "jpg";
+  if (url.startsWith("data:")) {
+    if (url.includes("image/png")) return "png";
+    if (url.includes("image/webp")) return "webp";
+    if (url.includes("application/pdf")) return "pdf";
+    return "jpg";
+  }
+  // For remote URLs
+  const parts = url.split("?")[0].split(".");
+  const ext = parts.pop().toLowerCase();
+  if (["png", "jpg", "jpeg", "webp", "pdf"].includes(ext)) {
+    return ext === "jpeg" ? "jpg" : ext;
+  }
+  return "jpg";
+};
+
+/**
+ * Download a blob as a file
+ */
+const downloadBlob = (blob, fileName) => {
+  const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
-  link.href = dataUrl;
+  link.href = url;
   link.download = fileName;
   link.style.cssText = "position:fixed;left:-9999px;top:-9999px;";
   document.body.appendChild(link);
   link.click();
   setTimeout(() => {
     if (link.parentNode) document.body.removeChild(link);
-  }, 500);
-};
-
-/**
- * Detect file extension from base64 data URL
- */
-const getExtFromDataUrl = (dataUrl) => {
-  if (!dataUrl) return "jpg";
-  if (dataUrl.includes("image/png")) return "png";
-  if (dataUrl.includes("image/webp")) return "webp";
-  if (dataUrl.includes("application/pdf")) return "pdf";
-  return "jpg";
+    URL.revokeObjectURL(url);
+  }, 5000);
 };
 
 /**
@@ -43,18 +63,33 @@ const fetchFullRecord = async (accreditationId) => {
  * Download single photo for an accreditation
  */
 export const downloadSinglePhoto = async (accreditation, type = "photo") => {
-  let url = accreditation.photoUrl;
+  let url = type === "photo" ? accreditation.photoUrl : accreditation.idDocumentUrl;
 
-  if (!url || !url.startsWith("data:")) {
+  if (!url) {
     const full = await fetchFullRecord(accreditation.id);
     url = type === "photo" ? full.photo_url : full.id_document_url;
   }
 
   if (!url) throw new Error("No file available to download");
 
-  const ext = getExtFromDataUrl(url);
-  const name = `${accreditation.firstName}_${accreditation.lastName}_${type}.${ext}`;
-  downloadDataUrl(url, name);
+  if (url.startsWith("data:")) {
+    const ext = getExtFromUrl(url);
+    const name = `${accreditation.firstName}_${accreditation.lastName}_${type}.${ext}`;
+    const response = await fetch(url);
+    const blob = await response.blob();
+    downloadBlob(blob, name);
+  } else {
+    // Remote URL
+    try {
+      const blob = await fetchAsBlob(url);
+      const ext = getExtFromUrl(url);
+      const name = `${accreditation.firstName}_${accreditation.lastName}_${type}.${ext}`;
+      downloadBlob(blob, name);
+    } catch (err) {
+      // Fallback: try opening in new tab if fetch fails (CORS)
+      window.open(url, "_blank");
+    }
+  }
 };
 
 /**
@@ -64,23 +99,29 @@ export const downloadFullRecord = async (accreditation) => {
   const full = await fetchFullRecord(accreditation.id);
   let count = 0;
 
-  if (full.photo_url) {
-    const ext = getExtFromDataUrl(full.photo_url);
-    downloadDataUrl(
-      full.photo_url,
-      `${accreditation.firstName}_${accreditation.lastName}_photo.${ext}`
-    );
-    count++;
-  }
+  const downloadFile = async (url, type) => {
+    if (!url) return false;
+    const ext = getExtFromUrl(url);
+    const name = `${accreditation.firstName}_${accreditation.lastName}_${type}.${ext}`;
+    if (url.startsWith("data:")) {
+      const resp = await fetch(url);
+      const blob = await resp.blob();
+      downloadBlob(blob, name);
+    } else {
+      try {
+        const blob = await fetchAsBlob(url);
+        downloadBlob(blob, name);
+      } catch {
+        window.open(url, "_blank");
+      }
+    }
+    return true;
+  };
 
+  if (await downloadFile(full.photo_url, "photo")) count++;
   if (full.id_document_url) {
-    await new Promise((r) => setTimeout(r, 500));
-    const ext = getExtFromDataUrl(full.id_document_url);
-    downloadDataUrl(
-      full.id_document_url,
-      `${accreditation.firstName}_${accreditation.lastName}_document.${ext}`
-    );
-    count++;
+    await new Promise((r) => setTimeout(r, 800));
+    if (await downloadFile(full.id_document_url, "document")) count++;
   }
 
   if (count === 0) throw new Error("No documents found for this record");
@@ -116,23 +157,31 @@ export const bulkDownloadPhotos = async (accreditations, eventName = "event") =>
     if (!row) continue;
     const baseName = `${row.first_name || "Unknown"}_${row.last_name || "Unknown"}`;
 
-    if (row.photo_url && row.photo_url.startsWith("data:")) {
-      const ext = getExtFromDataUrl(row.photo_url);
-      const rawB64 = row.photo_url.split(",")[1];
-      if (rawB64) {
-        zip.file(`${baseName}_photo.${ext}`, rawB64, { base64: true });
-        addedCount++;
+    const processFile = async (url, type) => {
+      if (!url) return;
+      try {
+        const ext = getExtFromUrl(url);
+        if (url.startsWith("data:")) {
+          const rawB64 = url.split(",")[1];
+          if (rawB64) {
+            zip.file(`${baseName}_${type}.${ext}`, rawB64, { base64: true });
+            addedCount++;
+          }
+        } else {
+          // Remote URL
+          const response = await fetch(url);
+          const blob = await response.blob();
+          zip.file(`${baseName}_${type}.${ext}`, blob);
+          addedCount++;
+        }
+      } catch (err) {
+        console.error(`Failed to add ${type} for ${baseName}:`, err);
       }
-    }
+    };
 
-    if (row.id_document_url && row.id_document_url.startsWith("data:")) {
-      const ext = getExtFromDataUrl(row.id_document_url);
-      const rawB64 = row.id_document_url.split(",")[1];
-      if (rawB64) {
-        zip.file(`${baseName}_document.${ext}`, rawB64, { base64: true });
-        addedCount++;
-      }
-    }
+    await processFile(row.photo_url, "photo");
+    // Only photos for bulk photos download to save space/time, 
+    // but the function name suggests just photos.
   }
 
   if (addedCount === 0) {
