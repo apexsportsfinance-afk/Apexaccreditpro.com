@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { MessageSquare, Calendar, Settings } from "lucide-react";
+import { MessageSquare, Calendar, Settings, FileText } from "lucide-react";
 import GlobalBroadcastPanel from "./GlobalBroadcastPanel";
 import SportEventsManager from "./SportEventsManager";
 import FormFieldSettings from "./FormFieldSettings";
