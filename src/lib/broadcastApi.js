@@ -39,6 +39,32 @@ export const GlobalSettingsAPI = {
   }
 };
 
+// --- EVENT SETTINGS API ---
+// This uses the global_settings table but prefixes keys with event_${eventId}_
+export const EventSettingsAPI = {
+  get: async (eventId, key) => {
+    return GlobalSettingsAPI.get(`event_${eventId}_${key}`);
+  },
+  getAll: async (eventId) => {
+    const all = await GlobalSettingsAPI.getAll();
+    const prefix = `event_${eventId}_`;
+    const map = {};
+    Object.entries(all).forEach(([key, value]) => {
+      if (key.startsWith(prefix)) {
+        map[key.replace(prefix, "")] = value;
+      }
+    });
+    return map;
+  },
+  setMany: async (eventId, updates) => {
+    const prefixedUpdates = {};
+    Object.entries(updates).forEach(([key, value]) => {
+      prefixedUpdates[`event_${eventId}_${key}`] = value;
+    });
+    return GlobalSettingsAPI.setMany(prefixedUpdates);
+  }
+};
+
 // --- SPORT EVENTS API ---
 export const SportEventsAPI = {
   getByEventId: async (eventId) => {
