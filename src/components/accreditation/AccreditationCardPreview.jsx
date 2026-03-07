@@ -102,7 +102,7 @@ const useCountryNamePng = (name, fontSize = 11) => {
     canvas.height = height * scale;
     const ctx = canvas.getContext("2d");
     ctx.scale(scale, scale);
-    ctx.fillStyle = "#1e40af";
+    ctx.fillStyle = "#000000";
     ctx.font = `bold ${fontSize}px ${CARD_FONT}`;
     ctx.textBaseline = "middle";
     ctx.textAlign = "left";
@@ -333,22 +333,22 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
               {isAthlete && age !== null && (
                 <>
                   <span style={{ color: "#cbd5e1" }}>|</span>
-                  <span style={{ fontWeight: "bold", color: "#1e40af" }}>Age: {age}</span>
+                  <span style={{ fontWeight: "bold", color: "#000000" }}>Age: {age}</span>
                 </>
               )}
             </div>
             {/* Dynamic Flag & Country Name */}
             {(() => {
               const isShortName = countryName?.length < 12;
-              const flagWidth = isShortName ? 54 : 44;
-              const flagHeight = isShortName ? 36 : 28;
-              const nameSize = isShortName ? 14 : countryFontSize;
+              const flagWidth = isShortName ? 62 : 52;
+              const flagHeight = isShortName ? 40 : 34;
+              const nameSize = isShortName ? 15 : 12;
 
               return (
-                <div style={{ marginTop: "18px", display: "flex", alignItems: "center", gap: "8px" }}>
+                <div style={{ marginTop: "18px", display: "flex", alignItems: "flex-end", gap: "10px" }}>
                   {countryData?.flag && (
                     <img
-                      src={`https://flagcdn.com/w80/${countryData.flag}.png`}
+                      src={`https://flagcdn.com/w160/${countryData.flag}.png`}
                       alt="Flag"
                       style={{
                         width: `${flagWidth}px`,
@@ -367,7 +367,7 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
                   {countryNameUrl ? (
                     <img src={countryNameUrl} alt={countryName} style={{ height: `${nameSize + 4}px`, maxWidth: "120px", objectFit: "contain", objectPosition: "left" }} />
                   ) : (
-                    <span style={{ fontSize: `${nameSize}px`, fontWeight: "bold", color: "#1e40af", lineHeight: "1.2", ...cardFont }}>
+                    <span style={{ fontSize: `${nameSize}px`, fontWeight: "bold", color: "#000000", lineHeight: "1.2", ...cardFont }}>
                       {countryName}
                     </span>
                   )}
