@@ -5,13 +5,13 @@ import {
   MessageSquare, Globe, AlertTriangle, ChevronDown, ChevronUp, ShieldCheck
 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
-import { GlobalSettingsAPI, FormFieldSettingsAPI } from "../../lib/broadcastApi";
+import { GlobalSettingsAPI, EventSettingsAPI, FormFieldSettingsAPI } from "../../lib/broadcastApi";
 import { computeExpiryStatus, formatEventDateTime } from "../../lib/expiryUtils";
 
 export default function VerifyAccreditation() {
   const { id } = useParams();
   const [data, setData] = useState(null);
-  const [globalSettings, setGlobalSettings] = useState({});
+  const [eventSettings, setEventSettings] = useState({});
   const [fieldSettings, setFieldSettings] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -63,15 +63,17 @@ export default function VerifyAccreditation() {
       if (accErr) throw accErr;
       if (!accData) throw new Error("Accreditation not found");
 
-      const [settings, fieldSets] = await Promise.all([
-        GlobalSettingsAPI.getAll(),
+      const [eSettings, fieldSets] = await Promise.all([
+        accData?.event_id
+          ? EventSettingsAPI.getAll(accData.event_id)
+          : Promise.resolve({}),
         accData?.event_id
           ? FormFieldSettingsAPI.getByEventId(accData.event_id)
           : Promise.resolve({})
       ]);
 
       setData(accData);
-      setGlobalSettings(settings);
+      setEventSettings(eSettings);
       setFieldSettings(fieldSets || {});
     } catch (err) {
       setError(err.message || "Accreditation not found");
@@ -86,9 +88,14 @@ export default function VerifyAccreditation() {
   const expiry = computeExpiryStatus(data);
   const selectedEvents = Array.isArray(data.selected_events) ? data.selected_events : [];
   const customMessage = data.custom_message;
-  const globalMessage = globalSettings["global_broadcast_message"];
-  const globalPdfUrl = globalSettings["global_pdf_url"];
-  const globalEventResultPdfUrl = globalSettings["global_event_result_pdf_url"];
+
+  // Use athlete-specific broadcast if they are an athlete, otherwise use the general event broadcast
+  const eventBroadcast = data.role === "Athlete"
+    ? (eventSettings["athlete_qr_broadcast_message"] || eventSettings["broadcast_message"])
+    : eventSettings["broadcast_message"];
+
+  const eventPdfUrl = eventSettings["pdf_url"];
+  const eventResultPdfUrl = eventSettings["event_result_pdf_url"];
 
   const showForQR = (key) => {
     const loc = fieldSettings[key] || "both";
@@ -223,13 +230,13 @@ export default function VerifyAccreditation() {
           </div>
         )}
 
-        {globalMessage && showForQR("global_message") && (
+        {eventBroadcast && showForQR("global_message") && (
           <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
               <Globe className="w-4 h-4 text-blue-400" />
               <span className="text-blue-300 font-extralight text-lg">Broadcast</span>
             </div>
-            <p className="text-white font-extralight text-lg whitespace-pre-wrap">{globalMessage}</p>
+            <p className="text-white font-extralight text-lg whitespace-pre-wrap">{eventBroadcast}</p>
           </div>
         )}
 
@@ -256,9 +263,9 @@ export default function VerifyAccreditation() {
               Event Result
             </a>
           )}
-          {globalPdfUrl && showForQR("global_pdf") && (
+          {eventPdfUrl && showForQR("global_pdf") && (
             <a
-              href={globalPdfUrl}
+              href={eventPdfUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-3 rounded-lg font-extralight text-lg transition-colors"
@@ -267,9 +274,9 @@ export default function VerifyAccreditation() {
               Official Document
             </a>
           )}
-          {globalEventResultPdfUrl && showForQR("global_pdf") && (
+          {eventResultPdfUrl && showForQR("global_pdf") && (
             <a
-              href={globalEventResultPdfUrl}
+              href={eventResultPdfUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 bg-green-700 hover:bg-green-600 text-white px-4 py-3 rounded-lg font-extralight text-lg transition-colors"
