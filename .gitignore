@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+dist/
+.turbo/
+
+# Local Server Uploads (Very Important - do not upload photos)
+server/uploads/
+uploads/
+
+# Environment Variables
+.env
+.env.local
+.env.production
+.env.development
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDE Files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary Files
+tmp/
+*.log

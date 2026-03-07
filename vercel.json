@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "buildCommand": "rm -rf node_modules/.vite dist .turbo && npm install && npm run build",
+  "installCommand": "npm install",
+  "framework": "vite",
+  "build": {
+    "env": {
+      "NODE_ENV": "production",
+      "FORCE_BUILD": "true"
+    }
+  },
+  "routes": [
+    { "src": "/[^.]+", "dest": "/", "status": 200 }
+  ]
+}
