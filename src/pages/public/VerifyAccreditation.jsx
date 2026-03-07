@@ -144,89 +144,98 @@ export default function VerifyAccreditation() {
         {/* Status Indicator */}
         <motion.div
           variants={itemVariants}
-          className={`w-full mb-6 flex items-center justify-between px-6 py-4 rounded-2xl border backdrop-blur-md transition-all ${
+          className={`w-full mb-8 flex items-center justify-between px-8 py-5 rounded-3xl border backdrop-blur-md transition-all ${
             expiry.isExpired
               ? "bg-red-500/10 border-red-500/40 shadow-[0_0_20px_rgba(239,68,68,0.1)]"
               : "bg-emerald-500/10 border-emerald-500/40 shadow-[0_0_20px_rgba(16,185,129,0.1)]"
           }`}
         >
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-full ${expiry.isExpired ? "bg-red-500/20" : "bg-emerald-500/20"}`}>
+          <div className="flex items-center gap-4">
+            <div className={`p-3 rounded-full ${expiry.isExpired ? "bg-red-500/20" : "bg-emerald-500/20"}`}>
               {expiry.isExpired
-                ? <XCircle className="w-6 h-6 text-red-500" />
-                : <CheckCircle className="w-6 h-6 text-emerald-500" />
+                ? <XCircle className="w-7 h-7 text-red-500" />
+                : <CheckCircle className="w-7 h-7 text-emerald-500" />
               }
             </div>
             <div>
-              <h3 className={`font-bold text-lg leading-tight ${expiry.isExpired ? "text-red-400" : "text-emerald-400"}`}>
-                {expiry.label}
+              <h3 className={`font-black text-xl leading-tight ${expiry.isExpired ? "text-red-400" : "text-emerald-400"}`}>
+                {expiry.isExpired ? "Expired Accreditation" : "Valid Accreditation"}
               </h3>
-              <p className="text-white/60 text-sm font-medium">Verified Accreditation</p>
+              <p className="text-white/80 text-sm font-bold mt-1">{data.events?.name}</p>
             </div>
-          </div>
-          <div className="text-right">
-            <p className="text-white/40 text-xs uppercase tracking-widest font-bold mb-1">Event</p>
-            <p className="text-white font-semibold text-sm max-w-[140px] truncate">{data.events?.name}</p>
           </div>
         </motion.div>
 
         {/* Profile Card */}
-        <motion.div variants={itemVariants} className="w-full bg-white/[0.03] border border-white/10 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
-          {/* Subtle Glow inside card */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 blur-[40px] rounded-full" />
-
-          <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
-            {/* Photo Section */}
-            <div className="relative group">
-              <div className="absolute -inset-1.5 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-3xl blur opacity-25 group-hover:opacity-40 transition duration-1000"></div>
-              <div className="relative w-40 h-40 md:w-32 md:h-32 rounded-[2rem] overflow-hidden border-2 border-white/20 bg-gray-900 shadow-inner">
-                {data.photo_url ? (
-                  <img
-                    src={data.photo_url}
-                    alt={data.first_name}
-                    className="w-full h-full object-cover transition duration-500 group-hover:scale-110"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-white/20">
-                    <User className="w-16 h-16" />
-                  </div>
-                )}
-
-                {expiry.isExpired && (
-                  <div className="absolute inset-0 bg-red-600/60 backdrop-blur-[2px] flex items-center justify-center">
-                    <span className="text-white font-black text-sm tracking-tighter border-2 border-white px-2 py-0.5 rounded rotate-[-15deg]">
-                      EXPIRED
-                    </span>
-                  </div>
-                )}
-              </div>
+        <motion.div variants={itemVariants} className="w-full bg-[#101827] border border-white/10 rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] relative overflow-hidden flex flex-col">
+          {/* Logo on Top of Photo Area */}
+          {data.events?.logo_url && (
+            <div className="w-full flex justify-center pt-8 pb-4">
+               <img src={data.events.logo_url} alt="Event Logo" className="h-16 w-auto object-contain brightness-0 invert" />
             </div>
+          )}
 
-            {/* Info Section */}
-            <div className="flex-1 text-center md:text-left space-y-6">
-              <div>
-                <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight uppercase mb-1">
-                  {data.first_name} <span className="text-cyan-500">{data.last_name}</span>
-                </h1>
-                <div className="flex items-center justify-center md:justify-start gap-2 text-white/40 font-bold group">
-                  <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] tracking-widest uppercase">
-                    ID #{data.badge_number}
-                  </span>
-                  {data.events?.logo_url && (
-                      <div className="h-6 w-px bg-white/10 mx-1" />
+          <div className="flex flex-col md:flex-row p-4 gap-4">
+            {/* Photo Section (Left-ish) */}
+            <div className="flex flex-col items-center justify-center p-4 md:w-1/3">
+              <div className="relative group">
+                <div className="absolute -inset-1.5 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-3xl blur opacity-25"></div>
+                <div className="relative w-48 h-48 md:w-36 md:h-36 rounded-[2rem] overflow-hidden border-2 border-white/20 bg-gray-900 shadow-inner">
+                  {data.photo_url ? (
+                    <img
+                      src={data.photo_url}
+                      alt={data.first_name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-white/20">
+                      <User className="w-20 h-20" />
+                    </div>
                   )}
-                  {data.events?.logo_url && (
-                    <img src={data.events.logo_url} alt="Logo" className="h-5 object-contain grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all" />
+
+                  {expiry.isExpired && (
+                    <div className="absolute inset-0 bg-red-600/60 backdrop-blur-[2px] flex items-center justify-center">
+                      <span className="text-white font-black text-xs tracking-tighter border-2 border-white px-2 py-0.5 rounded rotate-[-15deg]">
+                        EXPIRED
+                      </span>
+                    </div>
                   )}
                 </div>
               </div>
+              <div className="mt-6 text-center">
+                <h1 className="text-3xl font-black text-white tracking-tight uppercase leading-none">
+                  {data.first_name}
+                </h1>
+                <h1 className="text-3xl font-black text-cyan-500 tracking-tight uppercase">
+                  {data.last_name}
+                </h1>
+                <span className="mt-2 inline-block px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] text-white/40 tracking-[0.2em] font-black">
+                  ID #{data.badge_number}
+                </span>
+              </div>
+            </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6">
-                <ProfessionalRow icon={<ShieldCheck className="w-4 h-4 text-cyan-500" />} label="Role" value={data.role} />
-                {data.club && <ProfessionalRow icon={<Building className="w-4 h-4 text-cyan-400" />} label="Club" value={data.club} />}
+            {/* Info Section (Right-ish / Light Background) */}
+            <div className="flex-1 bg-white rounded-3xl p-8 flex flex-col gap-6 shadow-inner">
+              <div className="grid grid-cols-1 gap-6">
+                <ProfessionalRow 
+                  light 
+                  icon={<ShieldCheck className="w-4 h-4 text-cyan-600" />} 
+                  label="Role" 
+                  value={data.role} 
+                />
+                {data.club && (
+                    <ProfessionalRow 
+                      light 
+                      icon={<Building className="w-4 h-4 text-gray-500" />} 
+                      label="Club" 
+                      value={data.club} 
+                    />
+                )}
                 {data.nationality && (
                   <ProfessionalRow
-                    icon={<MapPin className="w-4 h-4 text-cyan-400" />}
+                    light
+                    icon={<MapPin className="w-4 h-4 text-gray-500" />}
                     label="Citizenship"
                     value={
                       <div className="flex items-center gap-2">
@@ -240,7 +249,8 @@ export default function VerifyAccreditation() {
                 )}
                 {data.date_of_birth && (
                   <ProfessionalRow
-                    icon={<Cake className="w-4 h-4 text-cyan-400" />}
+                    light
+                    icon={<Cake className="w-4 h-4 text-gray-500" />}
                     label="Birthday"
                     value={new Date(data.date_of_birth).toLocaleDateString("en-GB", { day: 'numeric', month: 'long', year: 'numeric' })}
                   />
@@ -251,9 +261,9 @@ export default function VerifyAccreditation() {
               {data.zone_code && (() => {
                 const codes = data.zone_code.split(",").map(z => z.trim()).filter(Boolean);
                 return codes.length > 0 ? (
-                  <div className="pt-4 flex flex-wrap justify-center md:justify-start gap-2">
+                  <div className="pt-2 flex flex-wrap gap-2">
                     {codes.map((code, i) => (
-                      <span key={i} className="px-5 py-2 rounded-xl text-sm font-black text-white bg-gradient-to-br from-gray-700 to-gray-800 border border-white/10 shadow-lg">
+                      <span key={i} className="px-4 py-1.5 rounded-lg text-xs font-black text-white bg-gray-900 border border-gray-700 shadow-sm">
                         {code}
                       </span>
                     ))}
@@ -343,16 +353,16 @@ export default function VerifyAccreditation() {
   );
 }
 
-function ProfessionalRow({ icon, label, value }) {
+function ProfessionalRow({ icon, label, value, light }) {
   if (!value) return null;
   return (
     <div className="flex items-start gap-4">
-      <div className="mt-1 flex-shrink-0 bg-white/5 p-1.5 rounded-lg border border-white/10">
+      <div className={`mt-1 flex-shrink-0 p-1.5 rounded-lg border ${light ? "bg-gray-100 border-gray-200" : "bg-white/5 border-white/10"}`}>
         {icon}
       </div>
       <div>
-        <p className="text-[10px] text-white/30 uppercase font-black tracking-widest mb-0.5">{label}</p>
-        <div className="text-white font-semibold flex items-center gap-2">
+        <p className={`text-[10px] uppercase font-black tracking-widest mb-0.5 ${light ? "text-gray-400" : "text-white/30"}`}>{label}</p>
+        <div className={`font-semibold flex items-center gap-2 ${light ? "text-gray-900" : "text-white"}`}>
             {value}
         </div>
       </div>
