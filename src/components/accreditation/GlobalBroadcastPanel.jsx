@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Globe, Upload, Save, Trash2, Clock, Users, FileText, MessageSquare } from "lucide-react";
-import { GlobalSettingsAPI } from "../../lib/broadcastApi";
+import { GlobalSettingsAPI, EventSettingsAPI } from "../../lib/broadcastApi";
 import { supabase } from "../../lib/supabase";
 import { uploadToStorage } from "../../lib/uploadToStorage";
 
 const SUB_TABS = [
-  { id: "global", label: "Global Broadcast Message", icon: Globe },
+  { id: "global", label: "Event Broadcast Message", icon: Globe },
   { id: "athlete", label: "Athlete QR Broadcast", icon: Users }
 ];
 
-export default function GlobalBroadcastPanel({ onToast }) {
+export default function GlobalBroadcastPanel({ eventId, onToast }) {
   const [activeSubTab, setActiveSubTab] = useState("global");
 
   return (
@@ -35,14 +35,14 @@ export default function GlobalBroadcastPanel({ onToast }) {
         })}
       </div>
 
-      {activeSubTab === "global" && <GlobalBroadcastPage onToast={onToast} />}
-      {activeSubTab === "athlete" && <AthleteQRBroadcastPage onToast={onToast} />}
+      {activeSubTab === "global" && <GlobalBroadcastPage eventId={eventId} onToast={onToast} />}
+      {activeSubTab === "athlete" && <AthleteQRBroadcastPage eventId={eventId} onToast={onToast} />}
     </div>
   );
 }
 
-/* ─── Global Broadcast Message Page ─────────────────────────── */
-function GlobalBroadcastPage({ onToast }) {
+/* ─── Event Broadcast Message Page ─────────────────────────── */
+function GlobalBroadcastPage({ eventId, onToast }) {
   const [message, setMessage] = useState("");
   const [globalPdfUrl, setGlobalPdfUrl] = useState("");
   const [eventResultPdfUrl, setEventResultPdfUrl] = useState("");
@@ -56,28 +56,28 @@ function GlobalBroadcastPage({ onToast }) {
   const globalPdfInputRef = useRef(null);
   const eventResultInputRef = useRef(null);
 
-  useEffect(() => { loadSettings(); }, []);
+  useEffect(() => { if (eventId) loadSettings(); }, [eventId]);
 
   const loadSettings = async () => {
-    const all = await GlobalSettingsAPI.getAll();
-    setMessage(all["global_broadcast_message"] || "");
-    setGlobalPdfUrl(all["global_pdf_url"] || "");
-    setEventResultPdfUrl(all["global_event_result_pdf_url"] || "");
-    setPdfUpdatedAt(all["global_pdf_updated_at"] || null);
-    setEventResultUpdatedAt(all["global_event_result_pdf_updated_at"] || null);
-    setMsgUpdatedAt(all["global_message_updated_at"] || null);
+    const all = await EventSettingsAPI.getAll(eventId);
+    setMessage(all["broadcast_message"] || "");
+    setGlobalPdfUrl(all["pdf_url"] || "");
+    setEventResultPdfUrl(all["event_result_pdf_url"] || "");
+    setPdfUpdatedAt(all["pdf_updated_at"] || null);
+    setEventResultUpdatedAt(all["event_result_pdf_updated_at"] || null);
+    setMsgUpdatedAt(all["message_updated_at"] || null);
   };
 
   const saveMessage = async () => {
     if (message.length > 2000) { onToast?.("Message exceeds 2000 characters", "error"); return; }
     setSaving(true);
     try {
-      await GlobalSettingsAPI.setMany({
-        global_broadcast_message: message,
-        global_message_updated_at: new Date().toISOString()
+      await EventSettingsAPI.setMany(eventId, {
+        broadcast_message: message,
+        message_updated_at: new Date().toISOString()
       });
       setMsgUpdatedAt(new Date().toISOString());
-      onToast?.("Global message published", "success");
+      onToast?.("Event message published", "success");
     } catch { onToast?.("Failed to save message", "error"); }
     finally { setSaving(false); }
   };
@@ -89,7 +89,7 @@ function GlobalBroadcastPage({ onToast }) {
     try {
       const result = await uploadToStorage(file, "broadcasts");
       const now = new Date().toISOString();
-      await GlobalSettingsAPI.setMany({ [settingKey]: result.url, [updatedAtKey]: now });
+      await EventSettingsAPI.setMany(eventId, { [settingKey]: result.url, [updatedAtKey]: now });
       setUrl(result.url);
       setTs(now);
       onToast?.("PDF uploaded successfully", "success");
@@ -98,7 +98,7 @@ function GlobalBroadcastPage({ onToast }) {
   };
 
   const removePdf = async (settingKey, updatedAtKey, setUrl, setTs) => {
-    await GlobalSettingsAPI.setMany({ [settingKey]: "", [updatedAtKey]: "" });
+    await EventSettingsAPI.setMany(eventId, { [settingKey]: "", [updatedAtKey]: "" });
     setUrl(""); setTs(null);
     onToast?.("PDF removed", "success");
   };
@@ -111,10 +111,10 @@ function GlobalBroadcastPage({ onToast }) {
       <div className="bg-gray-800 rounded-lg p-5 border border-gray-700">
         <div className="flex items-center gap-2 mb-4">
           <Globe className="w-5 h-5 text-blue-400" />
-          <h3 className="text-lg font-extralight text-white">Global QR Broadcast Message</h3>
+          <h3 className="text-lg font-extralight text-white">Event QR Broadcast Message</h3>
         </div>
         <p className="text-gray-400 font-extralight text-lg mb-3">
-          Shown on every QR scan page instantly after publishing.
+          Shown on every QR scan page for this event instantly after publishing.
         </p>
         <textarea
           value={message}
@@ -164,22 +164,22 @@ function GlobalBroadcastPage({ onToast }) {
           updatedAt={pdfUpdatedAt}
           uploading={pdfUploading}
           inputRef={globalPdfInputRef}
-          onUpload={file => uploadPdf(file, "global_pdf_url", "global_pdf_updated_at", setGlobalPdfUrl, setPdfUpdatedAt, setPdfUploading)}
-          onRemove={() => removePdf("global_pdf_url", "global_pdf_updated_at", setGlobalPdfUrl, setPdfUpdatedAt)}
+          onUpload={file => uploadPdf(file, "pdf_url", "pdf_updated_at", setGlobalPdfUrl, setPdfUpdatedAt, setPdfUploading)}
+          onRemove={() => removePdf("pdf_url", "pdf_updated_at", setGlobalPdfUrl, setPdfUpdatedAt)}
           formatUTC={formatUTC}
         />
 
         {/* Event Result PDF Slot */}
         <PdfSlotCard
           label="Event Result PDF"
-          description="Global event result shown on all QR scan pages."
+          description="Specific event result shown on QR scan pages for this event."
           color="purple"
           url={eventResultPdfUrl}
           updatedAt={eventResultUpdatedAt}
           uploading={eventResultUploading}
           inputRef={eventResultInputRef}
-          onUpload={file => uploadPdf(file, "global_event_result_pdf_url", "global_event_result_pdf_updated_at", setEventResultPdfUrl, setEventResultUpdatedAt, setEventResultUploading)}
-          onRemove={() => removePdf("global_event_result_pdf_url", "global_event_result_pdf_updated_at", setEventResultPdfUrl, setEventResultUpdatedAt)}
+          onUpload={file => uploadPdf(file, "event_result_pdf_url", "event_result_pdf_updated_at", setEventResultPdfUrl, setEventResultUpdatedAt, setEventResultUploading)}
+          onRemove={() => removePdf("event_result_pdf_url", "event_result_pdf_updated_at", setEventResultPdfUrl, setEventResultUpdatedAt)}
           formatUTC={formatUTC}
         />
       </div>
@@ -249,15 +249,15 @@ function PdfSlotCard({ label, description, color, url, updatedAt, uploading, inp
 }
 
 /* ─── Athlete QR Broadcast Page ──────────────────────────────── */
-function AthleteQRBroadcastPage({ onToast }) {
+function AthleteQRBroadcastPage({ eventId, onToast }) {
   const [message, setMessage] = useState("");
   const [updatedAt, setUpdatedAt] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { loadSettings(); }, []);
+  useEffect(() => { if (eventId) loadSettings(); }, [eventId]);
 
   const loadSettings = async () => {
-    const all = await GlobalSettingsAPI.getAll();
+    const all = await EventSettingsAPI.getAll(eventId);
     setMessage(all["athlete_qr_broadcast_message"] || "");
     setUpdatedAt(all["athlete_qr_broadcast_updated_at"] || null);
   };
@@ -266,7 +266,7 @@ function AthleteQRBroadcastPage({ onToast }) {
     if (message.length > 2000) { onToast?.("Message exceeds 2000 characters", "error"); return; }
     setSaving(true);
     try {
-      await GlobalSettingsAPI.setMany({
+      await EventSettingsAPI.setMany(eventId, {
         athlete_qr_broadcast_message: message,
         athlete_qr_broadcast_updated_at: new Date().toISOString()
       });
