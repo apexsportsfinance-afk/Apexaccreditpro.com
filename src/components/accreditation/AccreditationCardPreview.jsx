@@ -345,7 +345,7 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
               const nameSize = isShortName ? 15 : 12;
 
               return (
-                <div style={{ marginTop: "18px", display: "flex", alignItems: "flex-end", gap: "10px" }}>
+                <div style={{ marginTop: "18px", display: "flex", alignItems: "center", gap: "12px" }}>
                   {countryData?.flag && (
                     <img
                       src={`https://flagcdn.com/w160/${countryData.flag}.png`}
