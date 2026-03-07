@@ -33,7 +33,7 @@ export default function VerifyAccreditation() {
       if (isUUID) {
         const byAcc = await supabase
           .from("accreditations")
-          .select("*, events:event_id(name, start_date, logo_url, banner_url)")
+          .select("*, events:event_id(name, start_date, logo_url)")
           .eq("accreditation_id", id)
           .limit(1)
           .maybeSingle();
@@ -42,7 +42,7 @@ export default function VerifyAccreditation() {
         } else {
           const byId = await supabase
             .from("accreditations")
-            .select("*, events:event_id(name, start_date, logo_url, banner_url)")
+            .select("*, events:event_id(name, start_date, logo_url)")
             .eq("id", id)
             .limit(1)
             .maybeSingle();
@@ -52,7 +52,7 @@ export default function VerifyAccreditation() {
       } else {
         const result = await supabase
           .from("accreditations")
-          .select("*, events:event_id(name, start_date, logo_url, banner_url)")
+          .select("*, events:event_id(name, start_date, logo_url)")
           .eq("accreditation_id", id)
           .limit(1)
           .maybeSingle();
@@ -135,9 +135,9 @@ export default function VerifyAccreditation() {
         className="relative z-10 w-full max-w-xl mx-auto px-4 py-8 md:py-12 flex flex-col items-center"
       >
         {/* Banner Section */}
-        {data.events?.banner_url && (
+        {eventSettings["banner_url"] && (
           <motion.div variants={itemVariants} className="w-full mb-6 rounded-2xl overflow-hidden shadow-2xl shadow-cyan-950/20 border border-white/5">
-            <img src={data.events.banner_url} alt="Event banner" className="w-full h-auto object-contain bg-gray-900" />
+            <img src={eventSettings["banner_url"]} alt="Event banner" className="w-full h-auto object-contain bg-gray-900" />
           </motion.div>
         )}
 
