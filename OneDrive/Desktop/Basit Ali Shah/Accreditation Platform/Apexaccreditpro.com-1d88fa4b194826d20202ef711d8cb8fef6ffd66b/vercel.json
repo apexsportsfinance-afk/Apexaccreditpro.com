@@ -2,7 +2,7 @@
   "version": 2,
   "framework": "vite",
   "installCommand": "npm install",
-  "buildCommand": "npm run build",
+  "buildCommand": "npm install && npm run build",
   "routes": [
     { "src": "/[^.]+", "dest": "/", "status": 200 }
   ],
