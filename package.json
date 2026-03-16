@@ -40,6 +40,6 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "@vitejs/plugin-basic-ssl": "^2.2.0"
+    "@vitejs/plugin-basic-ssl": "^1.0.1"
   }
 }
