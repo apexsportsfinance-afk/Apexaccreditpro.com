@@ -16,11 +16,11 @@ export default function BadgeGenerator({ accreditation, event, zones = [], onClo
   const handleDownloadPDF = () => withLoading(() => 
     downloadCardPDF(accreditation, event, zones,
       buildCardFileName(accreditation, "pdf"),
-      4, pdfSize)
+      8, pdfSize)
   );
 
-  const handleOpenInTab = () => withLoading(() => openCardPDF(accreditation, event, zones, 4, pdfSize));
-  const handlePrint = () => withLoading(() => printCard(accreditation, event, zones, 2, pdfSize));
+  const handleOpenInTab = () => withLoading(() => openCardPDF(accreditation, event, zones, 8, pdfSize));
+  const handlePrint = () => withLoading(() => printCard(accreditation, event, zones, 6, pdfSize));
 
   return (
     <div className="space-y-6 p-6">

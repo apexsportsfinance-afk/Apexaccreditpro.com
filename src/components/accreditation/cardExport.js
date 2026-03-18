@@ -396,7 +396,7 @@ ${backPageHtml}
   setTimeout(() => { if (iframe.parentNode) document.body.removeChild(iframe); }, 30000);
 };
 
-export const downloadAsImages = async (accreditation, event, zones, baseName, scale = 3.125) => {
+export const downloadAsImages = async (accreditation, event, zones, baseName, scale = 6) => {
   const { frontDataUrl, backDataUrl } = await captureCardDataUrls(accreditation, event, zones, scale);
 
   const a1 = document.createElement("a");
@@ -428,7 +428,7 @@ export const bulkDownloadPDFs = async (
 ) => {
   if (!accreditations || accreditations.length === 0) return;
 
-  const scale = 3.125;
+  const scale = 5;
 
   try {
     const JSZip = (await import("jszip")).default;
