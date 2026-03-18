@@ -454,12 +454,12 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
         </div>
 
         {/* SPONSORS */}
-        <div style={{ height: "36px", width: "100%", borderTop: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", padding: "0 12px", flexShrink: 0, backgroundColor: frontBackgroundUrl ? "transparent" : "#f8fafc", position: "relative", zIndex: 10 }}>
+        <div style={{ height: "46px", width: "100%", borderTop: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", padding: "0 12px", flexShrink: 0, backgroundColor: frontBackgroundUrl ? "transparent" : "#f8fafc", position: "relative", zIndex: 10 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", width: "100%", height: "100%" }}>
             {event?.sponsorLogos?.length > 0 ? (
               event.sponsorLogos.slice(0, 6).map((logo, index) => (
                 logo ? (
-                  <div key={index} style={{ flex: 1, minWidth: 0, height: "26px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div key={index} style={{ flex: 1, minWidth: 0, maxWidth: "65px", height: "38px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <img src={logo} alt="Sponsor" style={{ width: "100%", height: "100%", objectFit: "contain" }} crossOrigin="anonymous" />
                   </div>
                 ) : null
