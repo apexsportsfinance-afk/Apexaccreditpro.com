@@ -76,12 +76,27 @@ export default function EventPdfSlots({ eventId, onToast }) {
           
           onToast?.(`Matching ${rawRows.length} records to accreditations...`, "info");
           // 2. Fetch all event accreditations (map true schema to recipe expectation)
-          const { data: rawAccData, error: fetchErr } = await supabase
-            .from("accreditations")
-            .select("id, first_name, last_name, date_of_birth, club")
-            .eq("event_id", eventId);
-            
-          if (fetchErr) throw new Error("Database fetch error: " + fetchErr.message);
+          let rawAccData = [];
+           let from = 0;
+           let pageSize = 1000;
+           let fetchHasMore = true;
+
+           while (fetchHasMore) {
+             const { data: pageData, error: fetchErr } = await supabase
+               .from("accreditations")
+               .select("id, first_name, last_name, date_of_birth, club")
+               .eq("event_id", eventId)
+               .range(from, from + pageSize - 1);
+
+             if (fetchErr) throw new Error("Database fetch error: " + fetchErr.message);
+             if (pageData && pageData.length > 0) {
+               rawAccData = [...rawAccData, ...pageData];
+               if (pageData.length < pageSize) fetchHasMore = false;
+               else from += pageSize;
+             } else {
+               fetchHasMore = false;
+             }
+           }
 
           const { calculateAge } = await import('../../lib/utils');
 

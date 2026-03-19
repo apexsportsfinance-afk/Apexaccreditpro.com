@@ -725,7 +725,7 @@ export function matchAthleteEvents(parsedRows, accreditationRecords) {
       
       const exactTeam = normAccTeam === normPdfTeam;
       const teamOverlaps = normAccTeam && normPdfTeam && (normAccTeam.includes(normPdfTeam) || normPdfTeam.includes(normAccTeam) || jaroWinkler(normAccTeam, normPdfTeam) > 0.85);
-      
+
       // Cascade 1: Triple Match (Name + Age + Team) -> 1.0
       if (fuzzyNameMatch && exactAge && exactTeam) {
         matchConfidence = 1.0;
