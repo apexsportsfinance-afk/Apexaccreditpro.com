@@ -195,6 +195,16 @@ async function parseCompetitionHtml(file, type = 'heat_sheet') {
     if (el.tagName === 'P' || el.tagName === 'DIV') {
       const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
       if (text) allRows.push([text]);
+    } else if (el.tagName === 'PRE') {
+      const lines = (el.textContent || '').split('\n');
+      lines.forEach(line => {
+         const cleanLine = line.trim();
+         if (cleanLine) {
+             // Split the line by multiple spaces to form 'columns'
+             const cells = cleanLine.split(/\s{2,}/);
+             allRows.push(cells);
+         }
+      });
     } else if (el.tagName === 'TABLE') {
       const trs = el.querySelectorAll('tr');
       for (let j = 0; j < trs.length; j++) {
@@ -294,10 +304,22 @@ async function parseCompetitionHtml(file, type = 'heat_sheet') {
         }
 
         // Standard Meet Manager Columns
-        const rawAge = cells[2];
-        const rawTeam = cells[3];
-        const rawSeed = cells[4];
-        const rawFinal = (cells.length > 5) ? cells[5] : null;
+        let rawAge = cells[2];
+        let rawTeam = cells[3];
+        let rawSeed = cells[4];
+        let rawFinal = (cells.length > 5) ? cells[5] : null;
+
+        // Native <pre> tags often fail to provide 2 spaces between Age and Team (e.g., "11 Hamilton")
+        // causing cells to merge and shift Seed/Final times out of alignment.
+        if (rawAge && /[a-zA-Z]/.test(rawAge)) {
+            const ageTeamMatch = rawAge.trim().match(/^(\d{1,2})\s+(.+)$/);
+            if (ageTeamMatch) {
+                rawAge = ageTeamMatch[1];
+                rawTeam = ageTeamMatch[2]; // "Hamilton"
+                rawFinal = rawSeed;        // Shift the 5th column value to the 6th
+                rawSeed = cells[3];        // Shift the 4th column value to the 5th
+            }
+        }
 
         if (rawName && rawName.length > 2 && !rawName.toLowerCase().includes("name")) {
             let formattedName = rawName;
