@@ -670,11 +670,13 @@ export default function VerifyAccreditation() {
           <AnimatePresence>
 
         {/* Notifications & Documents */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Show messages if they exist - bypass field settings */}
+        <div className="space-y-4">
+              {/* Personal Notifications - Full Width */}
               {filteredMessages.allAthleteMessages.length > 0 && (
                  <ExpandableMessageGroup title="Personal Notification" messages={filteredMessages.allAthleteMessages} icon={<MessageSquare className="w-5 h-5" />} isPersonal onRead={recalculateUnread} />
               )}
+              
+              {/* Event Broadcast - Full Width */}
               {(filteredMessages.allGlobalMessages.length > 0 || filteredMessages.fallbackGlobalMessage) && (
                  <ExpandableMessageGroup 
                    title="Event Broadcast" 
@@ -863,27 +865,32 @@ function ExpandableMessageGroup({ title, messages, icon, isPersonal, onRead }) {
           >
             <div className="p-4 bg-black/10 space-y-3">
                {/* Show only the latest message */}
-               {messages.length > 0 && (() => {
-                 const latest = messages[0]; // First message is latest (sorted by createdAt desc)
-                 return (
-                   <div key={latest.id || 'latest'} className={`p-4 rounded-xl border ${isPersonal ? 'bg-indigo-500/5 border-indigo-500/10' : 'bg-cyan-500/5 border-cyan-500/10'}`}>
-                     <div className="flex justify-between items-center mb-2">
-                       <span className="text-[10px] text-white/30 font-bold tracking-widest uppercase">
-                         {latest.createdAt ? new Date(latest.createdAt).toLocaleString("en-US", { 
-                           year: 'numeric', 
-                           month: 'numeric', 
-                           day: 'numeric',
-                           hour: 'numeric',
-                           minute: '2-digit',
-                           hour12: true 
-                         }) : 'No Date'}
-                       </span>
-                       {latest.id && <CheckCircle className="w-3 h-3 text-emerald-500/50" />}
-                     </div>
-                      <p className="text-sm text-white/90 leading-relaxed font-medium whitespace-pre-wrap">{latest.message || 'No message content'}</p>
+                {messages.length > 0 && (() => {
+                  const latest = messages[0];
+                  return (
+                    <div key={latest.id || 'latest'} className="p-6 rounded-xl border border-white/10 bg-slate-900/40 shadow-inner">
+                      <div className="flex justify-between items-center mb-4 border-b border-white/5 pb-3">
+                        <div className="flex flex-col">
+                          <span className="text-[9px] text-white/30 font-black uppercase tracking-[0.2em] mb-1">Update Timestamp</span>
+                          <span className="text-[10px] text-white/60 font-black uppercase tracking-widest">
+                            {latest.createdAt ? new Date(latest.createdAt).toLocaleString("en-US", { 
+                              year: 'numeric', 
+                              month: 'short', 
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: true 
+                            }) : 'No Date'}
+                          </span>
+                        </div>
+                        {latest.id && <CheckCircle className="w-3.5 h-3.5 text-emerald-500/40" />}
+                      </div>
+                      <p className="text-sm md:text-base text-white/90 leading-relaxed font-medium whitespace-pre-wrap selection:bg-cyan-500/30">
+                        {latest.message || 'No message content'}
+                      </p>
                     </div>
-                 );
-               })()}
+                  );
+                })()}
             </div>
           </motion.div>
         )}
