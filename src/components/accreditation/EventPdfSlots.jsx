@@ -3,6 +3,7 @@ import { FileText, Upload, Trash2, Download, Clock } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { GlobalSettingsAPI, HeatSheetMatrixAPI } from "../../lib/broadcastApi";
 import { parseCompetitionFile } from "../../lib/CoachHeatParser";
+import Button from "../ui/Button";
 
 const SLOTS = [
   { key: "heat_sheet", label: "Heat Sheet", color: "blue" },
@@ -139,7 +140,7 @@ export default function EventPdfSlots({ eventId, onToast }) {
       onToast?.(err.message || "Upload failed", "error");
     } finally {
       setUploading(prev => ({ ...prev, [slot.key]: false }));
-      e.target.value = '';
+      if (e.target) e.target.value = '';
     }
   };
 
@@ -189,10 +190,12 @@ export default function EventPdfSlots({ eventId, onToast }) {
                 {hasFile ? (
                   <div className="space-y-4">
                     <div className="flex flex-wrap gap-2">
-                      <Button asChild size="sm" className={`rounded-lg gap-2 text-[10px] font-black uppercase ${config.bg}`}>
-                        <a href={slots[slot.key]} target="_blank" rel="noopener noreferrer">
-                          <Download className="w-3.5 h-3.5" /> View
-                        </a>
+                      <Button 
+                        size="sm" 
+                        onClick={() => window.open(slots[slot.key], '_blank')}
+                        className={`rounded-lg gap-2 text-[10px] font-black uppercase ${config.bg}`}
+                      >
+                        <Download className="w-3.5 h-3.5" /> View
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => handleDelete(slot.key)} className="rounded-lg gap-2 text-[10px] font-black uppercase text-red-500 hover:bg-red-500/10">
                         <Trash2 className="w-3.5 h-3.5" /> Drop
