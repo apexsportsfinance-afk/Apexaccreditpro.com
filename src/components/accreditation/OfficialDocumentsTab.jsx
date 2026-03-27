@@ -38,7 +38,9 @@ export default function OfficialDocumentsTab({ eventId, onToast }) {
     try {
       const data = await GlobalSettingsAPI.get(`event_${eventId}_official_docs`);
       if (data) {
-        setDocs(JSON.parse(data));
+        const parsed = JSON.parse(data);
+        console.log("Official Documents Loaded:", parsed.length);
+        setDocs(parsed);
       } else {
         setDocs([]);
       }
@@ -97,23 +99,18 @@ export default function OfficialDocumentsTab({ eventId, onToast }) {
         .from("accreditation-files")
         .getPublicUrl(data.path);
 
-      const newDoc = {
-        id: crypto.randomUUID(),
-        name: file.name,
-        url: urlData.publicUrl,
-        type: ext,
-        size: (file.size / 1024).toFixed(1) + " KB",
-        createdAt: new Date().toISOString()
-      };
-
-      await persistDocs([newDoc, ...docs]);
+      const latestData = await GlobalSettingsAPI.get(`event_${eventId}_official_docs`);
+      const existingArray = latestData ? JSON.parse(latestData) : [];
+      const updatedArray = [newDoc, ...existingArray];
+      
+      await persistDocs(updatedArray);
       onToast?.("Document uploaded successfully", "success");
     } catch (err) {
       console.error(err);
       onToast?.(err.message || "Upload failed", "error");
     } finally {
       setUploading(false);
-      e.target.value = '';
+      if (e.target) e.target.value = '';
     }
   };
 
@@ -124,7 +121,6 @@ export default function OfficialDocumentsTab({ eventId, onToast }) {
     if (!docToDelete) return;
 
     try {
-      // Try to delete from storage if possible
       if (docToDelete.url.includes('/public/accreditation-files/')) {
         const path = docToDelete.url.split('/public/accreditation-files/')[1];
         if (path) {
@@ -132,7 +128,9 @@ export default function OfficialDocumentsTab({ eventId, onToast }) {
         }
       }
 
-      const updated = docs.filter(d => d.id !== id);
+      const latestData = await GlobalSettingsAPI.get(`event_${eventId}_official_docs`);
+      const currentArray = latestData ? JSON.parse(latestData) : [];
+      const updated = currentArray.filter(d => d.id !== id);
       await persistDocs(updated);
       onToast?.("Document removed", "success");
     } catch (err) {
@@ -145,11 +143,11 @@ export default function OfficialDocumentsTab({ eventId, onToast }) {
       {/* Upload Header Area */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-slate-900/40 border border-white/5 rounded-2xl backdrop-blur-md">
         <div>
-          <h2 className="text-white font-black uppercase tracking-widest text-lg flex items-center gap-3">
-            <Files className="w-6 h-6 text-cyan-400" />
-            Official Event Documents
+          <h2 className="text-white font-black uppercase tracking-widest text-sm flex items-center gap-3">
+            <Files className="w-5 h-5 text-cyan-400" />
+            Official Event Assets
           </h2>
-          <p className="text-slate-400 text-sm font-medium mt-1">Upload and manage PDFs, Excel sheets, and CSV documents for DIAC 2026.</p>
+          <p className="text-slate-400 text-[10px] font-medium mt-1">Manage PDFs, Excel, and CSV documents for DIAC 2026.</p>
         </div>
 
         <div className="relative group">
@@ -174,58 +172,56 @@ export default function OfficialDocumentsTab({ eventId, onToast }) {
         </div>
       </div>
 
-      {/* Document Grid/List */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1,2,3].map(i => (
-            <div key={i} className="h-32 bg-slate-900/40 border border-white/5 rounded-2xl animate-pulse" />
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          {[1,2,3,4].map(i => (
+            <div key={i} className="h-28 bg-slate-900/40 border border-white/5 rounded-xl animate-pulse" />
           ))}
         </div>
       ) : docs.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {docs.map(doc => (
             <div 
               key={doc.id} 
-              className="bg-slate-900/60 border border-white/10 p-5 rounded-2xl group hover:border-white/20 hover:bg-slate-900/80 transition-all duration-300 shadow-xl"
+              className="bg-slate-950/40 border border-white/5 p-3.5 rounded-xl group hover:border-white/10 hover:bg-slate-900/80 transition-all duration-300 shadow-lg"
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className="p-3 bg-slate-950/50 rounded-xl border border-white/5">
+              <div className="flex items-start justify-between mb-3">
+                <div className="p-1.5 bg-slate-950/50 rounded-lg border border-white/5">
                   {getFileIcon(doc.type)}
                 </div>
                 <div className="flex items-center gap-1">
                   <button 
                     onClick={() => window.open(doc.url, '_blank')}
-                    className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
-                    title="Preview / Download"
+                    className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
                   >
-                    <Download className="w-4 h-4" />
+                    <Download className="w-3.5 h-3.5" />
                   </button>
                   <button 
                     onClick={() => handleDelete(doc.id)}
-                    className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                    className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
 
               <div className="space-y-1">
-                <h4 className="text-white font-bold text-sm truncate pr-4" title={doc.name}>
+                <h4 className="text-white font-bold text-[10px] truncate pr-2" title={doc.name}>
                   {doc.name}
                 </h4>
-                <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                <div className="flex items-center gap-1.5 text-[8px] text-slate-500 font-bold uppercase tracking-wider">
                   <span>{doc.type}</span>
                   <span>•</span>
                   <span>{doc.size}</span>
                 </div>
               </div>
 
-              <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between text-[9px] text-slate-600 font-bold uppercase">
-                <div className="flex items-center gap-1.5">
-                  <Clock className="w-3 h-3" />
+              <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[8px] text-slate-600 font-bold uppercase">
+                <div className="flex items-center gap-1">
+                  <Clock className="w-2.5 h-2.5" />
                   {new Date(doc.createdAt).toLocaleDateString()}
                 </div>
-                <ChevronRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                <ChevronRight className="w-2.5 h-2.5 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
           ))}

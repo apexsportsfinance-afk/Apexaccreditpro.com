@@ -159,9 +159,14 @@ export default function VerifyAccreditation() {
       setGlobSettings(gSettings || {});
       
       // Console debug for Official Documents
+      const docKey = `event_${accData?.event_id}_official_docs`;
+      const docsJson = gSettings[docKey];
+      const docCount = docsJson ? JSON.parse(docsJson).length : 0;
+
       console.log("Accreditation Handshake:", {
         badgeId: accData?.accreditation_id,
         eventId: accData?.event_id,
+        officialDocsFound: docCount,
         availableSettings: Object.keys(gSettings || {}).filter(k => k.includes('official_docs'))
       });
     } catch (err) {
@@ -794,7 +799,7 @@ export default function VerifyAccreditation() {
                 <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Official Documents</h4>
              </div>
              
-             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {officialDocs.map((doc, idx) => {
                    const isSpreadsheet = doc.type === 'csv' || doc.type === 'xlsx' || doc.type === 'xls';
                    const colorClass = isSpreadsheet ? "from-emerald-600 to-emerald-700" : "from-slate-700 to-slate-800";
@@ -805,13 +810,13 @@ export default function VerifyAccreditation() {
                        href={doc.url}
                        target="_blank"
                        rel="noopener noreferrer"
-                       className={`group relative flex items-center justify-between gap-3 bg-gradient-to-br ${colorClass} p-3 pl-4 rounded-xl text-white font-bold transition-all hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 shadow-lg`}
+                       className={`group relative flex items-center justify-between gap-2.5 bg-gradient-to-br ${colorClass} p-2.5 pl-3.5 rounded-lg text-white font-bold transition-all hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 shadow-lg`}
                      >
                        <div className="flex flex-col text-left">
                          <span className="text-[8px] text-white/40 uppercase tracking-widest mb-0.5 font-black">
                            {doc.type?.toUpperCase()} Document
                          </span>
-                         <span className="text-xs tracking-tight truncate max-w-[120px] md:max-w-[180px]">{doc.name}</span>
+                         <span className="text-[10px] tracking-tight truncate max-w-[120px] md:max-w-[180px]">{doc.name}</span>
                        </div>
                        <div className="p-2 bg-black/20 rounded-lg group-hover:bg-black/30 transition-colors">
                           {isSpreadsheet ? <FileSpreadsheet className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
