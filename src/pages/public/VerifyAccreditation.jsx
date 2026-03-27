@@ -721,13 +721,13 @@ export default function VerifyAccreditation() {
                 const colorClass = isPersonal ? "from-indigo-600 to-indigo-700 hover:shadow-indigo-900/40" : "from-emerald-600 to-emerald-700 hover:shadow-emerald-900/40";
                 
                 return (
-                  <div key={idx} className="bg-white/[0.04] border border-white/10 backdrop-blur-xl rounded-2xl p-4 shadow-xl">
-                    <div className="flex items-center gap-2 mb-3 px-2">
+                  <div key={idx} className="bg-white/[0.04] border border-white/10 backdrop-blur-xl rounded-2xl p-2.5 shadow-xl">
+                    <div className="flex items-center gap-2 mb-2 px-2">
                       <FileText className="w-3.5 h-3.5 text-white/50" />
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">
+                      <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/50">
                         {isPersonal ? 'Personal Document' : 'Broadcast Attachment'}
                       </span>
-                      <span className="ml-auto text-[10px] text-white/30 font-bold">
+                      <span className="ml-auto text-[9px] text-white/30 font-bold">
                         {new Date(att.createdAt).toLocaleDateString()}
                       </span>
                     </div>
@@ -736,14 +736,14 @@ export default function VerifyAccreditation() {
                       href={att.attachmentUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`group relative flex items-center justify-between gap-4 bg-gradient-to-br ${colorClass} p-4 pl-6 rounded-2xl text-white font-bold transition-all hover:-translate-y-1 hover:shadow-xl active:translate-y-0 shadow-lg w-full`}
+                      className={`group relative flex items-center justify-between gap-3 bg-gradient-to-br ${colorClass} p-2.5 pl-4 rounded-xl text-white font-bold transition-all hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 shadow-lg w-full`}
                     >
                       <div className="flex flex-col text-left">
-                        <span className="text-[10px] text-white/40 uppercase tracking-widest mb-0.5 font-black">Download</span>
-                        <span className="text-sm tracking-tight truncate max-w-[180px]">{att.attachmentName || "Attached File"}</span>
+                        <span className="text-[9px] text-white/40 uppercase tracking-widest mb-0 font-black">Download</span>
+                        <span className="text-xs tracking-tight truncate max-w-[200px]">{att.attachmentName || "Attached File"}</span>
                       </div>
-                      <div className="p-3 bg-black/20 rounded-xl group-hover:bg-black/30 transition-colors">
-                        <Download className="w-4 h-4" />
+                      <div className="p-2 bg-black/20 rounded-lg group-hover:bg-black/30 transition-colors">
+                        <Download className="w-3.5 h-3.5" />
                       </div>
                     </a>
                   </div>
