@@ -423,15 +423,15 @@ export default function VerifyAccreditation() {
       >
         {/* Banner Section */}
         {eventSettings["banner_url"] && (
-          <motion.div variants={itemVariants} className="w-full mb-6 rounded-2xl overflow-hidden shadow-2xl shadow-cyan-950/20 border border-white/5">
+          <motion.div variants={itemVariants} className="w-full mb-3 rounded-2xl overflow-hidden shadow-2xl shadow-cyan-950/20 border border-white/5">
             <img src={eventSettings["banner_url"]} alt="Event banner" className="w-full h-auto object-contain bg-gray-900" />
           </motion.div>
         )}
 
-        {/* Premium Status Indicator */}
+        {/* Premium Status Indicator - UPDATED: White Background & Reduced Gap */}
         <motion.div
           variants={itemVariants}
-          className={`w-full mb-6 flex items-center justify-between px-6 py-4 rounded-3xl border backdrop-blur-md transition-all ${statusConfig.bgColor} ${statusConfig.borderColor} shadow-lg ${statusConfig.shadowColor}`}
+          className={`w-full mb-3 flex items-center justify-between px-6 py-4 rounded-3xl border backdrop-blur-md transition-all bg-white border-white/20 shadow-xl shadow-black/5`}
         >
           <div className="flex items-center gap-4 flex-1 min-w-0">
             <div className={`p-2.5 rounded-xl shadow-inner ${statusConfig.iconBg}`}>
@@ -441,7 +441,7 @@ export default function VerifyAccreditation() {
               <h3 className={`font-black text-xl leading-none uppercase tracking-tighter ${statusConfig.color}`}>
                 {statusConfig.label} Accreditation
               </h3>
-              <p className="text-white/70 text-xs font-bold mt-1.5 uppercase tracking-wide leading-tight">
+              <p className="text-gray-500 text-xs font-bold mt-1.5 uppercase tracking-wide leading-tight">
                 {data.events?.name}
               </p>
             </div>
@@ -449,16 +449,16 @@ export default function VerifyAccreditation() {
 
           <button 
             onClick={markAllAsRead}
-            className="relative p-3 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 transition-all group active:scale-95 ml-4"
+            className="relative p-3 bg-gray-100 hover:bg-gray-200 rounded-2xl border border-gray-200 transition-all group active:scale-95 ml-4"
           >
-            <Bell className={`w-6 h-6 transition-colors ${unreadTotal > 0 ? "text-cyan-400" : "text-white/40 group-hover:text-white/60"}`} />
+            <Bell className={`w-6 h-6 transition-colors ${unreadTotal > 0 ? "text-cyan-600" : "text-gray-400 group-hover:text-gray-600"}`} />
             <AnimatePresence>
               {unreadTotal > 0 && (
                 <motion.span
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   exit={{ scale: 0 }}
-                  className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-black flex items-center justify-center rounded-full border-2 border-[#0a1120]"
+                  className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-black flex items-center justify-center rounded-full border-2 border-white"
                 >
                   {unreadTotal}
                 </motion.span>
@@ -486,7 +486,7 @@ export default function VerifyAccreditation() {
 
         {/* Competition Record — white badge card, using merged events (PDF + registered) */}
         {showForQR("events") && (
-          <motion.div variants={itemVariants} className="bg-white/[0.03] border border-white/10 backdrop-blur-xl rounded-2xl p-4 shadow-xl overflow-hidden group mt-4">
+          <motion.div variants={itemVariants} className="bg-white/[0.03] border border-white/10 backdrop-blur-xl rounded-2xl p-4 shadow-xl overflow-hidden group mt-2">
             {/* White Badge Display */}
             <div className="bg-white rounded-lg shadow-lg p-4 border border-gray-200">
               <div className="flex flex-col gap-1.5">
