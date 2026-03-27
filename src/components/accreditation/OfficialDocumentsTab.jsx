@@ -8,7 +8,7 @@ import {
   Plus, 
   FileSpreadsheet, 
   FileCode,
-  FileBox,
+  Files,
   MoreVertical,
   ChevronRight
 } from "lucide-react";
@@ -146,7 +146,7 @@ export default function OfficialDocumentsTab({ eventId, onToast }) {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-slate-900/40 border border-white/5 rounded-2xl backdrop-blur-md">
         <div>
           <h2 className="text-white font-black uppercase tracking-widest text-lg flex items-center gap-3">
-            <FileBox className="w-6 h-6 text-cyan-400" />
+            <Files className="w-6 h-6 text-cyan-400" />
             Official Event Documents
           </h2>
           <p className="text-slate-400 text-sm font-medium mt-1">Upload and manage PDFs, Excel sheets, and CSV documents for DIAC 2026.</p>
