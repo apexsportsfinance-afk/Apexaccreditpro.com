@@ -1,15 +1,17 @@
 import React, { useState } from "react";
-import { MessageSquare, Calendar, Settings, FileText, ClipboardList } from "lucide-react";
+import { MessageSquare, Calendar, Settings, FileText, ClipboardList, Files } from "lucide-react";
 import GlobalBroadcastPanel from "./GlobalBroadcastPanel";
 import SportEventsManager from "./SportEventsManager";
 import FormFieldSettings from "./FormFieldSettings";
 import EventPdfSlots from "./EventPdfSlots";
+import OfficialDocumentsTab from "./OfficialDocumentsTab";
 import AttendanceSheet from "../attendance/AttendanceSheet";
 
 const TABS = [
   { id: "attendance", label: "Attendance Registry", icon: ClipboardList },
   { id: "broadcast", label: "Broadcast Message", icon: MessageSquare },
   { id: "event_pdfs", label: "Event Result PDF", icon: FileText },
+  { id: "official_docs", label: "Official Documents", icon: Files },
   { id: "events", label: "Sport Events", icon: Calendar },
   { id: "pdf_fields", label: "Field Visibility", icon: Settings }
 ];
@@ -60,6 +62,9 @@ export default function QRSystemV3Tab({ eventId, onToast }) {
         )}
         {activeTab === "event_pdfs" && (
           <EventPdfSlots eventId={eventId} onToast={onToast} />
+        )}
+        {activeTab === "official_docs" && (
+          <OfficialDocumentsTab eventId={eventId} onToast={onToast} />
         )}
       </div>
     </div>

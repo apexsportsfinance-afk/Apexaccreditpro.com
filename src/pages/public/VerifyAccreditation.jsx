@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import {
   CheckCircle, XCircle, Download, Calendar,
   MessageSquare, Globe, AlertTriangle, ChevronDown, ChevronUp, ShieldCheck,
-  User, Hash, MapPin, Building, Cake, ExternalLink, Bell, X, Paperclip, FileText
+  User, Hash, MapPin, Building, Cake, ExternalLink, Bell, X, Paperclip, FileText,
+  Files, FileSpreadsheet, FileBox
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase";
@@ -156,6 +157,13 @@ export default function VerifyAccreditation() {
       setFieldSettings(fieldSets || {});
       setAthleteMatrix(matrix || []);
       setGlobSettings(gSettings || {});
+      
+      // Console debug for Official Documents
+      console.log("Accreditation Handshake:", {
+        badgeId: accData?.accreditation_id,
+        eventId: accData?.event_id,
+        availableSettings: Object.keys(gSettings || {}).filter(k => k.includes('official_docs'))
+      });
     } catch (err) {
       console.error("Error loading accreditation data:", err);
       setError(err.message || "Accreditation not found");
@@ -295,6 +303,23 @@ export default function VerifyAccreditation() {
   // PDF URLs are stored in GlobalSettings by event_id
   const eventPdfUrl = globSettings[`event_${data?.event_id}_heat_sheet_url`];
   const eventResultPdfUrl = globSettings[`event_${data?.event_id}_event_result_url`];
+  const officialDocs = useMemo(() => {
+    const eid = data?.event_id || data?.events?.id;
+    if (!eid || !globSettings) return [];
+    
+    // Key format: event_{UUID}_official_docs
+    const key = `event_${eid}_official_docs`;
+    const json = globSettings[key];
+    
+    if (!json) return [];
+    try {
+      const parsed = JSON.parse(json);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.error("Official Docs Parse Error:", e);
+      return [];
+    }
+  }, [globSettings, data?.event_id, data?.events?.id]);
 
   const showForQR = (key) => {
     const loc = fieldSettings[key] || "both";
@@ -760,6 +785,43 @@ export default function VerifyAccreditation() {
           <DownloadButton url={data.event_result_url} visible={showForQR("event_result_pdf")} label="Athlete Result" color="emerald" />
         </motion.div>
 
+
+        {/* Official Event Documents (Digital Repository) */}
+        {officialDocs && officialDocs.length > 0 && (
+          <motion.div variants={itemVariants} className="w-full mt-6 space-y-3">
+             <div className="flex items-center gap-2 mb-3 px-1">
+                <Files className="w-4 h-4 text-white/40" />
+                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Official Documents</h4>
+             </div>
+             
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {officialDocs.map((doc, idx) => {
+                   const isSpreadsheet = doc.type === 'csv' || doc.type === 'xlsx' || doc.type === 'xls';
+                   const colorClass = isSpreadsheet ? "from-emerald-600 to-emerald-700" : "from-slate-700 to-slate-800";
+                   
+                   return (
+                     <a
+                       key={doc.id || idx}
+                       href={doc.url}
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       className={`group relative flex items-center justify-between gap-3 bg-gradient-to-br ${colorClass} p-3 pl-4 rounded-xl text-white font-bold transition-all hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 shadow-lg`}
+                     >
+                       <div className="flex flex-col text-left">
+                         <span className="text-[8px] text-white/40 uppercase tracking-widest mb-0.5 font-black">
+                           {doc.type?.toUpperCase()} Document
+                         </span>
+                         <span className="text-xs tracking-tight truncate max-w-[120px] md:max-w-[180px]">{doc.name}</span>
+                       </div>
+                       <div className="p-2 bg-black/20 rounded-lg group-hover:bg-black/30 transition-colors">
+                          {isSpreadsheet ? <FileSpreadsheet className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
+                       </div>
+                     </a>
+                   );
+                })}
+             </div>
+          </motion.div>
+        )}
 
         {/* Footer */}
         <motion.p variants={itemVariants} className="mt-12 text-white/20 text-[10px] uppercase font-black tracking-[0.5em] text-center">
