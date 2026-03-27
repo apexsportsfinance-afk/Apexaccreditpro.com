@@ -419,7 +419,7 @@ export default function VerifyAccreditation() {
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="relative z-10 w-full max-w-xl mx-auto px-4 py-4 md:py-6 flex flex-col items-center shadow-inner"
+        className="relative z-10 w-full max-w-4xl mx-auto px-4 py-4 md:py-6 flex flex-col items-center shadow-inner"
       >
         {/* Banner Section */}
         {eventSettings["banner_url"] && (
@@ -486,7 +486,7 @@ export default function VerifyAccreditation() {
 
         {/* Competition Record — white badge card, using merged events (PDF + registered) */}
         {showForQR("events") && (
-          <motion.div variants={itemVariants} className="bg-white/[0.03] border border-white/10 backdrop-blur-xl rounded-2xl p-4 shadow-xl overflow-hidden group mt-2">
+          <motion.div variants={itemVariants} className="w-full bg-white/[0.03] border border-white/10 backdrop-blur-xl rounded-2xl p-4 shadow-xl overflow-hidden group mt-2">
             {/* White Badge Display */}
             <div className="bg-white rounded-lg shadow-lg p-4 border border-gray-200">
               <div className="flex flex-col gap-1.5">
@@ -826,7 +826,7 @@ function ExpandableMessageGroup({ title, messages, icon, isPersonal, onRead }) {
   return (
     <motion.div
         variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0 } }}
-        className={`bg-white/[0.03] border backdrop-blur-xl rounded-2xl overflow-hidden shadow-xl transition-all ${
+        className={`w-full bg-white/[0.03] border backdrop-blur-xl rounded-2xl overflow-hidden shadow-xl transition-all ${
             isPersonal ? 'border-indigo-500/20' : 'border-blue-500/20'
         }`}
     >
