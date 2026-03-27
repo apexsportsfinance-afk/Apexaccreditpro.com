@@ -7,11 +7,9 @@ import * as XLSX from 'xlsx';
  */
 export function parseGenderFromEvent(eventName) {
   if (!eventName) return 'Mixed';
-  const normalized = eventName.toLowerCase();
-  if (normalized.includes('girls') || normalized.includes('female')) return 'Girls';
-  if (normalized.includes('boys') || normalized.includes('male')) return 'Boys';
-  if (normalized.includes('women')) return 'Women';
-  if (normalized.includes('men')) return 'Men';
+  const lower = eventName.toLowerCase();
+  if (lower.includes('girl') || lower.includes('women')) return 'F';
+  if (lower.includes('boy') || lower.includes('men')) return 'M';
   return 'Mixed';
 }
 
@@ -19,6 +17,21 @@ export function parseAgeCatFromEvent(eventName) {
   if (!eventName) return 'Open';
   const match = eventName.match(/(\d+\s*&\s*Over|\d+\s*-\s*\d+|\d+\s*&\s*Under|\d{1,2}\s*Year)/i);
   return match ? match[1].trim() : 'Open';
+}
+
+export function normalizeTeam(teamStr) {
+  return (teamStr || '').replace(/\s*\([A-Z]+\)$/i, '').trim().toLowerCase();
+}
+
+export function normalizeName(name, stripMiddle = false) {
+  let n = (name || '').trim().toLowerCase();
+  if (stripMiddle) {
+    const parts = n.split(/\s+/);
+    if (parts.length >= 2) {
+      return `${parts[0]} ${parts[parts.length - 1]}`;
+    }
+  }
+  return n;
 }
 
 let pdfjsLib = null;
@@ -686,33 +699,6 @@ async function parseCompetitionPdf(file, type = 'heat_sheet') {
   return results;
 }
 
-// Helpers for the matching recipe
-function parseAgeCatFromEvent(eventName) {
-  const match = eventName.match(/(\d+(?:\s*&\s*Over|\s*-\s*\d+)?)/i);
-  return match ? match[1] : "Unknown";
-}
-
-function parseGenderFromEvent(eventName) {
-  const lower = eventName.toLowerCase();
-  if (lower.includes('girl') || lower.includes('women')) return 'F';
-  if (lower.includes('boy') || lower.includes('men')) return 'M';
-  return 'Mixed';
-}
-
-function normalizeTeam(teamStr) {
-  return (teamStr || '').replace(/\s*\([A-Z]+\)$/i, '').trim().toLowerCase();
-}
-
-function normalizeName(name, stripMiddle = false) {
-  let n = (name || '').trim().toLowerCase();
-  if (stripMiddle) {
-    const parts = n.split(/\s+/);
-    if (parts.length >= 2) {
-      return `${parts[0]} ${parts[parts.length - 1]}`;
-    }
-  }
-  return n;
-}
 
 /**
  * Executes the matching cascade.
