@@ -756,8 +756,6 @@ export default function VerifyAccreditation() {
         <motion.div variants={itemVariants} className="w-full mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <DownloadButton url={data.heat_sheet_url} visible={showForQR("heat_sheet_pdf")} label="Heat Sheet" color="blue" />
           <DownloadButton url={data.event_result_url} visible={showForQR("event_result_pdf")} label="Athlete Result" color="emerald" />
-          <DownloadButton url={eventPdfUrl} visible={showForQR("global_pdf")} label="Official PDF" color="gray" />
-          <DownloadButton url={eventResultPdfUrl} visible={showForQR("global_pdf")} label="Event Results" color="cyan" />
         </motion.div>
 
 
