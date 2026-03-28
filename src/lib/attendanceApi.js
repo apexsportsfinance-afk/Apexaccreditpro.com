@@ -242,8 +242,8 @@ export const AttendanceAPI = {
         .from("unified_scan_logs")
         .select(`
           *,
-          accreditations:athlete_id (first_name, last_name, club),
-          spectator_orders:spectator_id (customer_name)
+          accreditations:athlete_id (id, first_name, last_name, club, badge_number, role),
+          spectator_orders:spectator_id (id, customer_name, qr_code_id)
         `)
         .order("created_at", { ascending: false })
         .limit(limit);

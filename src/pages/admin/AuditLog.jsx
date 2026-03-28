@@ -78,7 +78,7 @@ export default function AuditLog() {
   const loadScannerLogs = async () => {
     setLoading(true);
     try {
-      const data = await AttendanceAPI.getScanLogs(100);
+      const data = await AttendanceAPI.getScanLogs(1000);
       setScannerLogs(data);
     } catch (err) {
       console.error("Scanner log error:", err);
@@ -270,8 +270,10 @@ export default function AuditLog() {
                     <SystemLogRow key={log.id || index} log={log} index={index} />
                   ))}
                 </div>
+              ) : viewMode === 'raw' ? (
+                <ScannerLogsTable logs={filteredLogs} />
               ) : (
-                <ScannerAggregatedTable logs={filteredLogs} />
+                <ScannerSummaryTable logs={filteredLogs} />
               )}
             </div>
           )}
@@ -340,36 +342,18 @@ function SystemLogRow({ log, index }) {
   );
 }
 
-function ScannerAggregatedTable({ logs }) {
-  // 1. Group by entity
-  const summaryMap = new Map();
-  logs.forEach(log => {
-      const isAthlete = !!log.accreditations;
-      const isSpectator = !!log.spectator_orders;
-      
-      const id = isAthlete ? log.accreditations.id : (isSpectator ? log.spectator_orders.id : 'unknown');
-      if (!summaryMap.has(id)) {
-        summaryMap.set(id, {
-          name: isAthlete ? `${log.accreditations.first_name} ${log.accreditations.last_name}` : 
-                (isSpectator ? log.spectator_orders.customer_name : 'System Relay'),
-          club: isAthlete ? (log.accreditations.club || 'Independent') : 
-                (isSpectator ? 'Spectator' : 'N/A'),
-          role: isAthlete ? (log.accreditations.role || 'Athlete') : 
-                (isSpectator ? 'Spectator' : 'System'),
-          type: log.scan_mode === 'attendance' ? 'Attendance' : 'General',
-          count: 0,
-          latestScan: log.created_at
-        });
-      }
-      const entry = summaryMap.get(id);
-      entry.count += 1;
-      if (new Date(log.created_at) > new Date(entry.latestScan)) {
-        entry.latestScan = log.created_at;
-      }
-  });
+function ScannerLogsTable({ logs }) {
+  // 1. Sort by latest scan first (Requested)
+  const sortedLogs = [...logs].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
 
-  // 2. Sort by latest scan first (Requested)
-  const data = Array.from(summaryMap.values()).sort((a,b) => new Date(b.latestScan) - new Date(a.latestScan));
+  // 2. Pre-calculate totals for the contextually relevant "No Of Scans" column
+  const userTotals = new Map();
+  logs.forEach(log => {
+    const isAthlete = !!log.accreditations;
+    const isSpectator = !!log.spectator_orders;
+    const id = isAthlete ? log.accreditations.id : (isSpectator ? log.spectator_orders.id : 'unknown');
+    userTotals.set(id, (userTotals.get(id) || 0) + 1);
+  });
 
   return (
     <table className="w-full text-left border-separate border-spacing-0">
@@ -378,55 +362,147 @@ function ScannerAggregatedTable({ logs }) {
           <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5">Name</th>
           <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5">Club Name</th>
           <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5">Role</th>
-          <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5">Scanning Type</th>
           <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5 text-center">No Of Scans</th>
           <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5 text-right">Timestamp with Date</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-white/[0.03]">
+        {sortedLogs.map((log, idx) => {
+          const isAthlete = !!log.accreditations;
+          const isSpectator = !!log.spectator_orders;
+          const id = isAthlete ? log.accreditations.id : (isSpectator ? log.spectator_orders.id : 'unknown');
+          const name = isAthlete ? `${log.accreditations.first_name} ${log.accreditations.last_name}` : 
+                      (isSpectator ? log.spectator_orders.customer_name : 'System Relay');
+          const club = isAthlete ? (log.accreditations.club || 'Independent') : 
+                      (isSpectator ? 'Spectator' : 'N/A');
+          const role = isAthlete ? (log.accreditations.role || 'Athlete') : 
+                      (isSpectator ? 'Spectator' : 'System');
+          const totalScans = userTotals.get(id) || 1;
+
+          return (
+            <motion.tr 
+              key={log.id || idx}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: Math.min(idx * 0.01, 1) }}
+              className="group hover:bg-yellow-500/[0.03] transition-colors"
+            >
+              <td className="py-4 px-6 border-b border-white/[0.02] group-hover:border-yellow-500/20">
+                 <span className="text-xs font-black text-white uppercase tracking-tight group-hover:text-yellow-400 transition-colors">
+                   {name}
+                 </span>
+              </td>
+              <td className="py-4 px-6 border-b border-white/[0.02] group-hover:border-yellow-500/20">
+                 <span className="text-[10px] font-bold text-slate-400 uppercase group-hover:text-slate-200">
+                   {club}
+                 </span>
+              </td>
+              <td className="py-4 px-6 border-b border-white/[0.02] group-hover:border-yellow-500/20">
+                 <span className="text-[9px] font-black px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10 uppercase group-hover:bg-yellow-500/10 group-hover:text-yellow-400 group-hover:border-yellow-500/20">
+                   {role}
+                 </span>
+              </td>
+              <td className="py-4 px-6 border-b border-white/[0.02] group-hover:border-yellow-500/20 text-center">
+                 <span className="text-xs font-mono font-black text-white bg-white/10 px-2.5 py-1 rounded-lg border border-white/10 group-hover:border-yellow-500/30 group-hover:bg-yellow-500/10 group-hover:text-yellow-400">
+                   {totalScans}
+                 </span>
+              </td>
+              <td className="py-4 px-6 border-b border-white/[0.02] group-hover:border-yellow-500/20 text-right">
+                 <div className="flex flex-col items-end">
+                   <span className="text-[10px] font-black text-white/40 uppercase group-hover:text-yellow-400/60">
+                     {new Date(log.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                   </span>
+                   <span className="text-[10px] font-mono text-cyan-400/60 group-hover:text-cyan-400">
+                     {new Date(log.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                   </span>
+                 </div>
+              </td>
+            </motion.tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+function ScannerSummaryTable({ logs }) {
+  // 1. Group by entity (Aggregated view)
+  const summaryMap = new Map();
+  logs.forEach(log => {
+      const isAthlete = !!log.accreditations;
+      const isSpectator = !!log.spectator_orders;
+      const id = isAthlete ? log.accreditations.id : (isSpectator ? log.spectator_orders.id : 'unknown');
+      
+      if (!summaryMap.has(id)) {
+        summaryMap.set(id, {
+          name: isAthlete ? `${log.accreditations.first_name} ${log.accreditations.last_name}` : 
+                (isSpectator ? log.spectator_orders.customer_name : 'System Relay'),
+          club: isAthlete ? (log.accreditations.club || 'Independent') : 
+                (isSpectator ? 'Spectator' : 'N/A'),
+          role: isAthlete ? (log.accreditations.role || 'Athlete') : 
+                (isSpectator ? 'Spectator' : 'System'),
+          badge: isAthlete ? (log.accreditations.badge_number || 'N/A') : 'N/A',
+          location: log.device_label || 'Default',
+          count: 0,
+          latestScan: log.created_at
+        });
+      }
+      const entry = summaryMap.get(id);
+      entry.count += 1;
+      if (new Date(log.created_at) > new Date(entry.latestScan)) {
+        entry.latestScan = log.created_at;
+        entry.location = log.device_label || 'Default';
+      }
+  });
+
+  const data = Array.from(summaryMap.values()).sort((a,b) => new Date(b.latestScan) - new Date(a.latestScan));
+
+  return (
+    <table className="w-full text-left border-separate border-spacing-0">
+      <thead>
+        <tr className="bg-white/[0.02]">
+          <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5">Name</th>
+          <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5">Badge #</th>
+          <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5">Club Name</th>
+          <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5">Role</th>
+          <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5">Last Location</th>
+          <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5 text-center">No Of Scans</th>
+          <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5 text-right">Latest Scan</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-white/[0.03]">
         {data.map((row, idx) => (
           <motion.tr 
-            key={idx}
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.02 }}
-            className="group hover:bg-yellow-500/[0.03] transition-colors"
+             key={idx}
+             initial={{ opacity: 0, y: 4 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ delay: Math.min(idx * 0.01, 1) }}
+             className="group hover:bg-emerald-500/[0.03] transition-colors"
           >
-            <td className="py-4 px-6 border-b border-white/[0.02] group-hover:border-yellow-500/20">
-               <span className="text-xs font-black text-white uppercase tracking-tight group-hover:text-yellow-400 transition-colors">
-                 {row.name}
-               </span>
-            </td>
-            <td className="py-4 px-6 border-b border-white/[0.02] group-hover:border-yellow-500/20">
-               <span className="text-[10px] font-bold text-slate-400 uppercase group-hover:text-slate-200">
-                 {row.club}
-               </span>
-            </td>
-            <td className="py-4 px-6 border-b border-white/[0.02] group-hover:border-yellow-500/20">
-               <span className="text-[9px] font-black px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10 uppercase group-hover:bg-yellow-500/10 group-hover:text-yellow-400 group-hover:border-yellow-500/20">
-                 {row.role}
-               </span>
-            </td>
-            <td className="py-4 px-6 border-b border-white/[0.02] group-hover:border-yellow-500/20">
-               <span className={`text-[9px] font-black uppercase tracking-widest ${row.type === 'Attendance' ? 'text-emerald-400' : 'text-blue-400'}`}>
-                 {row.type}
-               </span>
-            </td>
-            <td className="py-4 px-6 border-b border-white/[0.02] group-hover:border-yellow-500/20 text-center">
-               <span className="text-xs font-mono font-black text-white bg-white/10 px-2.5 py-1 rounded-lg border border-white/10 group-hover:border-yellow-500/30 group-hover:bg-yellow-500/10 group-hover:text-yellow-400">
-                 {row.count}
-               </span>
-            </td>
-            <td className="py-4 px-6 border-b border-white/[0.02] group-hover:border-yellow-500/20 text-right">
+             <td className="py-4 px-6 border-b border-white/[0.02]">
+               <span className="text-xs font-black text-white uppercase group-hover:text-emerald-400 transition-colors">{row.name}</span>
+             </td>
+             <td className="py-4 px-6 border-b border-white/[0.02]">
+               <span className="text-[10px] font-mono font-bold text-cyan-400 uppercase">{row.badge}</span>
+             </td>
+             <td className="py-4 px-6 border-b border-white/[0.02]">
+               <span className="text-[10px] font-bold text-slate-400 uppercase">{row.club}</span>
+             </td>
+             <td className="py-4 px-6 border-b border-white/[0.02]">
+               <span className="text-[9px] font-black px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10 uppercase">{row.role}</span>
+             </td>
+             <td className="py-4 px-6 border-b border-white/[0.02]">
+               <span className="text-[10px] font-bold text-slate-400 uppercase italic opacity-60">{row.location}</span>
+             </td>
+             <td className="py-4 px-6 border-b border-white/[0.02] text-center">
+               <span className="text-xs font-mono font-black text-white bg-white/10 px-2.5 py-1 rounded-lg border border-white/10">{row.count}</span>
+             </td>
+             <td className="py-4 px-6 border-b border-white/[0.02] text-right">
                <div className="flex flex-col items-end">
-                 <span className="text-[10px] font-black text-white/40 uppercase group-hover:text-yellow-400/60">
-                   {new Date(row.latestScan).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                 </span>
-                 <span className="text-[10px] font-mono text-cyan-400/60 group-hover:text-cyan-400">
-                   {new Date(row.latestScan).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                 </span>
+                 <span className="text-[10px] font-black text-white/40 uppercase">{new Date(row.latestScan).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                 <span className="text-[10px] font-mono text-cyan-400/60">{new Date(row.latestScan).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
                </div>
-            </td>
+             </td>
           </motion.tr>
         ))}
       </tbody>
