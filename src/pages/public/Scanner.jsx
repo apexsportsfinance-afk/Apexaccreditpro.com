@@ -19,7 +19,8 @@ import {
   Clock,
   MapPin,
   Trophy,
-  QrCode
+  QrCode,
+  Bell
 } from "lucide-react";
 import { AccreditationsAPI, TicketingAPI, EventsAPI } from "../../lib/storage";
 import { AttendanceAPI } from "../../lib/attendanceApi";
