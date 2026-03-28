@@ -13,7 +13,9 @@ import {
   Eye,
   ArrowRightLeft,
   Trophy,
-  FileDown
+  FileDown,
+  LayoutList,
+  Layers
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import Card, { CardHeader, CardContent } from "../../components/ui/Card";
@@ -48,6 +50,7 @@ const formatAction = (action) =>
 
 export default function AuditLog() {
   const [activeTab, setActiveTab] = useState("system"); // system | scanner
+  const [viewMode, setViewMode] = useState("raw"); // raw | summary
   const [logs, setLogs] = useState([]);
   const [scannerLogs, setScannerLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -185,11 +188,33 @@ export default function AuditLog() {
           />
           <TabButton 
              active={activeTab === 'scanner'} 
-             onClick={() => setActiveTab('scanner')} 
+             onClick={() => {
+               setActiveTab('scanner');
+               if (viewMode === 'summary') setViewMode('raw'); 
+             }} 
              label="Scanner Logs" 
              icon={Smartphone} 
           />
         </div>
+
+        {activeTab === 'scanner' && (
+          <div className="flex items-center bg-black/20 p-1 rounded-xl border border-white/5 ml-2">
+            <button 
+              onClick={() => setViewMode('raw')}
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-2 text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === 'raw' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+            >
+              <LayoutList className="w-3 h-3" />
+              Raw
+            </button>
+            <button 
+              onClick={() => setViewMode('summary')}
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-2 text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === 'summary' ? 'bg-emerald-500/20 text-emerald-400' : 'text-slate-500 hover:text-slate-300'}`}
+            >
+              <Layers className="w-3 h-3" />
+              Summary
+            </button>
+          </div>
+        )}
 
         <div className="flex items-center gap-2">
           {activeTab === 'scanner' && (
@@ -238,14 +263,16 @@ export default function AuditLog() {
               description={`The ${activeTab} ledger is currently empty`}
             />
           ) : (
-            <div className="divide-y divide-white/[0.03]">
-              {filteredLogs.map((log, index) => (
-                activeTab === "system" ? (
-                  <SystemLogRow key={log.id || index} log={log} index={index} />
-                ) : (
-                  <ScannerLogRow key={log.id || index} log={log} index={index} />
-                )
-              ))}
+            <div className="overflow-x-auto">
+              {activeTab === "system" ? (
+                <div className="divide-y divide-white/[0.03]">
+                  {filteredLogs.map((log, index) => (
+                    <SystemLogRow key={log.id || index} log={log} index={index} />
+                  ))}
+                </div>
+              ) : (
+                <ScannerAggregatedTable logs={filteredLogs} />
+              )}
             </div>
           )}
         </CardContent>
@@ -313,63 +340,96 @@ function SystemLogRow({ log, index }) {
   );
 }
 
-function ScannerLogRow({ log, index }) {
-  const isAthlete = !!log.accreditations;
-  const isSpectator = !!log.spectator_orders;
-  const mode = log.scan_mode || "info";
+function ScannerAggregatedTable({ logs }) {
+  // 1. Group by entity
+  const summaryMap = new Map();
+  logs.forEach(log => {
+      const isAthlete = !!log.accreditations;
+      const isSpectator = !!log.spectator_orders;
+      
+      const id = isAthlete ? log.accreditations.id : (isSpectator ? log.spectator_orders.id : 'unknown');
+      if (!summaryMap.has(id)) {
+        summaryMap.set(id, {
+          name: isAthlete ? `${log.accreditations.first_name} ${log.accreditations.last_name}` : 
+                (isSpectator ? log.spectator_orders.customer_name : 'System Relay'),
+          club: isAthlete ? (log.accreditations.club || 'Independent') : 
+                (isSpectator ? 'Spectator' : 'N/A'),
+          role: isAthlete ? (log.accreditations.role || 'Athlete') : 
+                (isSpectator ? 'Spectator' : 'System'),
+          type: log.scan_mode === 'attendance' ? 'Attendance' : 'General',
+          count: 0,
+          latestScan: log.created_at
+        });
+      }
+      const entry = summaryMap.get(id);
+      entry.count += 1;
+      if (new Date(log.created_at) > new Date(entry.latestScan)) {
+        entry.latestScan = log.created_at;
+      }
+  });
+
+  // 2. Sort by latest scan first (Requested)
+  const data = Array.from(summaryMap.values()).sort((a,b) => new Date(b.latestScan) - new Date(a.latestScan));
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 4 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.01 }}
-      className="p-5 hover:bg-white/[0.02] transition-colors group"
-    >
-      <div className="flex items-start gap-4">
-        <div className={`p-2.5 rounded-xl border flex-shrink-0 mt-0.5 transition-transform group-hover:scale-110 ${
-          mode === 'attendance' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
-          mode === 'spectator' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' :
-          'bg-purple-500/10 border-purple-500/20 text-purple-400'
-        }`}>
-          {mode === 'attendance' ? <BadgeCheck className="w-4 h-4" /> :
-           mode === 'spectator' ? <Ticket className="w-4 h-4" /> :
-           <Eye className="w-4 h-4" />}
-        </div>
-        
-        <div className="flex-1 min-w-0">
-           <div className="flex items-center gap-3 mb-1">
-              <h4 className="text-white font-black uppercase text-xs tracking-tight">
-                {isAthlete ? `${log.accreditations.first_name} ${log.accreditations.last_name}` : 
-                 isSpectator ? log.spectator_orders.customer_name : 
-                 "System Relay"}
-              </h4>
-              <span className={`text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border ${
-                mode === 'attendance' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                mode === 'spectator' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
-                'bg-purple-500/10 text-purple-400 border-purple-500/20'
-              }`}>
-                {mode}
-              </span>
-           </div>
-
-           <div className="flex items-center gap-4 mt-2">
-             {isAthlete && (
-               <span className="flex items-center gap-1 text-[10px] font-bold text-orange-400 uppercase tracking-tight">
-                 <Trophy className="w-3 h-3 opacity-60" />
-                 {log.accreditations.club || "Independent"}
+    <table className="w-full text-left border-separate border-spacing-0">
+      <thead>
+        <tr className="bg-white/[0.02]">
+          <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5">Name</th>
+          <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5">Club Name</th>
+          <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5">Role</th>
+          <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5">Scanning Type</th>
+          <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5 text-center">No Of Scans</th>
+          <th className="py-4 px-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5 text-right">Timestamp with Date</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-white/[0.03]">
+        {data.map((row, idx) => (
+          <motion.tr 
+            key={idx}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.02 }}
+            className="group hover:bg-yellow-500/[0.03] transition-colors"
+          >
+            <td className="py-4 px-6 border-b border-white/[0.02] group-hover:border-yellow-500/20">
+               <span className="text-xs font-black text-white uppercase tracking-tight group-hover:text-yellow-400 transition-colors">
+                 {row.name}
                </span>
-             )}
-             <span className="flex items-center gap-1.5 text-[10px] font-mono text-slate-500 mt-0.5">
-               <Smartphone className="w-3 h-3 text-cyan-500/60" />
-               {log.device_label || "Terminal-0"}
-             </span>
-             <span className="flex items-center gap-1.5 text-[10px] font-mono text-slate-500 mt-0.5">
-               <Clock className="w-3 h-3 text-slate-600" />
-               {formatDate(log.created_at, "HH:mm:ss")}
-             </span>
-           </div>
-        </div>
-      </div>
-    </motion.div>
+            </td>
+            <td className="py-4 px-6 border-b border-white/[0.02] group-hover:border-yellow-500/20">
+               <span className="text-[10px] font-bold text-slate-400 uppercase group-hover:text-slate-200">
+                 {row.club}
+               </span>
+            </td>
+            <td className="py-4 px-6 border-b border-white/[0.02] group-hover:border-yellow-500/20">
+               <span className="text-[9px] font-black px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10 uppercase group-hover:bg-yellow-500/10 group-hover:text-yellow-400 group-hover:border-yellow-500/20">
+                 {row.role}
+               </span>
+            </td>
+            <td className="py-4 px-6 border-b border-white/[0.02] group-hover:border-yellow-500/20">
+               <span className={`text-[9px] font-black uppercase tracking-widest ${row.type === 'Attendance' ? 'text-emerald-400' : 'text-blue-400'}`}>
+                 {row.type}
+               </span>
+            </td>
+            <td className="py-4 px-6 border-b border-white/[0.02] group-hover:border-yellow-500/20 text-center">
+               <span className="text-xs font-mono font-black text-white bg-white/10 px-2.5 py-1 rounded-lg border border-white/10 group-hover:border-yellow-500/30 group-hover:bg-yellow-500/10 group-hover:text-yellow-400">
+                 {row.count}
+               </span>
+            </td>
+            <td className="py-4 px-6 border-b border-white/[0.02] group-hover:border-yellow-500/20 text-right">
+               <div className="flex flex-col items-end">
+                 <span className="text-[10px] font-black text-white/40 uppercase group-hover:text-yellow-400/60">
+                   {new Date(row.latestScan).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                 </span>
+                 <span className="text-[10px] font-mono text-cyan-400/60 group-hover:text-cyan-400">
+                   {new Date(row.latestScan).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                 </span>
+               </div>
+            </td>
+          </motion.tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
