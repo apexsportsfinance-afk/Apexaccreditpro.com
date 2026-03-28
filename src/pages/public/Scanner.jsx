@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { 
   Camera, 
-  CheckCircle, 
   AlertCircle, 
+  Check,
+  CheckCircle, 
   Info, 
   Lock, 
   LogOut, 
@@ -11,12 +12,14 @@ import {
   Eye, 
   EyeOff,
   Users,
+  User,
   Ticket,
   ChevronRight,
   Calendar,
   Clock,
   MapPin,
-  Trophy
+  Trophy,
+  QrCode
 } from "lucide-react";
 import { AccreditationsAPI, TicketingAPI, EventsAPI } from "../../lib/storage";
 import { AttendanceAPI } from "../../lib/attendanceApi";
@@ -61,6 +64,7 @@ const calculateAge = (dob, calcYear = 2025) => {
 export default function ScannerPage() {
   const [authorized, setAuthorized] = useState(false);
   const [pinInput, setPinInput] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
   const [pinError, setPinError] = useState("");
   const [showPin, setShowPin] = useState(false);
   const defaultPin = import.meta.env.VITE_SCANNER_PIN || "1234";
@@ -89,17 +93,25 @@ export default function ScannerPage() {
     const params = new URLSearchParams(window.location.search);
     const modeParam = params.get("mode") || "attendance";
     const eventParam = params.get("event_id") || "";
+    const publicParam = params.get("public") === "true";
+    const urlPin = params.get("pin");
     const deviceParam = params.get("device_label") || (modeParam === 'spectator' ? 'Spectator-Gate' : 'Gate-Scanner');
 
+    setIsPublic(publicParam);
     setConfig({
       mode: modeParam,
       eventId: eventParam,
       deviceLabel: deviceParam
     });
 
-    // Check localStorage session
+    // Auto-authorize if PIN is in URL or session exists
     const savedPinAuth = localStorage.getItem("scanner_auth_pin");
-    if (savedPinAuth === defaultPin) setAuthorized(true);
+    if (urlPin === defaultPin || savedPinAuth === defaultPin) {
+      setAuthorized(true);
+      if (urlPin === defaultPin) {
+        localStorage.setItem("scanner_auth_pin", defaultPin);
+      }
+    }
 
     // Register Service Worker for PWA "Install" support
     if ('serviceWorker' in navigator) {
@@ -306,6 +318,11 @@ export default function ScannerPage() {
           competitionData,
           message: config.mode === "verify" ? "Accreditation Verified" : "Profile Loaded"
         });
+        
+        // Auto-resume after 5s for the next athlete (Self-Service Hub)
+        if (config.mode === "info") {
+          setTimeout(resumeScanner, 5000);
+        }
 
         // AUDIT LOG (Silent)
         const logPromise = AttendanceAPI.logScanEvent({
@@ -411,7 +428,7 @@ export default function ScannerPage() {
             <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">{config.deviceLabel}</p>
           </div>
         </div>
-        <button onClick={logout} className="text-white/20 hover:text-red-400 p-2 transition-colors"><LogOut /></button>
+        {!isPublic && <button onClick={logout} className="text-white/20 hover:text-red-400 p-2 transition-colors"><LogOut /></button>}
       </header>
 
       {/* Main Scan View */}
@@ -443,6 +460,28 @@ export default function ScannerPage() {
                     <div className="absolute inset-[30px] border-2 border-white/20 rounded-[2.5rem] pointer-events-none" />
                   </>
                )}
+
+               {/* Instructions Overlay */}
+               {!lastScanResult && (
+                 <div className="absolute inset-0 flex flex-col items-center justify-center p-8 pointer-events-none">
+                   <div className="text-center space-y-4">
+                     <div className="w-20 h-20 bg-blue-500/10 rounded-[28px] border border-blue-500/20 flex items-center justify-center mx-auto mb-6 relative">
+                       <QrCode className="w-10 h-10 text-primary-400" />
+                       <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-lg flex items-center justify-center text-white border-2 border-slate-900">
+                         <Check className="w-3 h-3" />
+                       </div>
+                     </div>
+                     <h2 className="text-2xl font-black text-white uppercase tracking-tighter leading-none">
+                       {isPublic ? "Scan Your Badge" : "System Ready"}
+                     </h2>
+                     <p className="text-xs text-slate-500 font-medium tracking-[0.2em] uppercase max-w-[200px] leading-relaxed">
+                       {isPublic 
+                         ? "Scan your accreditation to see your schedule & info" 
+                         : (config.mode === 'attendance' ? "Authorize entry by scanning QR code" : "Scan badge to lookup profile")}
+                     </p>
+                   </div>
+                 </div>
+               )}
             </div>
             
             <div className="text-center space-y-4">
@@ -455,7 +494,7 @@ export default function ScannerPage() {
             </div>
           </div>
         ) : (
-          <ResultView config={config} result={lastScanResult} onResume={resumeScanner} onRedeem={handleRedeem} />
+          <ResultView config={config} result={lastScanResult} onResume={resumeScanner} onRedeem={handleRedeem} isPublic={isPublic} />
         )}
       </main>
 
@@ -469,7 +508,7 @@ export default function ScannerPage() {
   );
 }
 
-function ResultView({ config, result, onResume, onRedeem }) {
+function ResultView({ config, result, onResume, onRedeem, isPublic }) {
   if (result.status === 'error') {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 bg-red-500/10">
@@ -538,85 +577,99 @@ function ResultView({ config, result, onResume, onRedeem }) {
   }
 
   if (result.type === 'athlete_info' || result.type === 'athlete_verify') {
-    const isRich = result.type === 'athlete_verify';
-    
     return (
       <div className="flex-1 p-4 md:p-8 overflow-y-auto custom-scrollbar">
         <div className="max-w-xl mx-auto space-y-4">
           
-          {/* Main ID Card Section */}
-          <div className="bg-white/5 border border-white/10 p-6 md:p-8 rounded-[2.5rem] relative overflow-hidden backdrop-blur-3xl shadow-2xl">
-             <div className="absolute top-0 right-0 p-6 opacity-5">
-               <Trophy className="w-32 h-32 text-white" />
-             </div>
-             
-             <div className="flex items-start gap-6 mb-8 relative z-10">
-               <div className="w-24 h-24 md:w-32 md:h-32 bg-white/5 rounded-3xl border border-white/10 flex items-center justify-center overflow-hidden shadow-inner">
-                 {result.athlete.photoUrl ? (
-                   <img src={result.athlete.photoUrl} className="w-full h-full object-cover" />
-                 ) : (
-                   <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
-                     <Users className="w-10 h-10 text-white/20" />
-                   </div>
-                 )}
-               </div>
-               
-               <div className="flex-1 pt-2">
-                  <h2 className="text-2xl md:text-3xl font-black text-white uppercase leading-tight mb-2 tracking-tight">
-                    {result.athlete.firstName} {result.athlete.lastName}
-                  </h2>
-                  <div className="flex flex-wrap gap-2 items-center">
-                    <div className="px-3 py-1 bg-blue-500/20 text-blue-400 text-[9px] font-black uppercase tracking-widest rounded-full border border-blue-500/20">
-                      {result.athlete.role || "Participant"}
-                    </div>
-                    <div className="px-3 py-1 bg-white/5 text-white/40 text-[9px] font-mono tracking-widest rounded-full border border-white/5">
-                      ID: {result.athlete.accreditationId?.split("-").pop() || result.athlete.id?.slice(0, 8)}
-                    </div>
-                  </div>
-               </div>
-             </div>
-
-             <div className="grid grid-cols-2 gap-3 mb-6">
-                <div className="bg-black/20 p-4 rounded-2xl border border-white/5">
-                  <span className="text-[9px] font-black text-white/20 uppercase tracking-widest block mb-1">Club</span>
-                  <p className="text-xs font-bold text-white truncate">{result.athlete.club || "Independent"}</p>
+          {/* Profile Card */}
+          <div className="space-y-6">
+            {isPublic && (
+              <div className="flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl mb-2">
+                <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg">
+                  <User className="w-5 h-5" />
                 </div>
-                <div className="bg-black/20 p-4 rounded-2xl border border-white/5 flex items-center justify-between">
-                  <div>
-                    <span className="text-[9px] font-black text-white/20 uppercase tracking-widest block mb-1">Region</span>
-                    <p className="text-xs font-bold text-white uppercase">{result.athlete.nationality || "INT"}</p>
-                  </div>
-                  {getCountryFlag(result.athlete.nationality) && (
-                    <img src={getCountryFlag(result.athlete.nationality)} className="w-6 h-4 object-cover rounded shadow-lg" alt="" />
+                <div>
+                  <h3 className="text-white font-black uppercase text-sm tracking-tight">Athlete Identity Verified</h3>
+                  <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest leading-none mt-1">Self-Service Lookup Active</p>
+                </div>
+              </div>
+            )}
+            
+            <div className="bg-slate-900/60 rounded-[32px] border border-white/5 overflow-hidden backdrop-blur-3xl shadow-2xl relative">
+              <div className="absolute top-0 right-0 p-6 opacity-5">
+                <Trophy className="w-32 h-32 text-white" />
+              </div>
+              
+              <div className="flex items-start gap-6 mb-8 relative z-10 p-6 md:p-8">
+                <div className="w-24 h-24 md:w-32 md:h-32 bg-white/5 rounded-3xl border border-white/10 flex items-center justify-center overflow-hidden shadow-inner">
+                  {result.athlete.photoUrl ? (
+                    <img src={result.athlete.photoUrl} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
+                      <Users className="w-10 h-10 text-white/20" />
+                    </div>
                   )}
                 </div>
-             </div>
+                
+                <div className="flex-1 pt-2">
+                   <h2 className="text-2xl md:text-3xl font-black text-white uppercase leading-tight mb-2 tracking-tight">
+                     {result.athlete.firstName} {result.athlete.lastName}
+                   </h2>
+                   <div className="flex flex-wrap gap-2 items-center">
+                     <div className="px-3 py-1 bg-blue-500/20 text-blue-400 text-[9px] font-black uppercase tracking-widest rounded-full border border-blue-500/20">
+                       {result.athlete.role || "Participant"}
+                     </div>
+                     <div className="px-3 py-1 bg-white/5 text-white/40 text-[9px] font-mono tracking-widest rounded-full border border-white/5">
+                       ID: {result.athlete.accreditationId?.split("-").pop() || result.athlete.id?.slice(0, 8)}
+                     </div>
+                   </div>
+                </div>
+              </div>
 
-             {/* Dynamic Metadata (Badge & Zones) */}
-             <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
-                  <div className="flex items-center gap-3">
-                    <Info className="w-4 h-4 text-blue-400" />
-                    <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Badge Number</span>
+              <div className="px-6 md:px-8 pb-8 space-y-6">
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  <div className="bg-black/20 p-4 rounded-2xl border border-white/5">
+                    <span className="text-[9px] font-black text-white/20 uppercase tracking-widest block mb-1">Club</span>
+                    <p className="text-xs font-bold text-white truncate">{result.athlete.club || "Independent"}</p>
                   </div>
-                  <span className="text-sm font-mono font-bold text-blue-400 tracking-wider">
-                    {result.athlete.badgeNumber || result.athlete.badgeId || "---"}
-                  </span>
+                  <div className="bg-black/20 p-4 rounded-2xl border border-white/5 flex items-center justify-between">
+                    <div>
+                      <span className="text-[9px] font-black text-white/20 uppercase tracking-widest block mb-1">Region</span>
+                      <p className="text-xs font-bold text-white uppercase">{result.athlete.nationality || "INT"}</p>
+                    </div>
+                    {getCountryFlag(result.athlete.nationality) && (
+                      <img src={getCountryFlag(result.athlete.nationality)} className="w-6 h-4 object-cover rounded shadow-lg" alt="" />
+                    )}
+                  </div>
                 </div>
 
-                {result.athlete.zoneCode && (
-                  <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
-                    <span className="text-[9px] font-black text-white/20 uppercase tracking-widest block mb-3">Access Zones</span>
-                    <div className="flex flex-wrap gap-2">
-                       {result.athlete.zoneCode.split(",").map((zone, idx) => (
-                         <span key={idx} className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 rounded text-[10px] font-black uppercase tracking-tighter">
-                           {zone.trim()}
-                         </span>
-                       ))}
+                {/* Dynamic Metadata (Badge & Zones) */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                    <div className="flex items-center gap-3">
+                      <Info className="w-4 h-4 text-blue-400" />
+                      <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Badge Number</span>
                     </div>
+                    <span className="text-sm font-mono font-bold text-blue-400 tracking-wider">
+                      {result.athlete.badgeNumber || result.athlete.badgeId || "---"}
+                    </span>
                   </div>
-                )}
-             </div>
+
+                  {result.athlete.zoneCode && (
+                    <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                      <span className="text-[9px] font-black text-white/20 uppercase tracking-widest block mb-3">Access Zones</span>
+                      <div className="flex flex-wrap gap-2">
+                         {result.athlete.zoneCode.split(",").map((zone, idx) => (
+                           <span key={idx} className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 rounded text-[10px] font-black uppercase tracking-tighter">
+                             {zone.trim()}
+                           </span>
+                         ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Competition Matrix Section (Only if available) */}

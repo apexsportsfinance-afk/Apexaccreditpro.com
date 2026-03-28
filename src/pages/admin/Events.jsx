@@ -80,6 +80,7 @@ export default function Events() {
   const [editingEvent, setEditingEvent] = useState(null);
   const [copiedSlug, setCopiedSlug] = useState(null);
   const [copiedScannerEventId, setCopiedScannerEventId] = useState(null);
+  const [copiedAthleteInfoEventId, setCopiedAthleteInfoEventId] = useState(null);
   const [shareModal, setShareModal] = useState({ open: false, slug: "" });
   const [deleteModal, setDeleteModal] = useState({ open: false, event: null });
   const [deleting, setDeleting] = useState(false);
@@ -292,6 +293,11 @@ export default function Events() {
     return `${window.location.origin}/scanner?event_id=${eventId}&mode=attendance`;
   };
 
+  const getAthleteInfoLink = (eventId) => {
+    const pin = import.meta.env.VITE_SCANNER_PIN || "1234";
+    return `${window.location.origin}/scanner?event_id=${eventId}&mode=info&public=true&pin=${pin}`;
+  };
+
   const copyRegistrationLink = async (slug) => {
     const link = getRegistrationLink(slug);
     try {
@@ -321,6 +327,22 @@ export default function Events() {
       }
     } catch {
       toast.error("Failed to copy link");
+    }
+  };
+
+  const copyAthleteInfoLink = async (eventId) => {
+    const link = getAthleteInfoLink(eventId);
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(link);
+        setCopiedAthleteInfoEventId(eventId);
+        toast.success("Athlete Info Hub link copied");
+        setTimeout(() => setCopiedAthleteInfoEventId(null), 2000);
+      } else {
+        toast.info("Please copy manually");
+      }
+    } catch {
+      toast.error("Failed to copy");
     }
   };
 
@@ -866,7 +888,27 @@ export default function Events() {
                           >
                             {copiedScannerEventId === event.id ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                           </button>
-                          <a href={getScannerLink(event.id)} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Athlete Info Hub (Self-Service)</label>
+                          <span className="text-[10px] font-mono font-bold text-emerald-500/60 transition-colors group-hover:text-emerald-400">
+                             PIN: {import.meta.env.VITE_SCANNER_PIN || "1234"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 group shadow-lg">
+                          <Users className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                          <code className="text-emerald-300 flex-1 truncate text-xs">{getAthleteInfoLink(event.id)}</code>
+                          <button
+                            onClick={() => copyAthleteInfoLink(event.id)}
+                            className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+                            title="Copy link"
+                          >
+                            {copiedAthleteInfoEventId === event.id ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                          </button>
+                          <a href={getAthleteInfoLink(event.id)} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
                             <ExternalLink className="w-4 h-4" />
                           </a>
                         </div>
