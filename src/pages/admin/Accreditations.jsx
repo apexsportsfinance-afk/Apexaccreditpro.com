@@ -107,7 +107,6 @@ export default function Accreditations() {
   const [deleting, setDeleting] = useState(false);
   const [bulkDownloading, setBulkDownloading] = useState(false);
   const [bulkEditing, setBulkEditing] = useState(false);
-  const [bulkDeleteConfirmModal, setBulkDeleteConfirmModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const initializedRef = React.useRef(false);
   const [emailModal, setEmailModal] = useState({ open: false, accreditation: null });
@@ -205,7 +204,6 @@ export default function Accreditations() {
     loadEventData();
     setSelectedRows([]);
   }, [selectedEvent]);
-
 
   const refreshAccreditations = useCallback(async () => {
     if (!selectedEvent) return;
@@ -593,30 +591,6 @@ export default function Accreditations() {
     }
   };
 
-  const handleBulkDelete = () => {
-    if (selectedRows.length === 0) {
-      toast.warning("No accreditations selected");
-      return;
-    }
-    setBulkDeleteConfirmModal(true);
-  };
-
-  const confirmBulkDelete = async () => {
-    setDeleting(true);
-    try {
-      await AccreditationsAPI.bulkDelete(selectedRows);
-      toast.success(`${selectedRows.length} accreditations permanently deleted`);
-      setBulkDeleteConfirmModal(false);
-      setSelectedRows([]);
-      await refreshAccreditations();
-    } catch (error) {
-      console.error("Bulk delete error:", error);
-      toast.error("Failed to delete: " + (error.message || "Unknown error"));
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   const handlePreviewPDF = useCallback(async (accreditation) => {
     setPdfPreviewLoading(true);
     setPdfPreviewModal({ open: true, accreditation });
@@ -729,16 +703,16 @@ export default function Accreditations() {
             )}
             <div>
               <div className="flex items-center gap-2">
-                <p className="text-sm font-semibold text-whiteElite tracking-tight">
+                <p className="text-[15px] font-semibold text-white tracking-wide">
                   {row.firstName} {row.lastName}
                 </p>
                 {isDuplicate && (
-                  <span title="Potential Duplicate Registration" className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-sm bg-critical/10 text-critical uppercase tracking-wider border border-critical/20">
+                  <span title="Potential Duplicate Registration" className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-sm bg-amber-500/10 text-amber-500 uppercase tracking-wider border border-amber-500/20">
                     <AlertTriangle className="w-3 h-3" /> Duplicate
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">{row.email}</p>
+              <p className="text-sm text-slate-400 mt-0.5">{row.email}</p>
             </div>
           </div>
         );
@@ -771,24 +745,10 @@ export default function Accreditations() {
                    : row.status === "rejected" ? XCircle 
                    : Clock;
         return (
-          <div className="flex flex-col gap-1">
-            <Badge variant={row.status === "approved" ? "success" : row.status === "rejected" ? "danger" : "warning"} className="flex items-center gap-1.5 w-fit">
-              <Icon className="w-3.5 h-3.5" />
-              {row.status}
-            </Badge>
-            {row.status === "approved" && (
-              <div className="text-[10px] text-slate-400 font-medium px-1 flex flex-col leading-tight">
-                <span className="truncate max-w-[120px]" title={row.approverName || "Unknown"}>
-                  by {row.approverName || "Unknown"}
-                </span>
-                {row.approvedAt && (
-                  <span className="text-slate-500 opacity-80">
-                    {new Date(row.approvedAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
+          <Badge variant={row.status === "approved" ? "success" : row.status === "rejected" ? "danger" : "warning"} className="flex items-center gap-1.5 w-fit">
+            <Icon className="w-3.5 h-3.5" />
+            {row.status}
+          </Badge>
         );
       }
     },
@@ -816,7 +776,7 @@ export default function Accreditations() {
       sortable: true,
       className: "w-[140px]",
       render: (row) => (
-        <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">{formatDate(row.createdAt)}</span>
+        <span className="text-sm text-slate-400 font-medium">{formatDate(row.createdAt)}</span>
       )
     },
     {
@@ -908,32 +868,31 @@ export default function Accreditations() {
   return (
     <div id="accreditations_page" className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="font-h1 text-white">Accreditations</h1>
-          <p className="text-sm text-slate-500 font-medium tracking-wide mt-1 uppercase">Manage participant accreditations</p>
+          <h1 className="text-3xl font-bold text-white">Accreditations</h1>
+          <p className="text-lg text-slate-400 mt-1 font-extralight">Manage participant accreditations</p>
         </div>
         <Button variant="primary" icon={Plus}>
           Add Accreditation
         </Button>
       </div>
 
-      <Card className="apex-glass border-white/5">
-        <CardContent className="space-y-6">
+      <Card>
+        <CardContent className="space-y-4">
           {/* Filters */}
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 p-4 rounded-2xl bg-white/5 border border-white/5">
-            <div className="xl:col-span-3">
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1">
               <Select
                 label="Event"
                 value={selectedEvent}
                 onChange={(e) => setSelectedEvent(e.target.value)}
                 options={events.map((e) => ({ value: e.id, label: e.name }))}
                 placeholder="Select an event"
-                className="apex-input"
               />
             </div>
-            <div className="xl:col-span-9 flex flex-wrap items-end gap-4">
-              <div className="flex-1 min-w-[160px]">
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="min-w-[150px]">
                 <Select
                   label="Status"
                   value={filters.status}
@@ -946,7 +905,7 @@ export default function Accreditations() {
                   placeholder="All Status"
                 />
               </div>
-              <div className="flex-1 min-w-[180px]">
+              <div className="min-w-[180px]">
                 <Select
                   label="Role"
                   value={filters.role}
@@ -963,7 +922,7 @@ export default function Accreditations() {
                   placeholder="All Roles"
                 />
               </div>
-              <div className="flex-[1.5] min-w-[240px]">
+              <div className="w-[250px]">
                 <SearchableSelect
                   label="Club"
                   value={filters.club}
@@ -974,10 +933,10 @@ export default function Accreditations() {
                       ...(accreditations?.map(a => a.club).filter(Boolean) || [])
                     ])
                   ].sort((a,b) => a.localeCompare(b)).map(club => ({ value: club, label: club }))}
-                  placeholder="Filter by club..."
+                  placeholder="Select/Search club..."
                 />
               </div>
-              <div className="flex-1 min-w-[150px]">
+              <div className="min-w-[150px]">
                 <Select
                   label="Country"
                   value={filters.nationality}
@@ -990,7 +949,7 @@ export default function Accreditations() {
                 variant="ghost"
                 icon={XCircle}
                 onClick={resetFilters}
-                className="h-[46px] text-slate-500 hover:text-critical border-white/5 hover:bg-critical/10 transition-all"
+                className="h-[46px] text-slate-400 hover:text-red-400 border-slate-700 hover:border-red-500/30"
                 title="Clear All Filters"
               >
                 Clear
@@ -1008,7 +967,6 @@ export default function Accreditations() {
             onClearSelection={setSelectedRows}
             onBulkEdit={handleBulkEdit}
             onBulkApprove={handleBulkApprove}
-            onBulkDelete={handleBulkDelete}
           />
 
           {loading ? (
@@ -1128,7 +1086,7 @@ export default function Accreditations() {
                 </div>
               )}
               <div className="flex-1">
-                <h3 className="font-h2 text-whiteElite">
+                <h3 className="text-2xl font-bold text-white">
                   {viewModal.accreditation.firstName} {viewModal.accreditation.lastName}
                 </h3>
                 <div className="flex items-center gap-2 mt-2">
@@ -1140,24 +1098,24 @@ export default function Accreditations() {
                   </Badge>
                 </div>
                 <div className="mt-4 space-y-2">
-                  <p className="text-sm text-slate-400 font-medium">
-                    <span className="text-slate-500 uppercase text-[10px] tracking-widest mr-2">Club</span> {viewModal.accreditation.club}
+                  <p className="text-lg text-slate-400">
+                    <span className="text-slate-500">Club:</span> {viewModal.accreditation.club}
                   </p>
-                  <p className="text-sm text-slate-400 font-medium">
-                    <span className="text-slate-500 uppercase text-[10px] tracking-widest mr-2">Email</span> {viewModal.accreditation.email}
+                  <p className="text-lg text-slate-400">
+                    <span className="text-slate-500">Email:</span> {viewModal.accreditation.email}
                   </p>
-                  <p className="text-sm text-slate-400 font-medium">
-                    <span className="text-slate-500 uppercase text-[10px] tracking-widest mr-2">Nationality</span> {viewModal.accreditation.nationality}
+                  <p className="text-lg text-slate-400">
+                    <span className="text-slate-500">Nationality:</span> {viewModal.accreditation.nationality}
                   </p>
-                  <p className="text-sm text-slate-400 font-medium">
-                    <span className="text-slate-500 uppercase text-[10px] tracking-widest mr-2">Gender</span> {viewModal.accreditation.gender}
+                  <p className="text-lg text-slate-400">
+                    <span className="text-slate-500">Gender:</span> {viewModal.accreditation.gender}
                   </p>
-                  <p className="text-sm text-slate-400 font-medium">
-                    <span className="text-slate-500 uppercase text-[10px] tracking-widest mr-2">DOB</span>{" "}
+                  <p className="text-lg text-slate-400">
+                    <span className="text-slate-500">DOB:</span>{" "}
                     {formatDate(viewModal.accreditation.dateOfBirth)}
                     {currentEvent && (
-                      <span className="text-slate-500 ml-1 opacity-70">
-                        (Age: {calculateAge(viewModal.accreditation.dateOfBirth, currentEvent.ageCalculationYear)})
+                      <span className="text-slate-500">
+                        {" "}(Age: {calculateAge(viewModal.accreditation.dateOfBirth, currentEvent.ageCalculationYear)})
                       </span>
                     )}
                   </p>
@@ -1176,24 +1134,24 @@ export default function Accreditations() {
                   )}
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="p-3 rounded-xl bg-white/5 border border-white/5">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">ID</p>
-                    <p className="text-sm font-mono text-whiteElite">{viewModal.accreditation.accreditationId}</p>
+                  <div>
+                    <p className="text-lg text-slate-500">Accreditation ID</p>
+                    <p className="text-lg font-mono text-white">{viewModal.accreditation.accreditationId}</p>
                   </div>
-                  <div className="p-3 rounded-xl bg-white/5 border border-white/5">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Badge</p>
-                    <p className="text-sm font-mono text-whiteElite">{viewModal.accreditation.badgeNumber}</p>
+                  <div>
+                    <p className="text-lg text-slate-500">Badge Number</p>
+                    <p className="text-lg font-mono text-white">{viewModal.accreditation.badgeNumber}</p>
                   </div>
-                  <div className="p-3 rounded-xl bg-white/5 border border-white/5">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Zones</p>
-                    <p className="text-sm font-mono text-whiteElite">{viewModal.accreditation.zoneCode}</p>
+                  <div>
+                    <p className="text-lg text-slate-500">Zone Access</p>
+                    <p className="text-lg font-mono text-white">{viewModal.accreditation.zoneCode}</p>
                   </div>
-                  <div className="p-3 rounded-xl bg-white/5 border border-white/5">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Expiry</p>
-                    <p className="text-sm font-mono text-whiteElite">
+                  <div>
+                    <p className="text-lg text-slate-500">Valid Until</p>
+                    <p className="text-lg font-mono text-white">
                       {viewModal.accreditation.expiresAt
                         ? formatDate(viewModal.accreditation.expiresAt)
-                        : "LIFETIME"}
+                        : "No expiration"}
                     </p>
                   </div>
                 </div>
@@ -1358,10 +1316,10 @@ export default function Accreditations() {
                           }
                         });
                       }}
-                      className={`p-3 rounded-xl border transition-all duration-300 text-left ${
+                      className={`p-3 rounded-lg border-2 transition-all duration-200 text-left ${
                         isSelected
-                          ? "border-primary-500/50 bg-primary-500/10 shadow-[0_0_20px_-5px_rgba(34,211,238,0.2)]"
-                          : "border-white/5 hover:border-white/20 bg-white/5"
+                          ? "border-primary-500 bg-primary-500/20"
+                          : "border-slate-700 hover:border-slate-600 bg-slate-800/50"
                       }`}
                     >
                       <div className="flex items-center gap-2">
@@ -1395,16 +1353,16 @@ export default function Accreditations() {
 
             {/* Email Notification Toggle */}
             <div className="pt-2">
-              <label className="flex items-center gap-3 cursor-pointer p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all border-dashed">
+              <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:bg-slate-800 transition-colors">
                 <input
                   type="checkbox"
                   checked={approveData.sendEmail}
                   onChange={(e) => setApproveData((prev) => ({ ...prev, sendEmail: e.target.checked }))}
-                  className="w-5 h-5 rounded border-white/10 bg-white/5 text-primary-500 focus:ring-primary-500/40"
+                  className="w-5 h-5 rounded border-slate-600 bg-slate-700 text-primary-500 focus:ring-primary-500/40"
                 />
                 <div>
-                  <p className="text-sm font-semibold text-whiteElite tracking-wide">Send Email Notification</p>
-                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mt-0.5">Automated PDF delivery enabled</p>
+                  <p className="text-lg font-medium text-white">Send Email Notification</p>
+                  <p className="text-sm text-slate-400">Send approval email with PDF attachment to the athlete/coach</p>
                 </div>
               </label>
             </div>
@@ -1545,10 +1503,10 @@ export default function Accreditations() {
                           }
                         });
                       }}
-                      className={`p-3 rounded-xl border transition-all duration-300 text-left ${
+                      className={`p-3 rounded-lg border-2 transition-all duration-200 text-left ${
                         isSelected
-                          ? "border-primary-500/50 bg-primary-500/10 shadow-[0_0_20px_-5px_rgba(34,211,238,0.2)]"
-                          : "border-white/5 hover:border-white/20 bg-white/5"
+                          ? "border-primary-500 bg-primary-500/20"
+                          : "border-slate-700 hover:border-slate-600 bg-slate-800/50"
                       }`}
                     >
                       <div className="flex items-center gap-2">
@@ -1582,16 +1540,16 @@ export default function Accreditations() {
 
             {/* Email Notification Toggle */}
             <div className="pt-2">
-              <label className="flex items-center gap-3 cursor-pointer p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all border-dashed">
+              <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:bg-slate-800 transition-colors">
                 <input
                   type="checkbox"
                   checked={approveData.sendEmail}
                   onChange={(e) => setApproveData((prev) => ({ ...prev, sendEmail: e.target.checked }))}
-                  className="w-5 h-5 rounded border-white/10 bg-white/5 text-primary-500 focus:ring-primary-500/40"
+                  className="w-5 h-5 rounded border-slate-600 bg-slate-700 text-primary-500 focus:ring-primary-500/40"
                 />
                 <div>
-                  <p className="text-sm font-semibold text-whiteElite tracking-wide">Send Email Notifications</p>
-                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mt-0.5">Bulk delivery status: ready</p>
+                  <p className="text-lg font-medium text-white">Send Email Notifications</p>
+                  <p className="text-sm text-slate-400">Send approval emails with PDFs to all selected applicants</p>
                 </div>
               </label>
             </div>
@@ -1633,8 +1591,8 @@ export default function Accreditations() {
               </div>
             ) : (
               <>
-                <div className="apex-glass p-8 border-white/5">
-                  <h4 className="text-sm font-bold text-slate-500 uppercase tracking-[0.2em] mb-8 text-center">Biometric Identity Overlay</h4>
+                <div className="bg-slate-800/50 rounded-xl p-6 border border-primary-800/30">
+                  <h4 className="text-lg font-semibold text-white mb-4 text-center">Card Preview (Front and Back)</h4>
                   <AccreditationCardPreview
                     accreditation={pdfPreviewModal.accreditation}
                     event={events.find(e => e.id === pdfPreviewModal.accreditation.eventId)}
@@ -1804,44 +1762,6 @@ export default function Accreditations() {
               </div>
             </div>
           )}
-        </div>
-      </Modal>
-
-      {/* Bulk Delete Confirm Modal */}
-      <Modal
-        isOpen={bulkDeleteConfirmModal}
-        onClose={() => !deleting && setBulkDeleteConfirmModal(false)}
-        title="Bulk Delete Accreditations"
-      >
-        <div className="p-6 space-y-4">
-          <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
-            <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0" />
-            <div>
-              <p className="text-lg font-semibold text-red-400">Delete {selectedRows.length} accreditations?</p>
-              <p className="text-lg text-slate-300 font-extralight mt-1">
-                This will permanently remove <span className="text-white font-medium">{selectedRows.length}</span> selected records. This action cannot be undone.
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-3 pt-2">
-            <Button
-              variant="secondary"
-              onClick={() => setBulkDeleteConfirmModal(false)}
-              className="flex-1"
-              disabled={deleting}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              onClick={confirmBulkDelete}
-              className="flex-1"
-              loading={deleting}
-              disabled={deleting}
-            >
-              {deleting ? "Deleting..." : "Delete Permanently"}
-            </Button>
-          </div>
         </div>
       </Modal>
 
