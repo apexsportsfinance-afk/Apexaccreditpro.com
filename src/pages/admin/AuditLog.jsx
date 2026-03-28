@@ -12,8 +12,10 @@ import {
   BadgeCheck, 
   Eye,
   ArrowRightLeft,
-  Trophy
+  Trophy,
+  FileDown
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import Card, { CardHeader, CardContent } from "../../components/ui/Card";
 import EmptyState from "../../components/ui/EmptyState";
 import { useToast } from "../../components/ui/Toast";
@@ -83,6 +85,58 @@ export default function AuditLog() {
     }
   };
 
+  const handleExportSummary = () => {
+    if (scannerLogs.length === 0) {
+      toast.error("No logs to export");
+      return;
+    }
+
+    // 1. Summarize Logs
+    const summaryMap = new Map();
+    
+    scannerLogs.forEach(log => {
+      const isAthlete = !!log.accreditations;
+      const isSpectator = !!log.spectator_orders;
+      
+      const id = isAthlete ? log.accreditations.id : (isSpectator ? log.spectator_orders.id : 'unknown');
+      const name = isAthlete ? `${log.accreditations.first_name} ${log.accreditations.last_name}` : 
+                 (isSpectator ? log.spectator_orders.customer_name : 'System');
+      const club = isAthlete ? (log.accreditations.club || 'Independent') : 
+                 (isSpectator ? 'Spectator' : 'N/A');
+      const role = isAthlete ? (log.accreditations.role || 'Athlete') : 
+                 (isSpectator ? 'Spectator' : 'System');
+
+      if (!summaryMap.has(id)) {
+        summaryMap.set(id, {
+          "Name": name,
+          "Club/Team": club,
+          "Role": role,
+          "Scan Count": 0,
+          "Last Scan": log.created_at
+        });
+      }
+      
+      const entry = summaryMap.get(id);
+      entry["Scan Count"] += 1;
+      if (new Date(log.created_at) > new Date(entry["Last Scan"])) {
+        entry["Last Scan"] = log.created_at;
+      }
+    });
+
+    const data = Array.from(summaryMap.values());
+
+    // 2. Create Workbook
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Scan Summary");
+
+    // 3. Trigger Download
+    const fileName = `Scan_Audit_Summary_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+    
+    toast.success("Excel Summary Exported");
+  };
+
   const filteredLogs = (activeTab === "system" ? logs : scannerLogs).filter((log) => {
     if (!search) return true;
     const q = search.toLowerCase();
@@ -137,13 +191,25 @@ export default function AuditLog() {
           />
         </div>
 
-        <button
-          onClick={activeTab === 'system' ? loadLogs : loadScannerLogs}
-          className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:text-white hover:bg-cyan-500/20 transition-all text-xs font-black uppercase tracking-widest shadow-lg"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-          Sys-Sync
-        </button>
+        <div className="flex items-center gap-2">
+          {activeTab === 'scanner' && (
+            <button
+              onClick={handleExportSummary}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:text-white hover:bg-emerald-500/20 transition-all text-xs font-black uppercase tracking-widest shadow-lg"
+            >
+              <FileDown className="w-3.5 h-3.5" />
+              Export
+            </button>
+          )}
+
+          <button
+            onClick={activeTab === 'system' ? loadLogs : loadScannerLogs}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:text-white hover:bg-cyan-500/20 transition-all text-xs font-black uppercase tracking-widest shadow-lg"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            Sync
+          </button>
+        </div>
       </div>
 
       <Card className="border-white/5 ring-0 shadow-2xl">
