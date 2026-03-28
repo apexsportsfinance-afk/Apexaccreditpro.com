@@ -11,7 +11,8 @@ import {
   Ticket, 
   BadgeCheck, 
   Eye,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Trophy
 } from "lucide-react";
 import Card, { CardHeader, CardContent } from "../../components/ui/Card";
 import EmptyState from "../../components/ui/EmptyState";
