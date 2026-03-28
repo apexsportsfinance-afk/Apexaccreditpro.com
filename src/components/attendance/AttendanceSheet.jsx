@@ -65,7 +65,7 @@ export default function AttendanceSheet({ event, onBack }) {
       const results = await Promise.allSettled([
         AccreditationsAPI.getByEventId(event.id),
         AttendanceAPI.getAttendanceForEvent(event.id, targetDate),
-        AttendanceAPI.getSessions(event.id), 
+        AttendanceAPI.getSessions(event.id, targetDate), 
         supabase.from('athlete_events').select('*, accreditations!inner(event_id)').eq('accreditations.event_id', event.id).eq("matched", true),
         AttendanceAPI.getEventAttendance(event.id) 
       ]);
@@ -160,10 +160,8 @@ export default function AttendanceSheet({ event, onBack }) {
     ];
 
     const filteredAccs = accreditations.filter(a => {
-      const role = (a.role || '').toLowerCase().trim();
       const status = (a.status || '').toLowerCase().trim();
-      if (status !== 'approved') return false;
-      return TEAM_ROLES.some(tr => role === tr || role.includes(tr));
+      return status === 'approved';
     });
 
     const currentAttendanceMap = new Map();
@@ -179,36 +177,23 @@ export default function AttendanceSheet({ event, onBack }) {
       let denominator = 0;
       let uiEvents = [];
 
+      const manualGeneralSessions = sessions.filter(s => !s.event_number);
+      denominator = Math.max(manualGeneralSessions.length, 1);
+
+      // Sum scan_count from all days for this athlete/person
+      numerator = history.reduce((sum, r) => sum + (r.scan_count || 1), 0);
+
       if (isCoach) {
-        numerator = new Set(history.map(r => r.check_in_date)).size;
-        denominator = eventDays;
         uiEvents = [{ label: "FULL EVENT" }];
       } else {
-        // ATHLETE DEDUPLICATION STRATEGY
-        // 1. Get all session codes that exist manually or automatically
-        const manualGeneralSessions = sessions.filter(s => !s.event_number);
-        
-        // 2. Scheduled Events from Heat Sheet
-        const athleteUniqueEventCodes = Array.from(new Set(matchedEvents.map(e => String(e.event_code))));
-        
-        // 3. Construct unified Requirement List
-        // Rule: Match Scheduled with Sessions if they share code. General sessions are unique.
-        const requirements = new Set();
-        athleteUniqueEventCodes.forEach(code => requirements.add(`EVENT_${code}`));
-        manualGeneralSessions.forEach(s => requirements.add(`SESSION_${s.id}`));
-        
-        denominator = requirements.size || (athleteUniqueEventCodes.length > 0 ? athleteUniqueEventCodes.length : 1);
-        
-        // Numerator = Scans (Total)
-        numerator = history.length;
-        if (numerator > denominator) numerator = denominator;
-
         // UI Representation: Combine Heats with General Sessions
         uiEvents = [
           ...matchedEvents.map(e => ({ type: 'event', code: e.event_code, heat: e.heat, lane: e.lane })),
           ...manualGeneralSessions.map(s => ({ type: 'session', label: s.session_name || 'General' }))
         ];
       }
+
+      if (numerator > denominator) numerator = denominator;
 
       return {
         ...person,
