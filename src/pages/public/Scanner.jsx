@@ -20,7 +20,9 @@ import {
 } from "lucide-react";
 import { AccreditationsAPI, TicketingAPI, EventsAPI } from "../../lib/storage";
 import { AttendanceAPI } from "../../lib/attendanceApi";
+import { AthleteEventsAPI } from "../../lib/broadcastApi";
 import { toast } from "sonner";
+import { getCountryFlag } from "../../lib/utils";
 
 export default function ScannerPage() {
   const [authorized, setAuthorized] = useState(false);
@@ -31,7 +33,7 @@ export default function ScannerPage() {
 
   // Configuration from URL
   const [config, setConfig] = useState({
-    mode: "attendance", // attendance | spectator | info
+    mode: "attendance", // attendance | spectator | info | verify
     eventId: "",
     deviceLabel: "Main-Scanner"
   });
@@ -253,20 +255,37 @@ export default function ScannerPage() {
         // Auto-resume after 2s for attendance gate speed
         setTimeout(resumeScanner, 2000);
       } else {
-        // INFO MODE
+        // INFO OR VERIFY MODE
+        let competitionData = [];
+        if (config.mode === "verify" || config.mode === "info") {
+          try {
+            competitionData = await AthleteEventsAPI.getForAthlete(athlete.id);
+          } catch (err) {
+            console.warn("Failed to load competition data:", err);
+          }
+        }
+
         setLastScanResult({
-          type: "athlete_info",
+          type: config.mode === "verify" ? "athlete_verify" : "athlete_info",
           status: "info",
           athlete,
-          message: "Profile Loaded"
+          competitionData,
+          message: config.mode === "verify" ? "Accreditation Verified" : "Profile Loaded"
         });
 
         // AUDIT LOG (Silent)
-        AttendanceAPI.logScanEvent({
+        const logPromise = AttendanceAPI.logScanEvent({
           eventId: config.eventId,
           athleteId: athlete.id,
-          scanMode: "info",
+          scanMode: config.mode,
           deviceLabel: config.deviceLabel
+        });
+        
+        // Debug logging for the user
+        logPromise.then(res => {
+          console.log(`[AuditLog] ${config.mode} scan recorded:`, res);
+        }).catch(err => {
+          console.error(`[AuditLog] Failed to record ${config.mode} scan:`, err);
         });
       }
 
@@ -352,6 +371,7 @@ export default function ScannerPage() {
             <h1 className="text-white font-black uppercase tracking-[0.2em] text-sm">
               {config.mode === 'attendance' ? 'Entry Gate' : 
                config.mode === 'spectator' ? 'Ticket Redemption' : 
+               config.mode === 'verify' ? 'Verify Accreditation' :
                'Athlete Hub'}
             </h1>
             <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">{config.deviceLabel}</p>
@@ -483,35 +503,121 @@ function ResultView({ config, result, onResume, onRedeem }) {
     );
   }
 
-  if (result.type === 'athlete_info') {
+  if (result.type === 'athlete_info' || result.type === 'athlete_verify') {
+    const isRich = result.type === 'athlete_verify';
+    
     return (
-      <div className="flex-1 p-6 md:p-12 overflow-y-auto">
-        <div className="max-w-xl mx-auto space-y-6">
-          <div className="bg-white/5 border border-white/10 p-8 rounded-[3rem] relative overflow-hidden backdrop-blur-3xl">
-             <div className="absolute top-0 right-0 p-8 opacity-10">
-               <Trophy className="w-24 h-24 text-white" />
+      <div className="flex-1 p-4 md:p-8 overflow-y-auto custom-scrollbar">
+        <div className="max-w-xl mx-auto space-y-4">
+          
+          {/* Main ID Card Section */}
+          <div className="bg-white/5 border border-white/10 p-6 md:p-8 rounded-[2.5rem] relative overflow-hidden backdrop-blur-3xl shadow-2xl">
+             <div className="absolute top-0 right-0 p-6 opacity-5">
+               <Trophy className="w-32 h-32 text-white" />
              </div>
              
-             <div className="flex items-center gap-6 mb-10">
-               <div className="w-24 h-24 bg-white/10 rounded-[2rem] border border-white/10 flex items-center justify-center overflow-hidden">
-                 {result.athlete.photoUrl ? <img src={result.athlete.photoUrl} className="w-full h-full object-cover" /> : <span className="text-3xl font-black text-white/20">{result.athlete.firstName?.[0]}</span>}
+             <div className="flex items-start gap-6 mb-8 relative z-10">
+               <div className="w-24 h-24 md:w-32 md:h-32 bg-white/5 rounded-3xl border border-white/10 flex items-center justify-center overflow-hidden shadow-inner">
+                 {result.athlete.photoUrl ? (
+                   <img src={result.athlete.photoUrl} className="w-full h-full object-cover" />
+                 ) : (
+                   <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
+                     <Users className="w-10 h-10 text-white/20" />
+                   </div>
+                 )}
                </div>
-               <div>
-                  <h2 className="text-3xl font-black text-white uppercase leading-none mb-2">{result.athlete.firstName} {result.athlete.lastName}</h2>
-                  <div className="inline-flex px-3 py-1 bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em] rounded-full border border-emerald-500/20">
-                    {result.athlete.club || "Independent"}
+               
+               <div className="flex-1 pt-2">
+                  <h2 className="text-2xl md:text-3xl font-black text-white uppercase leading-tight mb-2 tracking-tight">
+                    {result.athlete.firstName} {result.athlete.lastName}
+                  </h2>
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <div className="px-3 py-1 bg-blue-500/20 text-blue-400 text-[9px] font-black uppercase tracking-widest rounded-full border border-blue-500/20">
+                      {result.athlete.role || "Participant"}
+                    </div>
+                    <div className="px-3 py-1 bg-white/5 text-white/40 text-[9px] font-mono tracking-widest rounded-full border border-white/5">
+                      ID: {result.athlete.accreditationId?.split("-").pop() || result.athlete.id?.slice(0, 8)}
+                    </div>
                   </div>
                </div>
              </div>
 
-             <div className="grid grid-cols-1 gap-3">
-                <InfoItem icon={Calendar} label="Role" value={result.athlete.role || "Athlete"} />
-                <InfoItem icon={MapPin} label="Region" value={result.athlete.nationality || "Standard"} />
-                <InfoItem icon={Clock} label="Status" value="Verified Member" color="text-blue-400" />
+             <div className="grid grid-cols-2 gap-3 mb-6">
+                <div className="bg-black/20 p-4 rounded-2xl border border-white/5">
+                  <span className="text-[9px] font-black text-white/20 uppercase tracking-widest block mb-1">Club</span>
+                  <p className="text-xs font-bold text-white truncate">{result.athlete.club || "Independent"}</p>
+                </div>
+                <div className="bg-black/20 p-4 rounded-2xl border border-white/5 flex items-center justify-between">
+                  <div>
+                    <span className="text-[9px] font-black text-white/20 uppercase tracking-widest block mb-1">Region</span>
+                    <p className="text-xs font-bold text-white uppercase">{result.athlete.nationality || "INT"}</p>
+                  </div>
+                  {getCountryFlag(result.athlete.nationality) && (
+                    <img src={getCountryFlag(result.athlete.nationality)} className="w-6 h-4 object-cover rounded shadow-lg" alt="" />
+                  )}
+                </div>
+             </div>
+
+             {/* Dynamic Metadata (Badge & Zones) */}
+             <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                  <div className="flex items-center gap-3">
+                    <Info className="w-4 h-4 text-blue-400" />
+                    <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Badge Number</span>
+                  </div>
+                  <span className="text-sm font-mono font-bold text-blue-400 tracking-wider">
+                    {result.athlete.badgeNumber || result.athlete.badgeId || "---"}
+                  </span>
+                </div>
+
+                {result.athlete.zoneCode && (
+                  <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                    <span className="text-[9px] font-black text-white/20 uppercase tracking-widest block mb-3">Access Zones</span>
+                    <div className="flex flex-wrap gap-2">
+                       {result.athlete.zoneCode.split(",").map((zone, idx) => (
+                         <span key={idx} className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 rounded text-[10px] font-black uppercase tracking-tighter">
+                           {zone.trim()}
+                         </span>
+                       ))}
+                    </div>
+                  </div>
+                )}
              </div>
           </div>
+
+          {/* Competition Matrix Section (Only if available) */}
+          {result.competitionData && result.competitionData.length > 0 && (
+            <div className="bg-white/5 border border-white/10 p-6 md:p-8 rounded-[2.5rem] backdrop-blur-xl">
+               <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/5">
+                 <Calendar className="w-4 h-4 text-emerald-400" />
+                 <h3 className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em]">Competition Matrix</h3>
+               </div>
+               
+               <div className="space-y-3">
+                 {result.competitionData.map((ev, idx) => (
+                   <div key={idx} className="flex items-center justify-between p-4 bg-black/40 rounded-2xl border border-white/5 group hover:border-white/10 transition-all">
+                     <div className="flex items-center gap-4 min-w-0">
+                       <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded w-10 text-center flex-shrink-0">
+                         {ev.eventCode}
+                       </span>
+                       <span className="text-xs text-white/80 font-medium truncate">
+                         {ev.eventName}
+                       </span>
+                     </div>
+                     {ev.heat && (
+                       <span className="text-[9px] font-black text-white/30 uppercase tracking-widest bg-white/5 px-2 py-1 rounded-lg">
+                         H:{ev.heat} • L:{ev.lane}
+                       </span>
+                     )}
+                   </div>
+                 ))}
+               </div>
+            </div>
+          )}
           
-          <button onClick={onResume} className="w-full py-5 bg-white/5 border border-white/10 text-white font-black uppercase tracking-widest rounded-2xl hover:bg-white/10 transition-all">Submit New Scan</button>
+          <div className="pt-4">
+            <button onClick={onResume} className="w-full py-5 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest rounded-2xl transition-all shadow-xl shadow-blue-900/40">Ready for Next Scan</button>
+          </div>
         </div>
       </div>
     );
