@@ -24,6 +24,40 @@ import { AthleteEventsAPI } from "../../lib/broadcastApi";
 import { toast } from "sonner";
 import { getCountryFlag } from "../../lib/utils";
 
+// Helper for time differentials
+const parseTimeSeconds = (timeStr) => {
+  if (!timeStr || timeStr === "NT" || timeStr === "NP") return null;
+  let clean = timeStr.trim().replace(/[A-Za-z]/g, '');
+  if (!clean) return null;
+  if (clean.includes(':')) {
+    const parts = clean.split(':');
+    if (parts.length >= 2) {
+      return (parseInt(parts[0], 10) * 60) + parseFloat(parts[1]);
+    }
+  }
+  return parseFloat(clean);
+};
+
+const formatTimeDiff = (pbStr, recordStr) => {
+  const pbSec = parseTimeSeconds(pbStr);
+  const recSec = parseTimeSeconds(recordStr);
+  if (pbSec === null || recSec === null || isNaN(pbSec) || isNaN(recSec)) return null;
+  const diff = recSec - pbSec; 
+  const isFaster = diff >= 0;
+  const sign = diff > 0 ? "+" : diff < 0 ? "-" : "";
+  const absDiff = Math.abs(diff);
+  let diffDisplay = absDiff >= 60 ? `${sign}${Math.floor(absDiff / 60)}:${(absDiff % 60).toFixed(2).padStart(5, '0')}` : `${sign}${absDiff.toFixed(2)}`;
+  return { text: diffDisplay, isFaster };
+};
+
+const calculateAge = (dob, calcYear = 2025) => {
+  if (!dob) return null;
+  try {
+    const birth = new Date(dob);
+    return calcYear - birth.getFullYear();
+  } catch (e) { return null; }
+};
+
 export default function ScannerPage() {
   const [authorized, setAuthorized] = useState(false);
   const [pinInput, setPinInput] = useState("");
@@ -594,23 +628,52 @@ function ResultView({ config, result, onResume, onRedeem }) {
                </div>
                
                <div className="space-y-3">
-                 {result.competitionData.map((ev, idx) => (
-                   <div key={idx} className="flex items-center justify-between p-4 bg-black/40 rounded-2xl border border-white/5 group hover:border-white/10 transition-all">
-                     <div className="flex items-center gap-4 min-w-0">
-                       <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded w-10 text-center flex-shrink-0">
-                         {ev.eventCode}
-                       </span>
-                       <span className="text-xs text-white/80 font-medium truncate">
-                         {ev.eventName}
-                       </span>
+                 {result.competitionData.map((ev, idx) => {
+                   let displayName = ev.event_name || "";
+                   let eventRecords = null;
+                   
+                   if (displayName.includes("|||RECORD_DATA|||")) {
+                     const parts = displayName.split("|||RECORD_DATA|||");
+                     displayName = parts[0].trim();
+                     try {
+                       eventRecords = JSON.parse(parts[1].trim());
+                     } catch(e) {}
+                   }
+
+                   const athleteAge = calculateAge(result.athlete.dateOfBirth);
+                   const recordTime = eventRecords?.[athleteAge] || ev.age_record_time;
+
+                   return (
+                     <div key={idx} className="flex items-center justify-between p-4 bg-black/40 rounded-2xl border border-white/5 group hover:border-white/10 transition-all">
+                       <div className="flex items-center gap-4 min-w-0">
+                         <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded w-10 text-center flex-shrink-0">
+                           {ev.eventCode}
+                         </span>
+                         <span className="text-xs text-white/80 font-medium truncate">
+                           {displayName}
+                         </span>
+                       </div>
+                       <div className="flex items-center gap-2">
+                         {ev.seed_time && recordTime && (
+                           (() => {
+                             const diff = formatTimeDiff(ev.seed_time, recordTime);
+                             if (!diff) return null;
+                             return (
+                               <span className={`text-[10px] font-black px-2 py-1 rounded-lg ${diff.isFaster ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                                 {diff.text}
+                               </span>
+                             );
+                           })()
+                         )}
+                         {ev.heat && (
+                           <span className="text-[9px] font-black text-white/30 uppercase tracking-widest bg-white/5 px-2 py-1 rounded-lg">
+                             H:{ev.heat} • L:{ev.lane}
+                           </span>
+                         )}
+                       </div>
                      </div>
-                     {ev.heat && (
-                       <span className="text-[9px] font-black text-white/30 uppercase tracking-widest bg-white/5 px-2 py-1 rounded-lg">
-                         H:{ev.heat} • L:{ev.lane}
-                       </span>
-                     )}
-                   </div>
-                 ))}
+                   );
+                 })}
                </div>
             </div>
           )}
