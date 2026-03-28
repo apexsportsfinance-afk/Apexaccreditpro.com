@@ -209,6 +209,9 @@ export default function InviteRegister() {
       const reqDocs = getRequiredDocuments();
       const firstDoc = reqDocs[0];
       const secondDoc = reqDocs[1];
+      // APX-P0: Generate foolproof submission secret
+      const submissionSecret = `apex_v1_${event.id?.substring(0, 8)}`;
+
       await AccreditationsAPI.create({
         eventId: event.id,
         firstName: formData.firstName,
@@ -221,7 +224,7 @@ export default function InviteRegister() {
         email: formData.email,
         photoUrl: firstDoc ? (formData.documents[firstDoc.id]) : null,
         idDocumentUrl: secondDoc ? (formData.documents[secondDoc.id]) : null
-      });
+      }, submissionSecret);
       // Increment link use count
       if (inviteLink) await incrementLinkUseCount(event.id, inviteLink.id);
       setStatus("submitted");

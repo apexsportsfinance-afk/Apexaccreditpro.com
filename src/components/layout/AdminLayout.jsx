@@ -26,14 +26,17 @@ export default function AdminLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-swim-deep via-primary-950/80 to-ocean-950 relative">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-ocean-500/5 rounded-full blur-3xl" />
+    <div className="min-h-screen bg-base relative overflow-hidden font-body">
+      {/* Design System Ambient Background Glow */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary-500/5 rounded-full blur-[140px] opacity-20" />
+        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-primary-600/5 rounded-full blur-[140px] opacity-20" />
       </div>
+
       <Sidebar />
+      
       <main className="ml-20 lg:ml-[280px] min-h-screen transition-all duration-300 relative z-10">
-        <div className="p-6 lg:p-8">
+        <div className="p-lg lg:p-xl max-w-[1600px] mx-auto">
           <Outlet />
         </div>
       </main>

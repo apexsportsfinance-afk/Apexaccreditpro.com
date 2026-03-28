@@ -2,20 +2,20 @@ import React from "react";
 import { cn } from "../../lib/utils";
 
 const variants = {
-  default: "bg-gradient-to-b from-slate-700 to-slate-800 border border-slate-700 text-white shadow-[0_3px_8px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.15)] ring-1 ring-black/50 backdrop-blur-md",
-  primary: "bg-gradient-to-b from-cyan-600 to-cyan-800 border border-cyan-500/50 text-white shadow-[0_3px_12px_rgba(6,182,212,0.4),inset_0_1px_1px_rgba(255,255,255,0.2)] ring-1 ring-black/50 backdrop-blur-md",
-  success: "bg-gradient-to-b from-emerald-600 to-emerald-800 border border-emerald-500/50 text-white shadow-[0_3px_12px_rgba(16,185,129,0.4),inset_0_1px_1px_rgba(255,255,255,0.2)] ring-1 ring-black/50 backdrop-blur-md",
-  warning: "bg-gradient-to-b from-amber-600 to-amber-800 border border-amber-500/50 text-white shadow-[0_3px_12px_rgba(245,158,11,0.4),inset_0_1px_1px_rgba(255,255,255,0.2)] ring-1 ring-black/50 backdrop-blur-md",
-  danger: "bg-gradient-to-b from-red-600 to-red-800 border border-red-500/50 text-white shadow-[0_3px_12px_rgba(239,68,68,0.4),inset_0_1px_1px_rgba(255,255,255,0.2)] ring-1 ring-black/50 backdrop-blur-md",
-  info: "bg-gradient-to-b from-blue-600 to-blue-800 border border-blue-500/50 text-white shadow-[0_3px_12px_rgba(59,130,246,0.4),inset_0_1px_1px_rgba(255,255,255,0.2)] ring-1 ring-black/50 backdrop-blur-md",
-  solid: "bg-slate-900 border border-slate-700 text-white shadow-[0_3px_12px_rgba(0,0,0,0.5)]"
+  default: "bg-white/5 border border-white/10 text-whiteElite shadow-sm",
+  primary: "bg-primary/20 border border-primary/30 text-primary shadow-cyanGlow",
+  success: "bg-success/20 border border-success/30 text-success shadow-successGlow",
+  warning: "bg-warning/20 border border-warning/30 text-warning",
+  danger: "bg-critical/20 border border-critical/30 text-critical",
+  info: "bg-primary/10 border border-primary/20 text-primary-400",
+  solid: "bg-base border border-white/10 text-whiteElite"
 };
 
 export function Badge({ children, variant = "default", className, ...props }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase tracking-widest",
+        "inline-flex items-center px-2 py-0.5 rounded-md text-meta",
         variants[variant] || variants.default,
         className
       )}

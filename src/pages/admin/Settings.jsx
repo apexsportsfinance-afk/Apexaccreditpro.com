@@ -304,9 +304,9 @@ export default function Settings() {
   return (
     <div id="settings_page" className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Settings</h1>
-        <p className="text-lg text-slate-400 font-extralight">
-          Manage your account, email configuration, and system preferences
+        <h1 className="font-h1 text-whiteElite mb-1 uppercase tracking-tight">System Core</h1>
+        <p className="text-sm text-slate-500 font-medium tracking-wide uppercase opacity-70">
+          Global Configuration & Infrastructure Control
         </p>
       </div>
 
@@ -324,10 +324,10 @@ export default function Settings() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-lg font-medium transition-all mb-1 last:mb-0 ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all mb-1 last:mb-0 uppercase tracking-widest ${
                   activeTab === tab.id
-                    ? `bg-${tab.color}-500/10 text-${tab.color}-400 border border-${tab.color}-500/20`
-                    : "text-slate-400 hover:text-white hover:bg-slate-800/50 border border-transparent"
+                    ? `bg-primary-500/10 text-primary border border-primary-500/20 shadow-[0_0_15px_-5px_rgba(34,211,238,0.2)]`
+                    : "text-slate-500 hover:text-slate-300 hover:bg-white/5 border border-transparent"
                 }`}
               >
                 <tab.icon className={`w-5 h-5 ${activeTab === tab.id ? `text-${tab.color}-400` : "text-slate-500"}`} />
@@ -349,9 +349,9 @@ export default function Settings() {
                 <Mail className="w-5 h-5 text-violet-400" />
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-white">SMTP Email Configuration</h2>
-                <p className="text-lg text-slate-400 font-extralight">
-                  Outgoing email server for accreditation notifications
+                <h2 className="font-h2 text-whiteElite uppercase">SMTP Protocol Hub</h2>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">
+                  Secure Outgoing Transmission Layer
                 </p>
               </div>
             </div>

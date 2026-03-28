@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Download, FileSpreadsheet, FileText, Edit, CheckCircle, Mail, Image as ImageIcon } from "lucide-react";
+import { Download, FileSpreadsheet, FileText, Edit, CheckCircle, Mail, Image as ImageIcon, Trash2 } from "lucide-react";
 import Button from "../ui/Button";
 import Modal from "../ui/Modal";
 import Select from "../ui/Select";
@@ -17,6 +17,7 @@ export default function BulkOperations({
   onClearSelection,
   onBulkEdit,
   onBulkApprove,
+  onBulkDelete,
   eventCategories = [],
   clubs = []
 }) {
@@ -199,6 +200,15 @@ export default function BulkOperations({
               icon={ImageIcon}
             >
               Download Photos
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={onBulkDelete}
+              icon={Trash2}
+              className="hover:bg-red-500/10 border-red-500/30"
+            >
+              Bulk Delete
             </Button>
           </>
         )}

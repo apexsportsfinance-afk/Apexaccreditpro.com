@@ -55,13 +55,35 @@ const formatTimeDiff = (pbStr, recordStr) => {
   };
 };
 
+import { useAuth } from "../../contexts/AuthContext";
+
 export default function VerifyAccreditation() {
   const { id } = useParams();
+  const { user, hasPermission } = useAuth();
   const [data, setData] = useState(null);
   const [eventSettings, setEventSettings] = useState({});
   const [fieldSettings, setFieldSettings] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showPII, setShowPII] = useState(false);
+
+  // APX-103: Defensive Masking Logic
+  const maskEmail = (email) => {
+    if (!email) return "---";
+    const [name, domain] = email.split("@");
+    if (!domain) return email;
+    return `${name[0]}***${name[name.length - 1] || ""}@${domain}`;
+  };
+
+  const maskDOB = (dob) => {
+    if (!dob) return "---";
+    const [year] = dob.split("-");
+    return `**-**-${year}`;
+  };
+
+  const isAuthorizedToSeePII = useMemo(() => {
+    return hasPermission("manage_accreditations") || user?.role === "admin" || user?.role === "super_admin";
+  }, [user, hasPermission]);
   const [athleteMatrix, setAthleteMatrix] = useState([]);
 
   const [messages, setMessages] = useState([]);
@@ -109,25 +131,29 @@ export default function VerifyAccreditation() {
       let accData, accErr;
 
       const fetchAccreditation = async () => {
-        if (isUUID) {
-          const { data: byAcc } = await supabase
-            .from("accreditations")
-            .select("*, events:event_id(id, name, start_date, logo_url)")
-            .eq("accreditation_id", id)
-            .maybeSingle();
-          if (byAcc) return { data: byAcc, error: null };
-          
-          return supabase
-            .from("accreditations")
-            .select("*, events:event_id(id, name, start_date, logo_url)")
-            .eq("id", id)
-            .maybeSingle();
-        }
-        return supabase
+        // Try exact ID match first
+        const { data: byId } = await supabase
           .from("accreditations")
-          .select("*, events:event_id(id, name, start_date, logo_url)")
+          .select("*")
+          .eq("id", id)
+          .maybeSingle();
+        if (byId) return { data: byId, error: null };
+
+        // Try exact accreditation_id match
+        const { data: byAccId } = await supabase
+          .from("accreditations")
+          .select("*")
           .eq("accreditation_id", id)
           .maybeSingle();
+        if (byAccId) return { data: byAccId, error: null };
+
+        // Try suffix match (e.g. if ID is just the end part like '97E7638F')
+        const { data: bySuffix } = await supabase
+          .from("accreditations")
+          .select("*")
+          .ilike("accreditation_id", `%${id}`)
+          .maybeSingle();
+        return { data: bySuffix, error: null };
       };
 
       const { data: fetchedData, error: fetchedError } = await fetchAccreditation();
@@ -153,21 +179,17 @@ export default function VerifyAccreditation() {
 
 
       setData(accData);
-      setEventSettings(eSettings);
+      setEventSettings(eSettings || {});
       setFieldSettings(fieldSets || {});
       setAthleteMatrix(matrix || []);
       setGlobSettings(gSettings || {});
       
-      // Console debug for Official Documents
-      const docKey = `event_${accData?.event_id}_official_docs`;
-      const docsJson = gSettings[docKey];
-      const docCount = docsJson ? JSON.parse(docsJson).length : 0;
-
-      console.log("Accreditation Handshake:", {
-        badgeId: accData?.accreditation_id,
-        eventId: accData?.event_id,
-        officialDocsFound: docCount,
-        availableSettings: Object.keys(gSettings || {}).filter(k => k.includes('official_docs'))
+      // Console diagnostic log
+      console.log("Diagnostic Handshake:", {
+        accreditationId: accData?.accreditation_id,
+        athleteEventId: accData?.event_id,
+        joinedEventId: accData?.events?.id,
+        availableGlobalDocKeys: Object.keys(gSettings || {}).filter(k => k.includes('official_docs'))
       });
     } catch (err) {
       console.error("Error loading accreditation data:", err);
@@ -293,12 +315,12 @@ export default function VerifyAccreditation() {
     return {
       label: 'Valid',
       type: 'success',
-      color: 'text-emerald-400',
-      bgColor: 'bg-emerald-500/10',
-      borderColor: 'border-emerald-500/40',
-      shadowColor: 'shadow-emerald-950/20',
-      iconBg: 'bg-emerald-500/20',
-      icon: <CheckCircle className="w-7 h-7 text-emerald-500" />
+      color: 'text-success',
+      bgColor: 'bg-success/10',
+      borderColor: 'border-success/30',
+      shadowColor: 'shadow-success/20',
+      iconBg: 'bg-success/20',
+      icon: <CheckCircle className="w-7 h-7 text-success" />
     };
   }, [data?.status, expiry.isExpired]);
 
@@ -309,22 +331,31 @@ export default function VerifyAccreditation() {
   const eventPdfUrl = globSettings[`event_${data?.event_id}_heat_sheet_url`];
   const eventResultPdfUrl = globSettings[`event_${data?.event_id}_event_result_url`];
   const officialDocs = useMemo(() => {
-    const eid = data?.event_id || data?.events?.id;
-    if (!eid || !globSettings) return [];
+    // Collect all related IDs to merge documents from all linked repositories
+    const ids = Array.from(new Set([
+      data?.event_id, 
+      data?.events?.id, 
+      data?.event_settings?.id,
+      data?.event_settings?.event_id
+    ].filter(Boolean)));
     
-    // Key format: event_{UUID}_official_docs
-    const key = `event_${eid}_official_docs`;
-    const json = globSettings[key];
-    
-    if (!json) return [];
-    try {
-      const parsed = JSON.parse(json);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-      console.error("Official Docs Parse Error:", e);
-      return [];
-    }
-  }, [globSettings, data?.event_id, data?.events?.id]);
+    let merged = [];
+    ids.forEach(eid => {
+      const key = `event_${eid}_official_docs`;
+      const json = globSettings[key];
+      if (json) {
+        try {
+          const parsed = JSON.parse(json);
+          if (Array.isArray(parsed)) {
+            parsed.forEach(d => {
+              if (!merged.find(x => x.id === d.id)) merged.push(d);
+            });
+          }
+        } catch(e) {}
+      }
+    });
+    return merged;
+  }, [globSettings, data]);
 
   const showForQR = (key) => {
     const loc = fieldSettings[key] || "both";
@@ -353,7 +384,7 @@ export default function VerifyAccreditation() {
 
 
   return (
-    <div id="verify-accreditation-page" className="min-h-screen bg-[#050b18] text-slate-200 font-inter selection:bg-cyan-500/30">
+    <div id="verify-accreditation-page" className="min-h-screen bg-deep text-slate-200 font-inter selection:bg-primary/30">
       {/* Messages Modal */}
       <AnimatePresence>
         {showMessagesModal && (
@@ -374,10 +405,10 @@ export default function VerifyAccreditation() {
             >
               <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/5">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-cyan-500/10 rounded-xl">
-                    <Bell className="w-5 h-5 text-cyan-400" />
+                  <div className="p-2 bg-primary/10 rounded-xl">
+                    <Bell className="w-5 h-5 text-primary" />
                   </div>
-                  <h2 className="text-xl font-black text-white uppercase tracking-tighter">Event Messages</h2>
+                  <h2 className="text-xl font-bold text-white uppercase tracking-tight">Event Messages</h2>
                 </div>
                 <button onClick={() => setShowMessagesModal(false)} className="p-2 hover:bg-white/5 rounded-full transition-colors">
                   <X className="w-6 h-6 text-white/40" />
@@ -449,7 +480,7 @@ export default function VerifyAccreditation() {
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="relative z-10 w-full max-w-4xl mx-auto px-4 py-4 md:py-6 flex flex-col items-center shadow-inner"
+        className="relative z-10 w-full max-w-lg mx-auto px-4 py-2 flex flex-col items-center overflow-hidden"
       >
         {/* Banner Section */}
         {eventSettings["banner_url"] && (
@@ -458,37 +489,32 @@ export default function VerifyAccreditation() {
           </motion.div>
         )}
 
-        {/* Premium Status Indicator - UPDATED: White Background & Reduced Gap */}
+        {/* Hero Status Badge - 1s Recognition Target */}
         <motion.div
           variants={itemVariants}
-          className={`w-full mb-3 flex items-center justify-between px-6 py-4 rounded-3xl border backdrop-blur-md transition-all bg-white border-white/20 shadow-xl shadow-black/5`}
+          className={`w-full mb-2 flex items-center justify-between px-5 py-3 rounded-full border backdrop-blur-sm transition-all shadow-cyanGlow ${isValid ? 'bg-success/10 border-success/30 text-success' : 'bg-critical/10 border-critical/30 text-critical'}`}
         >
-          <div className="flex items-center gap-4 flex-1 min-w-0">
-            <div className={`p-2.5 rounded-xl shadow-inner ${statusConfig.iconBg}`}>
-              {statusConfig.icon}
+          <div className="flex items-center gap-3">
+            <div className={`p-1.5 rounded-full bg-current/20`}>
+              {isValid ? <CheckCircle2 className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
             </div>
-            <div className="flex-1 min-w-0">
-              <h3 className={`font-black text-xl leading-none uppercase tracking-tighter ${statusConfig.color}`}>
-                {statusConfig.label} Accreditation
-              </h3>
-              <p className="text-gray-500 text-xs font-bold mt-1.5 uppercase tracking-wide leading-tight">
-                {data.events?.name}
-              </p>
-            </div>
+            <h1 className="text-h2 font-heading font-black uppercase tracking-widest leading-none">
+              {isValid ? "Valid Accreditation" : "Access Denied"}
+            </h1>
           </div>
 
           <button 
             onClick={markAllAsRead}
-            className="relative p-3 bg-gray-100 hover:bg-gray-200 rounded-2xl border border-gray-200 transition-all group active:scale-95 ml-4"
+            className="relative p-2 bg-white/10 hover:bg-white/20 rounded-full border border-white/10 transition-all group active:scale-95"
           >
-            <Bell className={`w-6 h-6 transition-colors ${unreadTotal > 0 ? "text-cyan-600" : "text-gray-400 group-hover:text-gray-600"}`} />
+            <Bell className={`w-5 h-5 transition-colors ${unreadTotal > 0 ? "text-primary" : "text-white/40"}`} />
             <AnimatePresence>
               {unreadTotal > 0 && (
                 <motion.span
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   exit={{ scale: 0 }}
-                  className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-black flex items-center justify-center rounded-full border-2 border-white"
+                  className="absolute -top-1 -right-1 w-4 h-4 bg-critical text-whiteElite text-[8px] font-black flex items-center justify-center rounded-full border border-base"
                 >
                   {unreadTotal}
                 </motion.span>
@@ -514,186 +540,178 @@ export default function VerifyAccreditation() {
           </motion.div>
         )}
 
-        {/* Competition Record — white badge card, using merged events (PDF + registered) */}
-        {showForQR("events") && (
-          <motion.div variants={itemVariants} className="w-full bg-white/[0.03] border border-white/10 backdrop-blur-xl rounded-2xl p-4 shadow-xl overflow-hidden group mt-2">
-            {/* White Badge Display */}
-            <div className="bg-white rounded-lg shadow-lg p-4 border border-gray-200">
-              <div className="flex flex-col gap-1.5">
-                {/* Top Row: Profile Picture and Name/Details */}
-                <div className="flex items-start gap-4">
-                  {/* Profile Photo */}
-                  <div className="w-20 h-24 border-2 border-gray-300 rounded overflow-hidden flex-shrink-0">
-                    {data.photo_url ? (
-                      <img src={data.photo_url} alt="Profile" loading="lazy" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                        <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
+      <motion.div variants={itemVariants} className="w-full apex-glass border-white/5 p-6 lg:p-8 flex flex-col gap-6 transition-all duration-apex mb-6">
+        <div className="flex items-center gap-6">
+          <div className="relative group">
+            <div className="w-[110px] h-[110px] rounded-full overflow-hidden border-2 border-primary/20 p-1 bg-white/5 transition-transform group-hover:scale-105 duration-apex">
+              <img 
+                src={data.photo_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&h=120&fit=crop"} 
+                alt="Profile"
+                className="w-full h-full object-cover rounded-full"
+              />
+            </div>
+          </div>
 
-                  {/* Name and Basic Info */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-blue-900 text-lg uppercase leading-tight">
-                      {data.first_name} {data.last_name}
-                    </h3>
-                    <p className="text-gray-700 text-sm mt-1">{data.club || ""}</p>
-                    <div className="flex items-center gap-2 mt-2 text-xs text-gray-600">
-                      <span className="font-medium">{data.role || "Participant"}</span>
-                      <span className="text-gray-400">|</span>
-                      <span className="font-medium">{data.gender || "Gender"}</span>
-                      {data.date_of_birth && (
-                        <>
-                          <span className="text-gray-400">|</span>
-                          <span className="font-bold text-black">Age: {calculateAge(data.date_of_birth, new Date().getFullYear())}</span>
-                        </>
+          <div className="flex-1 text-left min-w-0">
+            <h2 className="font-h1 text-whiteElite leading-none uppercase truncate">
+              {data.full_name}
+            </h2>
+            <div className="flex items-center gap-2 mt-3">
+              <span className="font-h2 text-primary uppercase tracking-widest leading-none">
+                {data.role || "Participant"}
+              </span>
+              <div className="w-1 h-1 rounded-full bg-white/20" />
+              <span className="text-meta font-mono text-slate-500 uppercase tracking-widest">REF: {data.accreditation_id?.split("-").pop()}</span>
+            </div>
+          </div>
+          
+          {/* APX-103: PII Reveal Toggle (Staff Only) */}
+          {isAuthorizedToSeePII && (
+            <button
+              onClick={() => setShowPII(!showPII)}
+              className="p-3 bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl transition-all group"
+              title={showPII ? "Hide PII" : "Deep Verification"}
+            >
+              <ShieldCheck className={`w-5 h-5 ${showPII ? "text-primary" : "text-slate-500 group-hover:text-slate-400"}`} />
+            </button>
+          )}
+        </div>
+
+        {/* Dense Metadata Grid */}
+        <div className="grid grid-cols-2 gap-x-8 gap-y-6 pt-6 border-t border-white/5">
+          <div className="space-y-1">
+            <p className="text-[10px] text-slate-500 uppercase font-bold tracking-[0.2em]">Badge Number</p>
+            <p className="text-sm font-mono text-whiteElite font-bold tracking-tight">{data.badge_number || data.badge_id || "---"}</p>
+          </div>
+          <div className="space-y-1 text-right">
+            <p className="text-[10px] text-slate-500 uppercase font-bold tracking-[0.2em]">Nationality</p>
+            <div className="flex items-center justify-end gap-2">
+              {getCountryFlag(data.nationality) && (
+                <img src={getCountryFlag(data.nationality)} alt="flag" className="w-5 h-3.5 object-cover rounded-sm shadow-lg" />
+              )}
+              <p className="text-sm font-heading text-whiteElite uppercase font-bold tracking-tight">{data.nationality || "---"}</p>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <p className="text-[10px] text-slate-500 uppercase font-bold tracking-[0.2em]">Email Address</p>
+            <p className="text-sm font-mono text-whiteElite truncate font-bold tracking-tight">
+              {showPII ? data.email : maskEmail(data.email)}
+            </p>
+          </div>
+          <div className="space-y-1 text-right">
+            <p className="text-[10px] text-slate-500 uppercase font-bold tracking-[0.2em]">Date of Birth</p>
+            <p className="text-sm font-mono text-whiteElite font-bold tracking-tight">
+              {showPII ? data.date_of_birth : maskDOB(data.date_of_birth)}
+            </p>
+          </div>
+          {data.zone_code && (
+            <div className="col-span-2 space-y-2 mt-2">
+              <p className="text-[10px] text-slate-500 uppercase font-bold tracking-[0.2em]">Access Privileges</p>
+              <div className="flex flex-wrap gap-2">
+                {data.zone_code.split(",").map((code, i) => (
+                  <span key={i} className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 text-[11px] font-black text-whiteElite uppercase tracking-tighter shadow-inner">
+                    {code.trim()}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Competition Details */}
+      {mergedEvents.length > 0 && (
+        <motion.div variants={itemVariants} className="w-full mt-2">
+          <div className="apex-glass border-white/5 p-6 shadow-2xl">
+            <div className="flex items-center gap-2 mb-6 border-b border-white/5 pb-4">
+              <Calendar className="w-4 h-4 text-primary" />
+              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Competition Schedule</h4>
+            </div>
+            
+            <div className="space-y-4">
+              {mergedEvents.map((ev, i) => {
+                let displayName = ev.event_name || ev._ev?.eventName || "";
+                let eventRecords = null;
+                
+                if (displayName.includes("|||RECORD_DATA|||")) {
+                  const parts = displayName.split("|||RECORD_DATA|||");
+                  displayName = parts[0].trim();
+                  try {
+                    eventRecords = JSON.parse(parts[1].trim());
+                  } catch(e) {}
+                }
+
+                let ageRecord = null;
+                if (eventRecords && eventRecords.length > 0) {
+                   if (data.date_of_birth) {
+                       const athleteAge = calculateAge(data.date_of_birth, new Date().getFullYear());
+                       ageRecord = eventRecords.find(r => {
+                          if (r.age.includes("&")) {
+                             const baseAge = parseInt(r.age, 10);
+                             return athleteAge >= baseAge;
+                          }
+                          return parseInt(r.age, 10) === athleteAge;
+                       });
+                   }
+                   if (!ageRecord) ageRecord = eventRecords[0]; 
+                }
+
+                return (
+                  <div key={i} className="flex flex-col gap-3 group border-b border-white/5 pb-5 last:border-0 last:pb-0">
+                    <div className="flex items-center gap-4">
+                      <span className="font-mono text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-1 rounded w-10 text-center flex-shrink-0">
+                        {ev.event_code || ev._ev?.eventCode}
+                      </span>
+                      <span className="text-whiteElite font-medium text-sm flex-1 truncate">
+                        {displayName}
+                      </span>
+                      {ev.heat && ev.lane && (
+                        <span className="bg-white/5 border border-white/10 text-slate-400 px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap uppercase tracking-widest">
+                          H:{ev.heat} • L:{ev.lane}
+                        </span>
                       )}
                     </div>
-                  </div>
-                </div>
 
-                {/* ID, Badge, Flag, Zone Codes */}
-                <div className="flex items-start justify-between mt-0.5">
-                  <div className="text-left">
-                    <p className="text-xs text-gray-600">
-                      <span className="font-bold">ID:</span> {data.accreditation_id?.split("-")?.pop() || "---"}
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      <span className="font-bold">BADGE:</span> {data.badge_number || "---"}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    {data.nationality && (
-                      <div className="flex items-center gap-1.5">
-                        {getCountryFlag(data.nationality) && (
-                          <img src={getCountryFlag(data.nationality)} alt="flag" loading="lazy" className="w-10 h-6 rounded-sm object-cover shadow-sm" />
-                        )}
-                        <span className="text-sm text-slate-900 font-bold">{data.nationality}</span>
+                    {(ageRecord || ev.seed_time) && (
+                      <div className="flex items-center justify-between w-full pl-14">
+                         <div className="flex items-center">
+                             {ageRecord && (
+                                <span className="text-primary-400 font-bold text-[9px] uppercase tracking-wider flex items-center gap-1.5 opacity-80">
+                                  <ShieldCheck className="w-3 h-3" />
+                                  {ageRecord.age} {ageRecord.acronym}: {ageRecord.time}
+                                </span>
+                             )}
+                         </div>
+                         <div className="flex items-center">
+                             {ev.seed_time && (() => {
+                                let diffItem = null;
+                                if (ageRecord && ageRecord.time && ev.seed_time !== "NT" && ev.seed_time !== "NP") {
+                                    const diffData = formatTimeDiff(ev.seed_time, ageRecord.time);
+                                    if (diffData) {
+                                        diffItem = (
+                                            <span className={`ml-2 px-1.5 py-0.5 rounded text-[9px] font-black ${diffData.isFaster ? 'text-success bg-success/10' : 'text-critical bg-critical/10'}`}>
+                                              {diffData.text}
+                                            </span>
+                                        );
+                                    }
+                                }
+                                return (
+                                  <span className="text-slate-500 font-bold text-[9px] uppercase tracking-wider flex items-center border border-white/5 bg-white/5 px-2 py-1 rounded-md">
+                                    PB: {ev.seed_time}
+                                    {diffItem}
+                                  </span>
+                                );
+                             })()}
+                         </div>
                       </div>
                     )}
-                    {data.zone_code && (() => {
-                      const codes = data.zone_code.split(",").map(z => z.trim()).filter(Boolean);
-                      return codes.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5 justify-end mt-3.5">
-                          {codes.map((code, i) => (
-                            <span key={i} className="px-3 py-1 rounded-lg text-[10px] font-black text-slate-700 bg-slate-100 border border-slate-200 shadow-sm uppercase">
-                              {code}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null;
-                    })()}
                   </div>
-                </div>
-              </div>
-
-              {/* Competition Events — all events from PDF + registration */}
-              {mergedEvents.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="space-y-3">
-                    {mergedEvents.map((ev, i) => {
-                      let displayName = ev.event_name || ev._ev?.eventName || "";
-                      let eventRecords = null;
-                      
-                      // Unpack the JSON String-Packing payload safely
-                      if (displayName.includes("|||RECORD_DATA|||")) {
-                        const parts = displayName.split("|||RECORD_DATA|||");
-                        displayName = parts[0].trim();
-                        try {
-                          eventRecords = JSON.parse(parts[1].trim());
-                        } catch(e) {
-                          console.error("Failed to parse packed event records", e);
-                        }
-                      }
-
-                      // Mathematically sync the Overall Record Time relative to the athlete's exact database age
-                      let ageRecord = null;
-                      if (eventRecords && eventRecords.length > 0) {
-                         if (data.date_of_birth) {
-                             const athleteAge = calculateAge(data.date_of_birth, new Date().getFullYear());
-                             ageRecord = eventRecords.find(r => {
-                                if (r.age.includes("&")) {
-                                   const baseAge = parseInt(r.age, 10);
-                                   return athleteAge >= baseAge;
-                                }
-                                return parseInt(r.age, 10) === athleteAge;
-                             });
-                         }
-                         // FOOLPROOF FALLBACK: If Date of Birth is missing OR Age didn't exactly align, render the top record
-                         if (!ageRecord) {
-                             ageRecord = eventRecords[0]; 
-                         }
-                      }
-
-                      return (
-                        <div key={i} className="flex flex-col gap-1.5 border-b border-gray-100 pb-3 last:border-0 relative">
-                          <div className="flex items-center gap-3">
-                            <span className="font-bold text-black bg-blue-50 px-2 py-1 rounded text-xs w-8 text-center flex-shrink-0">
-                              {ev.event_code || ev._ev?.eventCode}
-                            </span>
-                            <span className="text-gray-700 text-xs flex-1">
-                              {displayName}
-                            </span>
-                            {ev.heat && ev.lane && (
-                              <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
-                                HEAT {ev.heat} • LANE {ev.lane}
-                              </span>
-                            )}
-                            {ev.rank && (
-                              <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
-                                RANK {ev.rank}{ev.result_time ? ` • ${ev.result_time}` : ''}
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Record Details & Entry Time Secondary Row - STRICT ALIGNMENT */}
-                          {(ageRecord || ev.seed_time) && (
-                            <div className="flex items-center justify-between w-full pl-11 mt-0.5">
-                               <div className="flex items-center justify-start">
-                                   {ageRecord && (
-                                      <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 shadow-sm uppercase">
-                                        <svg className="w-3 h-3 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
-                                        {ageRecord.age} {ageRecord.acronym} Record : {ageRecord.time}
-                                      </span>
-                                   )}
-                               </div>
-                               <div className="flex items-center justify-end">
-                                   {ev.seed_time && (() => {
-                                      let diffItem = null;
-                                      if (ageRecord && ageRecord.time && ev.seed_time !== "NT" && ev.seed_time !== "NP") {
-                                          const diffData = formatTimeDiff(ev.seed_time, ageRecord.time);
-                                          if (diffData) {
-                                              diffItem = (
-                                                  <span className={`ml-1.5 px-1.5 py-0.5 rounded text-[9.5px] font-black tracking-wide ${diffData.isFaster ? 'bg-emerald-100 text-emerald-800 border-none' : 'bg-rose-100 text-rose-700 border-none'}`}>
-                                                    {diffData.text}
-                                                  </span>
-                                              );
-                                          }
-                                      }
-                                      return (
-                                        <div className="flex items-center">
-                                          <span className="bg-gray-100 text-gray-600 border border-gray-200 pl-2 pr-1.5 py-0.5 rounded text-[10px] font-bold shadow-sm uppercase flex items-center">
-                                            PB: {ev.seed_time}
-                                            {diffItem}
-                                          </span>
-                                        </div>
-                                      );
-                                   })()}
-                               </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+                );
+              })}
             </div>
-          </motion.div>
-        )}
+          </div>
+        </motion.div>
+      )}
 
 
         <div className="w-full grid grid-cols-1 gap-4 mt-4">
@@ -802,7 +820,7 @@ export default function VerifyAccreditation() {
              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {officialDocs.map((doc, idx) => {
                    const isSpreadsheet = doc.type === 'csv' || doc.type === 'xlsx' || doc.type === 'xls';
-                   const colorClass = isSpreadsheet ? "from-emerald-600 to-emerald-700" : "from-slate-700 to-slate-800";
+                   const colorClass = isSpreadsheet ? "from-emerald-600 to-emerald-700" : "from-slate-800 to-slate-900";
                    
                    return (
                      <a
@@ -814,7 +832,7 @@ export default function VerifyAccreditation() {
                      >
                        <div className="flex flex-col text-left">
                          <span className="text-[8px] text-white/40 uppercase tracking-widest mb-0.5 font-black">
-                           {doc.type?.toUpperCase()} Document
+                           {doc.type?.toUpperCase()} DOCUMENT
                          </span>
                          <span className="text-[10px] tracking-tight truncate max-w-[120px] md:max-w-[180px]">{doc.name}</span>
                        </div>
@@ -893,31 +911,31 @@ function ExpandableMessageGroup({ title, messages, icon, isPersonal, onRead }) {
   return (
     <motion.div
         variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0 } }}
-        className={`w-full bg-white/[0.03] border backdrop-blur-xl rounded-2xl overflow-hidden shadow-xl transition-all ${
-            isPersonal ? 'border-indigo-500/20' : 'border-blue-500/20'
+        className={`w-full bg-white/[0.03] border backdrop-blur-xl rounded-2xl overflow-hidden shadow-2xl transition-all ${
+            isPersonal ? 'border-indigo-500/20 shadow-indigo-500/5' : 'border-primary-500/20 shadow-primary-500/5'
         }`}
     >
       <button 
         onClick={handleExpand}
-        className="w-full flex items-center justify-between p-4 hover:bg-white/[0.02] transition-colors"
+        className="w-full flex items-center justify-between p-5 hover:bg-white/[0.05] transition-all"
       >
-        <div className="flex items-center gap-4 text-left">
-          <div className={`relative p-3 rounded-xl ${isPersonal ? 'bg-indigo-500/10 text-indigo-400' : 'bg-blue-500/10 text-blue-400'}`}>
+        <div className="flex items-center gap-5 text-left">
+          <div className={`relative p-3.5 rounded-2xl ${isPersonal ? 'bg-indigo-500/10 text-indigo-400' : 'bg-primary-500/10 text-primary'}`}>
             {icon}
             {!expanded && hasUnread && (
-               <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 border-[2.5px] border-[#0a1120] rounded-full"></span>
+               <span className="absolute -top-1 -right-1 w-4 h-4 bg-critical border-[3px] border-deep rounded-full shadow-lg"></span>
             )}
           </div>
           <div>
-            <h3 className={`text-[11px] font-black uppercase tracking-[0.2em] ${isPersonal ? 'text-indigo-300' : 'text-blue-300'}`}>
+            <h3 className={`font-h2 text-sm uppercase tracking-widest ${isPersonal ? 'text-indigo-300' : 'text-primary'}`}>
               {title}
             </h3>
-            <p className="text-[10px] text-white/40 font-bold uppercase tracking-wider mt-0.5">
-               Latest Update
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">
+               System Authentication Required
             </p>
           </div>
         </div>
-        <div className={`p-2 rounded-full ${expanded ? 'bg-white/10 text-white/80' : 'text-white/30'} transition-all`}>
+        <div className={`p-2.5 rounded-full ${expanded ? 'bg-white/10 text-whiteElite' : 'text-slate-500'} transition-all`}>
            {expanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
         </div>
       </button>
@@ -930,16 +948,15 @@ function ExpandableMessageGroup({ title, messages, icon, isPersonal, onRead }) {
             exit={{ height: 0, opacity: 0 }}
             className="border-t border-white/5"
           >
-            <div className="p-4 bg-black/10 space-y-3">
-               {/* Show only the latest message */}
+            <div className="p-4 space-y-3">
                 {messages.length > 0 && (() => {
                   const latest = messages[0];
                   return (
-                    <div key={latest.id || 'latest'} className="p-6 rounded-xl border border-white/10 bg-slate-900/40 shadow-inner">
-                      <div className="flex justify-between items-center mb-4 border-b border-white/5 pb-3">
+                    <div key={latest.id || 'latest'} className="p-6 rounded-2xl border border-white/5 bg-white/5 shadow-inner backdrop-blur-md">
+                      <div className="flex justify-between items-center mb-5 border-b border-white/5 pb-4">
                         <div className="flex flex-col">
-                          <span className="text-[9px] text-white/30 font-black uppercase tracking-[0.2em] mb-1">Update Timestamp</span>
-                          <span className="text-[10px] text-white/60 font-black uppercase tracking-widest">
+                          <span className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em] mb-1">Time Crystal Overlay</span>
+                          <span className="text-[10px] text-whiteElite font-black uppercase tracking-widest opacity-70">
                             {latest.createdAt ? new Date(latest.createdAt).toLocaleString("en-US", { 
                               year: 'numeric', 
                               month: 'short', 
@@ -947,13 +964,13 @@ function ExpandableMessageGroup({ title, messages, icon, isPersonal, onRead }) {
                               hour: '2-digit',
                               minute: '2-digit',
                               hour12: true 
-                            }) : 'No Date'}
+                            }) : 'Syncing...'}
                           </span>
                         </div>
-                        {latest.id && <CheckCircle className="w-3.5 h-3.5 text-emerald-500/40" />}
+                        {latest.id && <ShieldCheck className="w-4 h-4 text-primary/40" />}
                       </div>
-                      <p className="text-sm md:text-base text-white/90 leading-relaxed font-medium whitespace-pre-wrap selection:bg-cyan-500/30">
-                        {latest.message || 'No message content'}
+                      <p className="text-sm md:text-base text-whiteElite/90 leading-relaxed font-medium whitespace-pre-wrap selection:bg-primary/30">
+                        {latest.message || 'No encrypted transmission payload found.'}
                       </p>
                     </div>
                   );
@@ -1010,13 +1027,13 @@ function ScanSkeleton() {
 
 function ScanError({ error }) {
   return (
-    <div id="verify-error" className="min-h-screen bg-[#050b18] flex items-center justify-center p-6 text-center">
+    <div id="verify-error" className="min-h-screen bg-deep flex items-center justify-center p-6 text-center">
       <div className="max-w-md">
-        <div className="inline-flex p-5 bg-red-500/10 border border-red-500/20 rounded-[2rem] mb-8">
-            <AlertTriangle className="w-12 h-12 text-red-500" />
+        <div className="inline-flex p-5 bg-critical/10 border border-critical/20 rounded-[2rem] mb-8">
+            <AlertTriangle className="w-12 h-12 text-critical" />
         </div>
-        <h2 className="text-3xl font-black text-white uppercase tracking-tight mb-4">Verification Failed</h2>
-        <p className="text-white/40 font-medium mb-12">{error || "The scanned accreditation code is invalid or has been revoked."}</p>
+        <h2 className="font-h1 text-white uppercase tracking-tight mb-4">Verification Failed</h2>
+        <p className="text-slate-500 font-medium mb-12">{error || "The scanned accreditation code is invalid or has been revoked."}</p>
         <button onClick={() => window.location.reload()} className="px-8 py-4 bg-white/5 border border-white/10 rounded-2xl text-white font-black uppercase tracking-widest text-xs hover:bg-white/10 transition-all">
             Retry Scan
         </button>

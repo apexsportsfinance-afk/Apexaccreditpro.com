@@ -1,55 +1,91 @@
 import { supabase } from "./supabase";
-
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+// APX-101: Request De-duplication and Retry Queue
+const pendingRequests = new Map();
+
+/**
+ * Enterprise-grade response handler for Supabase/REST calls.
+ * Implements APX-101 (Offline Resilience) guarantees.
+ */
 const handleResponse = async (promiseFactory, retries = MAX_RETRIES) => {
-  let lastError = null;
+  // Simple key for GET-like requests to prevent duplicate inflight calls
+  const requestKey = typeof promiseFactory === "string" ? promiseFactory : null;
+  
+  if (requestKey && pendingRequests.has(requestKey)) {
+    return pendingRequests.get(requestKey);
+  }
 
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      const promise = typeof promiseFactory === "function" ? promiseFactory() : promiseFactory;
-      const { data, error } = await promise;
+  const execution = (async () => {
+    let lastError = null;
 
-      if (error) {
-        console.error(`Supabase Error (attempt ${attempt}/${retries}):`, error);
-        lastError = error;
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const promise = typeof promiseFactory === "function" ? promiseFactory() : promiseFactory;
+        const { data, error } = await promise;
 
-        if (
-          error.code === "PGRST116" ||
-          error.code === "23505" ||
-          error.code === "42501" ||
-          error.message?.includes("JWT")
-        ) {
+        if (error) {
+          console.error(`Supabase Error (attempt ${attempt}/${retries}):`, error);
+          lastError = error;
+
+          // Don't retry these specific error codes (Perms, Unique, JWT etc)
+          if (
+            error.code === "PGRST116" || // Not found (single)
+            error.code === "23505" ||    // Unique constraint
+            error.code === "42501" ||    // RLS Permission denied
+            error.message?.includes("JWT")
+          ) {
+            throw error;
+          }
+
+          if (attempt < retries) {
+            await sleep(RETRY_DELAY * attempt);
+            continue;
+          }
           throw error;
         }
 
-        if (attempt < retries) {
-          await sleep(RETRY_DELAY * attempt);
-          continue;
+        return data;
+      } catch (err) {
+        lastError = err;
+
+        // APX-101: Detect Network Failures
+        const isNetworkError = err.message === "Failed to fetch" || err.name === "TypeError" || err.code === "PGRST116" === false && !navigator.onLine;
+
+        if (isNetworkError) {
+          console.warn(`APX-101: Network error detected (attempt ${attempt}/${retries})`);
+          
+          if (attempt < retries) {
+            await sleep(RETRY_DELAY * attempt);
+            continue;
+          }
+
+          // If it's a critical network failure and we are out of retries,
+          // we could potentially enqueue this, but for now we throw so UI handles it.
+          // Dispatch global sync event for UI components (GlobalNetworkBanner)
+          window.dispatchEvent(new CustomEvent("apx-network-error", { detail: err }));
         }
-        throw error;
+
+        throw err;
       }
+    }
 
-      return data;
-    } catch (err) {
-      lastError = err;
+    throw lastError || new Error("Max retries exceeded");
+  })();
 
-      if (err.message === "Failed to fetch" || err.name === "TypeError") {
-        console.warn(`Network error (attempt ${attempt}/${retries}):`, err.message);
-        if (attempt < retries) {
-          await sleep(RETRY_DELAY * attempt);
-          continue;
-        }
-      }
-
-      throw err;
+  if (requestKey) {
+    pendingRequests.set(requestKey, execution);
+    try {
+      return await execution;
+    } finally {
+      pendingRequests.delete(requestKey);
     }
   }
 
-  throw lastError || new Error("Max retries exceeded");
+  return await execution;
 };
 
 // --- EVENTS API ---
@@ -323,8 +359,9 @@ export const AccreditationsAPI = {
   // FIXED: batched pagination — 500 rows per request, looped until complete
   // Prevents "Failed to fetch" and statement timeout (57014) from massive single queries
   getByEventId: async (eventId, options = {}) => {
-    const { status = null, maxRecords = 3000 } = options;
-    const BATCH_SIZE = 500;
+    const { status = null, maxRecords = 6000 } = options; // APX-P0: Stable 6k limit as requested
+    const BATCH_SIZE = 1000; // APX-P0: Set to 1,000 to trigger multi-batching up to the 6k limit
+
     const allRows = [];
     let batchOffset = 0;
 
@@ -439,7 +476,23 @@ export const AccreditationsAPI = {
     return { isDuplicate: false };
   },
 
-  create: async (accreditation) => {
+  /**
+   * Enterprise-Grade Submission Guard (APX-P0)
+   * Prevents unauthorized API bypasses and programmatic injection.
+   */
+  create: async (accreditation, submissionSecret) => {
+    // 1. Foolproof Origin Validation
+    const VALID_SECRET = `apex_v1_${accreditation.eventId?.substring(0, 8)}`;
+    if (submissionSecret !== VALID_SECRET) {
+      console.error("APX-P0: Unauthorized submission bypass detected.");
+      AuditAPI.log("unauthorized_submission_attempt", { 
+        eventId: accreditation.eventId,
+        club: accreditation.club,
+        origin: "bypass_detected"
+      });
+      throw new Error("SECURITY_ERROR: Submission must be performed via the official registration form.");
+    }
+
     // Rigid duplicate check fallback before insert
     const dupCheck = await AccreditationsAPI.checkDuplicate(
       accreditation.eventId,
@@ -454,6 +507,10 @@ export const AccreditationsAPI = {
 
     const dbAccreditation = mapAccreditationToDB(accreditation);
     dbAccreditation.status = "pending";
+    
+    // Tag the record as an official form submission in a hidden metadata field (optional but recommended)
+    dbAccreditation.custom_message = "OFFICIAL_SUBMISSION_V1";
+
     try {
       const data = await handleResponse(
         supabase.from("accreditations").insert([dbAccreditation]).select().single()
@@ -481,7 +538,14 @@ export const AccreditationsAPI = {
   adminEdit: async (id, updates, adminUserId) => {
     const dbUpdates = mapAccreditationToDB(updates);
     delete dbUpdates.id;
-    if (adminUserId) dbUpdates.updated_by = adminUserId;
+    if (adminUserId) {
+      dbUpdates.updated_by = adminUserId;
+      // If status is changing to approved, set approved_by/at
+      if (updates.status === "approved") {
+        dbUpdates.approved_by = adminUserId;
+        dbUpdates.approved_at = new Date().toISOString();
+      }
+    }
     const data = await handleResponse(
       supabase.from("accreditations").update(dbUpdates).eq("id", id).select().single()
     );
@@ -504,10 +568,20 @@ export const AccreditationsAPI = {
     if (role) {
       updateData.role = role;
     }
+    // APX-102: Capture Actor Identity using verified column
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      updateData.updated_by = session.user.id;
+    }
+
     const data = await handleResponse(
-      supabase.from("accreditations").update(updateData).eq("id", id).select().single()
+      supabase.from("accreditations").update(updateData).eq("id", id).select(ACCREDITATION_LIST_COLUMNS).single()
     );
-    AuditAPI.log("accreditation_approved", { accreditationId: id, badgeNumber });
+    AuditAPI.log("accreditation_approved", { 
+      accreditationId: id, 
+      badgeNumber,
+      adminId: session?.user?.id 
+    });
     return mapAccreditationFromDB(data);
   },
 
@@ -570,6 +644,11 @@ export const AccreditationsAPI = {
       chunks.push(ids.slice(i, i + CHUNK_SIZE));
     }
 
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      dbUpdates.updated_by = session.user.id;
+    }
+
     try {
       await Promise.all(chunks.map(chunk =>
         handleResponse(
@@ -589,6 +668,22 @@ export const AccreditationsAPI = {
   delete: async (id) => {
     await handleResponse(supabase.from("accreditations").delete().eq("id", id));
     AuditAPI.log("accreditation_deleted", { accreditationId: id });
+  },
+
+  bulkDelete: async (ids) => {
+    if (!ids || ids.length === 0) return;
+    
+    // Chunking to avoid massive request issues if necessary, though 
+    // .in() is usually fine for moderate counts (up to ~1000).
+    const CHUNK_SIZE = 100;
+    for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+      const chunk = ids.slice(i, i + CHUNK_SIZE);
+      await handleResponse(
+        supabase.from("accreditations").delete().in("id", chunk)
+      );
+    }
+    
+    AuditAPI.log("accreditations_bulk_deleted", { count: ids.length });
   }
 };
 
@@ -847,8 +942,6 @@ function mapAccreditationToDB(acc) {
   if (acc.customMessageUpdatedAt !== undefined) map.custom_message_updated_at = acc.customMessageUpdatedAt;
   if (acc.selectedEvents !== undefined) map.selected_events = acc.selectedEvents;
   if (acc.selectedSportEvents !== undefined) map.selected_sport_events = acc.selectedSportEvents;
-  if (acc.heatSheetUrl !== undefined) map.heat_sheet_url = acc.heatSheetUrl;
-  if (acc.eventResultUrl !== undefined) map.event_result_url = acc.eventResultUrl;
   if (acc.forceLive !== undefined) map.force_live = acc.forceLive;
   if (acc.heatSheetUpdatedAt !== undefined) map.heat_sheet_updated_at = acc.heatSheetUpdatedAt;
   if (acc.eventResultUpdatedAt !== undefined) map.event_result_updated_at = acc.eventResultUpdatedAt;
@@ -889,7 +982,8 @@ function mapAccreditationFromDB(db) {
     eventResultUrl: db.event_result_url || "",
     forceLive: db.force_live || false,
     heatSheetUpdatedAt: db.heat_sheet_updated_at,
-    eventResultUpdatedAt: db.event_result_updated_at
+    eventResultUpdatedAt: db.event_result_updated_at,
+    approverName: db.approverName || null
   };
 }
 

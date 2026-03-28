@@ -209,5 +209,49 @@ export const AttendanceAPI = {
       console.error("[AttendanceAPI] unmark error:", err);
       return { status: "error", message: err.message || "Failed to unmark." };
     }
+  },
+
+  /**
+   * Logs a scan event to the unified_scan_logs table for auditing
+   */
+  logScanEvent: async ({ eventId, athleteId, spectatorId, scanMode, deviceLabel }) => {
+    try {
+      const { error } = await supabase
+        .from("unified_scan_logs")
+        .insert([{
+          event_id: eventId,
+          athlete_id: athleteId || null,
+          spectator_id: spectatorId || null,
+          scan_mode: scanMode,
+          device_label: deviceLabel || "Unknown"
+        }]);
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      console.error("[AttendanceAPI] logScanEvent error:", err);
+      return false;
+    }
+  },
+
+  /**
+   * Retrieves scan logs for the administrative audit ledger
+   */
+  getScanLogs: async (limit = 100) => {
+    try {
+      const { data, error } = await supabase
+        .from("unified_scan_logs")
+        .select(`
+          *,
+          accreditations:athlete_id (first_name, last_name, club),
+          spectator_orders:spectator_id (customer_name)
+        `)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.error("[AttendanceAPI] getScanLogs error:", err);
+      return [];
+    }
   }
 };

@@ -182,8 +182,8 @@ export default function Users() {
             </span>
           </div>
           <div>
-            <p className="font-medium text-white">{row.name}</p>
-            <p className="text-lg text-slate-500">{row.email}</p>
+            <p className="font-semibold text-whiteElite tracking-wide">{row.name}</p>
+            <p className="text-[11px] font-mono text-slate-500 uppercase tracking-widest">{row.email}</p>
           </div>
         </div>
       )
@@ -204,7 +204,7 @@ export default function Users() {
       header: "Created",
       sortable: true,
       render: (row) => (
-        <span className="text-lg text-slate-400">
+        <span className="text-xs font-mono text-slate-500 uppercase tracking-widest">
           {formatDate(row.createdAt)}
         </span>
       )
@@ -255,9 +255,9 @@ export default function Users() {
     <div id="users_page" className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Users</h1>
-          <p className="text-lg text-slate-400 font-extralight">
-            Manage system users and permissions
+          <h1 className="font-h1 text-whiteElite mb-1 uppercase tracking-tight">Access Control</h1>
+          <p className="text-sm text-slate-500 font-medium tracking-wide uppercase opacity-70">
+            Biometric and Role-Based Identity Management
           </p>
         </div>
         <Button icon={Plus} onClick={() => handleOpenModal()}>

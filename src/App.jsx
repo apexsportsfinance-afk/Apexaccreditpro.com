@@ -36,9 +36,12 @@ const PageLoader = () => (
   </div>
 );
 
+import GlobalNetworkBanner from "./components/ui/GlobalNetworkBanner";
+
 export default function App() {
   return (
     <Router>
+      <GlobalNetworkBanner />
       <ScrollToTop />
       <ToastProvider>
         <AuthProvider>

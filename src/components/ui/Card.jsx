@@ -5,7 +5,7 @@ export function Card({ children, className, ...props }) {
   return (
     <div
       className={cn(
-        "glass-card rounded-2xl transition-all duration-300",
+        "apex-glass transition-all duration-300",
         className
       )}
       {...props}
@@ -19,7 +19,7 @@ export function CardHeader({ children, className, ...props }) {
   return (
     <div
       className={cn(
-        "px-6 py-4 border-b border-primary-500/20",
+        "px-6 py-4 border-b border-white/5",
         className
       )}
       {...props}

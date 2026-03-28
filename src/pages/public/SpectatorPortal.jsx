@@ -81,7 +81,7 @@ export default function SpectatorPortal() {
   const verifyAndCompleteOrder = async (sessionId) => {
     try {
       setIsSubmitting(true);
-      const res = await fetch('http://localhost:3001/api/verify-session', {
+      const res = await fetch('/api/verify-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId })
@@ -247,7 +247,7 @@ export default function SpectatorPortal() {
         }
       });
 
-      const res = await fetch('http://localhost:3001/api/create-checkout-session', {
+      const res = await fetch('/api/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

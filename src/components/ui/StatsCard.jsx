@@ -17,20 +17,20 @@ export function StatsCard({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "glass-card rounded-2xl p-6 relative overflow-hidden group",
+        "apex-glass p-6 relative overflow-hidden group hover:border-primary/30 transition-all duration-500",
         className
       )}
     >
-      <div className="flex items-start justify-between relative z-10 w-full">
+      <div className="flex items-start justify-between relative z-10 w-full font-body">
         <div>
-          <p className="text-lg text-slate-400 font-extralight mb-1">{title}</p>
-          <p className="text-4xl font-bold text-white tracking-tight leading-none mb-3">{value}</p>
+          <p className="font-h2 text-slate-500 mb-2">{title}</p>
+          <p className="font-h1 text-whiteElite leading-none mb-4">{value}</p>
           {change && (
             <p className={cn(
-              "text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg inline-block shadow-sm",
-              changeType === "positive" && "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
-              changeType === "negative" && "bg-red-500/10 text-red-400 border border-red-500/20",
-              changeType === "neutral" && "bg-slate-500/10 text-slate-500 border border-slate-500/20"
+              "text-meta px-2.5 py-1 rounded-lg inline-block shadow-sm",
+              changeType === "positive" && "bg-success/10 text-success border border-success/20",
+              changeType === "negative" && "bg-critical/10 text-critical border border-critical/20",
+              changeType === "neutral" && "bg-white/5 text-slate-500 border border-white/10"
             )}>
               {change}
             </p>
@@ -38,54 +38,30 @@ export function StatsCard({
         </div>
         {Icon && (
           <div className={cn(
-            "p-3 rounded-2xl bg-gradient-to-br from-primary-500/10 to-transparent border border-primary-500/20 shadow-lg relative overflow-hidden group-hover:scale-110 transition-transform duration-500",
-            iconColor.includes("blue") && "shadow-blue-500/10",
-            iconColor.includes("purple") && "shadow-purple-500/10",
-            iconColor.includes("amber") && "shadow-amber-500/10",
-            iconColor.includes("emerald") && "shadow-emerald-500/10",
-            iconColor.includes("red") && "shadow-red-500/10",
+            "p-3 rounded-xl bg-white/5 border border-white/10 shadow-lg relative overflow-hidden group-hover:scale-110 transition-transform duration-500",
+            iconColor.includes("primary") || iconColor.includes("blue") ? "shadow-primary/10" : "shadow-white/5"
           )}>
             <Icon className={cn("w-6 h-6", iconColor)} />
           </div>
         )}
       </div>
-      <div className="mt-8 flex items-end gap-2.5 h-14 opacity-90 group-hover:opacity-100 transition-all duration-700 px-1">
+      <div className="mt-8 flex items-end gap-1.5 h-12 opacity-80 group-hover:opacity-100 transition-all duration-700 px-1">
         {data.map((h, i) => (
-          <div key={i} className="relative flex-1 group/bar" style={{ height: `${Math.min(h, 100)}%` }}>
-            {/* Elegant Glassy 3D Bar */}
-            <div className="absolute inset-x-0 bottom-0 h-full transition-all duration-700 cubic-bezier(0.23, 1, 0.32, 1) group-hover:scale-y-110 origin-bottom">
-              {/* Main Front Glass Face */}
-              <div className={cn(
-                "absolute inset-0 rounded-sm z-10 border-t border-l border-white/20 backdrop-blur-[2px]",
-                i % 3 === 0 && "bg-gradient-to-tr from-cyan-500/40 to-blue-400/20",
-                i % 3 === 1 && "bg-gradient-to-tr from-blue-500/40 to-indigo-400/20",
-                i % 3 === 2 && "bg-gradient-to-tr from-indigo-500/40 to-violet-400/20"
-              )} />
+          <div key={i} className="relative flex-1 group/bar" style={{ height: `${Math.max(10, Math.min(h, 100))}%` }}>
+            {/* Elite 3D Glass Bar */}
+            <div className="absolute inset-x-0 bottom-0 h-full transition-all duration-700 cubic-bezier(0.4, 0, 0.2, 1) group-hover:scale-y-110 origin-bottom">
+              {/* Main Front Face */}
+              <div className="absolute inset-0 rounded-sm z-10 border-t border-l border-white/20 bg-gradient-to-tr from-primary/40 to-primary/10 backdrop-blur-xs" />
               
-              {/* Top Face (Polished Edge) */}
-              <div className={cn(
-                "absolute -top-[4px] left-[2px] right-[-2px] h-[4px] -skew-x-[45deg] z-20 rounded-t-sm border-t border-white/30",
-                i % 3 === 0 && "bg-cyan-400/40",
-                i % 3 === 1 && "bg-blue-400/40",
-                i % 3 === 2 && "bg-indigo-400/40"
-              )} />
+              {/* Top Highlight */}
+              <div className="absolute -top-[2px] left-[1px] right-[-1px] h-[2px] -skew-x-[45deg] z-20 rounded-t-sm bg-primary/60 border-t border-white/30" />
               
-              {/* Side Face (Refraction Edge) */}
-              <div className={cn(
-                "absolute top-[2px] -right-[4px] bottom-[-2px] w-[4px] -skew-y-[45deg] z-0 rounded-r-sm bg-black/20 border-r border-white/10",
-                i % 3 === 0 && "bg-blue-900/30",
-                i % 3 === 1 && "bg-indigo-900/30",
-                i % 3 === 2 && "bg-violet-900/30"
-              )} />
+              {/* Side Shadow */}
+              <div className="absolute top-[1px] -right-[2px] bottom-[-1px] w-[2px] -skew-y-[45deg] z-0 rounded-r-sm bg-black/40 border-r border-white/5" />
             </div>
             
-            {/* Soft Ambient Glow */}
-            <div className={cn(
-                  "absolute -bottom-2 inset-x-0 h-2 blur-xl opacity-20 transition-opacity group-hover:opacity-40",
-                  i % 3 === 0 && "bg-cyan-400",
-                  i % 3 === 1 && "bg-blue-400",
-                  i % 3 === 2 && "bg-indigo-400"
-            )} />
+            {/* Ambient Glow */}
+            <div className="absolute -bottom-1 inset-x-0 h-1 blur-lg bg-primary/30 opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         ))}
       </div>

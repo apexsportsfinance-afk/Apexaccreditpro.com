@@ -99,6 +99,15 @@ export default function OfficialDocumentsTab({ eventId, onToast }) {
         .from("accreditation-files")
         .getPublicUrl(data.path);
 
+      const newDoc = {
+        id: Date.now().toString(),
+        name: file.name,
+        type: ext,
+        size: (file.size / 1024 / 1024).toFixed(2) + " MB",
+        url: urlData.publicUrl,
+        createdAt: new Date().toISOString()
+      };
+
       const latestData = await GlobalSettingsAPI.get(`event_${eventId}_official_docs`);
       const existingArray = latestData ? JSON.parse(latestData) : [];
       const updatedArray = [newDoc, ...existingArray];
@@ -141,13 +150,15 @@ export default function OfficialDocumentsTab({ eventId, onToast }) {
   return (
     <div className="space-y-6">
       {/* Upload Header Area */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-slate-900/40 border border-white/5 rounded-2xl backdrop-blur-md">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-glass border border-white/10 rounded-md backdrop-blur-sm">
         <div>
-          <h2 className="text-white font-black uppercase tracking-widest text-sm flex items-center gap-3">
-            <Files className="w-5 h-5 text-cyan-400" />
+          <h2 className="text-white font-heading font-black uppercase tracking-widest text-h2 flex items-center gap-3">
+            <Files className="w-5 h-5 text-primary" />
             Official Event Assets
           </h2>
-          <p className="text-slate-400 text-[10px] font-medium mt-1">Manage PDFs, Excel, and CSV documents for DIAC 2026.</p>
+          <p className="text-slate-400 text-meta font-medium mt-1">
+            NAMESPACE: <span className="text-primary font-mono select-all bg-primary/10 px-1 rounded">{eventId}</span> • MANAGE TOURNAMENT REPOSITORY
+          </p>
         </div>
 
         <div className="relative group">
@@ -173,17 +184,17 @@ export default function OfficialDocumentsTab({ eventId, onToast }) {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
-          {[1,2,3,4].map(i => (
-            <div key={i} className="h-28 bg-slate-900/40 border border-white/5 rounded-xl animate-pulse" />
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 xl:grid-cols-12 gap-3">
+          {[1,2,3,4,5,6].map(i => (
+            <div key={i} className="h-24 bg-slate-900/40 border border-white/5 rounded-md animate-pulse" />
           ))}
         </div>
       ) : docs.length > 0 ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 xl:grid-cols-12 gap-2.5">
           {docs.map(doc => (
             <div 
               key={doc.id} 
-              className="bg-slate-950/40 border border-white/5 p-3.5 rounded-xl group hover:border-white/10 hover:bg-slate-900/80 transition-all duration-300 shadow-lg"
+              className="bg-glass border border-white/5 p-2.5 rounded-md group hover:border-primary/30 hover:bg-slate-900/80 transition-all duration-300 shadow-lg"
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="p-1.5 bg-slate-950/50 rounded-lg border border-white/5">
@@ -205,13 +216,13 @@ export default function OfficialDocumentsTab({ eventId, onToast }) {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <h4 className="text-white font-bold text-[10px] truncate pr-2" title={doc.name}>
+              <div className="space-y-0.5 mt-2">
+                <h4 className="text-white font-heading font-black text-meta uppercase truncate pr-1" title={doc.name}>
                   {doc.name}
                 </h4>
-                <div className="flex items-center gap-1.5 text-[8px] text-slate-500 font-bold uppercase tracking-wider">
-                  <span>{doc.type}</span>
-                  <span>•</span>
+                <div className="flex items-center gap-1.5 text-[7px] text-slate-500 font-black uppercase tracking-tighter">
+                  <span className="text-primary">{doc.type}</span>
+                  <span className="opacity-20">|</span>
                   <span>{doc.size}</span>
                 </div>
               </div>

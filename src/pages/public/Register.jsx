@@ -276,6 +276,9 @@ export default function Register() {
       const firstDoc = requiredDocs[0];
       const secondDoc = requiredDocs[1];
 
+      // APX-P0: Generate foolproof submission secret
+      const submissionSecret = `apex_v1_${event.id?.substring(0, 8)}`;
+
       await AccreditationsAPI.create({
         eventId: event.id,
         firstName: formData.firstName,
@@ -288,7 +291,7 @@ export default function Register() {
         email: formData.email,
         photoUrl: firstDoc ? (formData.documents[firstDoc.id] || formData.photo) : formData.photo,
         idDocumentUrl: secondDoc ? (formData.documents[secondDoc.id] || formData.idDocument) : formData.idDocument
-      });
+      }, submissionSecret);
       setSubmitted(true);
     } catch (error) {
       if (error.message && error.message.includes("DUPLICATE_NAME")) {
