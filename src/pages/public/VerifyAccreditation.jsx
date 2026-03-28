@@ -9,6 +9,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase";
 import { EventSettingsAPI, FormFieldSettingsAPI, BroadcastV2API, AthleteEventsAPI, GlobalSettingsAPI } from "../../lib/broadcastApi";
+import { AttendanceAPI } from "../../lib/attendanceApi";
 import { computeExpiryStatus, formatEventDateTime } from "../../lib/expiryUtils";
 import { getCountryFlag, COUNTRIES, calculateAge } from "../../lib/utils";
 import { toast } from "sonner";
@@ -157,6 +158,17 @@ export default function VerifyAccreditation() {
       setFieldSettings(fieldSets || {});
       setAthleteMatrix(matrix || []);
       setGlobSettings(gSettings || {});
+
+      // APX-P0: Transparent Self-Scan Logging
+      // Log every view/refresh as a scan event to track engagement
+      if (accData?.event_id) {
+        AttendanceAPI.logScanEvent(
+          accData.event_id, 
+          "athlete_verify", 
+          accData, 
+          "Mobile-Self-Scan"
+        ).catch(e => console.warn("Self-scan log failed:", e));
+      }
       
       // Console debug for Official Documents
       const docKey = `event_${accData?.event_id}_official_docs`;
