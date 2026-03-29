@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { 
-  Activity, 
-  RefreshCw, 
-  Search, 
-  Clock, 
-  User, 
-  Info, 
-  Smartphone, 
-  Ticket, 
-  BadgeCheck, 
+import {
+  Activity,
+  RefreshCw,
+  Search,
+  Clock,
+  User,
+  Info,
+  Smartphone,
+  Ticket,
+  BadgeCheck,
   Eye,
   ArrowRightLeft,
   Trophy,
@@ -96,18 +96,18 @@ export default function AuditLog() {
 
     // 1. Summarize Logs
     const summaryMap = new Map();
-    
+
     scannerLogs.forEach(log => {
       const isAthlete = !!log.accreditations;
       const isSpectator = !!log.spectator_orders;
-      
+
       const id = isAthlete ? log.accreditations.id : (isSpectator ? log.spectator_orders.id : 'unknown');
-      const name = isAthlete ? `${log.accreditations.first_name} ${log.accreditations.last_name}` : 
-                 (isSpectator ? log.spectator_orders.customer_name : 'System');
-      const club = isAthlete ? (log.accreditations.club || 'Independent') : 
-                 (isSpectator ? 'Spectator' : 'N/A');
-      const role = isAthlete ? (log.accreditations.role || 'Athlete') : 
-                 (isSpectator ? 'Spectator' : 'System');
+      const name = isAthlete ? `${log.accreditations.first_name} ${log.accreditations.last_name}` :
+        (isSpectator ? log.spectator_orders.customer_name : 'System');
+      const club = isAthlete ? (log.accreditations.club || 'Independent') :
+        (isSpectator ? 'Spectator' : 'N/A');
+      const role = isAthlete ? (log.accreditations.role || 'Athlete') :
+        (isSpectator ? 'Spectator' : 'System');
 
       if (!summaryMap.has(id)) {
         summaryMap.set(id, {
@@ -118,7 +118,7 @@ export default function AuditLog() {
           "Last Scan": log.created_at
         });
       }
-      
+
       const entry = summaryMap.get(id);
       entry["Scan Count"] += 1;
       if (new Date(log.created_at) > new Date(entry["Last Scan"])) {
@@ -136,14 +136,14 @@ export default function AuditLog() {
     // 3. Trigger Download
     const fileName = `Scan_Audit_Summary_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(workbook, fileName);
-    
+
     toast.success("Excel Summary Exported");
   };
 
   const filteredLogs = (activeTab === "system" ? logs : scannerLogs).filter((log) => {
     if (!search) return true;
     const q = search.toLowerCase();
-    
+
     if (activeTab === "system") {
       return (
         log.action?.toLowerCase().includes(q) ||
@@ -166,7 +166,7 @@ export default function AuditLog() {
 
   return (
     <div id="auditlog_page" className="space-y-6">
-      
+
       {/* Header & Tabs */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/40 p-6 rounded-3xl border border-white/5 backdrop-blur-xl">
         <div>
@@ -180,33 +180,33 @@ export default function AuditLog() {
         </div>
 
         <div className="flex items-center bg-black/40 p-1 rounded-xl border border-white/10 shrink-0">
-          <TabButton 
-             active={activeTab === 'system'} 
-             onClick={() => setActiveTab('system')} 
-             label="System Logs" 
-             icon={Activity} 
+          <TabButton
+            active={activeTab === 'system'}
+            onClick={() => setActiveTab('system')}
+            label="System Logs"
+            icon={Activity}
           />
-          <TabButton 
-             active={activeTab === 'scanner'} 
-             onClick={() => {
-               setActiveTab('scanner');
-               if (viewMode === 'summary') setViewMode('raw'); 
-             }} 
-             label="Scanner Logs" 
-             icon={Smartphone} 
+          <TabButton
+            active={activeTab === 'scanner'}
+            onClick={() => {
+              setActiveTab('scanner');
+              if (viewMode === 'summary') setViewMode('raw');
+            }}
+            label="Scanner Logs"
+            icon={Smartphone}
           />
         </div>
 
         {activeTab === 'scanner' && (
           <div className="flex items-center bg-black/20 p-1 rounded-xl border border-white/5 ml-2">
-            <button 
+            <button
               onClick={() => setViewMode('raw')}
               className={`px-3 py-1.5 rounded-lg flex items-center gap-2 text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === 'raw' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}
             >
               <LayoutList className="w-3 h-3" />
               Raw
             </button>
-            <button 
+            <button
               onClick={() => setViewMode('summary')}
               className={`px-3 py-1.5 rounded-lg flex items-center gap-2 text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === 'summary' ? 'bg-emerald-500/20 text-emerald-400' : 'text-slate-500 hover:text-slate-300'}`}
             >
@@ -291,15 +291,14 @@ export default function AuditLog() {
 
 function TabButton({ active, onClick, label, icon: Icon }) {
   return (
-     <button 
-        onClick={onClick}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-          active ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-900/20' : 'text-slate-500 hover:text-slate-300'
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${active ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-900/20' : 'text-slate-500 hover:text-slate-300'
         }`}
-     >
-       <Icon className="w-3 h-3" />
-       {label}
-     </button>
+    >
+      <Icon className="w-3 h-3" />
+      {label}
+    </button>
   );
 }
 
@@ -344,7 +343,7 @@ function SystemLogRow({ log, index }) {
 
 function ScannerLogsTable({ logs }) {
   // 1. Sort by latest scan first (Requested)
-  const sortedLogs = [...logs].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+  const sortedLogs = [...logs].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
   // 2. Pre-calculate totals for the contextually relevant "No Of Scans" column
   const userTotals = new Map();
@@ -371,16 +370,16 @@ function ScannerLogsTable({ logs }) {
           const isAthlete = !!log.accreditations;
           const isSpectator = !!log.spectator_orders;
           const id = isAthlete ? log.accreditations.id : (isSpectator ? log.spectator_orders.id : 'unknown');
-          const name = isAthlete ? `${log.accreditations.first_name} ${log.accreditations.last_name}` : 
-                      (isSpectator ? log.spectator_orders.customer_name : 'System Relay');
-          const club = isAthlete ? (log.accreditations.club || 'Independent') : 
-                      (isSpectator ? 'Spectator' : 'N/A');
-          const role = isAthlete ? (log.accreditations.role || 'Athlete') : 
-                      (isSpectator ? 'Spectator' : 'System');
+          const name = isAthlete ? `${log.accreditations.first_name} ${log.accreditations.last_name}` :
+            (isSpectator ? log.spectator_orders.customer_name : 'System Relay');
+          const club = isAthlete ? (log.accreditations.club || 'Independent') :
+            (isSpectator ? 'Spectator' : 'N/A');
+          const role = isAthlete ? (log.accreditations.role || 'Athlete') :
+            (isSpectator ? 'Spectator' : 'System');
           const totalScans = userTotals.get(id) || 1;
 
           return (
-            <motion.tr 
+            <motion.tr
               key={log.id || idx}
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
@@ -388,34 +387,34 @@ function ScannerLogsTable({ logs }) {
               className="group hover:bg-yellow-500/[0.03] transition-colors"
             >
               <td className="py-4 px-6 border-b border-white/[0.02] group-hover:border-yellow-500/20">
-                 <span className="text-xs font-black text-white uppercase tracking-tight group-hover:text-yellow-400 transition-colors">
-                   {name}
-                 </span>
+                <span className="text-xs font-black text-white uppercase tracking-tight group-hover:text-yellow-400 transition-colors">
+                  {name}
+                </span>
               </td>
               <td className="py-4 px-6 border-b border-white/[0.02] group-hover:border-yellow-500/20">
-                 <span className="text-[10px] font-bold text-slate-400 uppercase group-hover:text-slate-200">
-                   {club}
-                 </span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase group-hover:text-slate-200">
+                  {club}
+                </span>
               </td>
               <td className="py-4 px-6 border-b border-white/[0.02] group-hover:border-yellow-500/20">
-                 <span className="text-[9px] font-black px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10 uppercase group-hover:bg-yellow-500/10 group-hover:text-yellow-400 group-hover:border-yellow-500/20">
-                   {role}
-                 </span>
+                <span className="text-[9px] font-black px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10 uppercase group-hover:bg-yellow-500/10 group-hover:text-yellow-400 group-hover:border-yellow-500/20">
+                  {role}
+                </span>
               </td>
               <td className="py-4 px-6 border-b border-white/[0.02] group-hover:border-yellow-500/20 text-center">
-                 <span className="text-xs font-mono font-black text-white bg-white/10 px-2.5 py-1 rounded-lg border border-white/10 group-hover:border-yellow-500/30 group-hover:bg-yellow-500/10 group-hover:text-yellow-400">
-                   {totalScans}
-                 </span>
+                <span className="text-xs font-mono font-black text-white bg-white/10 px-2.5 py-1 rounded-lg border border-white/10 group-hover:border-yellow-500/30 group-hover:bg-yellow-500/10 group-hover:text-yellow-400">
+                  {totalScans}
+                </span>
               </td>
               <td className="py-4 px-6 border-b border-white/[0.02] group-hover:border-yellow-500/20 text-right">
-                 <div className="flex flex-col items-end">
-                   <span className="text-[10px] font-black text-white/40 uppercase group-hover:text-yellow-400/60">
-                     {new Date(log.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                   </span>
-                   <span className="text-[10px] font-mono text-cyan-400/60 group-hover:text-cyan-400">
-                     {new Date(log.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                   </span>
-                 </div>
+                <div className="flex flex-col items-end">
+                  <span className="text-[10px] font-black text-white/40 uppercase group-hover:text-yellow-400/60">
+                    {new Date(log.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </span>
+                  <span className="text-[10px] font-mono text-cyan-400/60 group-hover:text-cyan-400">
+                    {new Date(log.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
+                </div>
               </td>
             </motion.tr>
           );
@@ -429,33 +428,33 @@ function ScannerSummaryTable({ logs }) {
   // 1. Group by entity (Aggregated view)
   const summaryMap = new Map();
   logs.forEach(log => {
-      const isAthlete = !!log.accreditations;
-      const isSpectator = !!log.spectator_orders;
-      const id = isAthlete ? log.accreditations.id : (isSpectator ? log.spectator_orders.id : 'unknown');
-      
-      if (!summaryMap.has(id)) {
-        summaryMap.set(id, {
-          name: isAthlete ? `${log.accreditations.first_name} ${log.accreditations.last_name}` : 
-                (isSpectator ? log.spectator_orders.customer_name : 'System Relay'),
-          club: isAthlete ? (log.accreditations.club || 'Independent') : 
-                (isSpectator ? 'Spectator' : 'N/A'),
-          role: isAthlete ? (log.accreditations.role || 'Athlete') : 
-                (isSpectator ? 'Spectator' : 'System'),
-          badge: isAthlete ? (log.accreditations.badge_number || 'N/A') : 'N/A',
-          location: log.device_label || 'Default',
-          count: 0,
-          latestScan: log.created_at
-        });
-      }
-      const entry = summaryMap.get(id);
-      entry.count += 1;
-      if (new Date(log.created_at) > new Date(entry.latestScan)) {
-        entry.latestScan = log.created_at;
-        entry.location = log.device_label || 'Default';
-      }
+    const isAthlete = !!log.accreditations;
+    const isSpectator = !!log.spectator_orders;
+    const id = isAthlete ? log.accreditations.id : (isSpectator ? log.spectator_orders.id : 'unknown');
+
+    if (!summaryMap.has(id)) {
+      summaryMap.set(id, {
+        name: isAthlete ? `${log.accreditations.first_name} ${log.accreditations.last_name}` :
+          (isSpectator ? log.spectator_orders.customer_name : 'System Relay'),
+        club: isAthlete ? (log.accreditations.club || 'Independent') :
+          (isSpectator ? 'Spectator' : 'N/A'),
+        role: isAthlete ? (log.accreditations.role || 'Athlete') :
+          (isSpectator ? 'Spectator' : 'System'),
+        badge: isAthlete ? (log.accreditations.badge_number || 'N/A') : 'N/A',
+        location: log.device_label || 'Default',
+        count: 0,
+        latestScan: log.created_at
+      });
+    }
+    const entry = summaryMap.get(id);
+    entry.count += 1;
+    if (new Date(log.created_at) > new Date(entry.latestScan)) {
+      entry.latestScan = log.created_at;
+      entry.location = log.device_label || 'Default';
+    }
   });
 
-  const data = Array.from(summaryMap.values()).sort((a,b) => new Date(b.latestScan) - new Date(a.latestScan));
+  const data = Array.from(summaryMap.values()).sort((a, b) => new Date(b.latestScan) - new Date(a.latestScan));
 
   return (
     <table className="w-full text-left border-separate border-spacing-0">
@@ -472,37 +471,37 @@ function ScannerSummaryTable({ logs }) {
       </thead>
       <tbody className="divide-y divide-white/[0.03]">
         {data.map((row, idx) => (
-          <motion.tr 
-             key={idx}
-             initial={{ opacity: 0, y: 4 }}
-             animate={{ opacity: 1, y: 0 }}
-             transition={{ delay: Math.min(idx * 0.01, 1) }}
-             className="group hover:bg-emerald-500/[0.03] transition-colors"
+          <motion.tr
+            key={idx}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: Math.min(idx * 0.01, 1) }}
+            className="group hover:bg-emerald-500/[0.03] transition-colors"
           >
-             <td className="py-4 px-6 border-b border-white/[0.02]">
-               <span className="text-xs font-black text-white uppercase group-hover:text-emerald-400 transition-colors">{row.name}</span>
-             </td>
-             <td className="py-4 px-6 border-b border-white/[0.02]">
-               <span className="text-[10px] font-mono font-bold text-cyan-400 uppercase">{row.badge}</span>
-             </td>
-             <td className="py-4 px-6 border-b border-white/[0.02]">
-               <span className="text-[10px] font-bold text-slate-400 uppercase">{row.club}</span>
-             </td>
-             <td className="py-4 px-6 border-b border-white/[0.02]">
-               <span className="text-[9px] font-black px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10 uppercase">{row.role}</span>
-             </td>
-             <td className="py-4 px-6 border-b border-white/[0.02]">
-               <span className="text-[10px] font-bold text-slate-400 uppercase italic opacity-60">{row.location}</span>
-             </td>
-             <td className="py-4 px-6 border-b border-white/[0.02] text-center">
-               <span className="text-xs font-mono font-black text-white bg-white/10 px-2.5 py-1 rounded-lg border border-white/10">{row.count}</span>
-             </td>
-             <td className="py-4 px-6 border-b border-white/[0.02] text-right">
-               <div className="flex flex-col items-end">
-                 <span className="text-[10px] font-black text-white/40 uppercase">{new Date(row.latestScan).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                 <span className="text-[10px] font-mono text-cyan-400/60">{new Date(row.latestScan).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
-               </div>
-             </td>
+            <td className="py-4 px-6 border-b border-white/[0.02]">
+              <span className="text-xs font-black text-white uppercase group-hover:text-emerald-400 transition-colors">{row.name}</span>
+            </td>
+            <td className="py-4 px-6 border-b border-white/[0.02]">
+              <span className="text-[10px] font-mono font-bold text-cyan-400 uppercase">{row.badge}</span>
+            </td>
+            <td className="py-4 px-6 border-b border-white/[0.02]">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">{row.club}</span>
+            </td>
+            <td className="py-4 px-6 border-b border-white/[0.02]">
+              <span className="text-[9px] font-black px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10 uppercase">{row.role}</span>
+            </td>
+            <td className="py-4 px-6 border-b border-white/[0.02]">
+              <span className="text-[10px] font-bold text-slate-400 uppercase italic opacity-60">{row.location}</span>
+            </td>
+            <td className="py-4 px-6 border-b border-white/[0.02] text-center">
+              <span className="text-xs font-mono font-black text-white bg-white/10 px-2.5 py-1 rounded-lg border border-white/10">{row.count}</span>
+            </td>
+            <td className="py-4 px-6 border-b border-white/[0.02] text-right">
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] font-black text-white/40 uppercase">{new Date(row.latestScan).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                <span className="text-[10px] font-mono text-cyan-400/60">{new Date(row.latestScan).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+              </div>
+            </td>
           </motion.tr>
         ))}
       </tbody>

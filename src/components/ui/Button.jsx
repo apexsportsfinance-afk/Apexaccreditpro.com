@@ -3,12 +3,12 @@ import { Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 
 const variants = {
-  primary: "bg-primary-500 hover:bg-primary-600 text-white shadow shadow-primary-500/20",
-  secondary: "bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700",
-  danger: "bg-red-600 hover:bg-red-700 text-white shadow shadow-red-900/20",
-  success: "bg-emerald-600 hover:bg-emerald-700 text-white shadow shadow-emerald-900/20",
-  ghost: "text-slate-400 hover:text-white hover:bg-slate-800",
-  outline: "border border-primary-500 text-primary-400 hover:bg-primary-500/10"
+  primary: "bg-gradient-to-b from-primary-500 to-primary-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_1px_3px_rgba(0,0,0,0.5)] hover:from-primary-400 hover:to-primary-500 hover:-translate-y-0.5 active:translate-y-0.5 shadow-primary-500/20",
+  secondary: "bg-gradient-to-b from-slate-700 to-slate-800 border border-slate-600 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_1px_2px_rgba(0,0,0,0.4)] hover:from-slate-600 hover:to-slate-700 hover:-translate-y-0.5 active:translate-y-0.5",
+  danger: "bg-gradient-to-b from-red-500 to-red-700 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_1px_3px_rgba(0,0,0,0.5)] hover:from-red-400 hover:to-red-600 hover:-translate-y-0.5 active:translate-y-0.5 shadow-red-900/20",
+  success: "bg-gradient-to-b from-emerald-500 to-emerald-700 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_1px_3px_rgba(0,0,0,0.5)] hover:from-emerald-400 hover:to-emerald-600 hover:-translate-y-0.5 active:translate-y-0.5 shadow-emerald-900/20",
+  ghost: "text-slate-400 hover:text-white hover:bg-white/5 active:bg-white/10",
+  outline: "border-2 border-primary-500 text-primary-400 hover:bg-primary-500/10 hover:-translate-y-0.5 active:translate-y-0.5 shadow-[0_1px_2px_rgba(0,0,0,0.2)]"
 };
 
 const sizes = {

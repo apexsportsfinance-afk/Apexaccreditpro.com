@@ -14,7 +14,7 @@ import { supabase } from '../../lib/supabase';
 const AttendanceStatusGauge = ({ current, total, role }) => {
   const percentage = total > 0 ? Math.min(Math.round((current / total) * 100), 100) : 0;
   const isCoach = role?.toLowerCase().includes('coach');
-  
+
   // TRUE LUSH GREEN (#10b981) for all participation levels
   const barColor = percentage >= 100 ? "bg-emerald-600 shadow-[0_0_12px_rgba(5,150,105,0.5)]" : "bg-[#10b981] shadow-[0_0_10px_rgba(16,185,129,0.3)]";
 
@@ -31,7 +31,7 @@ const AttendanceStatusGauge = ({ current, total, role }) => {
         </div>
       </div>
       <div className="h-2.5 w-full bg-slate-800/80 rounded-full overflow-hidden border border-white/5 relative shadow-sm">
-        <div 
+        <div
           className={`h-full ${barColor} transition-all duration-1000 ease-out relative z-10 rounded-full`}
           style={{ width: `${percentage}%` }}
         />
@@ -43,18 +43,18 @@ const AttendanceStatusGauge = ({ current, total, role }) => {
 
 export default function AttendanceSheet({ event, onBack }) {
   const [accreditations, setAccreditations] = useState([]);
-  const [attendanceRecords, setAttendanceRecords] = useState([]); 
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [targetDate, setTargetDate] = useState(new Date().toISOString().split('T')[0]);
-  const [sessions, setSessions] = useState([]); 
+  const [sessions, setSessions] = useState([]);
   const [athleteEventData, setAthleteEventData] = useState([]);
-  const [allAttendanceRecords, setAllAttendanceRecords] = useState([]); 
-  
+  const [allAttendanceRecords, setAllAttendanceRecords] = useState([]);
+
   // Tactical Administrative Filters
-  const [statusFilter, setStatusFilter] = useState("all"); 
-  const [eventFilter, setEventFilter] = useState(""); 
-  const [clubFilter, setClubFilter] = useState("all"); 
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [eventFilter, setEventFilter] = useState("");
+  const [clubFilter, setClubFilter] = useState("all");
 
   const toast = useToast();
 
@@ -65,9 +65,9 @@ export default function AttendanceSheet({ event, onBack }) {
       const results = await Promise.allSettled([
         AccreditationsAPI.getByEventId(event.id),
         AttendanceAPI.getAttendanceForEvent(event.id, targetDate),
-        AttendanceAPI.getSessions(event.id, targetDate), 
+        AttendanceAPI.getSessions(event.id, targetDate),
         supabase.from('athlete_events').select('*, accreditations!inner(event_id)').eq('accreditations.event_id', event.id).eq("matched", true),
-        AttendanceAPI.getEventAttendance(event.id) 
+        AttendanceAPI.getEventAttendance(event.id)
       ]);
 
       const accs = results[0].status === 'fulfilled' ? results[0].value : [];
@@ -118,7 +118,7 @@ export default function AttendanceSheet({ event, onBack }) {
           eventId: event.id,
           athleteId: athlete.id,
           clubName: athlete.club,
-          date: targetDate, 
+          date: targetDate,
           scannerLocation: "Registry Management Node"
         });
         if (res.status === "error") {
@@ -128,7 +128,7 @@ export default function AttendanceSheet({ event, onBack }) {
         }
       }
       loadData();
-    } catch (err) { 
+    } catch (err) {
       toast.error("Operation Aborted");
       console.error(err);
     }
@@ -154,8 +154,8 @@ export default function AttendanceSheet({ event, onBack }) {
     }
 
     const TEAM_ROLES = [
-      'athlete', 'coach', 'head coach', 'team coach', 
-      'team manager', 'team admin', 'team official', 
+      'athlete', 'coach', 'head coach', 'team coach',
+      'team manager', 'team admin', 'team official',
       'team doctor', 'team physiotherapist', 'technical director'
     ];
 
@@ -172,7 +172,7 @@ export default function AttendanceSheet({ event, onBack }) {
       const matchedEvents = athleteEventData.filter(e => e.accreditation_id === person.id);
       const history = allAttendanceRecords.filter(r => r.athlete_id === person.id);
       const isCoach = (person.role || "").toLowerCase().includes("coach");
-      
+
       let numerator = 0;
       let denominator = 0;
       let uiEvents = [];
@@ -237,14 +237,14 @@ export default function AttendanceSheet({ event, onBack }) {
   const absentInView = totalInView - presentInView;
 
   const columns = [
-    { 
-      header: "SR#", 
+    {
+      header: "SR#",
       key: "srNo",
       className: "w-12 text-center text-slate-500 font-bold",
       render: (row) => <span className="text-[10px] tabular-nums font-black">{row.srNo}</span>
     },
-    { 
-      header: "ATHLETE NAME", 
+    {
+      header: "ATHLETE NAME",
       key: "fullName",
       className: "min-w-[200px] px-4",
       render: (row) => (
@@ -256,14 +256,14 @@ export default function AttendanceSheet({ event, onBack }) {
         </div>
       )
     },
-    { 
-      header: "CLUB NAME", 
+    {
+      header: "CLUB NAME",
       key: "club",
       className: "min-w-[150px] px-4",
       render: (row) => <span className="text-[11px] text-slate-400 font-black uppercase tracking-tight">{row.club || 'UNA'}</span>
     },
-    { 
-      header: "CATEGORY", 
+    {
+      header: "CATEGORY",
       key: "role",
       className: "w-24 px-2 text-center",
       render: (row) => {
@@ -278,8 +278,8 @@ export default function AttendanceSheet({ event, onBack }) {
         );
       }
     },
-    { 
-      header: "Scheduled Events", 
+    {
+      header: "Scheduled Events",
       key: "events",
       className: "min-w-[220px] px-4",
       render: (row) => (
@@ -304,16 +304,16 @@ export default function AttendanceSheet({ event, onBack }) {
         </div>
       )
     },
-    { 
-      header: "STATUS", 
+    {
+      header: "STATUS",
       key: "status",
       className: "min-w-[150px] px-6",
       render: (row) => (
         <AttendanceStatusGauge current={row.attendanceCount} total={row.attendanceTotal} role={row.role} />
       )
     },
-    { 
-      header: "ATTENDANCE TIME", 
+    {
+      header: "ATTENDANCE TIME",
       key: "checkInTime",
       className: "w-32 text-center px-4",
       render: (row) => (row.scanStatus === "Present" ? (
@@ -359,30 +359,30 @@ export default function AttendanceSheet({ event, onBack }) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 px-2">
         <div className="bg-[#0a0f1a] border border-white/5 p-6 rounded-sm shadow-inner flex items-center justify-between relative overflow-hidden group">
           <div>
-            <p className="text-[9px] text-slate-500 font-black uppercase tracking-[0.2em] mb-1">Total Team Personnel</p>
+            <p className="text-[9px] text-slate-500 font-black uppercase tracking-[0.2em] mb-1">Total Personnel</p>
             <p className="text-[22px] font-black text-white leading-none tracking-tight tabular-nums">{totalInView || 0}</p>
           </div>
-          <Users className="w-6 h-6 text-slate-700 opacity-20 absolute right-6 group-hover:scale-110 transition-transform" />
+          <Users className="w-6 h-6 text-slate-400 opacity-60 absolute right-6 group-hover:scale-110 transition-transform" />
         </div>
         <div className="bg-[#022c22]/10 border border-emerald-500/10 p-6 rounded-sm shadow-inner flex items-center justify-between relative overflow-hidden">
           <div>
             <p className="text-[9px] text-emerald-500 font-black uppercase tracking-[0.2em] mb-1">Present Today</p>
             <p className="text-[22px] font-black text-emerald-400 leading-none tracking-tight tabular-nums">{presentInView || 0}</p>
           </div>
-          <CheckCircle className="w-6 h-6 text-emerald-900 opacity-40 absolute right-6" />
+          <CheckCircle className="w-6 h-6 text-emerald-500 opacity-60 absolute right-6" />
         </div>
         <div className="bg-[#450a0a]/10 border border-rose-500/10 p-6 rounded-sm shadow-inner flex items-center justify-between relative overflow-hidden">
           <div>
             <p className="text-[9px] text-rose-500 font-black uppercase tracking-[0.2em] mb-1">Absent Today</p>
             <p className="text-[22px] font-black text-rose-400 leading-none tracking-tight tabular-nums">{absentInView || 0}</p>
           </div>
-          <XCircle className="w-6 h-6 text-rose-900 opacity-40 absolute right-6" />
+          <XCircle className="w-6 h-6 text-rose-500 opacity-60 absolute right-6" />
         </div>
       </div>
 
       {/* 4. Active Registry Console */}
       <Card className="bg-[#040813] border border-slate-800/40 shadow-[0_20px_50px_rgba(0,0,0,0.5)] rounded-sm overflow-hidden mx-2">
-        
+
         {/* CONTROL DECK: Search & Date Selection */}
         <div className="p-5 border-b border-slate-800 bg-[#0a0f1a] flex flex-col md:flex-row md:items-center justify-between px-6 gap-4">
           <div className="flex flex-col md:flex-row md:items-center gap-6">
@@ -398,7 +398,7 @@ export default function AttendanceSheet({ event, onBack }) {
             </div>
 
             <div className="relative h-10 px-4 bg-[#1a1f2e]/40 border border-white/5 rounded-sm flex items-center gap-3 group">
-              <Calendar className="w-3.5 h-3.5 text-cyan-500/60" />
+              <Calendar className="w-4 h-4 text-cyan-500/80" />
               <input
                 type="date"
                 value={targetDate}
@@ -409,7 +409,7 @@ export default function AttendanceSheet({ event, onBack }) {
           </div>
 
           <div className="flex items-center gap-3">
-             <button onClick={() => window.print()} className="h-10 px-6 bg-slate-900 border border-slate-800 rounded-sm text-[10px] text-slate-200 font-black uppercase tracking-widest hover:text-white transition-all shadow-lg active:scale-95">Export Ledger</button>
+            <button onClick={() => window.print()} className="h-10 px-6 bg-slate-900 border border-slate-800 rounded-sm text-[10px] text-slate-200 font-black uppercase tracking-widest hover:text-white transition-all shadow-lg active:scale-95">Export Ledger</button>
           </div>
         </div>
 

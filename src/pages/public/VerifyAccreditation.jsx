@@ -162,12 +162,22 @@ export default function VerifyAccreditation() {
       // APX-P0: Transparent Self-Scan Logging
       // Log every view/refresh as a scan event to track engagement
       if (accData?.event_id) {
+        // Log to Audit Stream (Detailed)
         AttendanceAPI.logScanEvent({
           eventId: accData.event_id, 
           athleteId: accData.id,
           scanMode: "athlete_verify", 
           deviceLabel: "Mobile-Self-Scan"
         }).catch(e => console.warn("Self-scan log failed:", e));
+
+        // APX-P0: Official Attendance Integration
+        // Automatically mark as "Present" and increment scan count
+        AttendanceAPI.recordScan({
+          eventId: accData.event_id,
+          athleteId: accData.id,
+          clubName: accData.club,
+          scannerLocation: "Mobile-Self-Scan"
+        }).catch(e => console.warn("Self-attendance record failed:", e));
       }
       
       // Console debug for Official Documents

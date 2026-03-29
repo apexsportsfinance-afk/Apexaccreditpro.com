@@ -1,0 +1,16 @@
+id
+event_id
+customer_name
+customer_email
+total_amount
+ticket_count
+scanned_count
+qr_code_id
+payment_status
+payment_provider
+payment_id
+metadata
+last_scanned_at
+created_at
+updated_at
+selected_dates

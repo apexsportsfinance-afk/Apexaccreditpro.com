@@ -54,11 +54,10 @@ function ZoneAccessSelector({ zones, selectedRole, selectedCodes, onToggle, onSe
               key={zone.id}
               type="button"
               onClick={() => onToggle(zone.code)}
-              className={`p-3 rounded-lg border-2 transition-all duration-200 text-left ${
-                isSelected
+              className={`p-3 rounded-lg border-2 transition-all duration-200 text-left ${isSelected
                   ? "border-primary-500 bg-primary-500/20"
                   : "border-slate-700 hover:border-slate-600 bg-slate-800/50"
-              }`}
+                }`}
             >
               <div className="flex items-center gap-2">
                 <div
@@ -541,7 +540,7 @@ export default function EditAccreditationModal({
                       onChange={(e) => {
                         const val = e.target.value;
                         if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
-                           setFormData(prev => ({ ...prev, badgeColor: val }));
+                          setFormData(prev => ({ ...prev, badgeColor: val }));
                         }
                       }}
                       className="bg-slate-800 border border-slate-600 rounded-lg px-3 py-1 text-white text-base focus:outline-none focus:border-cyan-500 font-mono w-28 uppercase"
@@ -624,11 +623,10 @@ export default function EditAccreditationModal({
             <button
               type="button"
               onClick={() => setExpiryMode("none")}
-              className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
-                expiryMode === "none"
+              className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${expiryMode === "none"
                   ? "border-primary-500 bg-primary-500/20"
                   : "border-slate-700 hover:border-slate-600 bg-slate-800/50"
-              }`}
+                }`}
             >
               <CalendarX className={`w-5 h-5 flex-shrink-0 ${expiryMode === "none" ? "text-primary-400" : "text-slate-500"}`} />
               <div className="flex-1">
@@ -641,11 +639,10 @@ export default function EditAccreditationModal({
               <button
                 type="button"
                 onClick={() => setExpiryMode("event")}
-                className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
-                  expiryMode === "event"
+                className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${expiryMode === "event"
                     ? "border-cyan-500 bg-cyan-500/20"
                     : "border-slate-700 hover:border-slate-600 bg-slate-800/50"
-                }`}
+                  }`}
               >
                 <Calendar className={`w-5 h-5 flex-shrink-0 ${expiryMode === "event" ? "text-cyan-400" : "text-slate-500"}`} />
                 <div className="flex-1">
@@ -658,11 +655,10 @@ export default function EditAccreditationModal({
             <button
               type="button"
               onClick={() => setExpiryMode("custom")}
-              className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
-                expiryMode === "custom"
+              className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${expiryMode === "custom"
                   ? "border-amber-500 bg-amber-500/20"
                   : "border-slate-700 hover:border-slate-600 bg-slate-800/50"
-              }`}
+                }`}
             >
               <Clock className={`w-5 h-5 flex-shrink-0 ${expiryMode === "custom" ? "text-amber-400" : "text-slate-500"}`} />
               <div className="flex-1">

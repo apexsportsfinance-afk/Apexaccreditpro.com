@@ -945,6 +945,9 @@ function mapAccreditationToDB(acc) {
   if (acc.forceLive !== undefined) map.force_live = acc.forceLive;
   if (acc.heatSheetUpdatedAt !== undefined) map.heat_sheet_updated_at = acc.heatSheetUpdatedAt;
   if (acc.eventResultUpdatedAt !== undefined) map.event_result_updated_at = acc.eventResultUpdatedAt;
+  if (acc.payment_status !== undefined) map.payment_status = acc.payment_status;
+  if (acc.payment_amount !== undefined) map.payment_amount = acc.payment_amount;
+  if (acc.stripe_session_id !== undefined) map.stripe_session_id = acc.stripe_session_id;
   return map;
 }
 
@@ -983,7 +986,10 @@ function mapAccreditationFromDB(db) {
     forceLive: db.force_live || false,
     heatSheetUpdatedAt: db.heat_sheet_updated_at,
     eventResultUpdatedAt: db.event_result_updated_at,
-    approverName: db.approverName || null
+    approverName: db.approverName || null,
+    paymentStatus: db.payment_status || 'unpaid',
+    paymentAmount: db.payment_amount || null,
+    stripeSessionId: db.stripe_session_id || null
   };
 }
 

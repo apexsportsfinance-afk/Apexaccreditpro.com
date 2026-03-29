@@ -438,7 +438,7 @@ export default function ScannerPage() {
             <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">{config.deviceLabel}</p>
           </div>
         </div>
-        {!isPublic && <button onClick={logout} className="text-white/20 hover:text-red-400 p-2 transition-colors"><LogOut /></button>}
+        {!isPublic && <button onClick={logout} className="text-white/40 hover:text-red-400 p-2 transition-colors"><LogOut /></button>}
       </header>
 
       {/* Main Scan View */}
@@ -500,7 +500,7 @@ export default function ScannerPage() {
                 <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Hardware Link Active</span>
               </div>
               <h2 className="text-white font-black uppercase tracking-widest text-lg">Position QR Code</h2>
-              <p className="text-white/20 text-[10px] font-bold uppercase tracking-[0.3em] max-w-[200px] mx-auto text-center">Compatible with Magellan 900i and internal camera</p>
+              <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.3em] max-w-[200px] mx-auto text-center">Compatible with Magellan 900i and internal camera</p>
             </div>
           </div>
         ) : (
@@ -581,7 +581,7 @@ function ResultView({ config, result, onResume, onRedeem, isPublic }) {
           <p className="text-3xl font-black text-white uppercase">{result.athlete.firstName} {result.athlete.lastName}</p>
           <p className="text-orange-400 font-black uppercase tracking-[0.2em] mt-1">{result.athlete.club}</p>
         </div>
-        <button onClick={onResume} className="mt-12 text-white/20 hover:text-white font-bold uppercase tracking-widest transition-colors">Clear</button>
+        <button onClick={onResume} className="text-blue-400/60 hover:text-blue-400 font-bold uppercase tracking-widest transition-colors">Clear</button>
       </div>
     );
   }
@@ -840,7 +840,7 @@ function InfoItem({ icon: Icon, label, value, color = "text-white/80" }) {
         <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center">
           <Icon className="w-4 h-4 text-white/30" />
         </div>
-        <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">{label}</span>
+        <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">{label}</span>
       </div>
       <span className={`font-bold ${color}`}>{value}</span>
     </div>

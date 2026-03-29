@@ -43,7 +43,8 @@ async function saveInviteLinks(eventId, links) {
 /**
  * Create a new invite link
  */
-export async function createInviteLink(eventId, { label, mode, maxUses, expiresAt, role, club }) {
+export async function createInviteLink(eventId, updates) {
+  const { label, mode, maxUses, expiresAt, role, club } = updates;
   const links = await getInviteLinks(eventId);
   const newLink = {
     id: `il_${Date.now()}`,
@@ -55,6 +56,8 @@ export async function createInviteLink(eventId, { label, mode, maxUses, expiresA
     expiresAt: expiresAt || null,
     role: role || null,
     club: club || null,
+    requirePayment: updates?.requirePayment || false,
+    paymentAmount: updates?.requirePayment ? parseFloat(updates.paymentAmount) : null,
     isActive: true,
     createdAt: new Date().toISOString(),
     eventId
@@ -98,7 +101,9 @@ export async function updateInviteLink(eventId, linkId, updates) {
       maxUses: updates.maxUses !== undefined ? updates.maxUses : l.maxUses,
       mode: updates.mode !== undefined ? updates.mode : l.mode,
       role: updates.role !== undefined ? updates.role : l.role,
-      club: updates.club !== undefined ? updates.club : l.club
+      club: updates.club !== undefined ? updates.club : l.club,
+      requirePayment: updates.requirePayment !== undefined ? updates.requirePayment : l.requirePayment,
+      paymentAmount: updates.paymentAmount !== undefined ? updates.paymentAmount : l.paymentAmount
     };
   });
   await saveInviteLinks(eventId, updated);
@@ -146,4 +151,12 @@ export function getLinkStatus(link) {
   if (link.expiresAt && new Date() > new Date(link.expiresAt)) return "expired";
   if (link.maxUses !== null && link.useCount >= link.maxUses) return "exhausted";
   return "active";
+}
+
+/**
+ * Helper: get the full registration URL for a link
+ */
+export function getInviteUrl(link) {
+  const baseUrl = window.location.origin;
+  return `${baseUrl}/register/${link.eventId}/${link.token}`;
 }

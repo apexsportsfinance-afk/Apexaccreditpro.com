@@ -24,6 +24,7 @@ import * as QRCodeLib from "qrcode";
 import { sendTicketEmail } from "../../lib/email";
 
 import { TicketingAPI, EventsAPI } from "../../lib/storage";
+import { supabase, supabaseUrl, supabaseAnonKey } from "../../lib/supabase";
 
 export default function SpectatorPortal() {
   const { slug } = useParams();
@@ -81,56 +82,54 @@ export default function SpectatorPortal() {
   const verifyAndCompleteOrder = async (sessionId) => {
     try {
       setIsSubmitting(true);
-      const res = await fetch('/api/verify-session', {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${supabaseUrl}/functions/v1/verify-session`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'apikey': supabaseAnonKey,
+          'Authorization': `Bearer ${session?.access_token || supabaseAnonKey}`
+        },
         body: JSON.stringify({ sessionId })
       });
       const data = await res.json();
       
       if (data.success) {
-        const metadata = data.session.metadata;
-        const orderData = {
-          eventId: metadata.eventId,
-          customerName: metadata.customerName,
-          customerEmail: metadata.customerEmail,
-          totalAmount: data.session.amount_total,
-          ticketCount: parseInt(metadata.ticketCount, 10),
-          selectedDates: JSON.parse(metadata.selectedDates),
-          paymentProvider: 'stripe',
-          paymentStatus: 'paid'
-        };
-
-        const order = await TicketingAPI.createOrder(orderData);
+        // Webhook handles status: paid. We just need to load the order details.
+        const orderId = data.session.metadata.orderId;
+        const order = await TicketingAPI.validateOrder(orderId);
         
-        const qrUrl = await QRCodeLib.toDataURL(order.qr_code_id, {
-          width: 400,
-          margin: 2,
-          color: { dark: '#0e7490', light: '#ffffff' }
-        });
-        
-        setQrCodeUrl(qrUrl);
-        setCompletedOrder(order);
+        if (order) {
+          const qrUrl = await QRCodeLib.toDataURL(order.qr_code_id, {
+            width: 400,
+            margin: 2,
+            color: { dark: '#0e7490', light: '#ffffff' }
+          });
+          
+          setQrCodeUrl(qrUrl);
+          setCompletedOrder(order);
+          
+          // Fire off email delivery in background (optional if webhook does it)
+          // For now we keep it here as a fallback
+          if (order.customer_email) {
+            const eData = await EventsAPI.getById(order.event_id);
+            sendTicketEmail({
+              to: order.customer_email,
+              name: order.customer_name,
+              eventName: eData?.name || "Event",
+              ticketCount: order.ticket_count,
+              amountPaid: order.total_amount,
+              paymentMethod: "Card / Stripe",
+              eventData: eData,
+              qrCodeDataUrl: qrUrl,
+              qrCodeId: order.qr_code_id
+            }).catch(e => console.error("Ticket email error:", e));
+          }
+        }
         
         // Clean up the URL
         window.history.replaceState({}, document.title, window.location.pathname);
         toast.success("Payment successful!");
-
-        // Fire off email delivery in background
-        if (orderData.customerEmail) {
-          const eData = await EventsAPI.getById(orderData.eventId);
-          sendTicketEmail({
-            to: orderData.customerEmail,
-            name: orderData.customerName,
-            eventName: eData?.name || "Event",
-            ticketCount: orderData.ticketCount,
-            amountPaid: orderData.totalAmount,
-            paymentMethod: "Card / Stripe",
-            eventData: eData,
-            qrCodeDataUrl: qrUrl,
-            qrCodeId: order.qr_code_id
-          }).catch(e => console.error("Ticket email error:", e));
-        }
       } else {
         toast.error("Payment verification failed. Status: " + data.status);
       }
@@ -237,30 +236,50 @@ export default function SpectatorPortal() {
         totalAmount: totalAmount,
         ticketCount: totalTickets * (selectedDates.length || 1),
         selectedDates: selectedDates,
+        paymentStatus: 'pending'
       };
+
+      // 1. Create order record first
+      const order = await TicketingAPI.createOrder(orderData);
 
       const itemsForStripe = [];
       Object.entries(cart).forEach(([id, qty]) => {
         if (qty > 0) {
           const item = [...ticketTypes, ...packages].find(i => i.id === id);
-          if (item) itemsForStripe.push({ ...item, quantity: qty });
+          if (item) itemsForStripe.push({ 
+            name: item.name,
+            description: item.description || '',
+            price: Number(item.price) * (selectedDates.length || 1),
+            quantity: qty 
+          });
         }
       });
 
-      const res = await fetch('/api/create-checkout-session', {
+      // 2. call Edge Function
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${supabaseUrl}/functions/v1/create-payment-session`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'apikey': supabaseAnonKey,
+          'Authorization': `Bearer ${session?.access_token || supabaseAnonKey}`
+        },
         body: JSON.stringify({ 
+          type: 'spectator',
           items: itemsForStripe, 
           eventId: event.id,
           eventSlug: event.slug || slug,
-          orderData 
+          customerEmail: customerData.email,
+          customerName: customerData.name,
+          metadata: {
+            orderId: order.qr_code_id
+          }
         })
       });
       
       const data = await res.json();
       if (data.url) {
-        window.location.href = data.url; // Redirect to secure Stripe Checkout
+        window.location.href = data.url;
       } else {
         throw new Error(data.error || 'Failed to initialize checkout');
       }

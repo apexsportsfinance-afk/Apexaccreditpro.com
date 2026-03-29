@@ -31,7 +31,8 @@ import {
   Shield,
   Lock,
   QrCode,
-  Trash
+  Trash,
+  CreditCard
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { extractTextFromPdf as parsePDFText } from "../../lib/pdfParser";
@@ -2363,7 +2364,7 @@ function InviteLinksView({ event }) {
 
   const defaultForm = {
     label: "", mode: "multi", maxUses: "", expiresIn: "48h", customExpiry: "",
-    role: "", club: []
+    role: "", club: [], requirePayment: false, paymentAmount: ""
   };
   const [form, setForm] = React.useState(defaultForm);
 
@@ -2423,7 +2424,9 @@ function InviteLinksView({ event }) {
         maxUses: form.mode === "single" ? 1 : (form.maxUses ? parseInt(form.maxUses) : null),
         expiresAt: getExpiryDate(),
         role: form.role || null,
-        club: form.club && form.club.length > 0 ? form.club : null
+        club: form.club && form.club.length > 0 ? form.club : null,
+        requirePayment: form.requirePayment,
+        paymentAmount: form.requirePayment ? parseFloat(form.paymentAmount) : null
       };
 
       if (editingLinkId) {
@@ -2452,7 +2455,9 @@ function InviteLinksView({ event }) {
       expiresIn: link.expiresAt ? "custom" : "never",
       customExpiry: link.expiresAt ? new Date(link.expiresAt).toISOString().slice(0, 16) : "",
       role: link.role || "",
-      club: link.club ? (Array.isArray(link.club) ? link.club : [link.club]) : []
+      club: link.club ? (Array.isArray(link.club) ? link.club : [link.club]) : [],
+      requirePayment: link.requirePayment || false,
+      paymentAmount: link.paymentAmount ? link.paymentAmount.toString() : ""
     });
     setShowCreate(true);
   };
@@ -2616,6 +2621,47 @@ function InviteLinksView({ event }) {
                 />
               </div>
             )}
+
+            <div className="pt-4 border-t border-slate-700/50">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${form.requirePayment ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
+                    <CreditCard className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white">Require Payment</p>
+                    <p className="text-xs text-slate-500">Enable Stripe fee for this registration link</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setForm(p => ({ ...p, requirePayment: !p.requirePayment }))}
+                  className={`w-12 h-6 rounded-full transition-all relative ${form.requirePayment ? 'bg-emerald-500' : 'bg-slate-700'}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${form.requirePayment ? 'left-7' : 'left-1'}`} />
+                </button>
+              </div>
+
+              {form.requirePayment && (
+                <div className="animate-in fade-in slide-in-from-top-2 duration-300 translate-x-11">
+                  <div className="flex items-center gap-3">
+                    <div className="relative flex-1 max-w-[200px]">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-bold">AED</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={form.paymentAmount}
+                        onChange={e => setForm(p => ({ ...p, paymentAmount: e.target.value }))}
+                        placeholder="0.00"
+                        className="w-full pl-12 pr-4 py-2 bg-slate-800 border border-slate-600 rounded-xl text-white text-sm focus:outline-none focus:border-emerald-500 transition-all font-mono"
+                      />
+                    </div>
+                    <p className="text-xs text-slate-400 italic">Fee per athlete registration</p>
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="flex gap-3 pt-2">
               <Button onClick={handleCreateOrUpdate} loading={creating} disabled={creating}>
                 {editingLinkId ? "Save Changes" : "Generate Link"}
@@ -2664,6 +2710,12 @@ function InviteLinksView({ event }) {
                            <span className="text-[10px] uppercase font-bold text-violet-400 bg-violet-500/10 px-2 py-0.5 rounded border border-violet-500/20">
                              Restricted Link
                            </span>
+                        )}
+                        {link.requirePayment && (
+                          <span className="text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <CreditCard className="w-2.5 h-2.5" />
+                            AED {link.paymentAmount?.toFixed(2)}
+                          </span>
                         )}
                       </div>
                       <code className="text-xs text-slate-500 truncate block max-w-md">{url}</code>

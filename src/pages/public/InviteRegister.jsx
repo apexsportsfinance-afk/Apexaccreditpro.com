@@ -13,6 +13,7 @@ import SearchableSelect from "../../components/ui/SearchableSelect";
 import Modal from "../../components/ui/Modal";
 import SwimmingBackground from "../../components/ui/SwimmingBackground";
 import { EventsAPI, AccreditationsAPI, EventCategoriesAPI, CategoriesAPI } from "../../lib/storage";
+import { supabase, supabaseUrl, supabaseAnonKey } from "../../lib/supabase";
 import { COUNTRIES, ROLES, validateFile } from "../../lib/utils";
 import { SportEventsAPI, GlobalSettingsAPI } from "../../lib/broadcastApi";
 import { uploadToStorage } from "../../lib/uploadToStorage";
@@ -121,8 +122,46 @@ export default function InviteRegister() {
         setStatus("invalid");
       }
     };
+    const query = new URLSearchParams(window.location.search);
+    const sessionId = query.get('session_id');
+
+    if (sessionId) {
+      handlePaymentVerification(sessionId);
+      return;
+    }
+
     init();
   }, [eventSlug, token]);
+
+  const handlePaymentVerification = async (sessionId) => {
+    setStatus("loading");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${supabaseUrl}/functions/v1/verify-session`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'apikey': supabaseAnonKey,
+          'Authorization': `Bearer ${session?.access_token || supabaseAnonKey}`
+        },
+        body: JSON.stringify({ sessionId })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        // Success! Webhook handles the DB update, we just show the success screen
+        setStatus("submitted");
+        // Clean up URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } else {
+        setErrors({ submit: "Payment verification failed or was cancelled." });
+        setStatus("valid"); // Go back to form but show error
+      }
+    } catch (err) {
+      console.error(err);
+      setStatus("valid");
+    }
+  };
 
   const getRequiredDocuments = () => {
     if (!event) return [DEFAULT_DOCUMENTS[0], DEFAULT_DOCUMENTS[1]];
@@ -212,7 +251,7 @@ export default function InviteRegister() {
       // APX-P0: Generate foolproof submission secret
       const submissionSecret = `apex_v1_${event.id?.substring(0, 8)}`;
 
-      await AccreditationsAPI.create({
+      const accRecord = await AccreditationsAPI.create({
         eventId: event.id,
         firstName: formData.firstName,
         lastName: formData.lastName,
@@ -223,10 +262,46 @@ export default function InviteRegister() {
         role: formData.role,
         email: formData.email,
         photoUrl: firstDoc ? (formData.documents[firstDoc.id]) : null,
-        idDocumentUrl: secondDoc ? (formData.documents[secondDoc.id]) : null
+        idDocumentUrl: secondDoc ? (formData.documents[secondDoc.id]) : null,
+        payment_status: inviteLink?.requirePayment ? 'unpaid' : 'paid',
+        payment_amount: inviteLink?.requirePayment ? inviteLink.paymentAmount : null
       }, submissionSecret);
+
       // Increment link use count
       if (inviteLink) await incrementLinkUseCount(event.id, inviteLink.id);
+
+      if (inviteLink?.requirePayment) {
+        // Redirect to Stripe
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch(`${supabaseUrl}/functions/v1/create-payment-session`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${session?.access_token || supabaseAnonKey}`
+          },
+          body: JSON.stringify({
+            type: 'accreditation',
+            eventId: event.id,
+            eventSlug: eventSlug,
+            customerEmail: formData.email,
+            customerName: `${formData.firstName} ${formData.lastName}`,
+            metadata: {
+              accreditationId: accRecord.id,
+              amount: inviteLink.paymentAmount,
+              token: token
+            }
+          })
+        });
+        const data = await res.json();
+        if (data.url) {
+          window.location.href = data.url;
+          return;
+        } else {
+          throw new Error(data.error || "Failed to initialize payment");
+        }
+      }
+
       setStatus("submitted");
     } catch (error) {
       if (error.message && error.message.includes("DUPLICATE_NAME")) {
@@ -473,7 +548,9 @@ export default function InviteRegister() {
 
             <Button type="submit" loading={submitting} disabled={submitting}
               className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 shadow-lg shadow-cyan-500/25 min-h-[52px]">
-              {submitting ? "Submitting..." : "Submit Accreditation Request"}
+              {submitting ? "Submitting..." : 
+               inviteLink?.requirePayment ? `Pay AED ${inviteLink.paymentAmount?.toFixed(2)} & Submit` : 
+               "Submit Accreditation Request"}
             </Button>
           </motion.form>
         </div>
