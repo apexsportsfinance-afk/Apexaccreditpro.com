@@ -90,6 +90,7 @@ export default function ScannerPage() {
   // Hardware Scanner (Magellan 900i) Listener Logic
   const scanBuffer = useRef("");
   const lastKeyTime = useRef(Date.now());
+  const resultTimerRef = useRef(null);
 
   // 1. Initialize config from URL
   useEffect(() => {
@@ -219,6 +220,12 @@ export default function ScannerPage() {
     if (processing) return; 
     setProcessing(true);
     
+    // Clear any pending result clear timers immediately on new scan
+    if (resultTimerRef.current) {
+      clearTimeout(resultTimerRef.current);
+      resultTimerRef.current = null;
+    }
+    
     // Trigger SUCCESS FLASH
     setFlash(true);
     setTimeout(() => setFlash(false), 500);
@@ -336,9 +343,9 @@ export default function ScannerPage() {
           message: config.mode === "verify" ? "Accreditation Verified" : "Profile Loaded"
         });
         
-        // Auto-resume after 5s for the next athlete (Self-Service Hub)
+        // Auto-resume after 50s for the next athlete (Self-Service Hub)
         if (config.mode === "info") {
-          setTimeout(resumeScanner, 5000);
+          resultTimerRef.current = setTimeout(resumeScanner, 50000);
         }
 
         // AUDIT LOG (Silent)
@@ -360,7 +367,8 @@ export default function ScannerPage() {
 
   const showScanError = (title, message) => {
     setLastScanResult({ status: "error", title, message });
-    setTimeout(resumeScanner, 3000);
+    if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
+    resultTimerRef.current = setTimeout(resumeScanner, 3000);
   };
 
   const handleRedeem = async (count) => {
@@ -384,6 +392,10 @@ export default function ScannerPage() {
   };
 
   const resumeScanner = () => {
+    if (resultTimerRef.current) {
+      clearTimeout(resultTimerRef.current);
+      resultTimerRef.current = null;
+    }
     setLastScanResult(null);
     setProcessing(false);
   };
@@ -802,7 +814,7 @@ function ResultView({ config, result, onResume, onRedeem, isPublic }) {
           </div>
 
           {/* Messages / Broadcasts Section below the card */}
-          {messages && messages.length > 0 && (
+          {messages && messages.length > 0 && !(config.mode === 'info' && isPublic) && (
             <div className="space-y-3">
               <div className="flex items-center gap-2 px-1">
                 <Bell className="w-4 h-4 text-white/40" />
