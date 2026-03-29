@@ -1,5 +1,6 @@
 import React, { Suspense, lazy } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { ToastProvider } from "./components/ui/Toast";
 import { AuthProvider } from "./contexts/AuthContext";
 import ScrollToTop from "./components/layout/ScrollToTop";
@@ -78,6 +79,7 @@ export default function App() {
           </LayoutProvider>
         </AuthProvider>
       </ToastProvider>
+      <SpeedInsights />
     </Router>
   );
 }
