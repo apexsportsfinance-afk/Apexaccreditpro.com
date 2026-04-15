@@ -320,7 +320,7 @@ export const AccreditationsAPI = {
 
   getCountsByEventIds: async (eventIds) => {
     if (!eventIds || eventIds.length === 0) return {};
-    const { data } = await handleResponse(
+    const data = await handleResponse(
       () => supabase
         .from("accreditations")
         .select("event_id, status")
