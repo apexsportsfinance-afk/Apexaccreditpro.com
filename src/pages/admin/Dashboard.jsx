@@ -121,14 +121,6 @@ export default function Dashboard() {
         console.error("Dashboard source (AuditAPI.getRecent) failed:", auditRes.reason);
       }
 
-      // Log errors for debugging
-      results.forEach((res, i) => {
-        if (res.status === "rejected") {
-          // Specific logging already done above for main sources, this catches any missed or general
-          // console.error(`Dashboard source ${i} failed:`, res.reason);
-        }
-      });
-
     } catch (error) {
       console.error("Dashboard massive failure:", error);
     } finally {
@@ -324,18 +316,18 @@ export default function Dashboard() {
                       </div>
                     </div>
                     
-                    <p className="text-xs text-muted font-medium mb-5 flex items-center gap-1.5">
-                        <span className="w-1 h-1 rounded-full bg-primary-500/40"></span>
+                    <p className="text-xs text-slate-400 font-bold mb-5 flex items-center gap-1.5">
+                        <span className="w-1 h-1 rounded-full bg-primary-500/60"></span>
                         {formatDate(event.startDate, "MMM dd")} - {formatDate(event.endDate, "MMM dd, yyyy")}
                     </p>
 
                     <div className="flex items-center justify-between pt-4 border-t border-border/50">
-                      <span className="text-[10px] font-black text-muted uppercase tracking-widest">
+                      <span className="text-[10px] font-black text-zinc-300 uppercase tracking-widest">
                         {counts.total} TOTAL
                       </span>
                       <div className="flex items-center gap-2">
-                        <Badge variant="warning" className="px-1.5 opacity-60 group-hover:opacity-100">{counts.pending}</Badge>
-                        <Badge variant="success" className="px-1.5 opacity-60 group-hover:opacity-100">{counts.approved}</Badge>
+                        <Badge variant="warning" className="px-2 shadow-lg">{counts.pending}</Badge>
+                        <Badge variant="success" className="px-2 shadow-lg">{counts.approved}</Badge>
                       </div>
                     </div>
                   </motion.div>

@@ -23,7 +23,7 @@ export function StatsCard({
     >
       <div className="flex items-start justify-between relative z-10 w-full font-body">
         <div>
-          <p className="font-h2 text-main/70 mb-1.5 uppercase tracking-widest font-semibold">{title}</p>
+          <p className="font-h2 text-slate-400 mb-1.5 uppercase tracking-widest font-bold tracking-wider">{title}</p>
           <div className="flex items-baseline gap-2">
             <p className="text-4xl font-black text-main leading-none mb-3 tracking-tighter drop-shadow-sm">{value}</p>
           </div>
