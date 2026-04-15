@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host",
+    "server": "node server.js",
+    "dev": "concurrently \"npm run server\" \"vite --host\"",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -38,6 +39,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-basic-ssl": "^1.0.1",
+    "concurrently": "^9.2.1",
     "jsdom": "^29.0.0"
   }
 }
