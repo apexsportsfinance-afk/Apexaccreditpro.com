@@ -246,7 +246,8 @@ export const BroadcastV2API = {
         .select("*")
         .eq("event_id", eventId)
         .eq("type", "global")
-        .is("deleted_at", null);
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false });
 
       if (globalError) {
         console.error("getForAthlete global query error:", globalError);
@@ -259,7 +260,8 @@ export const BroadcastV2API = {
         .eq("event_id", eventId)
         .eq("type", "athlete")
         .eq("athlete_id", athleteId)
-        .is("deleted_at", null);
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false });
 
       if (athleteError) {
         console.error("getForAthlete athlete query error:", athleteError);

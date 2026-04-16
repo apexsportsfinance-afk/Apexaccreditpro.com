@@ -77,11 +77,11 @@ export default function VerifyAccreditation() {
   // Partition messages into three distinct categories
   const filteredMessages = React.useMemo(() => {
     const generalMessages = messages
-      .filter(m => m.type === "global" && !m.targetRoles && !m.targetZones)
+      .filter(m => m.type === "global" && (!m.targetRoles || m.targetRoles.length === 0) && (!m.targetZones || m.targetZones.length === 0))
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       
     const targetedMessages = messages
-      .filter(m => m.type === "global" && (m.targetRoles?.length > 0 || m.targetZones?.length > 0))
+      .filter(m => m.type === "global" && ((m.targetRoles && m.targetRoles.length > 0) || (m.targetZones && m.targetZones.length > 0)))
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     const personalMessages = messages
@@ -590,8 +590,8 @@ export default function VerifyAccreditation() {
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
-                {messages.length > 0 ? (
-                  messages.map((m, i) => (
+                {filteredMessages.allMessages.length > 0 ? (
+                  filteredMessages.allMessages.map((m, i) => (
                     <motion.div
                       key={m.id || i} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }}
                       className={cn(
@@ -1129,23 +1129,24 @@ export default function VerifyAccreditation() {
 }
 
 function ExpandableMessageGroup({ title, messages, icon, isPersonal, isTargeted, isGeneral, onRead }) {
-  const [expanded, setExpanded] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
+  const latestMessage = messages && messages.length > 0 ? messages[0] : null;
   
   useEffect(() => {
-    if (!messages || messages.length === 0) return;
+    if (!latestMessage) return;
     const readIds = JSON.parse(localStorage.getItem('qr_read_msgs') || "[]");
-    setHasUnread(messages.some(m => m.id && !readIds.includes(m.id)));
-  }, [messages]);
+    setHasUnread(latestMessage.id && !readIds.includes(latestMessage.id));
+  }, [latestMessage]);
 
-  const handleExpand = () => {
-    setExpanded(!expanded);
-    if (!expanded && hasUnread) {
+  const markRead = () => {
+    if (hasUnread && latestMessage?.id) {
       const readIds = JSON.parse(localStorage.getItem('qr_read_msgs') || "[]");
-      messages.forEach(m => { if (m.id && !readIds.includes(m.id)) readIds.push(m.id); });
-      localStorage.setItem('qr_read_msgs', JSON.stringify(readIds));
-      setHasUnread(false);
-      if (onRead) onRead();
+      if (!readIds.includes(latestMessage.id)) {
+        readIds.push(latestMessage.id);
+        localStorage.setItem('qr_read_msgs', JSON.stringify(readIds));
+        setHasUnread(false);
+        if (onRead) onRead();
+      }
     }
   };
 
@@ -1155,48 +1156,43 @@ function ExpandableMessageGroup({ title, messages, icon, isPersonal, isTargeted,
       ? { border: "border-blue-500/20", text: "text-blue-300", bg: "bg-blue-500/5" }
       : { border: "border-emerald-500/20", text: "text-emerald-300", bg: "bg-emerald-500/5" };
 
-  if (!messages || messages.length === 0) return null;
+  if (!latestMessage) return null;
   
   return (
-    <motion.div className={cn("w-full bg-white/[0.03] border rounded-[2rem] overflow-hidden transition-all", theme.border)}>
-      <button onClick={handleExpand} className="w-full flex items-center justify-between p-5 hover:bg-white/[0.02]">
+    <motion.div 
+      onViewportEnter={markRead}
+      className={cn("w-full bg-white/[0.03] border rounded-[2rem] overflow-hidden transition-all", theme.border)}
+    >
+      <div className="w-full flex items-center justify-between p-5 border-b border-white/5 bg-white/[0.01]">
         <div className="flex items-center gap-4 text-left">
           <div className="relative p-3 rounded-2xl bg-white/5">
             {React.cloneElement(icon, { className: cn("w-5 h-5", theme.text) })}
-            {!expanded && hasUnread && <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 border-2 border-[#050b18] rounded-full" />}
+            {hasUnread && <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 border-2 border-[#050b18] rounded-full" />}
           </div>
           <div>
             <h3 className={cn("text-[11px] font-black uppercase tracking-[0.2em]", theme.text)}>{title}</h3>
-            <p className="text-[10px] text-white/40 font-bold uppercase mt-0.5">Community Update</p>
+            <p className="text-[10px] text-white/40 font-bold uppercase mt-0.5">LATEST UPDATE</p>
           </div>
         </div>
-        <div className="text-white/30">{expanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}</div>
-      </button>
-      <AnimatePresence>
-        {expanded && (
-          <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="border-t border-white/5 overflow-hidden">
-            <div className="p-4 space-y-3">
-              {messages.map((m, idx) => (
-                <div key={idx} className={cn("p-6 rounded-3xl border border-white/10", theme.bg)}>
-                  <div className="flex justify-between mb-4 border-b border-white/5 pb-3">
-                    <div>
-                      <span className="text-[9px] text-white/30 font-black uppercase block mb-1">Timestamp</span>
-                      <span className="text-[10px] text-white/60 font-black">{m.createdAt ? new Date(m.createdAt).toLocaleString() : 'Recent'}</span>
-                    </div>
-                    {m.attachmentUrl && (
-                      <a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-1 bg-white/10 rounded-lg text-white hover:bg-white/20 transition-all">
-                        <Paperclip className="w-3 h-3" />
-                        <span className="text-[9px] font-black uppercase">View File</span>
-                      </a>
-                    )}
-                  </div>
-                  <p className="text-white font-medium leading-relaxed whitespace-pre-wrap">{m.message}</p>
-                </div>
-              ))}
+      </div>
+      
+      <div className="p-6 space-y-4">
+        <div className={cn("p-6 rounded-3xl border border-white/10", theme.bg)}>
+          <div className="flex justify-between mb-4 border-b border-white/5 pb-3">
+            <div>
+              <span className="text-[9px] text-white/30 font-black uppercase block mb-1">Timestamp</span>
+              <span className="text-[10px] text-white/60 font-black">{latestMessage.createdAt ? new Date(latestMessage.createdAt).toLocaleString() : 'Recent'}</span>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            {latestMessage.attachmentUrl && (
+              <a href={latestMessage.attachmentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-1 bg-white/10 rounded-lg text-white hover:bg-white/20 transition-all">
+                <Paperclip className="w-3 h-3" />
+                <span className="text-[9px] font-black uppercase">View File</span>
+              </a>
+            )}
+          </div>
+          <p className="text-white font-medium leading-relaxed whitespace-pre-wrap">{latestMessage.message}</p>
+        </div>
+      </div>
     </motion.div>
   );
 }
