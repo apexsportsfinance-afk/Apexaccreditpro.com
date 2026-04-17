@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Globe, Upload, Save, Trash2, Clock, Users, Search, Check, X, AlertCircle, CheckCircle, Paperclip, ChevronDown } from "lucide-react";
+import { Globe, Upload, Save, Trash2, Clock, Users, Search, Check, X, AlertCircle, CheckCircle, Paperclip, ChevronDown, Gift } from "lucide-react";
+
+
 import { EventSettingsAPI, BroadcastV2API, SportEventsAPI, GlobalSettingsAPI } from "../../lib/broadcastApi";
 import { AccreditationsAPI } from "../../lib/storage";
 import { supabase } from "../../lib/supabase";
@@ -7,18 +9,26 @@ import { uploadToStorage } from "../../lib/uploadToStorage";
 import { ROLES } from "../../lib/utils";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
+import BirthdayBroadcastPage from "./BirthdayBroadcastPage";
+
 
 const SUB_TABS = [
   { id: "general", label: "General Broadcast", icon: Globe },
   { id: "targeted", label: "Targeted Broadcast", icon: Search },
-  { id: "athlete", label: "Athlete QR Broadcast", icon: Users }
+  { id: "athlete", label: "Athlete QR Broadcast", icon: Users },
+  { id: "birthday", label: "Birthday", icon: Gift }
 ];
+
+
+
 
 const INITIAL_DRAFT_TEMPLATE = {
   general: { message: "", file: null },
   targeted: { message: "", targets: [], zones: [], file: null },
-  athlete: { message: "", selectedAthletes: [], selectedClubs: [], selectedHeats: [], file: null }
+  athlete: { message: "", selectedAthletes: [], selectedClubs: [], selectedHeats: [], file: null },
+  birthday: { message: "", file: null }
 };
+
 
 export default function GlobalBroadcastPanel({ eventId, onToast }) {
   const [activeSubTab, setActiveSubTab] = useState("general");
@@ -26,22 +36,34 @@ export default function GlobalBroadcastPanel({ eventId, onToast }) {
   // Requirement: Make broadcast messages independent per event
   const [eventDrafts, setEventDrafts] = useState({});
 
-  const currentDrafts = eventDrafts[eventId] || INITIAL_DRAFT_TEMPLATE;
+  // Safer drafting that avoids mutating constants during render
+  const currentDrafts = React.useMemo(() => {
+    const raw = eventDrafts[eventId] || {};
+    return {
+      general: { ...INITIAL_DRAFT_TEMPLATE.general, ...(raw.general || {}) },
+      targeted: { ...INITIAL_DRAFT_TEMPLATE.targeted, ...(raw.targeted || {}) },
+      athlete: { ...INITIAL_DRAFT_TEMPLATE.athlete, ...(raw.athlete || {}) },
+      birthday: { ...INITIAL_DRAFT_TEMPLATE.birthday, ...(raw.birthday || {}) }
+    };
+  }, [eventId, eventDrafts]);
 
   const updateDraft = (tab, updates) => {
+    if (!tab) return;
     setEventDrafts(prev => {
-      const eventState = prev[eventId] || INITIAL_DRAFT_TEMPLATE;
+      const eventState = { ...INITIAL_DRAFT_TEMPLATE, ...(prev[eventId] || {}) };
+      const tabState = { ...INITIAL_DRAFT_TEMPLATE[tab], ...(eventState[tab] || {}) };
       return {
         ...prev,
         [eventId]: {
           ...eventState,
-          [tab]: { ...eventState[tab], ...updates }
+          [tab]: { ...tabState, ...updates }
         }
       };
     });
   };
 
   return (
+
     <div id="global-broadcast-panel" className="space-y-4">
       <div className="flex gap-1 bg-gray-900 rounded-lg p-1">
         {SUB_TABS.map(tab => {
@@ -87,7 +109,16 @@ export default function GlobalBroadcastPanel({ eventId, onToast }) {
           setDraft={(d) => updateDraft("athlete", d)}
         />
       )}
+      {activeSubTab === "birthday" && (
+        <BirthdayBroadcastPage 
+          eventId={eventId} 
+          onToast={onToast} 
+          draft={currentDrafts.birthday}
+          setDraft={(d) => updateDraft("birthday", d)}
+        />
+      )}
     </div>
+
   );
 }
 
@@ -118,7 +149,8 @@ function SuccessOverlay({ show, message, onClose }) {
 
 /* ─── General Broadcast Page (Strictly Global) ──────────────── */
 function GeneralBroadcastPage({ eventId, onToast, draft, setDraft }) {
-  const { message, file: attachmentFile } = draft;
+  const { message = "", file: attachmentFile = null } = draft || {};
+
   const setMessage = (m) => setDraft({ message: m });
   const setAttachmentFile = (f) => setDraft({ file: f });
   
@@ -205,7 +237,13 @@ function GeneralBroadcastPage({ eventId, onToast, draft, setDraft }) {
 
 /* ─── Targeted Broadcast Page (Roles & Zones) ────────────────── */
 function TargetedBroadcastPage({ eventId, onToast, draft, setDraft }) {
-  const { message, targets, zones, file: attachmentFile } = draft;
+  const { 
+    message = "", 
+    targets = [], 
+    zones = [], 
+    file: attachmentFile = null 
+  } = draft || {};
+
   
   const setMessage = (m) => setDraft({ message: m });
   const setTargets = (t) => setDraft({ targets: typeof t === 'function' ? t(targets) : t });
@@ -276,12 +314,13 @@ function TargetedBroadcastPage({ eventId, onToast, draft, setDraft }) {
 /* ─── Athlete Broadcast Page (Granular Multi-Select) ────────── */
 function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft }) {
   const { 
-    message, 
-    selectedAthletes, 
-    selectedClubs, 
-    selectedHeats, 
-    file: attachmentFile 
-  } = draft;
+    message = "", 
+    selectedAthletes = [], 
+    selectedClubs = [], 
+    selectedHeats = [], 
+    file: attachmentFile = null 
+  } = draft || {};
+
 
   const setMessage = (m) => setDraft({ message: m });
   const setSelectedAthletes = (sa) => setDraft({ selectedAthletes: typeof sa === 'function' ? sa(selectedAthletes) : sa });
