@@ -50,6 +50,14 @@ export default function BirthdayBroadcastPage({ eventId, onToast, draft, setDraf
     } finally {
       setLoading(false);
     }
+  };  const replacePlaceholders = (text, person) => {
+    if (!text) return "";
+    return text
+      .replace(/\{firstName\}/g, person.firstName || "")
+      .replace(/\{lastName\}/g, person.lastName || "")
+      .replace(/\{fullName\}/g, `${person.firstName || ""} ${person.lastName || ""}`.trim())
+      .replace(/\{name\}/g, `${person.firstName || ""} ${person.lastName || ""}`.trim())
+      .replace(/\{club\}/g, person.club || "");
   };
 
   const saveMessage = async () => {
@@ -64,10 +72,15 @@ export default function BirthdayBroadcastPage({ eventId, onToast, draft, setDraf
         attachmentUrl = url; attachmentName = attachmentFile.name || filename;
       }
       
-      const recipientIds = birthdayPeople.map(p => p.id);
-      await BroadcastV2API.sendToAthletes(eventId, message, recipientIds, attachmentUrl, attachmentName);
+      // APX-DYNAMIC: Send personalized message to each person individually
+      const sendPromises = birthdayPeople.map(person => {
+        const personalizedMsg = replacePlaceholders(message, person);
+        return BroadcastV2API.sendToAthletes(eventId, personalizedMsg, [person.id], attachmentUrl, attachmentName);
+      });
+
+      await Promise.all(sendPromises);
       
-      setSuccessInfo(`Birthday wishes sent to ${birthdayPeople.length} participant(s)!`);
+      setSuccessInfo(`Personalized birthday wishes sent to ${birthdayPeople.length} participant(s)!`);
       setMessage("");
       setAttachmentFile(null);
     } catch (err) { 
@@ -133,14 +146,29 @@ export default function BirthdayBroadcastPage({ eventId, onToast, draft, setDraf
               <label className="block text-gray-500 text-[10px] font-black uppercase tracking-widest">Customize Celebration Message</label>
               <span className="text-[10px] text-gray-600 font-bold uppercase tracking-widest">{message?.length || 0}/1000</span>
             </div>
-            <textarea 
-              value={message} 
-              onChange={e => setMessage(e.target.value)} 
-              rows={4} 
-              maxLength={1000}
-              placeholder="Write a personalized happy birthday message..." 
-              className="w-full bg-gray-900 border border-gray-700 rounded-xl px-5 py-4 text-white font-medium focus:border-pink-500 outline-none transition-all resize-none shadow-xl" 
-            />
+            
+            <div className="relative group">
+              <textarea 
+                value={message} 
+                onChange={e => setMessage(e.target.value)} 
+                rows={4} 
+                maxLength={1000}
+                placeholder="Write a personalized happy birthday message..." 
+                className="w-full bg-gray-900 border border-gray-700 rounded-xl px-5 py-4 text-white font-medium focus:border-pink-500 outline-none transition-all resize-none shadow-xl" 
+              />
+              <div className="mt-2 flex flex-wrap gap-2 px-1">
+                <span className="text-[9px] text-gray-500 font-bold uppercase">Dynamic Tags:</span>
+                {['{firstName}', '{lastName}', '{fullName}', '{club}'].map(tag => (
+                  <button 
+                    key={tag}
+                    onClick={() => setMessage(message + tag)}
+                    className="text-[9px] bg-gray-900 border border-gray-700 hover:border-pink-500 text-pink-400 px-2 py-0.5 rounded transition-all font-mono"
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
             
             <div className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 cursor-pointer px-5 py-3 bg-gray-900 border border-gray-700 hover:border-pink-500/50 hover:bg-pink-500/5 rounded-xl text-sm font-bold text-gray-300 transition-all group">
@@ -152,7 +180,6 @@ export default function BirthdayBroadcastPage({ eventId, onToast, draft, setDraf
               <Button onClick={saveMessage} variant="primary" loading={sending} icon={Gift} className="bg-gradient-to-br from-pink-600 to-rose-500 hover:from-pink-500 hover:to-rose-400 border-none px-8 py-3.5 rounded-xl text-white font-black uppercase tracking-widest text-xs shadow-2xl shadow-pink-900/20 transform hover:-translate-y-0.5 active:translate-y-0 transition-all flex-1 md:flex-none">
                 Send Birthday Wishes
               </Button>
-
 
               {attachmentFile && (
                 <button onClick={() => setAttachmentFile(null)} className="p-3 text-gray-500 hover:text-red-400 transition-colors">
