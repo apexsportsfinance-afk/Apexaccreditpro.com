@@ -1130,6 +1130,7 @@ export default function VerifyAccreditation() {
 
 function ExpandableMessageGroup({ title, messages, icon, isPersonal, isTargeted, isGeneral, onRead }) {
   const [hasUnread, setHasUnread] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const latestMessage = messages && messages.length > 0 ? messages[0] : null;
   
   useEffect(() => {
@@ -1137,6 +1138,13 @@ function ExpandableMessageGroup({ title, messages, icon, isPersonal, isTargeted,
     const readIds = JSON.parse(localStorage.getItem('qr_read_msgs') || "[]");
     setHasUnread(latestMessage.id && !readIds.includes(latestMessage.id));
   }, [latestMessage]);
+
+  const toggleExpand = () => {
+    setIsExpanded(!isExpanded);
+    if (!isExpanded && hasUnread && latestMessage?.id) {
+      markRead();
+    }
+  };
 
   const markRead = () => {
     if (hasUnread && latestMessage?.id) {
@@ -1160,12 +1168,14 @@ function ExpandableMessageGroup({ title, messages, icon, isPersonal, isTargeted,
   
   return (
     <motion.div 
-      onViewportEnter={markRead}
       className={cn("w-full bg-white/[0.03] border rounded-[2rem] overflow-hidden transition-all", theme.border)}
     >
-      <div className="w-full flex items-center justify-between p-5 border-b border-white/5 bg-white/[0.01]">
-        <div className="flex items-center gap-4 text-left">
-          <div className="relative p-3 rounded-2xl bg-white/5">
+      <button 
+        onClick={toggleExpand}
+        className="w-full flex items-center justify-between p-5 border-b border-white/5 bg-white/[0.01] hover:bg-white/[0.03] transition-colors text-left outline-none group"
+      >
+        <div className="flex items-center gap-4">
+          <div className="relative p-3 rounded-2xl bg-white/5 group-hover:bg-white/10 transition-colors">
             {React.cloneElement(icon, { className: cn("w-5 h-5", theme.text) })}
             {hasUnread && <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 border-2 border-[#050b18] rounded-full" />}
           </div>
@@ -1174,28 +1184,44 @@ function ExpandableMessageGroup({ title, messages, icon, isPersonal, isTargeted,
             <p className="text-[10px] text-white/40 font-bold uppercase mt-0.5">LATEST UPDATE</p>
           </div>
         </div>
-      </div>
-      
-      <div className="p-6 space-y-4">
-        <div className={cn("p-6 rounded-3xl border border-white/10", theme.bg)}>
-          <div className="flex justify-between mb-4 border-b border-white/5 pb-3">
-            <div>
-              <span className="text-[9px] text-white/30 font-black uppercase block mb-1">Timestamp</span>
-              <span className="text-[10px] text-white/60 font-black">{latestMessage.createdAt ? new Date(latestMessage.createdAt).toLocaleString() : 'Recent'}</span>
-            </div>
-            {latestMessage.attachmentUrl && (
-              <a href={latestMessage.attachmentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-1 bg-white/10 rounded-lg text-white hover:bg-white/20 transition-all">
-                <Paperclip className="w-3 h-3" />
-                <span className="text-[9px] font-black uppercase">View File</span>
-              </a>
-            )}
-          </div>
-          <p className="text-white font-medium leading-relaxed whitespace-pre-wrap">{latestMessage.message}</p>
+        <div className={cn("p-2 rounded-xl bg-white/5 transition-transform duration-300", isExpanded ? "rotate-180" : "")}>
+          <ChevronDown className="w-4 h-4 text-white/40" />
         </div>
-      </div>
+      </button>
+      
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div className="p-6 pt-2 space-y-4">
+              <div className={cn("p-6 rounded-3xl border border-white/10", theme.bg)}>
+                <div className="flex justify-between mb-4 border-b border-white/5 pb-3">
+                  <div>
+                    <span className="text-[9px] text-white/30 font-black uppercase block mb-1">Timestamp</span>
+                    <span className="text-[10px] text-white/60 font-black">{latestMessage.createdAt ? new Date(latestMessage.createdAt).toLocaleString() : 'Recent'}</span>
+                  </div>
+                  {latestMessage.attachmentUrl && (
+                    <a href={latestMessage.attachmentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-1 bg-white/10 rounded-lg text-white hover:bg-white/20 transition-all">
+                      <Paperclip className="w-3 h-3" />
+                      <span className="text-[9px] font-black uppercase">View File</span>
+                    </a>
+                  )}
+                </div>
+                <p className="text-white font-medium leading-relaxed whitespace-pre-wrap">{latestMessage.message}</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
+
 
 function DownloadButton({ url, visible, label, color }) {
   if (!url || !visible) return null;
