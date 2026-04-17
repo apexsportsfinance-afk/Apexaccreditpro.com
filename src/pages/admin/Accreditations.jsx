@@ -52,6 +52,7 @@ import {
   sendRejectionEmail
 } from "../../lib/email";
 import ComposeEmailModal from "../../components/accreditation/ComposeEmailModal";
+import BackgroundProgress from "../../components/accreditation/BackgroundProgress";
 import { generatePdfAttachment } from "../../lib/pdfEmailHelper";
 import {
   formatDate,
@@ -80,7 +81,7 @@ export default function Accreditations() {
   const [searchParams, setSearchParams] = useSearchParams();
   const toast = useToast();
   const { canAccessEvent } = useAuth();
-  const { addToQueue } = useBackground();
+  const { addToQueue, currentTask, queue } = useBackground();
 
   const [events, setEvents] = useState([]);
   const [accreditations, setAccreditations] = useState([]);
@@ -97,6 +98,8 @@ export default function Accreditations() {
   const [rejectData, setRejectData] = useState({ remarks: "", sendEmail: true });
   const [downloadingId, setDownloadingId] = useState(null);
   const [pdfPreviewModal, setPdfPreviewModal] = useState({ open: false, accreditation: null });
+  const [pdfSize, setPdfSize] = useState("a6"); // Default size
+  const [approving, setApproving] = useState(false);
   const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false);
   const [badgeGeneratorModal, setBadgeGeneratorModal] = useState({ open: false, accreditation: null });
   /* ─── Render Participating Sports Badges ─── */
@@ -116,7 +119,6 @@ export default function Accreditations() {
     );
   };
 
-  const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [selectedPdfSize, setSelectedPdfSize] = useState("a6");
   const [selectedImageSize, setSelectedImageSize] = useState("medium");
@@ -147,12 +149,12 @@ export default function Accreditations() {
         const allEventsData = await EventsAPI.getAll();
         const filteredEvents = allEventsData.filter(e => canAccessEvent(e.id));
         setEvents(filteredEvents);
-        
+
         const eventParam = searchParams.get("event");
-        const targetEventId = (eventParam && canAccessEvent(eventParam)) 
-          ? eventParam 
+        const targetEventId = (eventParam && canAccessEvent(eventParam))
+          ? eventParam
           : (filteredEvents.length > 0 ? filteredEvents[0].id : null);
-        
+
         if (targetEventId) {
           // Setting this will trigger the second useEffect
           setSelectedEvent(targetEventId);
@@ -371,16 +373,20 @@ export default function Accreditations() {
         accreditation,
         eventId: selectedEvent,
         approveData,
+        pdfSize, // Pass requested size
         onSuccess: (updated) => {
           setAccreditations(prev => prev.map(a => a.id === updated.id ? updated : a));
         }
       });
 
       setApproveModal({ open: false, accreditation: null });
-      toast("Added to processing queue", "info");
+      toast.info("Added to processing queue");
+
     } catch (err) {
       console.error("Queue error:", err);
       toast.error("Failed to add to processing queue");
+    } finally {
+      setApproving(false);
     }
   };
 
@@ -451,71 +457,32 @@ export default function Accreditations() {
     }
     setApproving(true);
     try {
-      const zoneCodeString = approveData.zoneCodes.join(",");
-      await AccreditationsAPI.bulkApprove(selectedRows, zoneCodeString);
-      // APX-PERF: Single refresh — no second getByEventId call
-      await refreshAccreditations();
-      if (approveData.sendEmail) {
-        // Use the freshly-refreshed local state instead of another DB round-trip
-        let emailsSent = 0;
-        let emailsFailed = 0;
-        
-        const CHUNK_SIZE = 5;
-        for (let i = 0; i < selectedRows.length; i += CHUNK_SIZE) {
-          const chunkIds = selectedRows.slice(i, i + CHUNK_SIZE);
-          await Promise.all(chunkIds.map(async (rowId) => {
-            const acc = accreditations.find((a) => a.id === rowId);
-            if (!acc || !acc.email) return;
-            const eventData = events.find((e) => e.id === acc.eventId);
-            
-            let pdfData = null;
-            try {
-              pdfData = await generatePdfAttachment(acc, eventData, zones);
-            } catch (pdfErr) {
-              console.warn(`[BulkApprove] PDF failed for ${acc.email}:`, pdfErr);
-            }
+      // Add all selected items to the background queue
+      selectedRows.forEach(rowId => {
+        const acc = accreditations.find(a => a.id === rowId);
+        if (!acc) return;
 
-            try {
-              const emailResult = await sendApprovalEmail({
-                to: acc.email,
-                name: `${acc.firstName} ${acc.lastName}`,
-                eventName: eventData?.name || "Event",
-                eventLocation: eventData?.location || "",
-                eventDates: eventData ? `${eventData.startDate} - ${eventData.endDate}` : "",
-                role: acc.role,
-                accreditationId: acc.accreditationId || acc.badgeNumber,
-                badgeNumber: acc.badgeNumber || "",
-                zoneCode: acc.zoneCode || zoneCodeString,
-                reportingTimes: eventData?.reportingTimes || "",
-                eventId: acc.eventId,
-                pdfBase64: pdfData?.pdfBase64 || null,
-                pdfFileName: pdfData?.pdfFileName || null
-              });
-              if (emailResult.success) {
-                emailsSent++;
-              } else {
-                emailsFailed++;
-              }
-            } catch (emailErr) {
-              console.error(`[BulkApprove] Email failed for ${acc.email}:`, emailErr);
-              emailsFailed++;
-            }
-          }));
-        }
+        addToQueue({
+          id: acc.id,
+          accreditation: acc,
+          eventId: selectedEvent,
+          approveData: {
+            ...approveData,
+            zoneCodes: approveData.zoneCodes
+          },
+          pdfSize,
+          onSuccess: (updated) => {
+            setAccreditations(prev => prev.map(a => a.id === updated.id ? updated : a));
+          }
+        });
+      });
 
-        if (emailsFailed === 0) {
-          toast.success(`${selectedRows.length} approved and ${emailsSent} emails sent!`);
-        } else {
-          toast.success(`${selectedRows.length} approved. Emails: ${emailsSent} sent, ${emailsFailed} failed.`);
-        }
-      } else {
-        toast.success(`${selectedRows.length} approved! (Emails skipped)`);
-      }
+      toast.info(`Added ${selectedRows.length} items to processing queue`);
       setBulkApproveModal(false);
       setSelectedRows([]);
     } catch (error) {
-      console.error("Bulk approve error:", error);
-      toast.error("Failed to bulk approve. Please try again.");
+      console.error("Bulk approval error:", error);
+      toast.error("Failed to add items to queue");
     } finally {
       setApproving(false);
     }
@@ -538,6 +505,10 @@ export default function Accreditations() {
   };
 
   const handlePreviewPDF = useCallback(async (accreditation) => {
+    if (accreditation.documents?.accreditation_pdf) {
+      window.open(accreditation.documents.accreditation_pdf, '_blank');
+      return;
+    }
     setPdfPreviewLoading(true);
     setPdfPreviewModal({ open: true, accreditation });
     setTimeout(() => { setPdfPreviewLoading(false); }, 500);
@@ -548,16 +519,41 @@ export default function Accreditations() {
   }, []);
 
   const handleDownloadPDF = useCallback(async (accreditation, openInBrowser = false) => {
-    const id = accreditation.id;
+    const pdfAccreditation = accreditations.find(a => a.id === accreditation.id) || accreditation;
+
+    // Priority: Use pre-cached PDF if available from latest data
+    if (pdfAccreditation.documents?.accreditation_pdf) {
+      const url = pdfAccreditation.documents.accreditation_pdf;
+      if (openInBrowser) {
+        window.open(url, '_blank');
+        toast.success("PDF opened from cache!");
+      } else {
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = "_blank";
+        link.download = `${pdfAccreditation.firstName}_${pdfAccreditation.lastName}_Card.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success("Downloading cached PDF...");
+      }
+      return;
+    }
+
+    const id = pdfAccreditation.id;
     if (downloadingId === id) return;
     setDownloadingId(id);
     try {
-      const fileName = `${accreditation.firstName}_${accreditation.lastName}_${selectedPdfSize.toUpperCase()}_${accreditation.accreditationId || "accreditation"}.pdf`;
+      const fileName = `${pdfAccreditation.firstName}_${pdfAccreditation.lastName}_${selectedPdfSize.toUpperCase()}_${pdfAccreditation.accreditationId || "accreditation"}.pdf`;
+      // Use the exact IDs rendered by the preview container
+      const frontId = "accreditation-front-card";
+      const backId = "accreditation-back-card";
+      
       if (openInBrowser) {
-        await openCapturedPDFInTab("accreditation-front-card", "accreditation-back-card", selectedPdfSize);
+        await openCapturedPDFInTab(frontId, backId, selectedPdfSize);
         toast.success("PDF opened in new tab!");
       } else {
-        await downloadCapturedPDF("accreditation-front-card", "accreditation-back-card", fileName, selectedPdfSize);
+        await downloadCapturedPDF(frontId, backId, fileName, selectedPdfSize);
         toast.success("PDF downloaded! Check your Downloads folder.");
       }
     } catch (err) {
@@ -566,7 +562,7 @@ export default function Accreditations() {
     } finally {
       setDownloadingId(null);
     }
-  }, [downloadingId, toast, selectedPdfSize]);
+  }, [downloadingId, toast, selectedPdfSize, accreditations, openCapturedPDFInTab, downloadCapturedPDF]);
 
   const handleDownloadImages = useCallback(async (accreditation) => {
     const id = accreditation.id;
@@ -698,29 +694,44 @@ export default function Accreditations() {
       key: "status",
       header: "Status",
       sortable: true,
-      className: "w-[140px]",
-      render: (_, row) => (
-        <div className="flex flex-col gap-1.5">
-          <Badge
-            variant={
-              row.status === "approved"
-                ? "success"
-                : row.status === "rejected"
-                ? "danger"
-                : "warning"
-            }
-            className="w-24 justify-center"
-          >
-            {row.status?.toUpperCase() || "PENDING"}
-          </Badge>
-          {(row.paymentAmount > 0 || !!row.stripeSessionId) && row.paymentStatus === 'paid' && (
-            <div className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold uppercase tracking-wider bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 w-fit">
-              <Check className="w-2.5 h-2.5" />
-              Paid
-            </div>
-          )}
-        </div>
-      )
+      className: "w-[160px]", // Increased width for better spacing
+      render: (_, row) => {
+        const isProcessing = currentTask?.id === row.id || (queue && queue.some(t => t.id === row.id));
+        return (
+          <div className="flex flex-col items-center gap-1.5 py-1">
+            {isProcessing ? (
+              <>
+                <Badge variant="success" className="w-28 justify-center gap-1.5 animate-pulse shadow-sm border-emerald-500/30">
+                  PROCESSING...
+                </Badge>
+                <div className="flex items-center gap-1.5 text-[10px] font-black tracking-widest text-emerald-400 uppercase">
+                  <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                  Under Process
+                </div>
+              </>
+            ) : (
+              <Badge
+                variant={
+                  row.status === "approved"
+                    ? "success"
+                    : row.status === "rejected"
+                      ? "danger"
+                      : "warning"
+                }
+                className="w-24 justify-center"
+              >
+                {row.status?.toUpperCase() || "PENDING"}
+              </Badge>
+            )}
+            {(row.paymentAmount > 0 || !!row.stripeSessionId) && row.paymentStatus === 'paid' && (
+              <div className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold uppercase tracking-wider bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 w-fit">
+                <Check className="w-2.5 h-2.5" />
+                Paid
+              </div>
+            )}
+          </div>
+        );
+      }
     },
     {
       key: "expiresAt",
@@ -814,7 +825,7 @@ export default function Accreditations() {
             title="Download All Documents"
             disabled={(!row.photoUrl && !row.idDocumentUrl) || imageDownloadingId === row.id}
           >
-            <Files className={`w-3.5 h-3.5 ${ (row.photoUrl || row.idDocumentUrl) ? "text-orange-300" : "text-slate-600"}`} />
+            <Files className={`w-3.5 h-3.5 ${(row.photoUrl || row.idDocumentUrl) ? "text-orange-300" : "text-slate-600"}`} />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); setEmailModal({ open: true, accreditation: row }); }}
@@ -883,10 +894,10 @@ export default function Accreditations() {
                   options={
                     eventCategories && eventCategories.length > 0
                       ? eventCategories.map((cat) => {
-                          const categoryData = cat.category || cat;
-                          const name = categoryData?.name || cat?.name;
-                          return name ? { value: name, label: name } : null;
-                        }).filter(Boolean)
+                        const categoryData = cat.category || cat;
+                        const name = categoryData?.name || cat?.name;
+                        return name ? { value: name, label: name } : null;
+                      }).filter(Boolean)
                       : ROLES.map((r) => ({ value: r, label: r }))
                   }
                   placeholder="All Roles"
@@ -902,7 +913,7 @@ export default function Accreditations() {
                       ...(clubs?.map(c => typeof c === 'string' ? c : (c?.full || c?.short)).filter(Boolean) || []),
                       ...(accreditations?.map(a => a.club).filter(Boolean) || [])
                     ])
-                  ].sort((a,b) => a.localeCompare(b)).map(club => ({ value: club, label: club }))}
+                  ].sort((a, b) => a.localeCompare(b)).map(club => ({ value: club, label: club }))}
                   placeholder="Select/Search club..."
                 />
               </div>
@@ -983,6 +994,59 @@ export default function Accreditations() {
         saving={editSaving}
         currentEvent={currentEvent}
         categoryDocuments={categoryDocuments}
+        onApprove={async (data) => {
+          setEditSaving(true);
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const adminUserId = session?.user?.id;
+            const accreditation = editModal.accreditation;
+
+            const updatePayload = {
+              firstName: data.firstName,
+              lastName: data.lastName,
+              gender: data.gender,
+              dateOfBirth: data.dateOfBirth,
+              nationality: data.nationality,
+              club: data.club,
+              role: data.role,
+              email: data.email,
+              photoUrl: data.photoUrl,
+              idDocumentUrl: data.idDocumentUrl,
+              eidUrl: data.eidUrl,
+              medicalUrl: data.medicalUrl,
+              customMessage: data.customMessage,
+              badgeColor: data.badgeColor,
+              zoneCode: data.zoneCode,
+              selected_sports: data.selectedSports,
+              expiresAt: data.expiresAt
+            };
+
+            const updated = await AccreditationsAPI.adminEdit(accreditation.id, updatePayload, adminUserId);
+            
+            addToQueue({
+              id: updated.id,
+              accreditation: updated,
+              eventId: selectedEvent,
+              approveData: {
+                zoneCodes: data.zoneCode ? data.zoneCode.split(",") : [],
+                sendEmail: true
+              },
+              pdfSize: data.pdfSize, // Ensure selected size is passed to the queue
+              onSuccess: (final) => {
+                setAccreditations(prev => prev.map(a => a.id === final.id ? final : a));
+              }
+            });
+
+            setEditModal({ open: false, accreditation: null });
+            toast.info("Accreditation saved and added to processing queue");
+            refreshAccreditations();
+          } catch (error) {
+            console.error("Approve from Edit error:", error);
+            toast.error("Failed to process approval: " + (error.message || "Unknown error"));
+          } finally {
+            setEditSaving(false);
+          }
+        }}
         onSave={(data) => {
 
           const saveEdit = async () => {
@@ -1312,9 +1376,9 @@ export default function Accreditations() {
                   const catData = eventCategories.find(c => (c.category?.name || c.name) === role);
                   const catId = catData?.category_id || role;
                   const categorySpecificDocs = categoryDocuments[catId];
-                  
+
                   let docs = categorySpecificDocs || [...(currentEventObj?.requiredDocuments || [])];
-                  
+
                   // Ensure picture and passport are always in the review list if the URLs exist
                   if (approveModal.accreditation?.photoUrl && !docs.find(d => (d.id === 'picture' || d === 'picture'))) {
                     docs = [{ id: 'picture', label: 'Photo' }, ...docs];
@@ -1322,7 +1386,7 @@ export default function Accreditations() {
                   if (approveModal.accreditation?.idDocumentUrl && !docs.find(d => (d.id === 'passport' || d === 'passport'))) {
                     docs = [...docs, { id: 'passport', label: 'ID / Passport' }];
                   }
-                  
+
                   // If still empty, use defaults
                   if (docs.length === 0) {
                     docs = [
@@ -1334,24 +1398,24 @@ export default function Accreditations() {
                   return docs.map(doc => {
                     const docId = typeof doc === 'string' ? doc : doc.id;
                     const docLabel = (typeof doc === 'object' ? doc.label : null) || docId;
-                    
+
                     // Skip picture/photo as they are handled elsewhere or showing at top
                     if (
-                      docId.toLowerCase() === 'picture' || 
-                      docId.toLowerCase() === 'photo' || 
-                      docLabel.toLowerCase() === 'picture' || 
+                      docId.toLowerCase() === 'picture' ||
+                      docId.toLowerCase() === 'photo' ||
+                      docLabel.toLowerCase() === 'picture' ||
                       docLabel.toLowerCase() === 'photo'
                     ) return null;
 
                     const eventDoc = (currentEventObj?.requiredDocuments || []).find(d => d.id === docId);
                     const label = (typeof doc === 'object' ? doc.label : null) || eventDoc?.label || (docId ? docId.charAt(0).toUpperCase() + docId.slice(1) : "Document");
-                    
+
                     const isPassport = docId === 'passport';
                     const isPicture = docId === 'picture';
-                    const url = isPicture 
-                      ? approveModal.accreditation?.photoUrl 
-                      : isPassport 
-                        ? approveModal.accreditation?.idDocumentUrl 
+                    const url = isPicture
+                      ? approveModal.accreditation?.photoUrl
+                      : isPassport
+                        ? approveModal.accreditation?.idDocumentUrl
                         : approveModal.accreditation?.documents?.[docId];
 
                     return (
@@ -1434,11 +1498,10 @@ export default function Accreditations() {
                             }
                           });
                         }}
-                        className={`p-3 rounded-lg border-2 transition-all duration-200 text-left ${
-                          isSelected
+                        className={`p-3 rounded-lg border-2 transition-all duration-200 text-left ${isSelected
                             ? "border-primary-500 bg-primary-500/20"
                             : "border-slate-700 hover:border-slate-600 bg-slate-800/50"
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center gap-2">
                           <div
@@ -1468,6 +1531,34 @@ export default function Accreditations() {
               <p className="text-lg text-slate-500">
                 {approveData.zoneCodes?.length || 0} zone(s) selected
               </p>
+            </div>
+
+            {/* PDF Size Selection */}
+            <div className="space-y-3 bg-slate-800/30 p-4 rounded-xl border border-slate-700/50">
+              <label className="block text-lg font-bold text-white uppercase tracking-wider">
+                PDF Badge Size <span className="text-red-400">*</span>
+              </label>
+              <div className="grid grid-cols-5 gap-2">
+                {[
+                  { id: "a4", label: "A4" },
+                  { id: "a5", label: "A5" },
+                  { id: "a6", label: "A6" },
+                  { id: "pvc140", label: "PVC 140" },
+                  { id: "card", label: "Card" }
+                ].map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => setPdfSize(s.id)}
+                    className={`py-2 rounded-lg border-2 font-black transition-all ${
+                      pdfSize === s.id
+                        ? "border-primary-500 bg-primary-500/20 text-white"
+                        : "border-slate-700 bg-slate-900/50 text-slate-400 hover:border-slate-600"
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="pt-2">
@@ -1663,11 +1754,10 @@ export default function Accreditations() {
                           }
                         });
                       }}
-                      className={`p-3 rounded-lg border-2 transition-all duration-200 text-left ${
-                        isSelected
+                      className={`p-3 rounded-lg border-2 transition-all duration-200 text-left ${isSelected
                           ? "border-primary-500 bg-primary-500/20"
                           : "border-slate-700 hover:border-slate-600 bg-slate-800/50"
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-2">
                         <div
@@ -1697,6 +1787,34 @@ export default function Accreditations() {
             <p className="text-lg text-slate-500">
               {approveData.zoneCodes?.length || 0} zone(s) selected
             </p>
+
+            {/* Bulk PDF Size Selection */}
+            <div className="space-y-3 bg-slate-800/30 p-4 rounded-xl border border-slate-700/50">
+              <label className="block text-lg font-bold text-white uppercase tracking-wider">
+                PDF Badge Size for All <span className="text-red-400">*</span>
+              </label>
+              <div className="grid grid-cols-5 gap-2">
+                {[
+                  { id: "a4", label: "A4" },
+                  { id: "a5", label: "A5" },
+                  { id: "a6", label: "A6" },
+                  { id: "pvc140", label: "PVC 140" },
+                  { id: "card", label: "Card" }
+                ].map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => setPdfSize(s.id)}
+                    className={`py-2 rounded-lg border-2 font-black transition-all ${
+                      pdfSize === s.id
+                        ? "border-primary-500 bg-primary-500/20 text-white"
+                        : "border-slate-700 bg-slate-900/50 text-slate-400 hover:border-slate-600"
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {/* Email Notification Toggle */}
             <div className="pt-2">
@@ -1866,66 +1984,9 @@ export default function Accreditations() {
           </p>
 
           <div className="space-y-4">
-            {/* Review Documents Section */}
-            <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
-              <h4 className="text-lg font-medium text-white mb-3 flex items-center gap-2">
-                <FileText className="w-4 h-4 text-cyan-400" />
-                Review Documents
-              </h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <p className="text-sm text-slate-400">Profile Photo</p>
-                  {approveModal.accreditation?.photoUrl ? (
-                    <a href={approveModal.accreditation.photoUrl} target="_blank" rel="noopener noreferrer" className="block relative group">
-                      <div className="w-full h-32 rounded-lg overflow-hidden border border-slate-700 bg-slate-900 group-hover:border-primary-500 transition-colors">
-                        <img src={approveModal.accreditation.photoUrl} alt="Photo" className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                          <Eye className="w-6 h-6 text-white" />
-                        </div>
-                      </div>
-                    </a>
-                  ) : (
-                    <div className="w-full h-32 rounded-lg border border-dashed border-slate-700 flex items-center justify-center text-slate-600">
-                      No Photo
-                    </div>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm text-slate-400">ID / Passport</p>
-                  {approveModal.accreditation?.idDocumentUrl ? (
-                    <a href={approveModal.accreditation.idDocumentUrl} target="_blank" rel="noopener noreferrer" className="block relative group">
-                      <div className="w-full h-32 rounded-lg overflow-hidden border border-slate-700 bg-slate-900 group-hover:border-primary-500 transition-colors flex items-center justify-center">
-                        {approveModal.accreditation.idDocumentUrl.toLowerCase().endsWith('.pdf') ? (
-                          <FileText className="w-12 h-12 text-slate-500" />
-                        ) : (
-                          <img src={approveModal.accreditation.idDocumentUrl} alt="ID" className="w-full h-full object-cover" />
-                        )}
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                          <Eye className="w-6 h-6 text-white" />
-                        </div>
-                      </div>
-                    </a>
-                  ) : (
-                    <div className="w-full h-32 rounded-lg border border-dashed border-slate-700 flex items-center justify-center text-slate-600">
-                      No ID Doc
-                    </div>
-                  )}
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={Download}
-                onClick={() => handleDownloadAllDocs(approveModal.accreditation)}
-                className="w-full mt-3 text-lg"
-              >
-                Download All Documents
-              </Button>
-            </div>
-
             <div>
               <label className="block text-lg font-medium text-slate-300 mb-1.5">
-                Grant Zone Access <span className="text-red-400">*</span>
+                Expiry Date <span className="text-red-400">*</span>
               </label>
               <input
                 type="date"
@@ -2032,6 +2093,8 @@ export default function Accreditations() {
         zones={zones}
         isBulk={false}
       />
+      
+      <BackgroundProgress />
     </div>
   );
 }

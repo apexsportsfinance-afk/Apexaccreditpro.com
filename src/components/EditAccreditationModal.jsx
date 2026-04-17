@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useBackground } from "../contexts/BackgroundContext";
 import { Upload, X, Check, User, Camera, AlertTriangle, Info, Plus, Clock, CalendarX, Calendar, FileText, Eye, Download, Image as ImageIcon } from "lucide-react";
 import Button from "./ui/Button";
 import Input from "./ui/Input";
@@ -92,11 +93,14 @@ export default function EditAccreditationModal({
   zones = [],
   eventCategories = [],
   onSave,
+  onApprove,
   saving = false,
   currentEvent = null,
   clubs = [],
   categoryDocuments = {}
 }) {
+  const { currentTask, queue } = useBackground();
+
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -119,6 +123,7 @@ export default function EditAccreditationModal({
   const [errors, setErrors] = useState({});
   const [originalRole, setOriginalRole] = useState("");
   const [customRoleMode, setCustomRoleMode] = useState(false);
+  const [pdfSize, setPdfSize] = useState("a6");
 
   useEffect(() => {
     if (accreditation) {
@@ -837,6 +842,35 @@ export default function EditAccreditationModal({
           )}
         </div>
 
+        {/* PDF Size Selection */}
+        <div className="space-y-3 bg-slate-800/30 p-4 rounded-xl border border-slate-700/50">
+          <label className="block text-lg font-bold text-white uppercase tracking-wider">
+            PDF Badge Size <span className="text-red-400">*</span>
+          </label>
+          <div className="grid grid-cols-5 gap-2">
+            {[
+              { id: "a4", label: "A4" },
+              { id: "a5", label: "A5" },
+              { id: "a6", label: "A6" },
+              { id: "pvc140", label: "PVC 140" },
+              { id: "card", label: "Card" }
+            ].map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setPdfSize(s.id)}
+                className={`py-2 rounded-lg border-2 font-black transition-all ${
+                  pdfSize === s.id
+                    ? "border-primary-500 bg-primary-500/20 text-white"
+                    : "border-slate-700 bg-slate-900/50 text-slate-400 hover:border-slate-600"
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Contact Section */}
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-white border-b border-slate-700 pb-2">Contact</h3>
@@ -929,13 +963,41 @@ export default function EditAccreditationModal({
           >
             Cancel
           </Button>
+          {accreditation && accreditation.status !== "approved" && (
+            <Button
+              variant="success"
+              onClick={() => {
+                const expiresAt = expiryMode === "event" && currentEvent?.endDate
+                  ? new Date(currentEvent.endDate + "T23:59:00").toISOString()
+                  : expiryMode === "custom" && customExpiryDate
+                    ? new Date(customExpiryDate + "T23:59:00").toISOString()
+                    : null;
+
+                onApprove({
+                  ...formData,
+                  expiresAt,
+                  zoneCode: formData.zoneCodes.join(","),
+                  selectedSports: formData.selectedSports,
+                  roleChanged,
+                  pdfSize // Pass the selected PDF size
+                });
+              }}
+              className="flex-1"
+              icon={Check}
+              loading={saving}
+              disabled={saving || (accreditation && (currentTask?.id === accreditation.id || (queue && queue.some(t => t.id === accreditation.id))))}
+            >
+              {(accreditation && (currentTask?.id === accreditation.id || (queue && queue.some(t => t.id === accreditation.id)))) ? "PROCESSING..." : "Approve Accreditation"}
+            </Button>
+          )}
           <Button
             variant="primary"
             onClick={handleSubmit}
             className="flex-1"
             loading={saving}
+            disabled={saving || (accreditation && (currentTask?.id === accreditation.id || (queue && queue.some(t => t.id === accreditation.id))))}
           >
-            {saving ? "Saving..." : accreditation ? (roleChanged ? "Save & Update Badge" : "Save Changes") : "Add Accreditation"}
+            {saving ? "Saving..." : (accreditation && (currentTask?.id === accreditation.id || (queue && queue.some(t => t.id === accreditation.id)))) ? "PROCESSING..." : accreditation ? (roleChanged ? "Save & Update Badge" : "Save Changes") : "Add Accreditation"}
           </Button>
         </div>
       </div>

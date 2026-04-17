@@ -27,14 +27,23 @@ async function initLibs() {
 /**
  * Generate a PDF blob for an accreditation card (offscreen render + capture)
  */
-export const generatePdfForAccreditation = async (accreditation, event, zones) => {
+export const generatePdfForAccreditation = async (accreditation, event, zones, pdfSize = "a6") => {
   await initLibs();
+  
+  // Get dimensions from pdfCapture or fallback to A6
+  const { PDF_SIZES } = await import("./pdfCapture");
+  const size = PDF_SIZES[pdfSize?.toLowerCase()] || PDF_SIZES.a6;
+  const unit = pdfSize === "card" ? "pt" : "mm";
+  const pdfW = size.width;
+  const pdfH = size.height;
 
   let frontBackgroundUrl = "";
   try {
     const { GlobalSettingsAPI } = await import("./broadcastApi");
-    const bg = await GlobalSettingsAPI.get(`event_${event.id}_front_bg`);
-    if (bg) frontBackgroundUrl = bg;
+    if (event?.id) {
+      const bg = await GlobalSettingsAPI.get(`event_${event.id}_front_bg`);
+      if (bg) frontBackgroundUrl = bg;
+    }
   } catch (e) {}
 
   const SUFFIX = `_email_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
@@ -125,18 +134,18 @@ export const generatePdfForAccreditation = async (accreditation, event, zones) =
   const frontCanvas = await html2canvas(frontEl, captureOpts);
 
   const pdf = new jsPDF({
-    orientation: "p",
-    unit: "mm",
-    format: [105, 148],
+    orientation: pdfW > pdfH ? "l" : "p",
+    unit,
+    format: [pdfW, pdfH],
     compress: true,
   });
 
-  pdf.addImage(frontCanvas.toDataURL("image/png", 1.0), "PNG", 0, 0, 105, 148, undefined, "FAST");
+  pdf.addImage(frontCanvas.toDataURL("image/png", 1.0), "PNG", 0, 0, pdfW, pdfH, undefined, "FAST");
 
   if (backEl) {
     const backCanvas = await html2canvas(backEl, captureOpts);
-    pdf.addPage([105, 148], "portrait");
-    pdf.addImage(backCanvas.toDataURL("image/png", 1.0), "PNG", 0, 0, 105, 148, undefined, "FAST");
+    pdf.addPage([pdfW, pdfH], pdfW > pdfH ? "l" : "p");
+    pdf.addImage(backCanvas.toDataURL("image/png", 1.0), "PNG", 0, 0, pdfW, pdfH, undefined, "FAST");
   }
 
   root.unmount();
@@ -166,13 +175,13 @@ export const blobToRawBase64 = (blob) => {
  * Generate PDF and return base64 + filename ready for email attachment
  * Returns { pdfBase64, pdfFileName } or null if generation fails
  */
-export const generatePdfAttachment = async (accreditation, event, zones) => {
+export const generatePdfAttachment = async (accreditation, event, zones, pdfSize = "a6") => {
   try {
-    const pdf = await generatePdfForAccreditation(accreditation, event, zones);
+    const pdf = await generatePdfForAccreditation(accreditation, event, zones, pdfSize);
     const pdfBlob = pdf.output("blob");
     const pdfBase64 = await blobToRawBase64(pdfBlob);
     const pdfFileName = `${accreditation.firstName}_${accreditation.lastName}_Accreditation_${accreditation.badgeNumber || "card"}.pdf`;
-    return { pdfBase64, pdfFileName };
+    return { pdfBase64, pdfFileName, pdfBlob };
   } catch (err) {
     console.warn(`[PDF] Generation failed for ${accreditation.firstName} ${accreditation.lastName}:`, err);
     return null;

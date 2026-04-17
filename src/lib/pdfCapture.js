@@ -19,10 +19,11 @@ async function getJsPDF() {
 }
 
 export const PDF_SIZES = {
-  a4:   { width: 210, height: 297, label: "A4 (210x297 mm)", dpi: 72 },
-  a5:   { width: 148, height: 210, label: "A5 (148x210 mm)", dpi: 72 },
-  a6:   { width: 105, height: 148, label: "A6 (105x148 mm)", dpi: 72 },
-  card: { width: 320, height: 454, label: "Exact Card Size", dpi: 96 },
+  a4:     { width: 210, height: 297, label: "A4 (210x297 mm)", dpi: 72 },
+  a5:     { width: 148, height: 210, label: "A5 (148x210 mm)", dpi: 72 },
+  a6:     { width: 105, height: 148, label: "A6 (105x148 mm)", dpi: 72 },
+  pvc140: { width: 100, height: 140, label: "PVC 140 (100x140 mm)", dpi: 72 },
+  card:   { width: 320, height: 454, label: "Exact Card Size", dpi: 96 },
 };
 
 export const IMAGE_SIZES = {

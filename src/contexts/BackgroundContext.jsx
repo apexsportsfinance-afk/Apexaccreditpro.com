@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { AccreditationsAPI } from "../lib/storage";
+import { AccreditationsAPI, EventsAPI } from "../lib/storage";
 import { generatePdfAttachment } from "../lib/pdfEmailHelper";
 import { sendApprovalEmail } from "../lib/email";
+import { uploadToStorage } from "../lib/uploadToStorage";
 
 const BackgroundContext = createContext();
 
@@ -32,24 +33,63 @@ export const BackgroundProvider = ({ children }) => {
     setCurrentTask(task);
 
     try {
-      const { id, accreditation, eventId, approveData, onSuccess } = task;
+      const { id, accreditation, eventId, approveData, onSuccess, pdfSize } = task;
       
-      const { data: updated, error } = await AccreditationsAPI.update(id, {
+      const updated = await AccreditationsAPI.update(id, {
         status: "approved",
         approvedAt: new Date().toISOString(),
-        zoneCodes: approveData.zoneCodes
+        zoneCode: approveData.zoneCodes?.join(",") || ""
       });
 
-      if (error) throw error;
+      const eventData = await EventsAPI.getById(eventId);
 
-      if (approveData.sendEmail) {
-        // Mocking/fetching event data if needed, or using passed data
-        // For simplicity in this bridge, we assume generatePdfAttachment handles it
-        const { pdfBlob, pdfName } = await generatePdfAttachment(updated, null); 
-        await sendApprovalEmail(updated, null, pdfBlob, pdfName);
+      // 1. Generate PDF with requested size (defaults to A6 if not specified)
+      const pdfResult = await generatePdfAttachment(updated, eventData, approveData.zoneCodes, pdfSize || "a6");
+      const pdfBlob = pdfResult?.pdfBlob;
+      const pdfName = pdfResult?.pdfFileName;
+      const pdfBase64 = pdfResult?.pdfBase64;
+      
+      // 2. Upload PDF to storage for caching
+      let storedPdfUrl = null;
+      let finalUpdated = updated;
+
+      if (pdfBlob) {
+        try {
+          // Create a file object from blob for the upload utility
+          const fixedFileName = `${accreditation.id}_final.pdf`;
+          const pdfFile = new File([pdfBlob], fixedFileName, { type: "application/pdf" });
+          const uploadResult = await uploadToStorage(pdfFile, "accreditations", fixedFileName);
+          storedPdfUrl = uploadResult.url;
+          
+          // 3. Update accreditation record with PDF URL
+          const currentDocs = updated.documents || {};
+          finalUpdated = await AccreditationsAPI.update(id, {
+            documents: { ...currentDocs, accreditation_pdf: storedPdfUrl }
+          });
+        } catch (uploadErr) {
+          console.error("[BackgroundQueue] PDF upload failed:", uploadErr);
+        }
       }
 
-      if (onSuccess) onSuccess(updated);
+      // 4. Send Email
+      // ... (rest of code)
+      await sendApprovalEmail({
+        to: finalUpdated.email,
+        name: `${finalUpdated.firstName} ${finalUpdated.lastName}`,
+        eventName: eventData?.name || "Event",
+        eventLocation: eventData?.location || "",
+        eventDates: eventData ? `${eventData.startDate} - ${eventData.endDate}` : "",
+        role: finalUpdated.role,
+        accreditationId: finalUpdated.accreditationId || finalUpdated.badgeNumber,
+        badgeNumber: finalUpdated.badgeNumber || "",
+        zoneCode: finalUpdated.zoneCode || approveData.zoneCodes?.join(",") || "",
+        reportingTimes: eventData?.reportingTimes || "",
+        eventId: finalUpdated.eventId,
+        pdfBase64: pdfBase64 || null,
+        pdfFileName: pdfName || null
+      });
+
+      if (onSuccess) onSuccess(finalUpdated);
     } catch (err) {
       console.error("[BackgroundQueue] Task failed:", err);
     } finally {
