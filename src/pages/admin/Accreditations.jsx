@@ -1097,9 +1097,30 @@ export default function Accreditations() {
               } else {
                 // Add new
                 updatePayload.eventId = selectedEvent;
-                updatePayload.status = "approved"; // Default to approved when added by admin
-                await AccreditationsAPI.adminAdd(updatePayload, adminUserId);
-                toast.success("New accreditation added successfully!");
+                updatePayload.status = "pending"; // Start pending, queue will approve
+                const newRecord = await AccreditationsAPI.adminAdd(updatePayload, adminUserId);
+                
+                // Add to background processing queue to generate Badge, ID, PDF, and Email
+                addToQueue({
+                  id: newRecord.id,
+                  accreditation: newRecord,
+                  eventId: selectedEvent,
+                  approveData: {
+                    zoneCodes: data.zoneCode ? data.zoneCode.split(",") : [],
+                    sendEmail: true
+                  },
+                  pdfSize: data.pdfSize,
+                  onSuccess: (final) => {
+                    setAccreditations(prev => {
+                      if (prev.some(a => a.id === final.id)) {
+                        return prev.map(a => a.id === final.id ? final : a);
+                      }
+                      return [...prev, final];
+                    });
+                  }
+                });
+
+                toast.info("New accreditation added to processing queue!");
               }
 
               setEditModal({ open: false, accreditation: null });

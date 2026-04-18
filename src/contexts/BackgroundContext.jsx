@@ -3,6 +3,8 @@ import { AccreditationsAPI, EventsAPI } from "../lib/storage";
 import { generatePdfAttachment } from "../lib/pdfEmailHelper";
 import { sendApprovalEmail } from "../lib/email";
 import { uploadToStorage } from "../lib/uploadToStorage";
+import { supabase } from "../lib/supabase";
+import { getBadgePrefix } from "../lib/utils";
 
 const BackgroundContext = createContext();
 
@@ -35,11 +37,26 @@ export const BackgroundProvider = ({ children }) => {
     try {
       const { id, accreditation, eventId, approveData, onSuccess, pdfSize } = task;
       
-      const updated = await AccreditationsAPI.update(id, {
-        status: "approved",
-        approvedAt: new Date().toISOString(),
-        zoneCode: approveData.zoneCodes?.join(",") || ""
-      });
+      // Determine the Badge Number (generate if missing)
+      let badgeNumber = accreditation.badgeNumber || accreditation.badge_number;
+      const role = accreditation.role || "Guest";
+      
+      if (!badgeNumber) {
+        const { count } = await supabase
+          .from("accreditations")
+          .select("id", { count: "exact", head: true })
+          .eq("event_id", eventId)
+          .eq("role", role)
+          .eq("status", "approved");
+        
+        const prefix = getBadgePrefix(role);
+        badgeNumber = `${prefix}-${String((count || 0) + 1).padStart(3, "0")}`;
+      }
+
+      const zoneCodeStr = approveData.zoneCodes?.join(",") || "";
+
+      // Formal approval (generates permanent Accreditation ID and saves Badge Number)
+      const updated = await AccreditationsAPI.approve(id, zoneCodeStr, badgeNumber, role);
 
       const eventData = await EventsAPI.getById(eventId);
 
