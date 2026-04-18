@@ -1076,7 +1076,11 @@ export default function Accreditations() {
               updatePayload.expiresAt = data.expiresAt !== undefined ? data.expiresAt : null;
 
               if (editModal.accreditation) {
-                if (data.roleChanged && editModal.accreditation.status === "approved") {
+                const accId = editModal.accreditation.id;
+                const status = editModal.accreditation.status;
+                const isMissingBadge = status === "approved" && (!editModal.accreditation.badgeNumber || editModal.accreditation.badgeNumber === "---");
+
+                if ((data.roleChanged && status === "approved") || isMissingBadge) {
                   const newRole = data.role;
                   const prefix = ROLE_BADGE_PREFIXES[newRole] || newRole.substring(0, 3).toUpperCase() || "GEN";
                   const { count: existingCount } = await supabase
@@ -1085,13 +1089,23 @@ export default function Accreditations() {
                     .eq("event_id", editModal.accreditation.eventId)
                     .eq("role", newRole)
                     .eq("status", "approved")
-                    .neq("id", editModal.accreditation.id);
+                    .neq("id", accId);
+                  
                   const newBadgeNumber = `${prefix}-${String((existingCount || 0) + 1).padStart(3, "0")}`;
                   updatePayload.badgeNumber = newBadgeNumber;
-                  await AccreditationsAPI.adminEdit(editModal.accreditation.id, updatePayload, adminUserId);
-                  toast.success(`Accreditation updated! New badge number: ${newBadgeNumber}`);
+                  updatePayload.accreditationId = `ACC-2025-${accId.substring(0, 8).toUpperCase()}`;
+                  
+                  await AccreditationsAPI.adminEdit(accId, updatePayload, adminUserId);
+                  toast.success(`Accreditation repaired! Assigned ID and badge: ${newBadgeNumber}`);
+                  
+                  // Clear cached PDF so it regenerates
+                  const currentDocs = editModal.accreditation.documents || {};
+                  if (currentDocs.accreditation_pdf) {
+                    delete currentDocs.accreditation_pdf;
+                    await AccreditationsAPI.update(accId, { documents: currentDocs });
+                  }
                 } else {
-                  await AccreditationsAPI.adminEdit(editModal.accreditation.id, updatePayload, adminUserId);
+                  await AccreditationsAPI.adminEdit(accId, updatePayload, adminUserId);
                   toast.success("Accreditation updated successfully");
                 }
               } else {

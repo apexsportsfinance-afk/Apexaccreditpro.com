@@ -1049,7 +1049,7 @@ function mapAccreditationToDB(acc) {
     gender: 'gender', dateOfBirth: 'date_of_birth', nationality: 'nationality',
     club: 'club', role: 'role', email: 'email', photoUrl: 'photo_url',
     idDocumentUrl: 'id_document_url', status: 'status', zoneCode: 'zone_code',
-    accreditationId: 'accreditation_id',
+    accreditationId: 'accreditation_id', badgeNumber: 'badge_number',
     remarks: 'remarks', badgeColor: 'badge_color', forceLive: 'force_live',
     paymentStatus: 'payment_status', paymentAmount: 'payment_amount',
     stripeSessionId: 'stripe_session_id', documents: 'documents',
