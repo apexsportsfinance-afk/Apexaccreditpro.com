@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "server": "node server.js",
-    "dev": "concurrently \"npm run server\" \"vite --host\"",
+    "bridge": "python scripts/medal_api.py",
+    "dev": "concurrently \"npm run server\" \"npm run bridge\" \"vite --host\"",
     "build": "vite build",
     "preview": "vite preview"
   },

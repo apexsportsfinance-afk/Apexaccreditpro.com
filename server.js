@@ -37,6 +37,38 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
   res.json({ url: localUrl, filename: req.file.filename });
 });
 
+// Bridge Results Proxy (Proxy to Python Medal Engine)
+app.post('/api/bridge/results', upload.array('files'), async (req, res) => {
+  try {
+    const { competition_name } = req.body;
+    const files = req.files;
+
+    if (!files || files.length === 0) {
+      return res.status(400).json({ success: false, error: 'No files provided' });
+    }
+
+    const formData = new FormData();
+    formData.append('competition_name', competition_name);
+    
+    // Convert buffer back to Blob/File for Python bridge
+    for (const file of files) {
+      const blob = new Blob([file.buffer], { type: file.mimetype });
+      formData.append('files', blob, file.originalname);
+    }
+
+    const response = await fetch('http://127.0.0.1:5000/api/bridge/results', {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error('Bridge Proxy Error:', err);
+    res.status(500).json({ success: false, error: 'Failed to connect to Python Bridge' });
+  }
+});
+
 // Image Serving Endpoint
 // Security: Files are stored outside the public web root and are only
 // reachable through this server via the Vite proxy on localhost.

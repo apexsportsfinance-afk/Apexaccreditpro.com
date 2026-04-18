@@ -52,7 +52,7 @@ def parse_hytek_text(text):
                 })
     return results
 
-@app.route('/api/upload', methods=['POST'])
+@app.route('/api/bridge/results', methods=['POST'])
 def upload_results():
     if 'files' not in request.files:
         return jsonify({'success': False, 'error': 'No standard files given'})

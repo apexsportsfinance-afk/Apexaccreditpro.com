@@ -132,12 +132,9 @@ export default function MedalRankings() {
       formData.append("competition_name", compNameInput);
       files.forEach(file => formData.append("files", file));
 
-      // 1. Send to Local Python API for parsing
-      console.log("Sending to local Python Bridge...");
-      const isLocal = window.location.hostname === "localhost" || window.location.hostname.startsWith("172.") || window.location.hostname.startsWith("192.168.");
-      const API_URL = isLocal 
-        ? `http://${window.location.hostname}:5000/api/upload` 
-        : "/api/upload";
+      // 1. Send to Python Bridge (Proxied via Node/Vite for robustness)
+      console.log("Sending to results bridge...");
+      const API_URL = "/api/bridge/results";
 
       const response = await fetch(API_URL, {
         method: "POST",

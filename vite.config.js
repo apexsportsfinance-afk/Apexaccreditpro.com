@@ -10,6 +10,11 @@ export default defineConfig({
     allowedHosts: true,
     hmr: { overlay: true },
     proxy: {
+      '/api/bridge': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false
+      },
       '/api': {
         target: 'http://localhost:3001',
         changeOrigin: true,
