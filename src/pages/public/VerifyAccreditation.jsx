@@ -976,10 +976,15 @@ export default function VerifyAccreditation() {
                               <div className="p-2 bg-cyan-500/10 rounded-xl group-hover:bg-cyan-500/20 transition-colors">
                                 <Download className="w-4 h-4 text-cyan-400" />
                               </div>
-                              <div className="flex flex-col">
-                                <span className="text-[9px] font-black text-white/30 uppercase leading-none mb-1">Official Profile {doc.sport && doc.sport !== "General" && <span className="text-[8px] ml-2 font-black text-cyan-400 bg-cyan-400/10 border border-cyan-400/20 px-1 rounded whitespace-nowrap">{doc.sport}</span>}</span>
-                                <span className="text-xs font-bold text-white/90 truncate max-w-[140px] uppercase leading-tight">{doc.name}</span>
-                              </div>
+                              <div className="flex flex-col min-w-0">
+                                  <div className="flex items-center gap-1.5 mb-1 flex-nowrap">
+                                    <span className="text-[9px] font-black text-white/30 uppercase leading-none shrink-0">Official Profile</span>
+                                    {doc.sport && doc.sport !== "General" && (
+                                      <span className="text-[8px] font-black text-cyan-400 bg-cyan-400/10 border border-cyan-400/20 px-1 rounded whitespace-nowrap py-0.5 leading-none">{doc.sport}</span>
+                                    )}
+                                  </div>
+                                  <span className="text-xs font-bold text-white/90 truncate uppercase leading-tight">{doc.name}</span>
+                                </div>
                             </div>
                             <ExternalLink className="w-4 h-4 text-white/20 group-hover:text-cyan-400 transition-colors" />
                           </motion.a>
@@ -1005,10 +1010,15 @@ export default function VerifyAccreditation() {
                               <div className="p-2 bg-blue-500/10 rounded-xl group-hover:bg-blue-500/20 transition-colors">
                                 <Download className="w-4 h-4 text-blue-400" />
                               </div>
-                              <div className="flex flex-col">
-                                <span className="text-[9px] font-black text-white/30 uppercase leading-none mb-1">Result Profile</span> {doc.sport && doc.sport !== "General" && <span className="text-[8px] ml-2 font-black text-blue-400 bg-blue-400/10 border border-blue-400/20 px-1 rounded whitespace-nowrap">{doc.sport}</span>}
-                                <span className="text-xs font-bold text-white/90 truncate max-w-[140px] uppercase leading-tight">{doc.name}</span>
-                              </div>
+                              <div className="flex flex-col min-w-0">
+                                  <div className="flex items-center gap-1.5 mb-1 flex-nowrap">
+                                    <span className="text-[9px] font-black text-white/30 uppercase leading-none shrink-0">Result Profile</span>
+                                    {doc.sport && doc.sport !== "General" && (
+                                      <span className="text-[8px] font-black text-blue-400 bg-blue-400/10 border border-blue-400/20 px-1 rounded whitespace-nowrap py-0.5 leading-none">{doc.sport}</span>
+                                    )}
+                                  </div>
+                                  <span className="text-xs font-bold text-white/90 truncate uppercase leading-tight">{doc.name}</span>
+                                </div>
                             </div>
                             <ExternalLink className="w-4 h-4 text-white/20 group-hover:text-blue-400 transition-colors" />
                           </motion.a>
@@ -1035,10 +1045,12 @@ export default function VerifyAccreditation() {
                               <div className="p-2 bg-red-500/10 rounded-xl group-hover:bg-red-500/20 transition-colors">
                                 <ShieldAlert className="w-4 h-4 text-red-400" />
                               </div>
-                              <div className="flex flex-col">
-                                <span className="text-[9px] font-black text-red-500/40 uppercase leading-none mb-1">Safety Asset</span>
-                                <span className="text-xs font-bold text-white/90 truncate max-w-[140px] uppercase leading-tight">{doc.name}</span>
-                              </div>
+                                <div className="flex flex-col min-w-0">
+                                  <div className="flex items-center gap-1.5 mb-1 flex-nowrap">
+                                    <span className="text-[9px] font-black text-red-500/40 uppercase leading-none shrink-0">Safety Asset</span>
+                                  </div>
+                                  <span className="text-xs font-bold text-white/90 truncate uppercase leading-tight">{doc.name}</span>
+                                </div>
                             </div>
                             <ExternalLink className="w-4 h-4 text-red-500/20 group-hover:text-red-400 transition-colors" />
                           </motion.a>

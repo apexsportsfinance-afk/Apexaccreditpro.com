@@ -207,5 +207,25 @@
             Offline Mode Active
         </div>
     </div>
+    
+    <script>
+      // Developer rescue: If trapped on this page via localhost, nuke the SW and escape.
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            var promises = [];
+            for (var i = 0; i < registrations.length; i++) {
+              promises.push(registrations[i].unregister());
+            }
+            if (promises.length > 0) {
+              Promise.all(promises).then(function() {
+                console.log("Unregistered Service Worker on localhost. Reloading...");
+                setTimeout(function() { window.location.reload(); }, 500);
+              });
+            }
+          });
+        }
+      }
+    </script>
 </body>
 </html>

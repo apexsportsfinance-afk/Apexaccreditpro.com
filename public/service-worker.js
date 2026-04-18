@@ -25,6 +25,12 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  // Bypass offline catch for localhost (development)
+  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+    return;
+  }
+
   // Only intercept navigation requests (page loads)
   if (event.request.mode === 'navigate') {
     event.respondWith(
