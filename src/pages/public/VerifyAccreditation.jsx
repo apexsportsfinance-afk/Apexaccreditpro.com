@@ -47,6 +47,19 @@ const formatTimeDiff = (resultStr, seedStr) => {
   };
 };
 
+const formatDocName = (name) => {
+  if (!name) return "";
+  // 1. Remove .pdf extension case-insensitively
+  let clean = name.replace(/\.pdf\s*$/i, '');
+  // 2. Replace separators with spaces
+  clean = clean.replace(/[_-]/g, ' ');
+  // 3. Convert to Title Case
+  return clean.split(' ').map(word => {
+    if (!word) return "";
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }).join(' ');
+};
+
 export default function VerifyAccreditation() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -970,23 +983,23 @@ export default function VerifyAccreditation() {
                             rel="noopener noreferrer"
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
-                            className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all group"
+                            className="flex items-start justify-between p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all group"
                           >
-                            <div className="flex items-center gap-3">
-                              <div className="p-2 bg-cyan-500/10 rounded-xl group-hover:bg-cyan-500/20 transition-colors">
+                            <div className="flex items-start gap-3 min-w-0">
+                              <div className="p-2 bg-cyan-500/10 rounded-xl group-hover:bg-cyan-500/20 transition-colors shrink-0">
                                 <Download className="w-4 h-4 text-cyan-400" />
                               </div>
                               <div className="flex flex-col min-w-0">
-                                  <div className="flex items-center gap-1.5 mb-1 flex-nowrap">
-                                    <span className="text-[9px] font-black text-white/30 uppercase leading-none shrink-0">Official Profile</span>
-                                    {doc.sport && doc.sport !== "General" && (
-                                      <span className="text-[8px] font-black text-cyan-400 bg-cyan-400/10 border border-cyan-400/20 px-1 rounded whitespace-nowrap py-0.5 leading-none">{doc.sport}</span>
-                                    )}
-                                  </div>
-                                  <span className="text-xs font-bold text-white/90 truncate uppercase leading-tight">{doc.name}</span>
+                                <div className="flex items-center gap-1 mb-1 flex-nowrap min-w-0">
+                                  <span className="text-[9px] font-black text-white/30 uppercase leading-none shrink-0">Official Profile</span>
+                                  {doc.sport && doc.sport !== "General" && (
+                                    <span className="text-[8px] font-black text-cyan-400 bg-cyan-400/10 border border-cyan-400/20 px-1 rounded whitespace-nowrap py-0.5 leading-none">{doc.sport}</span>
+                                  )}
                                 </div>
+                                <span className="text-xs font-bold text-white/90 truncate leading-tight">{formatDocName(doc.name)}</span>
+                              </div>
                             </div>
-                            <ExternalLink className="w-4 h-4 text-white/20 group-hover:text-cyan-400 transition-colors" />
+                            <ExternalLink className="w-4 h-4 text-white/20 group-hover:text-cyan-400 transition-colors shrink-0 ml-2" />
                           </motion.a>
                         ))}
                      </div>
@@ -1004,23 +1017,23 @@ export default function VerifyAccreditation() {
                             rel="noopener noreferrer"
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
-                            className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all group"
+                            className="flex items-start justify-between p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all group"
                           >
-                            <div className="flex items-center gap-3">
-                              <div className="p-2 bg-blue-500/10 rounded-xl group-hover:bg-blue-500/20 transition-colors">
+                            <div className="flex items-start gap-3 min-w-0">
+                              <div className="p-2 bg-blue-500/10 rounded-xl group-hover:bg-blue-500/20 transition-colors shrink-0">
                                 <Download className="w-4 h-4 text-blue-400" />
                               </div>
                               <div className="flex flex-col min-w-0">
-                                  <div className="flex items-center gap-1.5 mb-1 flex-nowrap">
-                                    <span className="text-[9px] font-black text-white/30 uppercase leading-none shrink-0">Result Profile</span>
-                                    {doc.sport && doc.sport !== "General" && (
-                                      <span className="text-[8px] font-black text-blue-400 bg-blue-400/10 border border-blue-400/20 px-1 rounded whitespace-nowrap py-0.5 leading-none">{doc.sport}</span>
-                                    )}
-                                  </div>
-                                  <span className="text-xs font-bold text-white/90 truncate uppercase leading-tight">{doc.name}</span>
+                                <div className="flex items-center gap-1 mb-1 flex-nowrap min-w-0">
+                                  <span className="text-[9px] font-black text-white/30 uppercase leading-none shrink-0">Result Profile</span>
+                                  {doc.sport && doc.sport !== "General" && (
+                                    <span className="text-[8px] font-black text-blue-400 bg-blue-400/10 border border-blue-400/20 px-1 rounded whitespace-nowrap py-0.5 leading-none">{doc.sport}</span>
+                                  )}
                                 </div>
+                                <span className="text-xs font-bold text-white/90 truncate leading-tight">{formatDocName(doc.name)}</span>
+                              </div>
                             </div>
-                            <ExternalLink className="w-4 h-4 text-white/20 group-hover:text-blue-400 transition-colors" />
+                            <ExternalLink className="w-4 h-4 text-white/20 group-hover:text-blue-400 transition-colors shrink-0 ml-2" />
                           </motion.a>
                         ))}
                       </div>
@@ -1039,20 +1052,20 @@ export default function VerifyAccreditation() {
                             rel="noopener noreferrer"
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
-                            className="flex items-center justify-between p-4 bg-red-500/5 border border-red-500/10 rounded-2xl hover:bg-red-500/10 transition-all group"
+                            className="flex items-start justify-between p-4 bg-red-500/5 border border-red-500/10 rounded-2xl hover:bg-red-500/10 transition-all group"
                           >
-                            <div className="flex items-center gap-3">
-                              <div className="p-2 bg-red-500/10 rounded-xl group-hover:bg-red-500/20 transition-colors">
+                            <div className="flex items-start gap-3 min-w-0">
+                              <div className="p-2 bg-red-500/10 rounded-xl group-hover:bg-red-500/20 transition-colors shrink-0">
                                 <ShieldAlert className="w-4 h-4 text-red-400" />
                               </div>
-                                <div className="flex flex-col min-w-0">
-                                  <div className="flex items-center gap-1.5 mb-1 flex-nowrap">
-                                    <span className="text-[9px] font-black text-red-500/40 uppercase leading-none shrink-0">Safety Asset</span>
-                                  </div>
-                                  <span className="text-xs font-bold text-white/90 truncate uppercase leading-tight">{doc.name}</span>
+                              <div className="flex flex-col min-w-0">
+                                <div className="flex items-center gap-1 mb-1 flex-nowrap min-w-0">
+                                  <span className="text-[9px] font-black text-red-500/40 uppercase leading-none shrink-0">Safety Asset</span>
                                 </div>
+                                <span className="text-xs font-bold text-white/90 truncate uppercase leading-tight">{formatDocName(doc.name)}</span>
+                              </div>
                             </div>
-                            <ExternalLink className="w-4 h-4 text-red-500/20 group-hover:text-red-400 transition-colors" />
+                            <ExternalLink className="w-4 h-4 text-red-500/20 group-hover:text-red-400 transition-colors shrink-0 ml-2" />
                           </motion.a>
                         ))}
                       </div>
