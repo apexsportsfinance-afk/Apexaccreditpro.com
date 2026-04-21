@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+﻿import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   CheckCircle, XCircle, Download, Calendar,
@@ -973,7 +973,7 @@ export default function VerifyAccreditation() {
               <div className="mt-10 space-y-6">
                  {visibleOfficialDocs.length > 0 && (
                    <div className="space-y-3">
-                     <h4 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-2">Official Event Documents</h4>
+                     <h4 className="font-black text-white uppercase tracking-[0.15em] px-2" style={{ fontFamily: "'Gill Sans MT', 'Gill Sans', Calibri, sans-serif", fontSize: "14px" }}>Official Event Documents</h4>
                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                        {visibleOfficialDocs.map((doc, idx) => (
                           <motion.a
@@ -996,7 +996,7 @@ export default function VerifyAccreditation() {
                                     <span className="text-[8px] font-black text-cyan-400 bg-cyan-400/10 border border-cyan-400/20 px-1 rounded whitespace-nowrap py-0.5 leading-none">{doc.sport}</span>
                                   )}
                                 </div>
-                                <span className="text-xs font-bold text-white/90 truncate leading-tight">{formatDocName(doc.name)}</span>
+                                <span className="font-black text-white leading-tight break-words" style={{ fontFamily: "'Gill Sans MT', 'Gill Sans', Calibri, sans-serif", fontSize: "14px" }}>{formatDocName(doc.name)}</span>
                               </div>
                             </div>
                             <ExternalLink className="w-4 h-4 text-white/20 group-hover:text-cyan-400 transition-colors shrink-0 ml-2" />
@@ -1007,7 +1007,7 @@ export default function VerifyAccreditation() {
                  )}
                  {visibleTechnicalDocs.length > 0 && (
                     <div className="space-y-3">
-                      <h4 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-2">Result Documents</h4>
+                      <h4 className="font-black text-white uppercase tracking-[0.15em] px-2" style={{ fontFamily: "'Gill Sans MT', 'Gill Sans', Calibri, sans-serif", fontSize: "14px" }}>Result Documents</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {visibleTechnicalDocs.map((doc, idx) => (
                           <motion.a
@@ -1030,7 +1030,7 @@ export default function VerifyAccreditation() {
                                     <span className="text-[8px] font-black text-blue-400 bg-blue-400/10 border border-blue-400/20 px-1 rounded whitespace-nowrap py-0.5 leading-none">{doc.sport}</span>
                                   )}
                                 </div>
-                                <span className="text-xs font-bold text-white/90 truncate leading-tight">{formatDocName(doc.name)}</span>
+                                <span className="font-black text-white leading-tight break-words" style={{ fontFamily: "'Gill Sans MT', 'Gill Sans', Calibri, sans-serif", fontSize: "14px" }}>{formatDocName(doc.name)}</span>
                               </div>
                             </div>
                             <ExternalLink className="w-4 h-4 text-white/20 group-hover:text-blue-400 transition-colors shrink-0 ml-2" />
@@ -1042,7 +1042,7 @@ export default function VerifyAccreditation() {
 
                   {safetyDocs.length > 0 && (
                     <div className="space-y-3">
-                      <h4 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-2">Safety Documents</h4>
+                      <h4 className="font-black text-white uppercase tracking-[0.15em] px-2" style={{ fontFamily: "'Gill Sans MT', 'Gill Sans', Calibri, sans-serif", fontSize: "14px" }}>Safety Documents</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {safetyDocs.map((doc, idx) => (
                           <motion.a
@@ -1062,7 +1062,7 @@ export default function VerifyAccreditation() {
                                 <div className="flex items-center gap-1 mb-1 flex-nowrap min-w-0">
                                   <span className="text-[9px] font-black text-red-500/40 uppercase leading-none shrink-0">Safety Asset</span>
                                 </div>
-                                <span className="text-xs font-bold text-white/90 truncate uppercase leading-tight">{formatDocName(doc.name)}</span>
+                                <span className="font-black text-white leading-tight break-words uppercase" style={{ fontFamily: "'Gill Sans MT', 'Gill Sans', Calibri, sans-serif", fontSize: "14px" }}>{formatDocName(doc.name)}</span>
                               </div>
                             </div>
                             <ExternalLink className="w-4 h-4 text-red-500/20 group-hover:text-red-400 transition-colors shrink-0 ml-2" />
@@ -1261,3 +1261,5 @@ function ScanSkeleton() {
 function ScanError({ error }) {
   return (<div className="min-h-screen bg-[#050b18] flex items-center justify-center p-6 text-center"><div className="max-w-md"><div className="inline-flex p-5 bg-red-500/10 border border-red-500/20 rounded-[2rem] mb-8"><AlertTriangle className="w-12 h-12 text-red-500" /></div><h2 className="text-3xl font-black text-white uppercase tracking-tight mb-4">Verification Failed</h2><p className="text-white/40 font-medium mb-12">{error || "The scanned accreditation code is invalid."}</p><button onClick={() => window.location.reload()} className="px-8 py-4 bg-white/5 border border-white/10 rounded-2xl text-white font-black uppercase text-xs">Retry Scan</button></div></div>);
 }
+
+
