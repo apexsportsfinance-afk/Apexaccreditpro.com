@@ -9,6 +9,7 @@ import EmergencyDocumentsTab from "./EmergencyDocumentsTab";
 import TechnicalDocumentsTab from "./TechnicalDocumentsTab";
 import FeedbackSetupTab from "./FeedbackSetupTab";
 import ZoneScannerTab from "./ZoneScannerTab";
+import { useAuth } from "../../contexts/AuthContext";
 
 const TABS = [
   { id: "broadcast", label: "Broadcast Message", icon: MessageSquare },
@@ -24,12 +25,20 @@ const TABS = [
 
 export default function QRSystemV3Tab({ eventId, onToast }) {
   const [activeTab, setActiveTab] = useState("broadcast");
+  const { isSuperAdmin } = useAuth();
+
+  // Filter tabs based on administrative tier
+  const filteredTabs = TABS.filter(tab => {
+    const restrictedTabs = ["events", "pdf_fields", "scanner_control"];
+    if (!isSuperAdmin && restrictedTabs.includes(tab.id)) return false;
+    return true;
+  });
 
   return (
     <div id="qr-system-v3-tab" className="space-y-6">
       {/* Optimized Tab Navigation - High-Density Admin Layout */}
-      <div className="flex gap-1 bg-gray-900/50 backdrop-blur-md border border-white/5 rounded-xl p-1.5 shadow-2xl">
-        {TABS.map(tab => {
+      <div className="flex gap-1 bg-gray-900/50 backdrop-blur-md border border-white/5 rounded-xl p-1.5 shadow-2xl overflow-x-auto">
+        {filteredTabs.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (
@@ -54,10 +63,10 @@ export default function QRSystemV3Tab({ eventId, onToast }) {
         {activeTab === "broadcast" && (
           <GlobalBroadcastPanel eventId={eventId} onToast={onToast} />
         )}
-        {activeTab === "events" && (
+        {activeTab === "events" && isSuperAdmin && (
           <SportEventsManager eventId={eventId} onToast={onToast} />
         )}
-        {activeTab === "pdf_fields" && (
+        {activeTab === "pdf_fields" && isSuperAdmin && (
           <FormFieldSettings eventId={eventId} onToast={onToast} />
         )}
         {activeTab === "event_pdfs" && (
@@ -75,7 +84,7 @@ export default function QRSystemV3Tab({ eventId, onToast }) {
         {activeTab === "feedback" && (
           <FeedbackSetupTab eventId={eventId} onToast={onToast} />
         )}
-        {activeTab === "scanner_control" && (
+        {activeTab === "scanner_control" && isSuperAdmin && (
           <ZoneScannerTab eventId={eventId} onToast={onToast} />
         )}
       </div>
