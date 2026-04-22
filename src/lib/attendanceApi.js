@@ -475,16 +475,21 @@ export const AttendanceAPI = {
    */
   getScanLogsByEvent: async (eventId, limit = 500) => {
     try {
-      const { data, error } = await supabase
+      let q = supabase
         .from("unified_scan_logs")
         .select(`
           *,
           accreditations:athlete_id (id, first_name, last_name, club, badge_number, role, selected_sports),
           spectator_orders:spectator_id (id, customer_name, qr_code_id)
         `)
-        .eq("event_id", eventId)
         .order("created_at", { ascending: false })
         .limit(limit);
+
+      if (eventId && eventId !== "null") {
+        q = q.eq("event_id", eventId);
+      }
+
+      const { data, error } = await q;
       if (error) throw error;
       return data || [];
     } catch (err) {

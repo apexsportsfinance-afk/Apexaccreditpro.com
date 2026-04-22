@@ -407,9 +407,13 @@ export const AccreditationsAPI = {
       let fastQuery = supabase
         .from("accreditations")
         .select(ACCREDITATION_LIST_COLUMNS)
-        .eq("event_id", eventId)
         .order("created_at", { ascending: false })
         .limit(PAGE_SIZE + 1); // +1 to detect if more exist
+      
+      if (eventId && eventId !== "null") {
+        fastQuery = fastQuery.eq("event_id", eventId);
+      }
+      
       if (status) fastQuery = fastQuery.eq("status", status);
 
       const { data: fastData, error: fastError } = await fastQuery;
@@ -421,8 +425,8 @@ export const AccreditationsAPI = {
       // Slow path: paginated fetch for large datasets (>1000 records)
       let countQuery = supabase
         .from("accreditations")
-        .select("*", { count: "exact", head: true })
-        .eq("event_id", eventId);
+        .select("*", { count: "exact", head: true });
+      if (eventId && eventId !== "null") countQuery = countQuery.eq("event_id", eventId);
       if (status) countQuery = countQuery.eq("status", status);
       const { count } = await countQuery;
 
@@ -433,9 +437,9 @@ export const AccreditationsAPI = {
         let q = supabase
           .from("accreditations")
           .select(ACCREDITATION_LIST_COLUMNS)
-          .eq("event_id", eventId)
           .order("created_at", { ascending: false })
           .range(i * PAGE_SIZE, (i + 1) * PAGE_SIZE - 1);
+        if (eventId && eventId !== "null") q = q.eq("event_id", eventId);
         if (status) q = q.eq("status", status);
         return q;
       });
