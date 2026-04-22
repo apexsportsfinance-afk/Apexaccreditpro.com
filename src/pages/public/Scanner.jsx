@@ -113,6 +113,7 @@ export default function ScannerPage() {
 
   // UI States for Aesthetic Upgrade
   const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
+  const [activeZoneConfig, setActiveZoneConfig] = useState(null);
 
   // High-Speed Hardware Locking (APX-FIX for Spectators)
   const isCurrentlyProcessing = useRef(false);
@@ -161,6 +162,27 @@ export default function ScannerPage() {
     };
     fetchSessions();
   }, [config.eventId, config.mode]);
+
+  // 3. Fetch Zone configuration for time-based rules
+  useEffect(() => {
+    const fetchZoneConfig = async () => {
+      if (config.eventId && config.zone && config.mode === "attendance") {
+        try {
+          const zones = await ZonesAPI.getByEventId(config.eventId);
+          const currentZone = zones.find(z => String(z.code).toUpperCase() === String(config.zone).toUpperCase());
+          if (currentZone) {
+            setActiveZoneConfig(currentZone);
+          }
+        } catch (err) {
+          console.warn("Failed to load zone configuration for time-based access:", err);
+        }
+      }
+    };
+
+    fetchZoneConfig();
+    const interval = setInterval(fetchZoneConfig, 30000); // Dynamic update every 30s
+    return () => clearInterval(interval);
+  }, [config.eventId, config.zone, config.mode]);
 
   // Quote Rotation Timer
   useEffect(() => {
@@ -496,6 +518,22 @@ export default function ScannerPage() {
             });
             return;
           }
+
+          // --- TIME BASED ACCESS ENFORCEMENT ---
+          if (activeZoneConfig?.settings?.accessMode === "time_restricted") {
+            const slots = activeZoneConfig.settings.timeSlots || [];
+            const now = new Date();
+            const currentTimeStr = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
+            
+            const isAllowed = slots.some(slot => {
+              return currentTimeStr >= slot.start && currentTimeStr <= slot.end;
+            });
+
+            if (!isAllowed) {
+              showScanError("Access Denied", "Outside of allowed time slots for this zone.");
+              return;
+            }
+          }
         }
 
         const recordRes = await AttendanceAPI.recordScan({
@@ -714,7 +752,15 @@ export default function ScannerPage() {
                     config.mode === 'verify' ? 'Verify Accreditation' :
                       'Athlete Hub'}
             </h1>
-            <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">{config.deviceLabel}</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">{config.deviceLabel}</p>
+              {activeZoneConfig?.settings?.accessMode === "time_restricted" && (
+                <div className="flex items-center gap-1 bg-amber-500/20 border border-amber-500/30 px-1.5 py-0.5 rounded text-[8px] font-black text-amber-400 uppercase tracking-tighter animate-pulse">
+                  <Clock className="w-2 h-2" />
+                  Time-Restricted Active
+                </div>
+              )}
+            </div>
           </div>
         </div>
         {!isPublic && <button onClick={logout} className="text-white/40 hover:text-red-400 p-2 transition-colors"><LogOut /></button>}

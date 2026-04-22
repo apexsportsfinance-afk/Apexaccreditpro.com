@@ -35,13 +35,14 @@ export const AuthProvider = ({ children }) => {
 
     try {
       // Fetch profile AND access mappings in parallel for speed
-      const [profileRes, accessMapping] = await Promise.all([
+      const [profileRes, accessMapping, moduleMapping] = await Promise.all([
         supabase
           .from("profiles")
           .select("role, full_name")
           .eq("id", sessionUser.id)
           .single(),
-        UsersAPI.getAccessMappings()
+        UsersAPI.getAccessMappings(),
+        UsersAPI.getModuleAccessMappings()
       ]);
 
       if (!mountedRef.current) return;
@@ -55,13 +56,12 @@ export const AuthProvider = ({ children }) => {
           ...current,
           name: data?.full_name || current.name,
           role: data?.role || current.role,
-          allowedEventIds: accessMapping[sessionUser.id] || []
+          allowedEventIds: accessMapping[sessionUser.id] || [],
+          allowedModules: moduleMapping[sessionUser.id] || []
         };
       });
 
       if (error && mountedRef.current) {
-        // Retry logic if needed (keep existing retry logic but adapted if possible, or simplified)
-        // For now, let's keep it simple to ensure it doesn't hang.
         console.warn("Profile fetch error, using defaults.");
       }
     } catch (err) {
@@ -150,6 +150,9 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setUser(null);
       fetchedProfileForRef.current = null;
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login'; // Force a full clean state on logout
+      }
     }
   };
 
@@ -174,6 +177,17 @@ export const AuthProvider = ({ children }) => {
     return user.allowedEventIds.includes(eventId);
   };
 
+  const canAccessModule = (path) => {
+    if (!user) return false;
+    if (user.role === "super_admin" || user.role === "admin") return true;
+    if (!user.allowedModules) return false;
+    
+    // Exact path match or parent path match
+    return user.allowedModules.some(modulePath => 
+      path === modulePath || path.startsWith(modulePath + "/")
+    );
+  };
+
   const value = {
     user,
     loading,
@@ -181,6 +195,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     hasPermission,
     canAccessEvent,
+    canAccessModule,
     isAuthenticated: !!user,
     isSuperAdmin: user?.role === "super_admin" || user?.role === "admin",
     isEventAdmin: user?.role === "event_admin",

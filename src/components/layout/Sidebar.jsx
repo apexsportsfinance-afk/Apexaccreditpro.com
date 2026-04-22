@@ -40,10 +40,16 @@ const navItems = [
 ];
 
 export default function Sidebar() {
-  const { user, logout, isSuperAdmin } = useAuth();
+  const { user, logout, isSuperAdmin, canAccessModule } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   
-  const filteredNavItems = navItems.filter(item => !item.superOnly || isSuperAdmin);
+  const filteredNavItems = navItems.filter(item => {
+    // If it's a superOnly item, check isSuperAdmin
+    if (item.superOnly && !isSuperAdmin) return false;
+    
+    // Check module permission
+    return canAccessModule(item.to);
+  });
 
   return (
     <aside

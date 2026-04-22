@@ -20,6 +20,21 @@ const ROLES = [
   { value: "viewer", label: "Viewer" }
 ];
 
+const MODULES = [
+  { value: "/admin/dashboard", label: "Dashboard" },
+  { value: "/admin/events", label: "Events" },
+  { value: "/admin/ticketing", label: "Spectator Portal" },
+  { value: "/admin/accreditations", label: "Accreditations" },
+  { value: "/admin/zones", label: "Zones" },
+  { value: "/admin/qr-system", label: "QR System" },
+  { value: "/admin/broadcasts", label: "Broadcast History" },
+  { value: "/admin/medals", label: "Medal Rankings" },
+  { value: "/admin/feedback", label: "Feedback" },
+  { value: "/admin/users", label: "Users" },
+  { value: "/admin/audit", label: "Audit Log" },
+  { value: "/admin/settings", label: "Settings" }
+];
+
 export default function Users() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,15 +43,19 @@ export default function Users() {
   const [saving, setSaving] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ open: false, user: null });
   const [deleting, setDeleting] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
     role: "event_admin",
-    eventIds: []
+    eventIds: [],
+    modulePaths: []
   });
   const [allEvents, setAllEvents] = useState([]);
   const [accessMappings, setAccessMappings] = useState({});
+  const [moduleMappings, setModuleMappings] = useState({});
   const { user: currentUser, isSuperAdmin } = useAuth();
   const toast = useToast();
 
@@ -47,14 +66,16 @@ export default function Users() {
   const loadUsers = async () => {
     setLoading(true);
     try {
-      const [userData, eventData, mappingData] = await Promise.all([
+      const [userData, eventData, mappingData, moduleData] = await Promise.all([
         UsersAPI.getAll(),
         EventsAPI.getAll(),
-        UsersAPI.getAccessMappings()
+        UsersAPI.getAccessMappings(),
+        UsersAPI.getModuleAccessMappings()
       ]);
       setUsers(userData);
       setAllEvents(eventData);
       setAccessMappings(mappingData);
+      setModuleMappings(moduleData);
     } catch (error) {
       console.error("Failed to load users:", error);
       toast.error("Failed to load users");
@@ -63,15 +84,22 @@ export default function Users() {
     }
   };
 
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
   const resetForm = () => {
     setFormData({
       name: "",
       email: "",
       password: "",
       role: "event_admin",
-      eventIds: []
+      eventIds: [],
+      modulePaths: []
     });
     setEditingUser(null);
+    setIsChangingPassword(false);
+    setConfirmPassword("");
   };
 
   const handleOpenModal = (user = null) => {
@@ -82,11 +110,14 @@ export default function Users() {
         email: user.email,
         password: "",
         role: user.role,
-        eventIds: accessMappings[user.id] || []
+        eventIds: accessMappings[user.id] || [],
+        modulePaths: moduleMappings[user.id] || []
       });
     } else {
       resetForm();
     }
+    setIsChangingPassword(false);
+    setConfirmPassword("");
     setModalOpen(true);
   };
 
@@ -107,6 +138,17 @@ export default function Users() {
       return;
     }
 
+    if (editingUser && isChangingPassword) {
+      if (!formData.password) {
+        toast.error("Please enter a new password");
+        return;
+      }
+      if (formData.password !== confirmPassword) {
+        toast.error("Passwords do not match");
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       if (editingUser) {
@@ -115,16 +157,18 @@ export default function Users() {
           email: formData.email,
           role: formData.role
         };
-        if (formData.password) {
+        if (isChangingPassword && formData.password) {
           updates.password = formData.password;
         }
         await UsersAPI.update(editingUser.id, updates);
         
-        // Update event assignments if it's an event admin
+        // Update module access
+        await UsersAPI.updateModuleAccessMapping(editingUser.id, formData.modulePaths);
+        
+        // Update event access mapping
         if (formData.role === "event_admin") {
           await UsersAPI.updateAccessMapping(editingUser.id, formData.eventIds);
         } else {
-          // Clear assignments for other roles
           await UsersAPI.updateAccessMapping(editingUser.id, []);
         }
         
@@ -136,6 +180,11 @@ export default function Users() {
         if (formData.role === "event_admin" && formData.eventIds.length > 0) {
           await UsersAPI.updateAccessMapping(newUser.id, formData.eventIds);
         }
+
+        // Save module access for new user
+        if (formData.modulePaths.length > 0) {
+          await UsersAPI.updateModuleAccessMapping(newUser.id, formData.modulePaths);
+        }
         
         toast.success("User created successfully");
       }
@@ -144,7 +193,11 @@ export default function Users() {
       await loadUsers();
     } catch (error) {
       console.error("User save error:", error);
-      toast.error(error.message || "Failed to save user");
+      if (error.message.includes("failed") || error.message.includes("504")) {
+        toast.error("User creation failed. Check if the 'manage-users' Edge Function is deployed and running.");
+      } else {
+        toast.error(error.message || "Failed to save user");
+      }
     } finally {
       setSaving(false);
     }
@@ -230,12 +283,17 @@ export default function Users() {
               {accessMappings[row.id].length} Events Assigned
             </span>
           )}
+          {row.role !== "super_admin" && moduleMappings[row.id] && (
+            <span className="text-[10px] text-primary-400 font-bold bg-primary-500/10 px-1.5 py-0.5 rounded border border-primary-500/20 w-fit">
+              {moduleMappings[row.id].length} Modules Allocated
+            </span>
+          )}
         </div>
       )
     },
     {
       key: "createdAt",
-      header: "Created",
+      header: "Joined",
       sortable: true,
       render: (_, row) => (
         <span className="text-xs font-mono text-muted uppercase tracking-widest">
@@ -329,62 +387,146 @@ export default function Users() {
         title={editingUser ? "Edit User" : "Add User"}
       >
         <form onSubmit={handleSubmit} noValidate className="p-6 space-y-4">
-          <Input
-            label="Full Name"
-            value={formData.name}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, name: e.target.value }))
-            }
-            placeholder="John Doe"
-            required
-          />
+          <div className="space-y-4 border-l-2 border-primary-500/30 pl-4 py-2">
+            <h4 className="text-xs font-black uppercase tracking-[0.2em] text-primary-500">Step 1: Identity & Role</h4>
+            <div className="space-y-4">
+              <Input
+                label="Full Name"
+                value={formData.name}
+                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="John Doe"
+                required
+              />
+              <Input
+                label="Email Address"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+                placeholder="john@example.com"
+                required
+                disabled={!!editingUser}
+              />
+              {editingUser ? (
+                <div className="space-y-3">
+                  {!isChangingPassword ? (
+                    <div className="space-y-3">
+                      <Input
+                        label="Password"
+                        value="••••••••••••"
+                        disabled
+                        className="bg-base/50 text-muted cursor-not-allowed"
+                      />
+                      <label className="flex items-center gap-2 text-sm font-bold text-main cursor-pointer hover:text-primary transition-colors w-fit">
+                        <input 
+                          type="checkbox" 
+                          className="w-4 h-4 rounded border-border bg-base text-primary-500 focus:ring-primary-500/20"
+                          checked={isChangingPassword}
+                          onChange={(e) => setIsChangingPassword(e.target.checked)}
+                        />
+                        Change Password
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 p-4 border border-primary-500/20 bg-primary-500/5 rounded-xl">
+                      <div className="flex items-center justify-between">
+                        <h5 className="text-xs font-black uppercase tracking-widest text-primary-500">Update Password</h5>
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            setIsChangingPassword(false);
+                            setFormData(prev => ({ ...prev, password: "" }));
+                            setConfirmPassword("");
+                          }}
+                          className="text-[10px] uppercase font-bold text-muted hover:text-red-400 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      <Input
+                        label="New Password"
+                        type="password"
+                        value={formData.password}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
+                        placeholder="Enter new password"
+                        required
+                      />
+                      <Input
+                        label="Confirm New Password"
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Confirm new password"
+                        required
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Input
+                  label="Password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
+                  placeholder="Enter password"
+                  required
+                />
+              )}
+              <Select
+                label="Role"
+                value={formData.role}
+                onChange={(e) => setFormData((prev) => ({ ...prev, role: e.target.value }))}
+                options={ROLES}
+              />
+            </div>
+          </div>
 
-          <Input
-            label="Email Address"
-            type="email"
-            value={formData.email}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, email: e.target.value }))
-            }
-            placeholder="john@example.com"
-            required
-            disabled={!!editingUser}
-          />
-
-          <Input
-            label={editingUser ? "New Password (leave blank to keep)" : "Password"}
-            type="password"
-            value={formData.password}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, password: e.target.value }))
-            }
-            placeholder="Enter password"
-            required={!editingUser}
-          />
-
-          <Select
-            label="Role"
-            value={formData.role}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, role: e.target.value }))
-            }
-            options={ROLES}
-          />
-
-          {formData.role === "event_admin" && (
+          <div className="space-y-4 border-l-2 border-blue-500/30 pl-4 py-2">
+            <h4 className="text-xs font-black uppercase tracking-[0.2em] text-blue-500">Step 2: Event Allocation</h4>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-main">Assign Events</label>
+              <label className="text-[10px] font-black text-main uppercase tracking-widest opacity-60">Select Assigned Events</label>
               <MultiSearchableSelect
                 options={allEvents.map(ev => ({ value: ev.id, label: ev.name }))}
                 value={formData.eventIds}
                 onChange={(vals) => setFormData(prev => ({ ...prev, eventIds: vals }))}
-                placeholder="Select events..."
+                placeholder="Choose events..."
               />
               <p className="text-[10px] text-muted italic">
-                Event Admins will only be able to see and manage the events assigned here.
+                The user will only manage data for the events selected above.
               </p>
             </div>
-          )}
+          </div>
+
+          <div className="space-y-4 border-l-2 border-emerald-500/30 pl-4 py-2">
+            <h4 className="text-xs font-black uppercase tracking-[0.2em] text-emerald-500">Step 3: Page & Module Permission</h4>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-main uppercase tracking-widest opacity-60">Grant Sidebar Access</label>
+              <div className="grid grid-cols-2 gap-2 p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+                {MODULES.map((mod) => (
+                  <label key={mod.value} className="flex items-center gap-2 group cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-border bg-base text-emerald-500 focus:ring-emerald-500/20"
+                      checked={formData.role === 'super_admin' || formData.modulePaths.includes(mod.value)}
+                      onChange={(e) => {
+                        if (formData.role === 'super_admin') return;
+                        const paths = e.target.checked
+                          ? [...formData.modulePaths, mod.value]
+                          : formData.modulePaths.filter(p => p !== mod.value);
+                        setFormData(prev => ({ ...prev, modulePaths: paths }));
+                      }}
+                      disabled={formData.role === 'super_admin'}
+                    />
+                    <span className="text-[11px] font-bold text-muted group-hover:text-emerald-400 transition-colors uppercase tracking-tight">
+                      {mod.label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted italic">
+                Toggle exactly which sections of the platform this user can see.
+              </p>
+            </div>
+          </div>
 
           <div className="flex gap-3 pt-4">
             <Button

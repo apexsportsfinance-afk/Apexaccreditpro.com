@@ -50,26 +50,28 @@ export function StatsCard({
         )}
 
       </div>
-      <div className="mt-8 flex items-end gap-1.5 h-12 opacity-80 group-hover:opacity-100 transition-all duration-700 px-1">
-        {data.map((h, i) => (
-          <div key={i} className="relative flex-1 group/bar" style={{ height: `${Math.max(10, Math.min(h, 100))}%` }}>
-            {/* Elite 3D Glass Bar */}
-            <div className="absolute inset-x-0 bottom-0 h-full transition-all duration-700 cubic-bezier(0.4, 0, 0.2, 1) group-hover:scale-y-110 origin-bottom">
-              {/* Main Front Face */}
-              <div className="absolute inset-0 rounded-sm z-10 border-t border-l border-white/20 bg-gradient-to-tr from-primary/40 to-primary/10 backdrop-blur-xs" />
+      {data && data.length > 0 && (
+        <div className="mt-8 flex items-end gap-1.5 h-12 opacity-80 group-hover:opacity-100 transition-all duration-700 px-1">
+          {data.map((h, i) => (
+            <div key={i} className="relative flex-1 group/bar" style={{ height: `${Math.max(10, Math.min(h, 100))}%` }}>
+              {/* Elite 3D Glass Bar */}
+              <div className="absolute inset-x-0 bottom-0 h-full transition-all duration-700 cubic-bezier(0.4, 0, 0.2, 1) group-hover:scale-y-110 origin-bottom">
+                {/* Main Front Face */}
+                <div className="absolute inset-0 rounded-sm z-10 border-t border-l border-white/20 bg-gradient-to-tr from-primary/40 to-primary/10 backdrop-blur-xs" />
+                
+                {/* Top Highlight */}
+                <div className="absolute -top-[2px] left-[1px] right-[-1px] h-[2px] -skew-x-[45deg] z-20 rounded-t-sm bg-primary/60 border-t border-white/30" />
+                
+                {/* Side Shadow */}
+                <div className="absolute top-[1px] -right-[2px] bottom-[-1px] w-[2px] -skew-y-[45deg] z-0 rounded-r-sm bg-black/40 border-r border-white/5" />
+              </div>
               
-              {/* Top Highlight */}
-              <div className="absolute -top-[2px] left-[1px] right-[-1px] h-[2px] -skew-x-[45deg] z-20 rounded-t-sm bg-primary/60 border-t border-white/30" />
-              
-              {/* Side Shadow */}
-              <div className="absolute top-[1px] -right-[2px] bottom-[-1px] w-[2px] -skew-y-[45deg] z-0 rounded-r-sm bg-black/40 border-r border-white/5" />
+              {/* Ambient Glow */}
+              <div className="absolute -bottom-1 inset-x-0 h-1 blur-lg bg-primary/30 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
-            
-            {/* Ambient Glow */}
-            <div className="absolute -bottom-1 inset-x-0 h-1 blur-lg bg-primary/30 opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </motion.div>
   );
 }

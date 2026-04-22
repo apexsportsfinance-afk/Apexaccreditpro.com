@@ -10,16 +10,20 @@ import {
   MapPin
 } from "lucide-react";
 import { AttendanceAPI } from "../../../lib/attendanceApi";
+import { AccreditationsAPI } from "../../../lib/storage";
 import { useToast } from "../../../components/ui/Toast";
 import Button from "../../../components/ui/Button";
 import { supabase } from "../../../lib/supabase";
+import { Calendar } from "lucide-react";
 
 export default function AuditLogView({ event }) {
   const [logs, setLogs] = useState([]);
   const [zones, setZones] = useState([]);
+  const [accreditations, setAccreditations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedArea, setSelectedArea] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all"); // 'all' or 'YYYY-MM-DD'
   const toast = useToast();
 
   useEffect(() => {
@@ -32,10 +36,14 @@ export default function AuditLogView({ event }) {
   const loadLogs = async () => {
     setLoading(true);
     try {
-      const data = await AttendanceAPI.getScanLogsByEvent(event.id);
-      setLogs(data || []);
+      const [logsData, accsData] = await Promise.all([
+        AttendanceAPI.getScanLogsByEvent(event.id, 1000),
+        AccreditationsAPI.getByEventId(event.id, { status: "approved" })
+      ]);
+      setLogs(logsData || []);
+      setAccreditations(accsData || []);
     } catch (err) {
-      console.error("Error loading scan logs:", err);
+      console.error("Error loading ledger data:", err);
       toast.error("Failed to load scanner logs");
     } finally {
       setLoading(false);
@@ -57,43 +65,84 @@ export default function AuditLogView({ event }) {
     }
   };
 
-  // Requirement: Summarize ALL areas, not just sports
+  // Available dates for filtering
+  const availableDates = useMemo(() => {
+    const dates = new Set();
+    logs.forEach(log => {
+      const date = new Date(log.created_at).toISOString().split('T')[0];
+      dates.add(date);
+    });
+    return Array.from(dates).sort((a, b) => b.localeCompare(a));
+  }, [logs]);
+
+  // Requirement: Summarize ALL areas with Allocation Ratios
   const areaSummary = useMemo(() => {
     const summary = {};
     
-    // 1. Initialize with all defined zones to ensure they show up even with 0 scans
+    // 1. Initialize with all defined zones
     zones.forEach(z => {
-      summary[z.name] = 0;
+      // Find how many people are allocated to this zone
+      const allocatedCount = accreditations.filter(acc => 
+        acc.zoneCode === z.code || 
+        (acc.zoneCode && acc.zoneCode.includes(z.code))
+      ).length;
+
+      summary[z.name] = { 
+        scanned: new Set(), // Store unique athlete IDs
+        allocated: allocatedCount,
+        code: z.code 
+      };
     });
 
-    // 2. Count actual scans from logs
+    // 2. Count actual scans from logs (respecting date filter)
     logs.forEach(log => {
+      const logDate = new Date(log.created_at).toISOString().split('T')[0];
+      if (dateFilter !== "all" && logDate !== dateFilter) return;
+
       const label = log.device_label || 'Other';
-      summary[label] = (summary[label] || 0) + 1;
+      if (summary[label]) {
+        if (log.athlete_id) summary[label].scanned.add(log.athlete_id);
+      }
     });
 
     return summary;
-  }, [logs, zones]);
+  }, [logs, zones, accreditations, dateFilter]);
 
-  // Summarize by Sport
+  // Summarize by Sport with Allocation Ratios
   const sportSummary = useMemo(() => {
     const summary = {};
     const sports = event.sportList || ["Swimming"];
-    sports.forEach(s => { summary[s] = 0; });
+    
+    sports.forEach(s => { 
+      const allocated = accreditations.filter(acc => 
+        acc.selectedSports && acc.selectedSports.includes(s)
+      ).length;
+
+      summary[s] = { 
+        scanned: new Set(), 
+        allocated 
+      }; 
+    });
 
     logs.forEach(log => {
+      const logDate = new Date(log.created_at).toISOString().split('T')[0];
+      if (dateFilter !== "all" && logDate !== dateFilter) return;
+
       const athleteSports = log.accreditations?.selected_sports || [];
       athleteSports.forEach(s => {
-        if (summary[s] !== undefined) {
-          summary[s]++;
+        if (summary[s]) {
+          if (log.athlete_id) summary[s].scanned.add(log.athlete_id);
         }
       });
     });
     return summary;
-  }, [logs, event.sportList]);
+  }, [logs, event.sportList, accreditations, dateFilter]);
 
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
+      const logDate = new Date(log.created_at).toISOString().split('T')[0];
+      if (dateFilter !== "all" && logDate !== dateFilter) return false;
+
       const name = `${log.accreditations?.first_name || ''} ${log.accreditations?.last_name || ''}`.toLowerCase();
       const club = (log.accreditations?.club || "").toLowerCase();
       const badge = (log.accreditations?.badge_number || "").toLowerCase();
@@ -106,7 +155,17 @@ export default function AuditLogView({ event }) {
       
       return matchesSearch && matchesArea;
     });
-  }, [logs, searchTerm, selectedArea]);
+  }, [logs, searchTerm, selectedArea, dateFilter]);
+
+  const totalUniqueScanned = useMemo(() => {
+    const unique = new Set();
+    logs.forEach(log => {
+      const logDate = new Date(log.created_at).toISOString().split('T')[0];
+      if (dateFilter !== "all" && logDate !== dateFilter) return;
+      if (log.athlete_id) unique.add(log.athlete_id);
+    });
+    return unique.size;
+  }, [logs, dateFilter]);
 
   const exportToExcel = async () => {
     try {
@@ -156,40 +215,73 @@ export default function AuditLogView({ event }) {
         
         {/* Main Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
-          <div className="bg-[#1e293b] border border-gray-700/50 p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow group">
+          <div className="bg-[#1e293b] border border-gray-700/50 p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow group flex flex-col justify-between">
             <div className="flex items-center gap-2 mb-1">
               <div className="p-1.5 bg-sky-500/10 rounded-lg text-sky-400 group-hover:bg-sky-500/20 transition-colors">
                 <Activity className="w-3.5 h-3.5" />
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Total Scans</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total Scans</span>
             </div>
-            <p className="text-xl font-black text-white leading-tight">{logs.length}</p>
+            <div className="flex flex-col">
+              <div className="flex items-baseline gap-1.5">
+                <p className="text-xl font-black text-white">{totalUniqueScanned}</p>
+                <sub className="text-[10px] font-bold text-gray-500 uppercase">/ {accreditations.length} Athletes</sub>
+              </div>
+              <div className="w-full bg-base rounded-full h-1 mt-2.5 overflow-hidden">
+                <div 
+                  className="bg-sky-500 h-full rounded-full transition-all duration-1000" 
+                  style={{ width: `${(totalUniqueScanned / (accreditations.length || 1)) * 100}%` }}
+                />
+              </div>
+            </div>
           </div>
 
-          {Object.entries(areaSummary).map(([area, count]) => (
-            <div key={area} className="bg-[#1e293b] border border-gray-700/50 p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow group">
+          {Object.entries(areaSummary).map(([area, data]) => (
+            <div key={area} className="bg-[#1e293b] border border-gray-700/50 p-3 rounded-xl shadow-sm hover:shadow-md transition-shadow group flex flex-col justify-between">
               <div className="flex items-center gap-2 mb-1">
                 <div className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-400 group-hover:bg-emerald-500/20 transition-colors">
                   <MapPin className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 truncate" title={area}>{area}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 truncate" title={area}>{area}</span>
               </div>
-              <p className="text-xl font-black text-white leading-tight">{count}</p>
+              <div className="flex flex-col">
+                <div className="flex items-baseline gap-1">
+                  <p className="text-xl font-black text-white">{data.scanned.size}</p>
+                  <sub className="text-[9px] font-bold text-gray-500 lowercase">out of {data.allocated}</sub>
+                </div>
+                <div className="w-full bg-base rounded-full h-1 mt-2.5 overflow-hidden">
+                  <div 
+                    className="bg-emerald-500 h-full rounded-full transition-all duration-1000" 
+                    style={{ width: `${(data.scanned.size / (data.allocated || 1)) * 100}%` }}
+                  />
+                </div>
+              </div>
             </div>
           ))}
         </div>
 
         {/* Sport Specific Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
-          {Object.entries(sportSummary).map(([sport, count]) => (
-            <div key={sport} className="bg-slate-900/40 border border-slate-800 p-3 rounded-xl hover:bg-slate-800/40 transition-all group">
+          {Object.entries(sportSummary).map(([sport, data]) => (
+            <div key={sport} className="bg-slate-900/40 border border-slate-800 p-3 rounded-xl hover:bg-slate-800/40 transition-all group flex flex-col justify-between">
               <div className="flex items-center gap-2 mb-1">
                 <div className="p-1.5 bg-amber-500/10 rounded-lg text-amber-400 group-hover:bg-amber-500/20 transition-colors">
                   <Trophy className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 truncate" title={sport}>{sport}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 truncate" title={sport}>{sport}</span>
               </div>
-              <p className="text-lg font-black text-slate-200 leading-tight">{count}</p>
+              <div className="flex flex-col">
+                <div className="flex items-baseline gap-1">
+                  <p className="text-lg font-black text-slate-200">{data.scanned.size}</p>
+                  <sub className="text-[9px] font-bold text-slate-600 uppercase">/ {data.allocated}</sub>
+                </div>
+                <div className="w-full bg-slate-800 rounded-full h-1 mt-2 overflow-hidden">
+                  <div 
+                    className="bg-amber-500/60 h-full rounded-full transition-all duration-1000" 
+                    style={{ width: `${(data.scanned.size / (data.allocated || 1)) * 100}%` }}
+                  />
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -208,6 +300,22 @@ export default function AuditLogView({ event }) {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+          </div>
+
+          {/* Date Filter */}
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-500" />
+            <select
+              className="bg-slate-900 border border-gray-700 text-white rounded-xl pl-10 pr-10 py-2 text-sm focus:ring-2 focus:ring-amber-500/50 outline-none appearance-none cursor-pointer hover:bg-slate-800 transition-colors min-w-[200px]"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+            >
+              <option value="all" className="bg-slate-900">Overall Totals</option>
+              {availableDates.map(d => (
+                <option key={d} value={d} className="bg-slate-900">Day: {new Date(d).toLocaleDateString()}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
           </div>
 
           {/* Area Filter */}

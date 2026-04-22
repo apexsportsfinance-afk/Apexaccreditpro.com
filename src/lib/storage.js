@@ -297,6 +297,12 @@ const ACCREDITATION_LIST_COLUMNS = [
 
 export const AccreditationsAPI = {
   getStats: async (eventIds = null) => {
+    // If eventIds is an empty array, it means the user has NO events allocated.
+    // We must return 0 instead of falling back to global stats.
+    if (eventIds !== null && Array.isArray(eventIds) && eventIds.length === 0) {
+      return { total: 0, pending: 0, approved: 0, rejected: 0 };
+    }
+
     const buildQuery = (status = null) => {
       let q = supabase.from("accreditations").select("*", { count: "exact", head: true });
       if (eventIds && eventIds.length > 0) q = q.in("event_id", eventIds);
@@ -346,6 +352,10 @@ export const AccreditationsAPI = {
   },
 
   getRecent: async (limit = 5, eventIds = null) => {
+    if (eventIds !== null && Array.isArray(eventIds) && eventIds.length === 0) {
+      return [];
+    }
+
     let q = supabase
         .from("accreditations")
         .select("id, first_name, last_name, role, club, status, created_at, event_id")
@@ -818,6 +828,33 @@ export const TicketingAPI = {
 // --- USERS API ---
 export const UsersAPI = {
   getAll: async () => {
+    // APX-Recovery: Try Edge Function first to reach accounts missing from 'profiles'
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        const EDGE_URL = "https://dixelomafeobabahqeqg.supabase.co/functions/v1/manage-users";
+        const response = await fetch(EDGE_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session.access_token}` },
+          body: JSON.stringify({ action: "list" })
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.users) return data.users.map(u => ({
+            id: u.id,
+            email: u.email,
+            name: u.full_name || u.email,
+            role: u.role || "viewer",
+            createdAt: u.created_at,
+            type: "Admin Staff",
+            isAuthUser: true
+          }));
+        }
+      }
+    } catch (err) {
+      console.warn("Edge list failed, falling back to profiles:", err);
+    }
+
     const data = await handleResponse(() => supabase.from("profiles").select("*").order("created_at", { ascending: false }));
     return (data || []).map(u => ({
       id: u.id,
@@ -825,7 +862,8 @@ export const UsersAPI = {
       name: u.full_name || u.email,
       role: u.role || "viewer",
       avatar: u.avatar_url,
-      createdAt: u.created_at
+      createdAt: u.created_at,
+      type: "Admin Staff"
     }));
   },
   getCurrentUser: async () => {
@@ -900,6 +938,16 @@ export const UsersAPI = {
     const existing = await UsersAPI.getAccessMappings();
     if (eventIds?.length) existing[userId] = eventIds; else delete existing[userId];
     await handleResponse(() => supabase.from("global_settings").upsert({ key: "user_event_access", value: JSON.stringify(existing) }, { onConflict: 'key' }));
+    return true;
+  },
+  getModuleAccessMappings: async () => {
+    const data = await handleResponse(() => supabase.from("global_settings").select("value").eq("key", "user_module_access").maybeSingle());
+    try { return data?.value ? JSON.parse(data.value) : {}; } catch { return {}; }
+  },
+  updateModuleAccessMapping: async (userId, modules) => {
+    const existing = await UsersAPI.getModuleAccessMappings();
+    if (modules?.length) existing[userId] = modules; else delete existing[userId];
+    await handleResponse(() => supabase.from("global_settings").upsert({ key: "user_module_access", value: JSON.stringify(existing) }, { onConflict: 'key' }));
     return true;
   }
 };
@@ -1027,11 +1075,36 @@ function mapEventFromDB(db) {
 }
 
 function mapZoneToDB(z) {
-  return { event_id: z.eventId, code: z.code, name: z.name, color: z.color, description: z.description, allowed_roles: z.allowedRoles };
+  let description = z.description || "";
+  if (z.settings && Object.keys(z.settings).length > 0) {
+    // Strip old settings if updating, then append new ones
+    description = (description.split(" | [SETTINGS]:")[0]) + ` | [SETTINGS]:${JSON.stringify(z.settings)}`;
+  }
+  return { event_id: z.eventId, code: z.code, name: z.name, color: z.color, description, allowed_roles: z.allowedRoles };
 }
 
 function mapZoneFromDB(db) {
-  return { id: db.id, eventId: db.event_id, code: db.code, name: db.name, color: db.color, description: db.description, allowedRoles: db.allowed_roles || [] };
+  let description = db.description || "";
+  let settings = {};
+  if (description.includes(" | [SETTINGS]:")) {
+    const parts = description.split(" | [SETTINGS]:");
+    description = parts[0];
+    try {
+      settings = JSON.parse(parts[1]);
+    } catch (e) {
+      console.warn("Failed to parse zone settings metadata", e);
+    }
+  }
+  return { 
+    id: db.id, 
+    eventId: db.event_id, 
+    code: db.code, 
+    name: db.name, 
+    color: db.color, 
+    description, 
+    settings,
+    allowedRoles: db.allowed_roles || [] 
+  };
 }
 
 function mapCategoryToDB(cat) {

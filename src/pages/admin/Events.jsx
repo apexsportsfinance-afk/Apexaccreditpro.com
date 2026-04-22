@@ -79,7 +79,8 @@ const toProperCase = (str) => {
 export default function Events() {
   const { id, subpage } = useParams();
   const navigate = useNavigate();
-  const { canAccessEvent } = useAuth();
+  const { canAccessEvent, user } = useAuth();
+  const isSuperAdminOnly = user?.role === "super_admin";
   const [events, setEvents] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [eventCounts, setEventCounts] = useState({});
@@ -639,7 +640,7 @@ export default function Events() {
             </p>
           </div>
         </div>
-        {!id && (
+        {!id && isSuperAdminOnly && (
           <Button icon={Plus} onClick={() => handleOpenModal()}>
             Create Event
           </Button>
@@ -650,10 +651,10 @@ export default function Events() {
         <EmptyState
           icon={Calendar}
           title="No Events Yet"
-          description="Create your first event to start managing accreditations"
-          action={() => handleOpenModal()}
-          actionLabel="Create Event"
-          actionIcon={Plus}
+          description={isSuperAdminOnly ? "Create your first event to start managing accreditations" : "No events are currently available for management."}
+          action={isSuperAdminOnly ? () => handleOpenModal() : null}
+          actionLabel={isSuperAdminOnly ? "Create Event" : ""}
+          actionIcon={isSuperAdminOnly ? Plus : null}
         />
       ) : !id ? (
         /* --- LIST VIEW --- */
@@ -958,10 +959,12 @@ export default function Events() {
                       </p>
                     </div>
                     
-                    <div className="flex gap-2 h-fit">
-                      <Button variant="secondary" icon={Edit} onClick={() => handleOpenModal(event)}>Edit Settings</Button>
-                      <Button variant="ghost" icon={Trash2} onClick={() => handleDelete(event)} className="text-red-500 hover:text-red-400 hover:bg-red-500/10">Delete</Button>
-                    </div>
+                    {isSuperAdminOnly && (
+                      <div className="flex gap-2 h-fit">
+                        <Button variant="secondary" icon={Edit} onClick={() => handleOpenModal(event)}>Edit Settings</Button>
+                        <Button variant="ghost" icon={Trash2} onClick={() => handleDelete(event)} className="text-red-500 hover:text-red-400 hover:bg-red-500/10">Delete</Button>
+                      </div>
+                    )}
                   </div>
 
                   {event.description && (

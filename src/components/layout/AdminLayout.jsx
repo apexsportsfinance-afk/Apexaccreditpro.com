@@ -5,7 +5,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import BackgroundProgress from "../accreditation/BackgroundProgress";
 
 export default function AdminLayout() {
-  const { isAuthenticated, loading, isSuperAdmin } = useAuth();
+  const { isAuthenticated, loading, isSuperAdmin, canAccessModule } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -14,9 +14,9 @@ export default function AdminLayout() {
       if (!isAuthenticated) {
         navigate("/login");
       } else {
-        // Protect Super Admin only routes
-        const superOnlyRoutes = ["/admin/users", "/admin/audit", "/admin/settings"];
-        if (!isSuperAdmin && superOnlyRoutes.some(path => location.pathname.startsWith(path))) {
+        // Protect routes based on module permissions
+        if (!canAccessModule(location.pathname)) {
+          // If dashboard is available, go there, otherwise find first accessible module
           navigate("/admin/dashboard");
         }
       }

@@ -26,7 +26,11 @@ export default function Zones() {
     code: "",
     name: "",
     color: "#2563eb",
-    description: ""
+    description: "",
+    settings: {
+      accessMode: "general", // general | time_restricted
+      timeSlots: []
+    }
   });
   const [copyModalOpen, setCopyModalOpen] = useState(false);
   const [sourceEventId, setSourceEventId] = useState("");
@@ -70,8 +74,53 @@ export default function Zones() {
   };
 
   const resetForm = () => {
-    setFormData({ code: "", name: "", color: "#2563eb", description: "" });
+    setFormData({ 
+      code: "", 
+      name: "", 
+      color: "#2563eb", 
+      description: "",
+      settings: { accessMode: "general", timeSlots: [] }
+    });
     setEditingZone(null);
+  };
+
+  const addTimeSlot = () => {
+    setFormData(prev => {
+      const settings = prev.settings || { accessMode: "general", timeSlots: [] };
+      return {
+        ...prev,
+        settings: {
+          ...settings,
+          timeSlots: [...(settings.timeSlots || []), { start: "12:00", end: "13:00" }]
+        }
+      };
+    });
+  };
+
+  const removeTimeSlot = (index) => {
+    setFormData(prev => {
+      if (!prev.settings?.timeSlots) return prev;
+      return {
+        ...prev,
+        settings: {
+          ...prev.settings,
+          timeSlots: prev.settings.timeSlots.filter((_, i) => i !== index)
+        }
+      };
+    });
+  };
+
+  const updateTimeSlot = (index, field, value) => {
+    setFormData(prev => {
+      if (!prev.settings?.timeSlots) return prev;
+      const newSlots = [...prev.settings.timeSlots];
+      if (!newSlots[index]) return prev;
+      newSlots[index] = { ...newSlots[index], [field]: value };
+      return {
+        ...prev,
+        settings: { ...prev.settings, timeSlots: newSlots }
+      };
+    });
   };
 
   const handleOpenModal = (zone = null) => {
@@ -81,7 +130,8 @@ export default function Zones() {
         code: zone.code,
         name: zone.name,
         color: zone.color || "#2563eb",
-        description: zone.description || ""
+        description: zone.description || "",
+        settings: zone.settings || { accessMode: "general", timeSlots: [] }
       });
     } else {
       resetForm();
@@ -358,6 +408,80 @@ export default function Zones() {
                 {formData.code || "Z"}
               </div>
             </div>
+          </div>
+
+          <div className="pt-4 border-t border-slate-700/50">
+            <label className="block text-lg font-bold text-white mb-3 uppercase tracking-tight">
+              Access Rule
+            </label>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <button
+                type="button"
+                onClick={() => setFormData(p => ({ ...p, settings: { ...p.settings, accessMode: "general" } }))}
+                className={`py-3 px-4 rounded-xl border text-sm font-bold uppercase tracking-widest transition-all ${
+                  formData.settings?.accessMode === "general"
+                    ? "bg-primary-500/20 border-primary-500 text-primary-400 shadow-[0_0_15px_rgba(37,99,235,0.2)]"
+                    : "bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800"
+                }`}
+              >
+                General Access
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData(p => ({ ...p, settings: { ...p.settings, accessMode: "time_restricted" } }))}
+                className={`py-3 px-4 rounded-xl border text-sm font-bold uppercase tracking-widest transition-all ${
+                  formData.settings?.accessMode === "time_restricted"
+                    ? "bg-amber-500/20 border-amber-500 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                    : "bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800"
+                }`}
+              >
+                Time Restricted
+              </button>
+            </div>
+
+            {formData.settings?.accessMode === "time_restricted" && (
+              <div className="space-y-3 bg-slate-900/50 p-4 rounded-xl border border-slate-800 animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Defined Active Windows</span>
+                  <button
+                    type="button"
+                    onClick={addTimeSlot}
+                    className="text-[10px] font-black text-primary-400 hover:text-primary-300 uppercase tracking-widest flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" /> Add Slot
+                  </button>
+                </div>
+                
+                {(!formData.settings?.timeSlots || formData.settings.timeSlots.length === 0) ? (
+                  <p className="text-xs text-slate-500 italic py-2 text-center">No slots defined. Scanner will deny all access.</p>
+                ) : (
+                  formData.settings.timeSlots.map((slot, idx) => (
+                    <div key={idx} className="flex items-center gap-3">
+                      <input
+                        type="time"
+                        value={slot.start}
+                        onChange={(e) => updateTimeSlot(idx, "start", e.target.value)}
+                        className="bg-slate-800 border-none rounded-lg text-white text-xs p-2 flex-1 outline-none focus:ring-1 focus:ring-primary-500"
+                      />
+                      <span className="text-slate-600 text-xs font-bold font-mono">TO</span>
+                      <input
+                        type="time"
+                        value={slot.end}
+                        onChange={(e) => updateTimeSlot(idx, "end", e.target.value)}
+                        className="bg-slate-800 border-none rounded-lg text-white text-xs p-2 flex-1 outline-none focus:ring-1 focus:ring-primary-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeTimeSlot(idx)}
+                        className="p-2 text-slate-500 hover:text-red-400 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
           </div>
           <div className="flex gap-3 pt-4">
             <Button type="button" variant="secondary" onClick={handleCloseModal} className="flex-1" disabled={saving}>

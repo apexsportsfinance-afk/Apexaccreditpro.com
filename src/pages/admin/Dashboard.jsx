@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
 import {
@@ -10,13 +10,16 @@ import {
   TrendingUp,
   ArrowRight,
   Activity,
-  RefreshCw
+  RefreshCw,
+  MapPin
 } from "lucide-react";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from "recharts";
 import StatsCard from "../../components/ui/StatsCard";
 import Card, { CardHeader, CardContent } from "../../components/ui/Card";
 import Badge from "../../components/ui/Badge";
 import { useAuth } from "../../contexts/AuthContext";
-import { EventsAPI, AccreditationsAPI, AuditAPI } from "../../lib/storage";
+import { EventsAPI, AccreditationsAPI, AuditAPI, ZonesAPI } from "../../lib/storage";
+import { AttendanceAPI } from "../../lib/attendanceApi";
 import { formatDate, cn } from "../../lib/utils";
 
 export default function Dashboard() {
@@ -39,11 +42,66 @@ export default function Dashboard() {
     rejected: [5, 8, 4, 10, 6, 12, 7, 9, 11]
   });
   const [loading, setLoading] = useState(true);
+  const [liveScanLogs, setLiveScanLogs] = useState([]);
+  const [allZones, setAllZones] = useState([]);
   const { user, canAccessEvent, isSuperAdmin } = useAuth();
 
   useEffect(() => {
-    loadData();
-  }, []);
+    let interval;
+    if (!isSuperAdmin && user?.allowedEventIds?.length > 0) {
+      const fetchLiveStats = async () => {
+        try {
+          // Fetch up to 1000 recent scans for richer graphing
+          const promises = user.allowedEventIds.map(id => AttendanceAPI.getScanLogsByEvent(id, 1000));
+          const res = await Promise.all(promises);
+          
+          // Sort chronologically for time series
+          const sorted = res.flat().sort((a, b) => {
+            const timeA = a.scanned_at || a.timestamp || a.created_at;
+            const timeB = b.scanned_at || b.timestamp || b.created_at;
+            return new Date(timeA) - new Date(timeB);
+          });
+          setLiveScanLogs(sorted);
+        } catch (e) {
+          console.error("Failed to fetch live scan stats:", e);
+        }
+      };
+      
+      fetchLiveStats();
+      interval = setInterval(fetchLiveStats, 4000); // 4 seconds live update
+    }
+    return () => clearInterval(interval);
+  }, [isSuperAdmin, user?.allowedEventIds]);
+
+  const liveAreaSummary = useMemo(() => {
+    const summary = {};
+    // Pre-fill all zones with 0 to ensure they always show up
+    allZones.forEach(z => {
+      if (z.name) summary[z.name] = 0;
+    });
+
+    liveScanLogs.forEach(log => {
+      const label = log.device_label || 'Other';
+      
+      // Attempt case-insensitive match for pre-filled zones
+      let matchedLabel = label;
+      const existingKey = Object.keys(summary).find(k => k.toLowerCase() === label.toLowerCase());
+      if (existingKey) {
+        matchedLabel = existingKey;
+      }
+      
+      summary[matchedLabel] = (summary[matchedLabel] || 0) + 1;
+    });
+    return summary;
+  }, [liveScanLogs, allZones]);
+
+  useEffect(() => {
+    // Only load data if we know the user's status (Super Admin or we have their event IDs)
+    // If allowedEventIds is undefined, it means AuthContext is still enhancing the profile
+    if (isSuperAdmin || user?.allowedEventIds !== undefined) {
+      loadData();
+    }
+  }, [user?.allowedEventIds, isSuperAdmin]);
 
   const loadData = async () => {
     setLoading(true);
@@ -53,10 +111,13 @@ export default function Dashboard() {
         EventsAPI.getAll(),
         AccreditationsAPI.getStats(isSuperAdmin ? null : allowedEventIds),
         AccreditationsAPI.getRecent(100, isSuperAdmin ? null : allowedEventIds),
-        AuditAPI.getRecent(10)
+        AuditAPI.getRecent(10),
+        isSuperAdmin 
+          ? ZonesAPI.getAll() 
+          : Promise.all(allowedEventIds.map(id => ZonesAPI.getByEventId(id))).then(res => res.flat())
       ]);
 
-      const [eventsRes, statsRes, recentRes, auditRes] = results;
+      const [eventsRes, statsRes, recentRes, auditRes, zonesRes] = results;
 
       let allEvents = [];
       let accStats = { total: 0, pending: 0, approved: 0, rejected: 0 };
@@ -121,6 +182,21 @@ export default function Dashboard() {
         console.error("Dashboard source (AuditAPI.getRecent) failed:", auditRes.reason);
       }
 
+      if (zonesRes.status === "fulfilled") {
+        // deduplicate zones by name
+        const uniqueZones = [];
+        const seen = new Set();
+        zonesRes.value.forEach(z => {
+          if (z.name && !seen.has(z.name.toLowerCase())) {
+            seen.add(z.name.toLowerCase());
+            uniqueZones.push(z);
+          }
+        });
+        setAllZones(uniqueZones);
+      } else {
+        console.error("Dashboard source (ZonesAPI) failed:", zonesRes.reason);
+      }
+
     } catch (error) {
       console.error("Dashboard massive failure:", error);
     } finally {
@@ -162,20 +238,22 @@ export default function Dashboard() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-md">
-        <StatsCard
-          title="Total Events"
-          value={stats.totalEvents}
-          icon={Calendar}
-          iconColor="text-primary-400"
-          data={trends.events}
-        />
+      <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-md", isSuperAdmin ? "lg:grid-cols-5" : "lg:grid-cols-3")}>
+        {isSuperAdmin && (
+          <StatsCard
+            title="Total Events"
+            value={stats.totalEvents}
+            icon={Calendar}
+            iconColor="text-primary-400"
+            data={trends.events}
+          />
+        )}
         <StatsCard
           title="Total Accreditations"
           value={stats.totalAccreditations}
           icon={Users}
           iconColor="text-primary-500"
-          data={trends.accreditations}
+          data={isSuperAdmin ? trends.accreditations : []}
         />
         <StatsCard
           title="Pending Review"
@@ -184,32 +262,35 @@ export default function Dashboard() {
           iconColor="text-warning"
           change={stats.pending > 0 ? "Action Required" : undefined}
           changeType={stats.pending > 0 ? "negative" : "neutral"}
-          data={trends.pending}
+          data={isSuperAdmin ? trends.pending : []}
         />
-        <StatsCard
-          title="Approved"
-          value={stats.approved}
-          icon={CheckCircle}
-          iconColor="text-success"
-          data={trends.approved}
-        />
+        {isSuperAdmin && (
+          <StatsCard
+            title="Approved"
+            value={stats.approved}
+            icon={CheckCircle}
+            iconColor="text-success"
+            data={trends.approved}
+          />
+        )}
         <StatsCard
           title="Rejected"
           value={stats.rejected}
           icon={XCircle}
           iconColor="text-critical"
-          data={trends.rejected}
+          data={isSuperAdmin ? trends.rejected : []}
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-lg">
-        <Card className="bg-base border-border">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
-            <h2 className="text-xl font-bold text-main">Recent Submissions</h2>
-            <Link to="/admin/accreditations" className="text-xs font-bold text-primary hover:text-primary-400 flex items-center gap-1 transition-colors uppercase tracking-widest">
-              View All <ArrowRight className="w-3 h-3" />
-            </Link>
-          </CardHeader>
+      {isSuperAdmin && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-lg">
+          <Card className="bg-base border-border">
+            <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
+              <h2 className="text-xl font-bold text-main">Recent Submissions</h2>
+              <Link to="/admin/accreditations" className="text-xs font-bold text-primary hover:text-primary-400 flex items-center gap-1 transition-colors uppercase tracking-widest">
+                View All <ArrowRight className="w-3 h-3" />
+              </Link>
+            </CardHeader>
           <CardContent className="p-0">
             {recentAccreditations.length === 0 ? (
               <div className="p-8 text-center text-muted text-sm italic">
@@ -283,7 +364,111 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+      )}
 
+      {!isSuperAdmin && (
+        <div className="space-y-4 mt-4">
+          <div className="flex items-center justify-between ml-1 mb-1">
+            <div>
+              <h2 className="text-2xl font-black uppercase text-main tracking-tight flex items-center gap-2">
+                <Activity className="w-5 h-5 text-emerald-500 animate-pulse" /> Live Event Telemetry
+              </h2>
+            </div>
+            <Badge variant="success" className="animate-pulse bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-4 py-1.5 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+              LIVE SYSTEM ACTIVE
+            </Badge>
+          </div>
+
+          {/* Main Layout for TV Display */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Left Column: Total KPI & Velocity Graph */}
+            <div className="lg:col-span-2 flex flex-col gap-4">
+              
+              <div className="bg-gradient-to-r from-emerald-900/40 to-[#1e293b] border border-emerald-700/30 p-5 rounded-xl shadow-xl flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-500/70 mb-1">Total Live Telemetry Scans</p>
+                  <p className="text-5xl font-black text-white tracking-tighter">{liveScanLogs.length}</p>
+                </div>
+                <div className="bg-emerald-500/10 p-4 rounded-full">
+                  <Activity className="w-10 h-10 text-emerald-400" />
+                </div>
+              </div>
+
+              {/* Real-time Time Series Graph */}
+              <Card className="bg-base-alt/50 border-border/60 shadow-xl flex-1">
+                <CardHeader className="border-b border-border/50 pb-3">
+                  <h3 className="text-xs font-black text-main uppercase tracking-widest">Scan Velocity (Recent Activity)</h3>
+                </CardHeader>
+                <CardContent className="p-4 h-[240px]">
+                  {liveScanLogs.length > 0 ? (() => {
+                    const intervals = {};
+                    liveScanLogs.forEach(log => {
+                      const timeStr = log.scanned_at || log.timestamp || log.created_at;
+                      if (!timeStr) return;
+                      const time = new Date(timeStr).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                      if (time !== 'Invalid Date') {
+                        intervals[time] = (intervals[time] || 0) + 1;
+                      }
+                    });
+                    const chartData = Object.keys(intervals).map(time => ({ time, scans: intervals[time] }));
+
+                    return (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="colorScans" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
+                              <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <XAxis dataKey="time" stroke="#64748b" tick={{ fill: '#cbd5e1' }} fontSize={10} tickMargin={10} minTickGap={30} />
+                          <YAxis stroke="#64748b" tick={{ fill: '#cbd5e1' }} fontSize={10} />
+                          <Tooltip 
+                            contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
+                            itemStyle={{ color: '#10b981', fontWeight: 'bold' }}
+                          />
+                          <Area type="monotone" dataKey="scans" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorScans)" isAnimationActive={false} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    );
+                  })() : (
+                    <div className="h-full flex items-center justify-center text-muted italic text-xs">Waiting for incoming scan data...</div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Right Column: All Zones Grid */}
+            <Card className="bg-base-alt/50 border-border/60 shadow-xl lg:col-span-1 flex flex-col items-stretch">
+              <CardHeader className="border-b border-border/50 pb-3">
+                <h3 className="text-xs font-black text-main uppercase tracking-widest">Active Zones & Scans</h3>
+              </CardHeader>
+              <CardContent className="p-3 flex-1">
+                 {Object.keys(liveAreaSummary).length > 0 ? (
+                   <div className="grid grid-cols-2 gap-2">
+                     {Object.entries(liveAreaSummary)
+                       .sort((a,b) => b[1] - a[1])
+                       .map(([area, count]) => (
+                       <div key={area} className="break-inside-avoid bg-[#1e293b] border border-gray-700/50 p-2.5 rounded-lg flex items-center justify-between group shadow-sm">
+                         <div className="flex items-center gap-1.5 overflow-hidden w-full">
+                           <MapPin className="w-3 h-3 text-sky-400 opacity-70 flex-shrink-0" />
+                           <span className="text-[10px] font-black uppercase tracking-widest text-gray-300 truncate" title={area}>{area}</span>
+                         </div>
+                         <p className="text-sm font-black text-white ml-2 flex-shrink-0">{count}</p>
+                       </div>
+                     ))}
+                   </div>
+                 ) : (
+                   <div className="h-full flex items-center justify-center text-muted italic text-xs">No zone data available</div>
+                 )}
+              </CardContent>
+            </Card>
+          </div>
+
+        </div>
+      )}
+
+      {isSuperAdmin && (
       <Card className="bg-base border-border">
         <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
           <h2 className="text-xl font-bold text-main">Active Operations</h2>
@@ -337,6 +522,7 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }
