@@ -413,15 +413,16 @@ export default function Dashboard() {
                      <p className="text-2xl font-bold text-white tracking-tighter leading-none">{data.scanned}</p>
                      <sub className="text-[9px] font-bold text-slate-600 uppercase tracking-tighter">/ {data.allocated || 1}</sub>
                    </div>
-                   <div className="w-full bg-slate-900/80 rounded-full h-1.2 overflow-hidden border border-white/5 relative z-10 mt-1.5">
+                    <div className="w-full bg-slate-900/80 rounded-full h-[6px] overflow-hidden border border-white/5 relative z-10 mt-1.5">
                      <motion.div 
                        initial={{ width: 0 }}
                        animate={{ width: `${cappedPerc}%` }}
                        transition={{ duration: 1.2, delay: idx * 0.04 }}
                        className={cn(
                          "h-full rounded-full transition-all shadow-sm", 
-                         perc > 0 ? "bg-gradient-to-r from-emerald-600 to-emerald-400 shadow-[0_0_10px_#10b981]" : 
-                         "bg-slate-700"
+                         perc > 0 
+                           ? "bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.4)]" 
+                           : "bg-slate-700"
                        )} 
                      />
                    </div>
@@ -725,8 +726,15 @@ export default function Dashboard() {
                             </div>
                           </div>
                         </div>
-                        <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/[0.02]">
-                          <motion.div initial={{ width: 0 }} animate={{ width: `${cappedRatio}%` }} transition={{ duration: 1.5, ease: "easeOut", delay: i * 0.05 }} className={cn("h-full rounded-full shadow-[0_0_10px_rgba(0,0,0,0.2)]", ratio > 90 ? "bg-gradient-to-r from-rose-600 to-rose-400" : ratio > 70 ? "bg-gradient-to-r from-amber-600 to-amber-400" : "bg-gradient-to-r from-indigo-600 to-indigo-400")} />
+                        <div className="h-[6px] w-full bg-slate-950/50 rounded-full overflow-hidden border border-white/5">
+                          <motion.div 
+                            initial={{ width: 0 }} 
+                            animate={{ width: `${cappedRatio}%` }} 
+                            transition={{ duration: 1.5, ease: "easeOut", delay: i * 0.05 }} 
+                            className={cn(
+                              "h-full rounded-full shadow-[0_0_10px_rgba(16,185,129,0.3)] bg-gradient-to-r from-emerald-600 to-emerald-400"
+                            )} 
+                          />
                         </div>
                       </div>
                     );
