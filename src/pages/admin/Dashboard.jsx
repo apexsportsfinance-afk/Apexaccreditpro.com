@@ -124,13 +124,15 @@ export default function Dashboard() {
       if (!z.name) return;
       
       const normalizedName = z.name.toLowerCase();
+      // Use all possible codes for this zone name to get the full allocation count
+      const codesForName = z.allCodes || [z.code];
       
-      // Aggregate allocations: Find all accreditations where the zone code matches ANY zone with this name
-      // This is crucial for the Global View where one "Zone Name" might exist in multiple events
+      // Aggregate allocations: Find all accreditations where the zone code matches ANY of the codes for this name
       const allocated = eventAccreditations.filter(acc => {
         if (!acc.zoneCode) return false;
-        // Check if the accreditation matches the current zone definitively
-        return acc.zoneCode === z.code || (acc.zoneCode && acc.zoneCode.includes(z.code));
+        return codesForName.some(code => 
+          acc.zoneCode === code || (acc.zoneCode && acc.zoneCode.includes(code))
+        );
       }).length;
 
       // Count unique athletes scanned at this zone label
@@ -259,13 +261,25 @@ export default function Dashboard() {
       }
 
       if (zonesRes.status === "fulfilled") {
-        // deduplicate zones by name
+        // deduplicate zones by name but KEEP ALL CODES for global aggregation
         const uniqueZones = [];
-        const seen = new Set();
+        const seen = new Map(); // name -> index in uniqueZones
+        
         zonesRes.value.forEach(z => {
-          if (z.name && !seen.has(z.name.toLowerCase())) {
-            seen.add(z.name.toLowerCase());
-            uniqueZones.push(z);
+          if (!z.name) return;
+          const name = z.name.toLowerCase();
+          
+          if (!seen.has(name)) {
+            seen.set(name, uniqueZones.length);
+            uniqueZones.push({
+              ...z,
+              allCodes: [z.code]
+            });
+          } else {
+            const index = seen.get(name);
+            if (z.code && !uniqueZones[index].allCodes.includes(z.code)) {
+              uniqueZones[index].allCodes.push(z.code);
+            }
           }
         });
         setAllZones(uniqueZones);
