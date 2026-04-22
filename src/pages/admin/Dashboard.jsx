@@ -115,34 +115,41 @@ export default function Dashboard() {
     return summary;
   }, [liveScanLogs, allZones]);
 
-  // Compute zone ratios: scanned unique vs allocated
+  // Compute zone ratios: scanned unique vs allocated (Aggregated by name for Global View)
   const liveZoneRatios = useMemo(() => {
     const ratios = {};
+    if (!allZones.length) return ratios;
+
     allZones.forEach(z => {
       if (!z.name) return;
-      // Count approved accreditations allocated to this zone by zone code
-      const allocated = eventAccreditations.filter(acc =>
-        acc.zoneCode === z.code ||
-        (acc.zoneCode && acc.zoneCode.includes(z.code))
-      ).length;
+      
+      const normalizedName = z.name.toLowerCase();
+      
+      // Aggregate allocations: Find all accreditations where the zone code matches ANY zone with this name
+      // This is crucial for the Global View where one "Zone Name" might exist in multiple events
+      const allocated = eventAccreditations.filter(acc => {
+        if (!acc.zoneCode) return false;
+        // Check if the accreditation matches the current zone definitively
+        return acc.zoneCode === z.code || (acc.zoneCode && acc.zoneCode.includes(z.code));
+      }).length;
 
       // Count unique athletes scanned at this zone label
       const uniqueScanned = new Set();
       liveScanLogs.forEach(log => {
         const label = log.device_label || '';
-        if (label.toLowerCase() === z.name.toLowerCase() && log.athlete_id) {
+        if (label.toLowerCase() === normalizedName && log.athlete_id) {
           uniqueScanned.add(log.athlete_id);
         }
       });
 
-  ratios[z.name] = {
+      ratios[z.name] = {
         count: liveAreaSummary[z.name] || 0,
         scanned: uniqueScanned.size,
-        allocated
+        allocated: allocated
       };
     });
     return ratios;
-  }, [allZones, eventAccreditations, liveScanLogs, liveAreaSummary]);
+  }, [liveScanLogs, allZones, eventAccreditations, liveAreaSummary]);
 
   // Compute role distribution for the specific event
   const subAdminRoleDist = useMemo(() => {
@@ -712,7 +719,7 @@ export default function Dashboard() {
                       <div key={zone.id || i} className="space-y-2.5">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className={cn("w-2 h-2 rounded-full", ratio > 90 ? "bg-rose-500 shadow-[0_0_10px_#f43f5e]" : ratio > 70 ? "bg-amber-500 shadow-[0_0_10px_#f59e0b]" : "bg-indigo-500 shadow-[0_0_10px_#6366f1]")} />
+                            <div className={cn("w-2 h-2 rounded-full", ratio > 0 ? "bg-emerald-500 shadow-[0_0_10px_#10b981]" : "bg-slate-700")} />
                             <span className="text-[11px] font-bold text-white uppercase tracking-tight">{zone.name}</span>
                           </div>
                           <div className="flex items-center gap-3">
@@ -721,12 +728,12 @@ export default function Dashboard() {
                               <span className="text-[10px] font-bold text-slate-500 mx-1">/</span>
                               <span className="text-[10px] font-bold text-slate-500">{zoneData.allocated || 0}</span>
                             </div>
-                            <div className={cn("px-2 py-0.5 rounded text-[10px] font-black tracking-tighter", ratio > 95 ? "bg-rose-500/10 text-rose-500" : "text-indigo-400")}>
+                            <div className={cn("px-2 py-0.5 rounded text-[10px] font-black tracking-tighter", ratio > 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-800/50 text-slate-500")}>
                               {Math.round(ratio)}%
                             </div>
                           </div>
                         </div>
-                        <div className="h-[6px] w-full bg-slate-950/50 rounded-full overflow-hidden border border-white/5">
+                        <div className="h-[6px] w-full bg-slate-800/40 rounded-full overflow-hidden border border-white/5 shadow-inner">
                           <motion.div 
                             initial={{ width: 0 }} 
                             animate={{ width: `${cappedRatio}%` }} 
