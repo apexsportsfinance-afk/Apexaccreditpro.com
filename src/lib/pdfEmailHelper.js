@@ -172,6 +172,108 @@ export const blobToRawBase64 = (blob) => {
 };
 
 /**
+ * Generate image blobs for an accreditation card (offscreen render + capture)
+ */
+export const generateImagesForAccreditation = async (accreditation, event, zones, scale = 4) => {
+  await initLibs();
+  
+  let frontBackgroundUrl = "";
+  try {
+    const { GlobalSettingsAPI } = await import("./broadcastApi");
+    if (event?.id) {
+      const bg = await GlobalSettingsAPI.get(`event_${event.id}_front_bg`);
+      if (bg) frontBackgroundUrl = bg;
+    }
+  } catch (e) {}
+
+  const SUFFIX = `_img_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+
+  const container = document.createElement("div");
+  container.style.cssText =
+    "position:absolute;left:-9999px;top:0;width:700px;height:960px;overflow:visible;visibility:visible;opacity:1;z-index:-1;pointer-events:none;";
+  document.body.appendChild(container);
+
+  const root = createRoot(container);
+  root.render(
+    ReactModule.createElement(CardInner, {
+      accreditation,
+      event,
+      zones,
+      idSuffix: SUFFIX,
+      frontBackgroundUrl
+    })
+  );
+
+  await new Promise((r) => setTimeout(r, 150));
+
+  // Poll for QR
+  await new Promise((resolve) => {
+    const start = Date.now();
+    const check = () => {
+      const qrImg = container.querySelector("img[data-qr-code='true']");
+      if (qrImg && qrImg.getAttribute("src")?.startsWith("data:")) return resolve(true);
+      if (Date.now() - start > 5000) return resolve(false);
+      setTimeout(check, 30);
+    };
+    check();
+  });
+
+  const frontEl = document.getElementById(`accreditation-front-card${SUFFIX}`);
+  const backEl = document.getElementById(`accreditation-back-card${SUFFIX}`);
+
+  if (!frontEl) {
+    root.unmount();
+    container.remove();
+    throw new Error("Card render failed");
+  }
+
+  // Inline images
+  const imgs = Array.from(container.querySelectorAll("img"));
+  await Promise.all(imgs.map(async (img) => {
+    const src = img.getAttribute("src") || "";
+    if (!src || src.startsWith("data:") || src.startsWith("blob:")) return;
+    try {
+      const resp = await fetch(src, { mode: "cors", cache: "force-cache" });
+      if (resp.ok) {
+        const blob = await resp.blob();
+        const b64 = await new Promise((res) => {
+          const reader = new FileReader();
+          reader.onloadend = () => res(reader.result);
+          reader.readAsDataURL(blob);
+        });
+        if (b64) img.setAttribute("src", b64);
+      }
+    } catch {}
+  }));
+
+  const captureOpts = {
+    scale,
+    useCORS: true,
+    allowTaint: true,
+    backgroundColor: "#ffffff",
+    logging: false,
+    width: 320,
+    height: 454,
+    windowWidth: 320,
+    windowHeight: 454,
+  };
+
+  const frontCanvas = await html2canvas(frontEl, captureOpts);
+  const frontBlob = await new Promise(res => frontCanvas.toBlob(res, "image/png"));
+
+  let backBlob = null;
+  if (backEl) {
+    const backCanvas = await html2canvas(backEl, captureOpts);
+    backBlob = await new Promise(res => backCanvas.toBlob(res, "image/png"));
+  }
+
+  root.unmount();
+  container.remove();
+
+  return { frontBlob, backBlob };
+};
+
+/**
  * Generate PDF and return base64 + filename ready for email attachment
  * Returns { pdfBase64, pdfFileName } or null if generation fails
  */

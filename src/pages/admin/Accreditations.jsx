@@ -52,7 +52,6 @@ import {
   sendRejectionEmail
 } from "../../lib/email";
 import ComposeEmailModal from "../../components/accreditation/ComposeEmailModal";
-import BackgroundProgress from "../../components/accreditation/BackgroundProgress";
 import { generatePdfAttachment } from "../../lib/pdfEmailHelper";
 import {
   cn,
@@ -355,7 +354,10 @@ export default function Accreditations() {
   }, [deleteConfirmModal.accreditation, toast, refreshAccreditations]);
 
   const handleApprove = (accreditation) => {
-    setApproveData({ zoneCodes: [], sendEmail: true });
+    const existingZones = accreditation.zoneCode
+      ? accreditation.zoneCode.split(",").map(z => z.trim()).filter(Boolean)
+      : [];
+    setApproveData({ zoneCodes: existingZones, sendEmail: true });
     setApproveModal({ open: true, accreditation });
   };
 
@@ -506,10 +508,6 @@ export default function Accreditations() {
   };
 
   const handlePreviewPDF = useCallback(async (accreditation) => {
-    if (accreditation.documents?.accreditation_pdf) {
-      window.open(accreditation.documents.accreditation_pdf, '_blank');
-      return;
-    }
     setPdfPreviewLoading(true);
     setPdfPreviewModal({ open: true, accreditation });
     setTimeout(() => { setPdfPreviewLoading(false); }, 500);
@@ -524,7 +522,9 @@ export default function Accreditations() {
 
     // Priority: Use pre-cached PDF if available from latest data
     if (pdfAccreditation.documents?.accreditation_pdf) {
-      const url = pdfAccreditation.documents.accreditation_pdf;
+      const baseUrl = pdfAccreditation.documents.accreditation_pdf;
+      const url = baseUrl.includes("?") ? `${baseUrl}&t=${Date.now()}` : `${baseUrl}?t=${Date.now()}`;
+      
       if (openInBrowser) {
         window.open(url, '_blank');
         toast.success("PDF opened from cache!");
@@ -544,43 +544,81 @@ export default function Accreditations() {
     const id = pdfAccreditation.id;
     if (downloadingId === id) return;
     setDownloadingId(id);
-    try {
-      const fileName = `${pdfAccreditation.firstName}_${pdfAccreditation.lastName}_${selectedPdfSize.toUpperCase()}_${pdfAccreditation.accreditationId || "accreditation"}.pdf`;
-      // Use the exact IDs rendered by the preview container
-      const frontId = "accreditation-front-card";
-      const backId = "accreditation-back-card";
-      
-      if (openInBrowser) {
-        await openCapturedPDFInTab(frontId, backId, selectedPdfSize);
-        toast.success("PDF opened in new tab!");
-      } else {
-        await downloadCapturedPDF(frontId, backId, fileName, selectedPdfSize);
-        toast.success("PDF downloaded! Check your Downloads folder.");
+    
+    // Dispatch to background queue
+    addToQueue({
+      type: "single_pdf_generate",
+      id,
+      accreditation: pdfAccreditation,
+      eventId: selectedEvent,
+      pdfSize: selectedPdfSize,
+      onSuccess: (updated) => {
+        setAccreditations(prev => prev.map(a => a.id === updated.id ? updated : a));
+        setDownloadingId(null);
+        
+        // Final action: download or open
+        const url = updated.documents?.accreditation_pdf;
+        if (url) {
+          if (openInBrowser) {
+            window.open(url, '_blank');
+          } else {
+            const link = document.createElement('a');
+            link.href = url;
+            link.target = "_blank";
+            link.download = `${updated.firstName}_${updated.lastName}_Card.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }
+          toast.success(openInBrowser ? "PDF opened!" : "PDF downloaded!");
+        }
       }
-    } catch (err) {
-      console.error("PDF capture error:", err);
-      toast.error("Failed to generate PDF: " + (err.message || "Unknown error"));
-    } finally {
-      setDownloadingId(null);
-    }
-  }, [downloadingId, toast, selectedPdfSize, accreditations, openCapturedPDFInTab, downloadCapturedPDF]);
+    });
+
+    toast.info("Added to background processing...");
+    closePdfPreviewModal();
+  }, [downloadingId, toast, selectedPdfSize, accreditations, addToQueue, selectedEvent, closePdfPreviewModal]);
 
   const handleDownloadImages = useCallback(async (accreditation) => {
     const id = accreditation.id;
     if (downloadingId === id) return;
     setDownloadingId(id);
-    try {
-      const clubStr = accreditation.club ? `${accreditation.club.replace(/\s+/g, '_')}_` : "";
-      const baseFileName = `${clubStr}${accreditation.firstName}_${accreditation.lastName}_${selectedImageSize}_${accreditation.accreditationId || "card"}`;
-      await downloadAsImages("accreditation-front-card", "accreditation-back-card", baseFileName, selectedImageSize);
-      toast.success("Images downloaded! Check your Downloads folder.");
-    } catch (err) {
-      console.error("Image capture error:", err);
-      toast.error("Failed to generate images: " + (err.message || "Unknown error"));
-    } finally {
-      setDownloadingId(null);
-    }
-  }, [downloadingId, toast, selectedImageSize]);
+    
+    addToQueue({
+      type: "single_images_generate",
+      id,
+      accreditation,
+      eventId: selectedEvent,
+      scale: IMAGE_SIZES[selectedImageSize]?.scale || 3,
+      onSuccess: ({ frontBlob, backBlob, accreditation: acc }) => {
+        setDownloadingId(null);
+        const baseName = `${acc.firstName}_${acc.lastName}_Card`;
+        
+        // Front
+        const a1 = document.createElement("a");
+        a1.download = `${baseName}_front.png`;
+        a1.href = URL.createObjectURL(frontBlob);
+        document.body.appendChild(a1);
+        a1.click();
+        document.body.removeChild(a1);
+
+        if (backBlob) {
+          setTimeout(() => {
+            const a2 = document.createElement("a");
+            a2.download = `${baseName}_back.png`;
+            a2.href = URL.createObjectURL(backBlob);
+            document.body.appendChild(a2);
+            a2.click();
+            document.body.removeChild(a2);
+          }, 500);
+        }
+        toast.success("Images downloaded!");
+      }
+    });
+
+    toast.info("Added image generation to background...");
+    closePdfPreviewModal();
+  }, [downloadingId, toast, selectedImageSize, addToQueue, selectedEvent, closePdfPreviewModal]);
 
   const handlePrintPDF = useCallback(async () => {
     try {
@@ -629,7 +667,6 @@ export default function Accreditations() {
       className: "min-w-[250px]",
       render: (_, row) => {
         const isDuplicate = duplicateIds.has(row.id);
-        const age = row.role === 'Athlete' ? calculateAge(row.birthDate) : null;
 
         return (
           <div className="flex items-center gap-3 py-1">
@@ -654,11 +691,6 @@ export default function Accreditations() {
                 <span className="font-bold text-main text-lg truncate">
                   {row.firstName} {row.lastName}
                 </span>
-                {age !== null && (
-                  <span className="text-xs text-muted font-bold px-1.5 py-0.5 bg-base-alt rounded-lg border border-border">
-                    AGE {age}
-                  </span>
-                )}
               </div>
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="text-[10px] font-black uppercase tracking-widest text-muted">{row.gender}</span>
@@ -682,6 +714,22 @@ export default function Accreditations() {
       render: (_, row) => (
         <Badge className="w-32 shrink-0">{row.role}</Badge>
       )
+    },
+    {
+      key: "age",
+      header: "Age",
+      sortable: true,
+      className: "w-[80px]",
+      render: (_, row) => {
+        const age = (row.role === 'Athlete' && currentEvent) 
+          ? calculateAge(row.dateOfBirth, currentEvent.ageCalculationYear) 
+          : null;
+        return (
+          <span className="text-sm font-bold text-slate-300">
+            {age !== null ? age : "---"}
+          </span>
+        );
+      }
     },
     { key: "club", header: "Club", sortable: true, className: "min-w-[200px]" },
     {
@@ -1141,8 +1189,36 @@ export default function Accreditations() {
                     await AccreditationsAPI.update(accId, { documents: currentDocs });
                   }
                 } else {
-                  await AccreditationsAPI.adminEdit(accId, updatePayload, adminUserId);
+                  const updatedAcc = await AccreditationsAPI.adminEdit(accId, updatePayload, adminUserId);
                   toast.success("Accreditation updated successfully");
+
+                  // If status is approved, trigger background regeneration of badge/PDF
+                  if (status === "approved") {
+                    // IMMEDIATELY invalidate PDF cache in database so subsequent downloads know to wait/regenerate
+                    const currentDocs = updatedAcc.documents || {};
+                    if (currentDocs.accreditation_pdf) {
+                      const { documents, ...rest } = updatedAcc;
+                      const newDocs = { ...documents };
+                      delete newDocs.accreditation_pdf;
+                      await AccreditationsAPI.update(accId, { documents: newDocs });
+                      updatedAcc.documents = newDocs; // Update local object for the queue
+                    }
+
+                    addToQueue({
+                      id: updatedAcc.id,
+                      accreditation: updatedAcc,
+                      eventId: selectedEvent,
+                      approveData: {
+                        zoneCodes: updatedAcc.zoneCode ? updatedAcc.zoneCode.split(",") : [],
+                        sendEmail: false 
+                      },
+                      pdfSize: data.pdfSize || "a6",
+                      onSuccess: (final) => {
+                        setAccreditations(prev => prev.map(a => a.id === final.id ? final : a));
+                      }
+                    });
+                    toast.info("Updating badge and PDF in background...");
+                  }
                 }
               } else {
                 // Add new
@@ -1240,7 +1316,7 @@ export default function Accreditations() {
                     {formatDate(viewModal.accreditation.dateOfBirth)}
                     {currentEvent && (
                       <span className="text-slate-500">
-                        {" "}(Age: {calculateAge(viewModal.accreditation.dateOfBirth, currentEvent.ageCalculationYear)})
+                        {" "}(Age: {calculateAge(viewModal.accreditation.dateOfBirth, currentEvent.ageCalculationYear) || "---"})
                       </span>
                     )}
                   </p>
@@ -2170,8 +2246,6 @@ export default function Accreditations() {
         zones={zones}
         isBulk={false}
       />
-      
-      <BackgroundProgress />
     </div>
   );
 }

@@ -443,7 +443,7 @@ export default function Dashboard() {
                          "h-full rounded-full transition-all shadow-sm", 
                          perc > 0 
                            ? "bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.4)]" 
-                           : "bg-slate-700"
+                           : "bg-emerald-500/10 border border-emerald-500/5"
                        )} 
                      />
                    </div>

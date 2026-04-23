@@ -13,16 +13,19 @@ const format = (date, formatStr) => {
 };
 
 const differenceInYears = (d1, d2) => {
+  if (!d1 || !d2 || isNaN(d1.getTime()) || isNaN(d2.getTime())) return NaN;
   const diff = d1.getTime() - d2.getTime();
   return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
 };
 
 const differenceInDays = (d1, d2) => {
+  if (!d1 || !d2 || isNaN(d1.getTime()) || isNaN(d2.getTime())) return 0;
   const diff = d1.getTime() - d2.getTime();
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 };
 
 const differenceInHours = (d1, d2) => {
+  if (!d1 || !d2 || isNaN(d1.getTime()) || isNaN(d2.getTime())) return 0;
   const diff = d1.getTime() - d2.getTime();
   return Math.floor(diff / (1000 * 60 * 60));
 };
@@ -32,9 +35,14 @@ export const cn = (...classes) => {
 };
 
 export const calculateAge = (dateOfBirth, calculationYear) => {
+  if (!dateOfBirth) return null;
   const dob = new Date(dateOfBirth);
-  const calcDate = new Date(calculationYear, 11, 31);
-  return differenceInYears(calcDate, dob);
+  if (isNaN(dob.getTime())) return null;
+  
+  const targetYear = calculationYear || new Date().getFullYear();
+  const calcDate = new Date(targetYear, 11, 31);
+  const age = differenceInYears(calcDate, dob);
+  return isNaN(age) ? null : age;
 };
 
 export const formatDate = (dateString, formatStr = "MMM dd, yyyy") => {
