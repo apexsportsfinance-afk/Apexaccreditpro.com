@@ -55,6 +55,7 @@ import ComposeEmailModal from "../../components/accreditation/ComposeEmailModal"
 import BackgroundProgress from "../../components/accreditation/BackgroundProgress";
 import { generatePdfAttachment } from "../../lib/pdfEmailHelper";
 import {
+  cn,
   formatDate,
   calculateAge,
   ROLES,
@@ -80,7 +81,7 @@ import { downloadSinglePhoto, downloadFullRecord, bulkDownloadPhotos } from "../
 export default function Accreditations() {
   const [searchParams, setSearchParams] = useSearchParams();
   const toast = useToast();
-  const { canAccessEvent } = useAuth();
+  const { canAccessEvent, isViewer } = useAuth();
   const { addToQueue, currentTask, queue } = useBackground();
 
   const [events, setEvents] = useState([]);
@@ -775,22 +776,34 @@ export default function Accreditations() {
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); handleOpenEdit(row); }}
-            className="p-1.5 rounded-lg hover:bg-blue-500/20 transition-colors"
-            title="Edit"
+            className={cn(
+              "p-1.5 rounded-lg transition-colors",
+              isViewer ? "opacity-30 cursor-not-allowed" : "hover:bg-blue-500/20"
+            )}
+            title={isViewer ? "Viewing Only" : "Edit"}
+            disabled={isViewer}
           >
             <Edit className="w-3.5 h-3.5 text-blue-300" />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); handleApprove(row); }}
-            className="p-1.5 rounded-lg hover:bg-emerald-500/20 transition-colors"
-            title={row.status === "approved" ? "Re-approve" : "Approve"}
+            className={cn(
+              "p-1.5 rounded-lg transition-colors",
+              isViewer ? "opacity-30 cursor-not-allowed" : "hover:bg-emerald-500/20"
+            )}
+            title={isViewer ? "Viewing Only" : (row.status === "approved" ? "Re-approve" : "Approve")}
+            disabled={isViewer}
           >
             <CheckCircle className="w-3.5 h-3.5 text-emerald-300" />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); handleReject(row); }}
-            className="p-1.5 rounded-lg hover:bg-red-500/20 transition-colors"
-            title={row.status === "rejected" ? "Already rejected" : "Reject"}
+            className={cn(
+              "p-1.5 rounded-lg transition-colors",
+              isViewer ? "opacity-30 cursor-not-allowed" : "hover:bg-red-500/20"
+            )}
+            title={isViewer ? "Viewing Only" : (row.status === "rejected" ? "Already rejected" : "Reject")}
+            disabled={isViewer}
           >
             <XCircle className="w-3.5 h-3.5 text-red-300" />
           </button>
@@ -805,15 +818,23 @@ export default function Accreditations() {
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); setBadgeGeneratorModal({ open: true, accreditation: row }); }}
-                className="p-1.5 rounded-lg hover:bg-emerald-500/20 transition-colors"
-                title="Generate Simple Badge with QR"
+                className={cn(
+                  "p-1.5 rounded-lg transition-colors",
+                  isViewer ? "opacity-30 cursor-not-allowed" : "hover:bg-emerald-500/20"
+                )}
+                title={isViewer ? "Viewing Only" : "Generate Simple Badge with QR"}
+                disabled={isViewer}
               >
                 <Download className="w-3.5 h-3.5 text-emerald-300" />
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); handleOpenShareLink(row); }}
-                className="p-1.5 rounded-lg hover:bg-cyan-500/20 transition-colors"
-                title="Share Link"
+                className={cn(
+                  "p-1.5 rounded-lg transition-colors",
+                  isViewer ? "opacity-30 cursor-not-allowed" : "hover:bg-cyan-500/20"
+                )}
+                title={isViewer ? "Viewing Only" : "Share Link"}
+                disabled={isViewer}
               >
                 <Link className="w-3.5 h-3.5 text-cyan-300" />
               </button>
@@ -829,15 +850,23 @@ export default function Accreditations() {
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); setEmailModal({ open: true, accreditation: row }); }}
-            className="p-1.5 rounded-lg hover:bg-violet-500/20 transition-colors"
-            title="Send Email"
+            className={cn(
+              "p-1.5 rounded-lg transition-colors",
+              isViewer ? "opacity-30 cursor-not-allowed" : "hover:bg-violet-500/20"
+            )}
+            title={isViewer ? "Viewing Only" : "Send Email"}
+            disabled={isViewer}
           >
             <Mail className="w-3.5 h-3.5 text-violet-300" />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); handleOpenDeleteConfirm(row); }}
-            className="p-1.5 rounded-lg hover:bg-red-500/20 transition-colors"
-            title="Delete"
+            className={cn(
+              "p-1.5 rounded-lg transition-colors",
+              isViewer ? "opacity-30 cursor-not-allowed" : "hover:bg-red-500/20"
+            )}
+            title={isViewer ? "Viewing Only" : "Delete"}
+            disabled={isViewer}
           >
             <Trash2 className="w-3.5 h-3.5 text-red-300" />
           </button>
@@ -854,7 +883,13 @@ export default function Accreditations() {
           <h1 className="text-3xl font-bold text-white">Accreditations</h1>
           <p className="text-lg text-slate-400 mt-1 font-extralight">Manage participant accreditations</p>
         </div>
-        <Button variant="primary" icon={Plus} onClick={() => setEditModal({ open: true, accreditation: null })}>
+        <Button 
+          variant="primary" 
+          icon={Plus} 
+          onClick={() => setEditModal({ open: true, accreditation: null })}
+          disabled={isViewer}
+          title={isViewer ? "Viewing Only" : ""}
+        >
           Add Accreditation
         </Button>
       </div>
@@ -948,6 +983,7 @@ export default function Accreditations() {
             onClearSelection={setSelectedRows}
             onBulkEdit={handleBulkEdit}
             onBulkApprove={handleBulkApprove}
+            disabled={isViewer}
           />
 
           {loading ? (
@@ -1294,6 +1330,8 @@ export default function Accreditations() {
                 variant="secondary"
                 icon={Edit}
                 className="flex-1"
+                disabled={isViewer}
+                title={isViewer ? "Viewing Only" : ""}
                 onClick={() => {
                   const acc = viewModal.accreditation;
                   setViewModal({ open: false, accreditation: null });
@@ -1308,6 +1346,7 @@ export default function Accreditations() {
               <Button
                 variant="success"
                 icon={CheckCircle}
+                disabled={isViewer}
                 onClick={() => {
                   setViewModal({ open: false, accreditation: null });
                   handleApprove(viewModal.accreditation);
@@ -1319,6 +1358,7 @@ export default function Accreditations() {
               <Button
                 variant="danger"
                 icon={XCircle}
+                disabled={isViewer}
                 onClick={() => {
                   setViewModal({ open: false, accreditation: null });
                   handleReject(viewModal.accreditation);
@@ -1346,6 +1386,8 @@ export default function Accreditations() {
                   variant="secondary"
                   icon={Link}
                   className="flex-1"
+                  disabled={isViewer}
+                  title={isViewer ? "Viewing Only" : ""}
                   onClick={() => {
                     setViewModal({ open: false, accreditation: null });
                     handleOpenShareLink(viewModal.accreditation);

@@ -166,18 +166,14 @@ export default function Users() {
         await UsersAPI.updateModuleAccessMapping(editingUser.id, formData.modulePaths);
         
         // Update event access mapping
-        if (formData.role === "event_admin") {
-          await UsersAPI.updateAccessMapping(editingUser.id, formData.eventIds);
-        } else {
-          await UsersAPI.updateAccessMapping(editingUser.id, []);
-        }
+        await UsersAPI.updateAccessMapping(editingUser.id, formData.eventIds);
         
         toast.success("User updated successfully");
       } else {
         const newUser = await UsersAPI.create(formData);
         
         // Save event assignments for new user
-        if (formData.role === "event_admin" && formData.eventIds.length > 0) {
+        if (formData.eventIds.length > 0) {
           await UsersAPI.updateAccessMapping(newUser.id, formData.eventIds);
         }
 
@@ -278,7 +274,7 @@ export default function Users() {
             {getRoleIcon(row.role)}
             {getRoleBadge(row.role)}
           </div>
-          {row.role === "event_admin" && accessMappings[row.id] && (
+          {accessMappings[row.id] && accessMappings[row.id].length > 0 && (
             <span className="text-[10px] text-muted font-medium">
               {accessMappings[row.id].length} Events Assigned
             </span>

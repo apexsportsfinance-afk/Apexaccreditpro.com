@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { QrCode, Copy, ExternalLink, ShieldCheck, MapPin, Loader2 } from "lucide-react";
 import { ZonesAPI } from "../../lib/storage";
+import { cn } from "../../lib/utils";
 import { Button } from "../ui/Button";
 import Card, { CardContent } from "../ui/Card";
 
-export default function ZoneScannerTab({ eventId, onToast }) {
+export default function ZoneScannerTab({ eventId, onToast, disabled }) {
   const [zones, setZones] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -36,6 +37,7 @@ export default function ZoneScannerTab({ eventId, onToast }) {
   };
 
   const copyToClipboard = (text) => {
+    if (disabled) return;
     navigator.clipboard.writeText(text);
     onToast?.("Link copied to clipboard!", "success");
   };
@@ -77,7 +79,10 @@ export default function ZoneScannerTab({ eventId, onToast }) {
         {zones.map((zone) => {
           const scannerUrl = getScannerUrl(zone);
           return (
-            <Card key={zone.id} className="overflow-hidden bg-slate-900/40 border-white/5 hover:border-blue-500/30 transition-all group">
+            <Card key={zone.id} className={cn(
+              "overflow-hidden bg-slate-900/40 border-white/5 transition-all group",
+              !disabled && "hover:border-blue-500/30"
+            )}>
               <CardContent className="p-5">
                 <div className="flex items-center gap-3 mb-6">
                   <div 
@@ -97,8 +102,12 @@ export default function ZoneScannerTab({ eventId, onToast }) {
                 <div className="flex flex-col gap-2">
                   <Button 
                     variant="primary" 
-                    className="w-full justify-between h-11"
-                    onClick={() => window.open(scannerUrl, '_blank')}
+                    disabled={disabled}
+                    className={cn(
+                      "w-full justify-between h-11",
+                      disabled && "opacity-50 cursor-not-allowed"
+                    )}
+                    onClick={() => !disabled && window.open(scannerUrl, '_blank')}
                   >
                     <span className="flex items-center gap-2">
                       <QrCode className="w-4 h-4" />
@@ -109,7 +118,11 @@ export default function ZoneScannerTab({ eventId, onToast }) {
                   
                   <Button 
                     variant="secondary" 
-                    className="w-full h-11 bg-white/5 hover:bg-white/10"
+                    disabled={disabled}
+                    className={cn(
+                      "w-full h-11 bg-white/5",
+                      !disabled ? "hover:bg-white/10" : "opacity-30 cursor-not-allowed"
+                    )}
                     onClick={() => copyToClipboard(scannerUrl)}
                   >
                     <Copy className="w-4 h-4 mr-2" />

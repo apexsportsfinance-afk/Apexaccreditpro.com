@@ -25,7 +25,7 @@ const TABS = [
 
 export default function QRSystemV3Tab({ eventId, onToast }) {
   const [activeTab, setActiveTab] = useState("broadcast");
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, isViewer } = useAuth();
 
   // Filter tabs based on administrative tier
   const filteredTabs = TABS.filter(tab => {
@@ -61,31 +61,31 @@ export default function QRSystemV3Tab({ eventId, onToast }) {
       {/* Dynamic Tab Content Engine */}
       <div className="transition-all duration-500">
         {activeTab === "broadcast" && (
-          <GlobalBroadcastPanel eventId={eventId} onToast={onToast} />
+          <GlobalBroadcastPanel eventId={eventId} onToast={onToast} disabled={isViewer} />
         )}
         {activeTab === "events" && isSuperAdmin && (
-          <SportEventsManager eventId={eventId} onToast={onToast} />
+          <SportEventsManager eventId={eventId} onToast={onToast} disabled={isViewer} />
         )}
         {activeTab === "pdf_fields" && isSuperAdmin && (
-          <FormFieldSettings eventId={eventId} onToast={onToast} />
+          <FormFieldSettings eventId={eventId} onToast={onToast} disabled={isViewer} />
         )}
         {activeTab === "event_pdfs" && (
-          <EventPdfSlots eventId={eventId} onToast={onToast} />
+          <EventPdfSlots eventId={eventId} onToast={onToast} disabled={isViewer} />
         )}
         {activeTab === "official_docs" && (
-          <OfficialDocumentsTab eventId={eventId} onToast={onToast} />
+          <OfficialDocumentsTab eventId={eventId} onToast={onToast} disabled={isViewer} />
         )}
         {activeTab === "technical_docs" && (
-          <TechnicalDocumentsTab eventId={eventId} onToast={onToast} />
+          <TechnicalDocumentsTab eventId={eventId} onToast={onToast} disabled={isViewer} />
         )}
         {activeTab === "safety_docs" && (
-          <EmergencyDocumentsTab eventId={eventId} onToast={onToast} />
+          <EmergencyDocumentsTab eventId={eventId} onToast={onToast} disabled={isViewer} />
         )}
         {activeTab === "feedback" && (
-          <FeedbackSetupTab eventId={eventId} onToast={onToast} />
+          <FeedbackSetupTab eventId={eventId} onToast={onToast} disabled={isViewer} />
         )}
         {activeTab === "scanner_control" && isSuperAdmin && (
-          <ZoneScannerTab eventId={eventId} onToast={onToast} />
+          <ZoneScannerTab eventId={eventId} onToast={onToast} disabled={isViewer} />
         )}
       </div>
     </div>

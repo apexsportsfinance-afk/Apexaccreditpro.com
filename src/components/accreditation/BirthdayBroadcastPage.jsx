@@ -4,9 +4,10 @@ import { Gift, Save, Trash2, Users, Search, CheckCircle, Paperclip } from "lucid
 import { BroadcastV2API, GlobalSettingsAPI } from "../../lib/broadcastApi";
 import { AccreditationsAPI } from "../../lib/storage";
 import { uploadToStorage } from "../../lib/uploadToStorage";
+import { cn } from "../../lib/utils";
 import Button from "../ui/Button";
 
-export default function BirthdayBroadcastPage({ eventId, onToast, draft, setDraft }) {
+export default function BirthdayBroadcastPage({ eventId, onToast, draft, setDraft, disabled }) {
   const { message = "", file: attachmentFile = null } = draft || {};
 
   const setMessage = (m) => setDraft({ message: m });
@@ -35,7 +36,7 @@ export default function BirthdayBroadcastPage({ eventId, onToast, draft, setDraf
   };
 
   const saveTemplate = async () => {
-    if (!message.trim()) return;
+    if (!message.trim() || disabled) return;
     setSavingTemplate(true);
     try {
       await GlobalSettingsAPI.set(`birthday_template_event_${eventId}`, message);
@@ -90,6 +91,7 @@ export default function BirthdayBroadcastPage({ eventId, onToast, draft, setDraf
   };
 
   const saveMessage = async () => {
+    if (disabled) return;
     if (!message.trim()) { onToast?.("Please enter a message", "error"); return; }
     if (birthdayPeople.length === 0) { onToast?.("No birthday people to message", "warning"); return; }
     
@@ -176,9 +178,12 @@ export default function BirthdayBroadcastPage({ eventId, onToast, draft, setDraf
               <div className="flex items-center gap-3">
                 <button 
                   onClick={saveTemplate}
-                  disabled={savingTemplate || !message.trim()}
-                  className="flex items-center gap-1.5 text-[10px] text-pink-400 hover:text-white transition-colors uppercase font-black tracking-widest disabled:opacity-50"
-                  title="Make this the permanent template for this event"
+                  disabled={savingTemplate || !message.trim() || disabled}
+                  className={cn(
+                    "flex items-center gap-1.5 text-[10px] text-pink-400 hover:text-white transition-colors uppercase font-black tracking-widest disabled:opacity-50",
+                    disabled && "cursor-not-allowed"
+                  )}
+                  title={disabled ? "View Only" : "Make this the permanent template for this event"}
                 >
                   <Save className={`w-3 h-3 ${savingTemplate ? 'animate-spin' : ''}`} />
                   Set as Default
@@ -193,16 +198,24 @@ export default function BirthdayBroadcastPage({ eventId, onToast, draft, setDraf
                 onChange={e => setMessage(e.target.value)} 
                 rows={4} 
                 maxLength={1000}
-                placeholder="Write a personalized happy birthday message..." 
-                className="w-full bg-gray-900 border border-gray-700 rounded-xl px-5 py-4 text-white font-medium focus:border-pink-500 outline-none transition-all resize-none shadow-xl" 
+                placeholder={disabled ? "View only" : "Write a personalized happy birthday message..."}
+                disabled={disabled}
+                className={cn(
+                  "w-full bg-gray-900 border border-gray-700 rounded-xl px-5 py-4 text-white font-medium focus:border-pink-500 outline-none transition-all resize-none shadow-xl",
+                  disabled && "opacity-50 cursor-not-allowed"
+                )} 
               />
               <div className="mt-2 flex flex-wrap gap-2 px-1">
                 <span className="text-[9px] text-gray-500 font-bold uppercase">Dynamic Tags:</span>
                 {['{firstName}', '{lastName}', '{fullName}', '{club}'].map(tag => (
                   <button 
                     key={tag}
-                    onClick={() => setMessage(message + tag)}
-                    className="text-[9px] bg-gray-900 border border-gray-700 hover:border-pink-500 text-pink-400 px-2 py-0.5 rounded transition-all font-mono"
+                    onClick={() => !disabled && setMessage(message + tag)}
+                    disabled={disabled}
+                    className={cn(
+                      "text-[9px] bg-gray-900 border border-gray-700 text-pink-400 px-2 py-0.5 rounded transition-all font-mono",
+                      !disabled ? "hover:border-pink-500" : "opacity-30 cursor-not-allowed"
+                    )}
                   >
                     {tag}
                   </button>
@@ -211,17 +224,30 @@ export default function BirthdayBroadcastPage({ eventId, onToast, draft, setDraf
             </div>
             
             <div className="flex flex-wrap items-center gap-3">
-              <label className="flex items-center gap-2 cursor-pointer px-5 py-3 bg-gray-900 border border-gray-700 hover:border-pink-500/50 hover:bg-pink-500/5 rounded-xl text-sm font-bold text-gray-300 transition-all group">
-                <Paperclip className="w-4 h-4 text-pink-400 group-hover:scale-110 transition-transform" />
+              <label className={cn(
+                "flex items-center gap-2 px-5 py-3 bg-gray-900 border border-gray-700 rounded-xl text-sm font-bold text-gray-300 transition-all group",
+                !disabled ? "hover:border-pink-500/50 hover:bg-pink-500/5 cursor-pointer" : "opacity-30 cursor-not-allowed"
+              )}>
+                <Paperclip className={cn("w-4 h-4 text-pink-400 transition-transform", !disabled && "group-hover:scale-110")} />
                 <span className="truncate max-w-[200px]">{attachmentFile ? attachmentFile.name : "Attach Image/PDF"}</span>
-                <input type="file" accept=".pdf,image/*" className="hidden" onChange={e => setAttachmentFile(e.target.files?.[0] || null)} />
+                {!disabled && <input type="file" accept=".pdf,image/*" className="hidden" onChange={e => setAttachmentFile(e.target.files?.[0] || null)} />}
               </label>
               
-              <Button onClick={saveMessage} variant="primary" loading={sending} icon={Gift} className="bg-gradient-to-br from-pink-600 to-rose-500 hover:from-pink-500 hover:to-rose-400 border-none px-8 py-3.5 rounded-xl text-white font-black uppercase tracking-widest text-xs shadow-2xl shadow-pink-900/20 transform hover:-translate-y-0.5 active:translate-y-0 transition-all flex-1 md:flex-none">
+              <Button 
+                onClick={saveMessage} 
+                variant="primary" 
+                loading={sending} 
+                icon={Gift} 
+                disabled={disabled}
+                className={cn(
+                  "bg-gradient-to-br from-pink-600 to-rose-500 border-none px-8 py-3.5 rounded-xl text-white font-black uppercase tracking-widest text-xs shadow-2xl shadow-pink-900/20 transform transition-all flex-1 md:flex-none",
+                  !disabled ? "hover:from-pink-500 hover:to-rose-400 hover:-translate-y-0.5 active:translate-y-0" : "opacity-50 cursor-not-allowed"
+                )}
+              >
                 Send Birthday Wishes
               </Button>
 
-              {attachmentFile && (
+              {attachmentFile && !disabled && (
                 <button onClick={() => setAttachmentFile(null)} className="p-3 text-gray-500 hover:text-red-400 transition-colors">
                   <Trash2 className="w-5 h-5" />
                 </button>

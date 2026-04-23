@@ -19,7 +19,8 @@ export default function BulkOperations({
   onBulkApprove,
   onBulkDelete,
   eventCategories = [],
-  clubs = []
+  clubs = [],
+  disabled = false
 }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editField, setEditField] = useState("status");
@@ -164,6 +165,7 @@ export default function BulkOperations({
               size="sm" 
               onClick={() => setShowEditModal(true)} 
               icon={Edit}
+              disabled={disabled}
             >
               Bulk Edit
             </Button>
@@ -172,6 +174,7 @@ export default function BulkOperations({
               size="sm" 
               onClick={onBulkApprove}
               icon={CheckCircle}
+              disabled={disabled}
             >
               Bulk Approve
             </Button>
@@ -189,6 +192,7 @@ export default function BulkOperations({
               size="sm"
               onClick={() => setShowEmailModal(true)}
               icon={Mail}
+              disabled={disabled}
             >
               Bulk Email
             </Button>
@@ -207,6 +211,7 @@ export default function BulkOperations({
               onClick={onBulkDelete}
               icon={Trash2}
               className="hover:bg-red-500/10 border-red-500/30"
+              disabled={disabled}
             >
               Bulk Delete
             </Button>
