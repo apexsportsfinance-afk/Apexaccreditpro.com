@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { GlobalSettingsAPI } from "../../lib/broadcastApi";
+import { cn } from "../../lib/utils";
 import Button from "../ui/Button";
 
 const getFileIcon = (type) => {
@@ -24,7 +25,7 @@ const getFileIcon = (type) => {
   return <FileCode className="w-5 h-5 text-blue-400" />;
 };
 
-export default function EmergencyDocumentsTab({ eventId, onToast }) {
+export default function EmergencyDocumentsTab({ eventId, onToast, disabled }) {
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -53,6 +54,7 @@ export default function EmergencyDocumentsTab({ eventId, onToast }) {
   };
 
   const persistDocs = async (newDocs) => {
+    if (disabled) return;
     try {
       await GlobalSettingsAPI.set(`event_${eventId}_safety_docs`, JSON.stringify(newDocs));
       setDocs(newDocs);
@@ -62,6 +64,7 @@ export default function EmergencyDocumentsTab({ eventId, onToast }) {
   };
 
   const handleUpload = async (e) => {
+    if (disabled) return;
     const file = e.target.files[0];
     if (!file) return;
 
@@ -123,6 +126,7 @@ export default function EmergencyDocumentsTab({ eventId, onToast }) {
   };
 
   const handleDelete = async (id) => {
+    if (disabled) return;
     if (!confirm("Permanently delete this safety document?")) return;
     
     const docToDelete = docs.find(d => d.id === id);
@@ -160,21 +164,27 @@ export default function EmergencyDocumentsTab({ eventId, onToast }) {
         </div>
 
         <div className="relative group">
-          <input 
-            type="file" 
-            onChange={handleUpload} 
-            disabled={uploading}
-            accept=".pdf,.csv,.xls,.xlsx"
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
-          />
+          {!disabled && (
+            <input 
+              type="file" 
+              onChange={handleUpload} 
+              disabled={uploading}
+              accept=".pdf,.csv,.xls,.xlsx"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+            />
+          )}
           <Button 
             loading={uploading}
-            className="w-full md:w-auto bg-gradient-to-br from-red-600 to-red-800 shadow-xl shadow-red-900/30 gap-2 font-black uppercase tracking-wider text-xs px-6 py-3.5"
+            disabled={disabled}
+            className={cn(
+              "w-full md:w-auto bg-gradient-to-br from-red-600 to-red-800 shadow-xl shadow-red-900/30 gap-2 font-black uppercase tracking-wider text-xs px-6 py-3.5",
+              disabled && "opacity-50 cursor-not-allowed"
+            )}
           >
             {uploading ? 'Uploading...' : (
               <>
                 <Upload className="w-4 h-4" />
-                Upload Safety Plan
+                {disabled ? "View Only" : "Upload Safety Plan"}
               </>
             )}
           </Button>
@@ -192,7 +202,10 @@ export default function EmergencyDocumentsTab({ eventId, onToast }) {
           {docs.map(doc => (
             <div 
               key={doc.id} 
-              className="bg-glass border border-red-500/10 p-2.5 rounded-md group hover:border-red-500/40 hover:bg-red-900/10 transition-all duration-300 shadow-lg"
+              className={cn(
+                "bg-glass border border-red-500/10 p-2.5 rounded-md group hover:bg-red-900/10 transition-all duration-300 shadow-lg",
+                !disabled && "hover:border-red-500/40"
+              )}
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="p-1.5 bg-slate-950/50 rounded-lg border border-red-500/20">
@@ -207,7 +220,11 @@ export default function EmergencyDocumentsTab({ eventId, onToast }) {
                   </button>
                   <button 
                     onClick={() => handleDelete(doc.id)}
-                    className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                    disabled={disabled}
+                    className={cn(
+                      "p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors",
+                      disabled && "opacity-30 cursor-not-allowed"
+                    )}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>

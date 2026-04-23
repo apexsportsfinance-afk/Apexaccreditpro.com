@@ -9,6 +9,7 @@ import { uploadToStorage } from "../../lib/uploadToStorage";
 import { ROLES } from "../../lib/utils";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
+import { cn } from "../../lib/utils";
 import BirthdayBroadcastPage from "./BirthdayBroadcastPage";
 
 
@@ -30,7 +31,7 @@ const INITIAL_DRAFT_TEMPLATE = {
 };
 
 
-export default function GlobalBroadcastPanel({ eventId, onToast }) {
+export default function GlobalBroadcastPanel({ eventId, onToast, disabled = false }) {
   const [activeSubTab, setActiveSubTab] = useState("general");
   
   // Requirement: Make broadcast messages independent per event
@@ -85,12 +86,12 @@ export default function GlobalBroadcastPanel({ eventId, onToast }) {
         })}
       </div>
 
-      {activeSubTab === "general" && (
         <GeneralBroadcastPage 
           eventId={eventId} 
           onToast={onToast} 
           draft={currentDrafts.general}
           setDraft={(d) => updateDraft("general", d)}
+          disabled={disabled}
         />
       )}
       {activeSubTab === "targeted" && (
@@ -99,6 +100,7 @@ export default function GlobalBroadcastPanel({ eventId, onToast }) {
           onToast={onToast} 
           draft={currentDrafts.targeted}
           setDraft={(d) => updateDraft("targeted", d)}
+          disabled={disabled}
         />
       )}
       {activeSubTab === "athlete" && (
@@ -107,6 +109,7 @@ export default function GlobalBroadcastPanel({ eventId, onToast }) {
           onToast={onToast} 
           draft={currentDrafts.athlete}
           setDraft={(d) => updateDraft("athlete", d)}
+          disabled={disabled}
         />
       )}
       {activeSubTab === "birthday" && (
@@ -115,6 +118,7 @@ export default function GlobalBroadcastPanel({ eventId, onToast }) {
           onToast={onToast} 
           draft={currentDrafts.birthday}
           setDraft={(d) => updateDraft("birthday", d)}
+          disabled={disabled}
         />
       )}
     </div>
@@ -148,7 +152,7 @@ function SuccessOverlay({ show, message, onClose }) {
 }
 
 /* ─── General Broadcast Page (Strictly Global) ──────────────── */
-function GeneralBroadcastPage({ eventId, onToast, draft, setDraft }) {
+function GeneralBroadcastPage({ eventId, onToast, draft, setDraft, disabled }) {
   const { message = "", file: attachmentFile = null } = draft || {};
 
   const setMessage = (m) => setDraft({ message: m });
@@ -222,21 +226,21 @@ function GeneralBroadcastPage({ eventId, onToast, draft, setDraft }) {
           )}
         </div>
       </div>
-      <textarea value={message} onChange={e => setMessage(e.target.value)} rows={5} placeholder="Message for everyone..." className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none transition-all resize-none" />
+      <textarea value={message} onChange={e => setMessage(e.target.value)} rows={5} placeholder={disabled ? "View only" : "Message for everyone..."} disabled={disabled} className={cn("w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none transition-all resize-none", disabled && "opacity-50 cursor-not-allowed")} />
       <div className="flex items-center gap-3">
-        <label className="flex items-center gap-2 cursor-pointer px-4 py-2 bg-gray-900 border border-gray-700 rounded-xl text-sm text-gray-300">
+        <label className={cn("flex items-center gap-2 px-4 py-2 bg-gray-900 border border-gray-700 rounded-xl text-sm text-gray-300 transition-all", disabled ? "opacity-30 cursor-not-allowed" : "cursor-pointer")}>
           <Paperclip className="w-4 h-4 text-emerald-400" />
           <span>{attachmentFile ? attachmentFile.name : currentAttachment ? "Replace PDF" : "Attach PDF/Image"}</span>
-          <input ref={attachInputRef} type="file" accept=".pdf,image/*" className="hidden" onChange={e => setAttachmentFile(e.target.files?.[0] || null)} />
+          {!disabled && <input ref={attachInputRef} type="file" accept=".pdf,image/*" className="hidden" onChange={e => setAttachmentFile(e.target.files?.[0] || null)} />}
         </label>
-        <Button onClick={saveMessage} variant="primary" loading={saving} icon={Save}>Send to Everyone</Button>
+        <Button onClick={saveMessage} variant="primary" loading={saving} icon={Save} disabled={disabled}>Send to Everyone</Button>
       </div>
     </div>
   );
 }
 
 /* ─── Targeted Broadcast Page (Roles & Zones) ────────────────── */
-function TargetedBroadcastPage({ eventId, onToast, draft, setDraft }) {
+function TargetedBroadcastPage({ eventId, onToast, draft, setDraft, disabled }) {
   const { 
     message = "", 
     targets = [], 
@@ -260,8 +264,14 @@ function TargetedBroadcastPage({ eventId, onToast, draft, setDraft }) {
     }
   }, [eventId]);
 
-  const toggleTarget = role => setTargets(prev => prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]);
-  const toggleZone = code => setSelectedZones(prev => prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]);
+  const toggleTarget = role => {
+    if (disabled) return;
+    setTargets(prev => prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]);
+  };
+  const toggleZone = code => {
+    if (disabled) return;
+    setSelectedZones(prev => prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]);
+  };
 
   const saveMessage = async () => {
     if (!message.trim()) { onToast?.("Enter a message", "error"); return; }
@@ -298,21 +308,21 @@ function TargetedBroadcastPage({ eventId, onToast, draft, setDraft }) {
           ))}</div>
         </div>
       </div>
-      <textarea value={message} onChange={e => setMessage(e.target.value)} rows={4} placeholder="Message for targeted groups..." className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none transition-all resize-none" />
+      <textarea value={message} onChange={e => setMessage(e.target.value)} rows={4} placeholder={disabled ? "View only" : "Message for targeted groups..."} disabled={disabled} className={cn("w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none transition-all resize-none", disabled && "opacity-50 cursor-not-allowed")} />
       <div className="flex items-center gap-3">
-        <label className="flex items-center gap-2 cursor-pointer px-4 py-2 bg-gray-900 border border-gray-700 rounded-xl text-sm text-gray-300">
+        <label className={cn("flex items-center gap-2 px-4 py-2 bg-gray-900 border border-gray-700 rounded-xl text-sm text-gray-300 transition-all", disabled ? "opacity-30 cursor-not-allowed" : "cursor-pointer")}>
           <Paperclip className="w-4 h-4 text-blue-400" />
           <span>{attachmentFile ? attachmentFile.name : "Attach File"}</span>
-          <input type="file" accept=".pdf,image/*" className="hidden" onChange={e => setAttachmentFile(e.target.files?.[0] || null)} />
+          {!disabled && <input type="file" accept=".pdf,image/*" className="hidden" onChange={e => setAttachmentFile(e.target.files?.[0] || null)} />}
         </label>
-        <Button onClick={saveMessage} variant="primary" loading={saving} icon={Save}>Send to Targeted Audience</Button>
+        <Button onClick={saveMessage} variant="primary" loading={saving} icon={Save} disabled={disabled}>Send to Targeted Audience</Button>
       </div>
     </div>
   );
 }
 
 /* ─── Athlete Broadcast Page (Granular Multi-Select) ────────── */
-function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft }) {
+function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft, disabled }) {
   const { 
     message = "", 
     selectedAthletes = [], 
@@ -618,13 +628,14 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft }) {
                       <input
                         type="checkbox"
                         checked={selectedClubs.includes(clubName) || selectedClubs.includes(club)}
+                        disabled={disabled}
                         onChange={() => {
                           const targetValue = typeof club === 'string' ? club : club.full;
                           setSelectedClubs(prev => 
                             prev.includes(targetValue) ? prev.filter(c => c !== targetValue && c.full !== targetValue) : [...prev, targetValue]
                           );
                         }}
-                        className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-blue-600 focus:ring-0"
+                        className={cn("w-4 h-4 rounded border-gray-600 bg-gray-800 text-blue-600 focus:ring-0", disabled && "opacity-50 cursor-not-allowed")}
                       />
                       <span className="text-sm text-gray-300 truncate">{clubName}</span>
                     </label>
@@ -640,8 +651,9 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft }) {
                     <input
                       type="checkbox"
                       checked={selectedHeats.includes(ev.eventCode)}
+                      disabled={disabled}
                       onChange={() => setSelectedHeats(prev => prev.includes(ev.eventCode) ? prev.filter(h => h !== ev.eventCode) : [...prev, ev.eventCode])}
-                      className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-blue-600 focus:ring-0"
+                      className={cn("w-4 h-4 rounded border-gray-600 bg-gray-800 text-blue-600 focus:ring-0", disabled && "opacity-50 cursor-not-allowed")}
                     />
                     <span className="text-sm text-gray-300 truncate" title={ev.eventName}>
                       <span className="text-cyan-400 font-bold mr-1">{ev.eventCode}</span>
@@ -660,10 +672,11 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft }) {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
               <input
                 type="text"
-                placeholder="Search athlete name..."
+                placeholder={disabled ? "Search only" : "Search athlete name..."}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 rounded-xl pl-10 pr-4 py-3 text-white placeholder-gray-600 focus:border-blue-500 outline-none transition-all"
+                disabled={disabled}
+                className={cn("w-full bg-gray-900 border border-gray-700 rounded-xl pl-10 pr-4 py-3 text-white placeholder-gray-600 focus:border-blue-500 outline-none transition-all", disabled && "opacity-50 cursor-not-allowed")}
               />
             </div>
           </div>
@@ -672,8 +685,11 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft }) {
           {(selectedClubs.length > 0 || selectedHeats.length > 0 || search.trim()) && (
             <button
               onClick={loadAllFromFilters}
-              disabled={loadingAll}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 hover:from-blue-600 hover:to-blue-500 text-white font-bold text-sm transition-all disabled:opacity-50 shadow-lg shadow-blue-900/30"
+              disabled={loadingAll || disabled}
+              className={cn(
+                "w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 hover:from-blue-600 hover:to-blue-500 text-white font-bold text-sm transition-all shadow-lg shadow-blue-900/30",
+                (loadingAll || disabled) && "opacity-50 cursor-not-allowed"
+              )}
             >
               {loadingAll ? (
                 <>
@@ -693,7 +709,13 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft }) {
           <div className="bg-gray-900 border border-gray-700 rounded-2xl overflow-hidden">
             <div className="bg-gray-800/50 px-4 py-2 border-b border-gray-700 flex justify-between items-center text-xs font-bold uppercase tracking-widest text-gray-400">
               <span>Search Results ({athletes.length})</span>
-              <button onClick={toggleAllVisible} className="text-blue-400 hover:text-blue-300 transition-colors">Select All Shown</button>
+              <button 
+                onClick={toggleAllVisible} 
+                disabled={disabled}
+                className={cn("text-blue-400 hover:text-blue-300 transition-colors", disabled && "opacity-30 cursor-not-allowed")}
+              >
+                Select All Shown
+              </button>
             </div>
             <div className="max-h-64 overflow-y-auto">
               {loading ? (
@@ -704,10 +726,12 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft }) {
                   return (
                     <div
                       key={a.id}
-                      onClick={() => toggleAthleteSelection(a)}
-                      className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors border-b border-gray-800 last:border-0 ${
-                        isSelected ? "bg-blue-600/10" : "hover:bg-gray-800/50"
-                      }`}
+                      onClick={() => !disabled && toggleAthleteSelection(a)}
+                      className={cn(
+                        "flex items-center justify-between px-4 py-3 transition-colors border-b border-gray-800 last:border-0",
+                        !disabled ? "cursor-pointer hover:bg-gray-800/50" : "cursor-default",
+                        isSelected ? "bg-blue-600/10" : ""
+                      )}
                     >
                       <div>
                         <p className={`font-bold text-sm ${isSelected ? "text-blue-400" : "text-white"}`}>
@@ -740,9 +764,11 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft }) {
                   {selectedAthletes.map(a => (
                     <div key={a.id} className="flex items-center gap-1.5 bg-gray-800 text-gray-200 pl-3 pr-1 py-1 rounded-lg border border-gray-700 text-xs font-bold">
                       <span className="max-w-[120px] truncate">{a.firstName} {a.lastName}</span>
-                      <button onClick={() => removeSelected(a.id)} className="p-1 hover:text-red-400 transition-colors">
-                        <X className="w-3 h-3" />
-                      </button>
+                      {!disabled && (
+                        <button onClick={() => removeSelected(a.id)} className="p-1 hover:text-red-400 transition-colors">
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -762,8 +788,9 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft }) {
               onChange={e => setMessage(e.target.value)}
               maxLength={1000}
               rows={4}
-              placeholder="Private message for selected athletes..."
-              className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white font-medium focus:border-orange-500 outline-none transition-all resize-none"
+              placeholder={disabled ? "View only" : "Private message for selected athletes..."}
+              disabled={disabled}
+              className={cn("w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white font-medium focus:border-orange-500 outline-none transition-all resize-none", disabled && "opacity-50 cursor-not-allowed")}
             />
           </div>
 
@@ -785,7 +812,7 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft }) {
 
             {/* Upload + Delete row */}
             <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 cursor-pointer px-4 py-2 bg-gray-900 border border-gray-700 hover:border-orange-500 rounded-xl text-sm text-gray-300 transition-all">
+              <label className={cn("flex items-center gap-2 px-4 py-2 bg-gray-900 border border-gray-700 rounded-xl text-sm text-gray-300 transition-all", disabled ? "opacity-30 cursor-not-allowed" : "hover:border-orange-500 cursor-pointer")}>
                 <Paperclip className="w-4 h-4 text-orange-400" />
                 <span>
                   {attachmentFile
@@ -794,18 +821,21 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft }) {
                       ? "Replace PDF / Image"
                       : "Attach PDF or Image"}
                 </span>
-                <input
-                  ref={attachInputRef}
-                  type="file"
-                  accept=".pdf,image/*"
-                  className="hidden"
-                  onChange={e => setAttachmentFile(e.target.files?.[0] || null)}
-                />
+                {!disabled && (
+                  <input
+                    ref={attachInputRef}
+                    type="file"
+                    accept=".pdf,image/*"
+                    className="hidden"
+                    onChange={e => setAttachmentFile(e.target.files?.[0] || null)}
+                  />
+                )}
               </label>
 
               {/* Delete button — always visible */}
               <button
                 onClick={() => {
+                  if (disabled) return;
                   if (attachmentFile) {
                     setAttachmentFile(null);
                     if (attachInputRef.current) attachInputRef.current.value = "";
@@ -813,13 +843,14 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft }) {
                     deleteCurrentAttachment();
                   }
                 }}
-                disabled={deletingAttachment || (!attachmentFile && !currentAttachment)}
+                disabled={disabled || deletingAttachment || (!attachmentFile && !currentAttachment)}
                 title={attachmentFile ? "Cancel selection" : "Delete attachment"}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-bold transition-all ${
-                  (attachmentFile || currentAttachment)
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-bold transition-all",
+                  (attachmentFile || currentAttachment) && !disabled
                     ? "bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:border-red-500/50 cursor-pointer"
                     : "bg-gray-800 border-gray-700 text-gray-600 cursor-not-allowed"
-                }`}
+                )}
               >
                 {deletingAttachment
                   ? <span className="w-4 h-4 block border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
@@ -833,8 +864,11 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft }) {
           <Button
             onClick={() => setConfirmOpen(true)}
             variant="primary"
-            disabled={selectedAthletes.length === 0 || !message.trim()}
-            className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 border-none text-white text-lg shadow-xl shadow-orange-900/20"
+            disabled={disabled || selectedAthletes.length === 0 || !message.trim()}
+            className={cn(
+              "w-full py-4 rounded-2xl bg-gradient-to-r from-orange-600 to-orange-500 border-none text-white text-lg shadow-xl shadow-orange-900/20",
+              !disabled && "hover:from-orange-500 hover:to-orange-400"
+            )}
           >
             Send Broadcast to {selectedAthletes.length} Athletes
           </Button>

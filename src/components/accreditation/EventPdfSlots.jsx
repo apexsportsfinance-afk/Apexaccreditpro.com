@@ -3,7 +3,7 @@ import { FileText, Upload, Trash2, Download, Clock, RotateCcw, AlertTriangle } f
 import { supabase } from "../../lib/supabase";
 import { GlobalSettingsAPI, HeatSheetMatrixAPI, AthleteEventsAPI } from "../../lib/broadcastApi";
 import { parseCompetitionFile, matchAthleteEvents } from "../../lib/CoachHeatParser";
-import { calculateAge } from "../../lib/utils";
+import { calculateAge, cn } from "../../lib/utils";
 import Button from "../ui/Button";
 
 const SLOTS = [
@@ -16,7 +16,7 @@ const colorMap = {
   green: { border: "border-green-500", bg: "bg-green-600 hover:bg-green-700", text: "text-green-400", dashed: "hover:border-green-500" }
 };
 
-export default function EventPdfSlots({ eventId, onToast }) {
+export default function EventPdfSlots({ eventId, onToast, disabled }) {
   const [slots, setSlots] = useState({ heat_sheet: null, event_result: null });
   const [timestamps, setTimestamps] = useState({ heat_sheet: null, event_result: null });
   const [uploading, setUploading] = useState({});
@@ -40,6 +40,7 @@ export default function EventPdfSlots({ eventId, onToast }) {
   };
 
   const handleUpload = async (e, slot) => {
+    if (disabled) return;
     const file = e.target.files[0];
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) {
@@ -231,7 +232,7 @@ export default function EventPdfSlots({ eventId, onToast }) {
   };
 
   const handleResetData = async () => {
-    
+    if (disabled) return;
     setResetting(true);
     try {
       // 1. Clear lane_matrix
@@ -250,6 +251,7 @@ export default function EventPdfSlots({ eventId, onToast }) {
   };
 
   const handleDelete = async (slotKey) => {
+    if (disabled) return;
     try {
       if (slots[slotKey] && slots[slotKey].includes('/public/accreditation-files/')) {
         const oldPath = slots[slotKey].split('/public/accreditation-files/')[1];
@@ -285,10 +287,13 @@ export default function EventPdfSlots({ eventId, onToast }) {
         
         <button 
           onClick={handleResetData}
-          disabled={resetting}
-          className="flex items-center gap-2 group px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/40 rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={resetting || disabled}
+          className={cn(
+            "flex items-center gap-2 group px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl transition-all active:scale-95",
+            (resetting || disabled) ? "opacity-50 cursor-not-allowed" : "hover:bg-red-500/20 hover:border-red-500/40"
+          )}
         >
-          <RotateCcw className={`w-4 h-4 text-red-400 group-hover:rotate-[-180deg] transition-transform duration-700 ${resetting ? 'animate-spin' : ''}`} />
+          <RotateCcw className={cn("w-4 h-4 text-red-400 transition-transform duration-700", resetting && "animate-spin", !disabled && "group-hover:rotate-[-180deg]")} />
           <span className="text-[10px] font-black uppercase tracking-widest text-red-400">
             {resetting ? 'Wiping Database...' : 'Reset Event Data'}
           </span>
@@ -302,13 +307,17 @@ export default function EventPdfSlots({ eventId, onToast }) {
         const hasFile = !!slots[slot.key];
 
         return (
-          <div key={slot.key} className={`relative group p-6 rounded-2xl border-2 transition-all duration-500 overflow-hidden ${hasFile ? `${config.border} bg-slate-900/40` : `border-slate-800 border-dashed ${config.dashed} bg-slate-950/20`}`}>
+          <div key={slot.key} className={cn(
+            "relative group p-6 rounded-2xl border-2 transition-all duration-500 overflow-hidden",
+            hasFile ? `${config.border} bg-slate-900/40` : "border-slate-800 border-dashed bg-slate-950/20",
+            !hasFile && !disabled && config.dashed
+          )}>
             {/* Background elements omitted for brevity */}
             <div className="relative z-10 flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className={`p-2.5 rounded-xl bg-slate-900 border ${hasFile ? config.border : 'border-slate-800'}`}>
-                    <FileText className={`w-5 h-5 ${hasFile ? config.text : 'text-slate-600'}`} />
+                  <div className={cn("p-2.5 rounded-xl bg-slate-900 border", hasFile ? config.border : "border-slate-800")}>
+                    <FileText className={cn("w-5 h-5", hasFile ? config.text : "text-slate-600")} />
                   </div>
                   <div>
                     <h3 className="text-white font-black uppercase tracking-widest text-[11px]">{slot.label}</h3>
@@ -322,11 +331,20 @@ export default function EventPdfSlots({ eventId, onToast }) {
                       <Button 
                         size="sm" 
                         onClick={() => window.open(slots[slot.key], '_blank')}
-                        className={`rounded-lg gap-2 text-[10px] font-black uppercase ${config.bg}`}
+                        className={cn("rounded-lg gap-2 text-[10px] font-black uppercase", config.bg)}
                       >
                         <Download className="w-3.5 h-3.5" /> View
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(slot.key)} className="rounded-lg gap-2 text-[10px] font-black uppercase text-red-500 hover:bg-red-500/10">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleDelete(slot.key)} 
+                        disabled={disabled}
+                        className={cn(
+                          "rounded-lg gap-2 text-[10px] font-black uppercase text-red-500",
+                          disabled ? "opacity-30 cursor-not-allowed" : "hover:bg-red-500/10"
+                        )}
+                      >
                         <Trash2 className="w-3.5 h-3.5" /> Drop
                       </Button>
                     </div>
@@ -338,12 +356,19 @@ export default function EventPdfSlots({ eventId, onToast }) {
                   </div>
                 ) : (
                   <div className="relative mt-2">
-                    <input type="file" onChange={(e) => handleUpload(e, slot)} disabled={isUp} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                    <Button variant="outline" className="w-full py-6 bg-slate-900 hover:bg-slate-850 border-slate-800 border-dashed rounded-xl gap-3">
+                    {!disabled && <input type="file" onChange={(e) => handleUpload(e, slot)} disabled={isUp} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />}
+                    <Button 
+                      variant="outline" 
+                      disabled={disabled}
+                      className={cn(
+                        "w-full py-6 bg-slate-900 border-slate-800 border-dashed rounded-xl gap-3",
+                        disabled ? "opacity-30 cursor-not-allowed" : "hover:bg-slate-850"
+                      )}
+                    >
                       <div className="p-2 rounded-lg bg-slate-950">
-                        <Upload className={`w-4 h-4 ${isUp ? 'animate-bounce text-cyan-400' : 'text-slate-500'}`} />
+                        <Upload className={cn("w-4 h-4", isUp ? "animate-bounce text-cyan-400" : "text-slate-500")} />
                       </div>
-                      <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{isUp ? 'Processing...' : `Attach ${slot.label}`}</span>
+                      <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{isUp ? 'Processing...' : disabled ? "View Only" : `Attach ${slot.label}`}</span>
                     </Button>
                   </div>
                 )}

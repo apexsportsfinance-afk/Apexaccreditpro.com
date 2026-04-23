@@ -17,6 +17,7 @@ import {
 import { ConfigAPI } from "../../lib/storage";
 import { GlobalSettingsAPI } from "../../lib/broadcastApi";
 import { toast } from "sonner";
+import { cn } from "../../lib/utils";
 import Button from "../ui/Button";
 
 const QUESTION_TYPES = [
@@ -25,7 +26,7 @@ const QUESTION_TYPES = [
   { id: "text", label: "Open Question", icon: Type }
 ];
 
-export default function FeedbackSetupTab({ eventId, onToast }) {
+export default function FeedbackSetupTab({ eventId, onToast, disabled }) {
   const [config, setConfig] = useState({
     title: "DIAC 2026 – Event Feedback",
     description: "Thank you for being part of DIAC 2026. Your feedback is very important to help us improve future events.",
@@ -63,6 +64,7 @@ export default function FeedbackSetupTab({ eventId, onToast }) {
   }, [eventId]);
 
   const handleSave = async () => {
+    if (disabled) return;
     setSaving(true);
     try {
       // Save is_active separately via GlobalSettings (reliable key-value store)
@@ -83,6 +85,7 @@ export default function FeedbackSetupTab({ eventId, onToast }) {
   };
 
   const addQuestion = (type) => {
+    if (disabled) return;
     const newQ = {
       id: Math.random().toString(36).substr(2, 9),
       type,
@@ -97,6 +100,7 @@ export default function FeedbackSetupTab({ eventId, onToast }) {
   };
 
   const removeQuestion = (id) => {
+    if (disabled) return;
     setConfig(prev => ({
       ...prev,
       questions: prev.questions.filter(q => q.id !== id)
@@ -104,6 +108,7 @@ export default function FeedbackSetupTab({ eventId, onToast }) {
   };
 
   const updateQuestion = (id, updates) => {
+    if (disabled) return;
     setConfig(prev => ({
       ...prev,
       questions: prev.questions.map(q => q.id === id ? { ...q, ...updates } : q)
@@ -123,7 +128,11 @@ export default function FeedbackSetupTab({ eventId, onToast }) {
               type="text" 
               value={config.title}
               onChange={(e) => setConfig({...config, title: e.target.value})}
-              className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary-500/50 outline-none transition-all"
+              disabled={disabled}
+              className={cn(
+                "w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary-500/50 outline-none transition-all",
+                disabled && "opacity-50 cursor-not-allowed"
+              )}
               placeholder="e.g. DIAC 2026 – Event Feedback"
             />
           </div>
@@ -132,24 +141,32 @@ export default function FeedbackSetupTab({ eventId, onToast }) {
             <textarea 
               value={config.description}
               onChange={(e) => setConfig({...config, description: e.target.value})}
-              className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary-500/50 outline-none transition-all h-24 resize-none"
+              disabled={disabled}
+              className={cn(
+                "w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary-500/50 outline-none transition-all h-24 resize-none",
+                disabled && "opacity-50 cursor-not-allowed"
+              )}
               placeholder="Enter form description..."
             />
           </div>
 
           <div className="pt-2">
-            <label className="flex items-center gap-3 cursor-pointer group">
+            <label className={cn("flex items-center gap-3 group", disabled ? "cursor-not-allowed" : "cursor-pointer")}>
               <div className="relative">
                 <input 
                   type="checkbox" 
                   checked={config.is_active}
                   onChange={(e) => setConfig({...config, is_active: e.target.checked})}
+                  disabled={disabled}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-slate-800 border border-white/10 rounded-full peer peer-checked:bg-primary-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white peer-checked:after:bg-white group-hover:border-white/20" />
+                <div className={cn(
+                  "w-11 h-6 bg-slate-800 border border-white/10 rounded-full peer peer-checked:bg-primary-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white peer-checked:after:bg-white",
+                  !disabled && "group-hover:border-white/20"
+                )} />
               </div>
               <div>
-                <span className="text-sm font-bold text-white uppercase tracking-widest group-hover:text-primary-400 transition-colors">Show Feedback on Accreditation</span>
+                <span className={cn("text-sm font-bold text-white uppercase tracking-widest transition-colors", !disabled && "group-hover:text-primary-400")}>Show Feedback on Accreditation</span>
                 <p className="text-[10px] text-slate-500 font-medium">When enabled, the "Your Voice Matters" section appears on the participant's pass.</p>
               </div>
             </label>
@@ -162,7 +179,11 @@ export default function FeedbackSetupTab({ eventId, onToast }) {
             <textarea 
               value={config.thank_you_message}
               onChange={(e) => setConfig({...config, thank_you_message: e.target.value})}
-              className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary-500/50 outline-none transition-all h-24 resize-none"
+              disabled={disabled}
+              className={cn(
+                "w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary-500/50 outline-none transition-all h-24 resize-none",
+                disabled && "opacity-50 cursor-not-allowed"
+              )}
               placeholder="Message shown after submission..."
             />
           </div>
@@ -171,10 +192,11 @@ export default function FeedbackSetupTab({ eventId, onToast }) {
               variant="primary" 
               icon={Save} 
               loading={saving}
+              disabled={disabled}
               onClick={handleSave}
               className="w-full md:w-auto"
             >
-              Save Configuration
+              {disabled ? "View Only Mode" : "Save Configuration"}
             </Button>
           </div>
         </div>
@@ -195,6 +217,7 @@ export default function FeedbackSetupTab({ eventId, onToast }) {
                 variant="outline" 
                 size="sm" 
                 icon={type.icon}
+                disabled={disabled}
                 onClick={() => addQuestion(type.id)}
               >
                 {type.label}
@@ -212,10 +235,13 @@ export default function FeedbackSetupTab({ eventId, onToast }) {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="group relative bg-slate-900/50 border border-white/5 rounded-2xl p-6 hover:border-primary-500/30 transition-all"
+                className={cn(
+                  "group relative bg-slate-900/50 border border-white/5 rounded-2xl p-6 transition-all",
+                  !disabled && "hover:border-primary-500/30"
+                )}
               >
                 <div className="flex items-start gap-4">
-                  <div className="mt-2 text-slate-600 cursor-grab active:cursor-grabbing">
+                  <div className={cn("mt-2 text-slate-600", !disabled ? "cursor-grab active:cursor-grabbing" : "opacity-30")}>
                     <GripVertical className="w-5 h-5" />
                   </div>
                   <div className="flex-1 space-y-4">
@@ -231,7 +257,11 @@ export default function FeedbackSetupTab({ eventId, onToast }) {
                       </div>
                       <button 
                         onClick={() => removeQuestion(q.id)}
-                        className="p-2 text-slate-600 hover:text-red-400 transition-colors bg-slate-800/0 hover:bg-red-400/10 rounded-lg"
+                        disabled={disabled}
+                        className={cn(
+                          "p-2 text-slate-600 transition-colors bg-slate-800/0 rounded-lg",
+                          !disabled ? "hover:text-red-400 hover:bg-red-400/10" : "opacity-30 cursor-not-allowed"
+                        )}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -241,7 +271,11 @@ export default function FeedbackSetupTab({ eventId, onToast }) {
                       type="text" 
                       value={q.label}
                       onChange={(e) => updateQuestion(q.id, { label: e.target.value })}
-                      className="w-full bg-transparent text-lg font-bold text-white placeholder:text-slate-700 border-none focus:ring-0 p-0"
+                      disabled={disabled}
+                      className={cn(
+                        "w-full bg-transparent text-lg font-bold text-white placeholder:text-slate-700 border-none focus:ring-0 p-0",
+                        disabled && "opacity-50 cursor-not-allowed"
+                      )}
                       placeholder="Question Label..."
                     />
 
@@ -259,14 +293,16 @@ export default function FeedbackSetupTab({ eventId, onToast }) {
                                   newOpts[optIndex] = e.target.value;
                                   updateQuestion(q.id, { options: newOpts });
                                 }}
-                                className="bg-transparent border-none text-xs text-white p-0 focus:ring-0 w-24"
+                                disabled={disabled}
+                                className={cn("bg-transparent border-none text-xs text-white p-0 focus:ring-0 w-24", disabled && "cursor-not-allowed")}
                               />
                               <button 
                                 onClick={() => {
                                   const newOpts = q.options.filter((_, i) => i !== optIndex);
                                   updateQuestion(q.id, { options: newOpts });
                                 }}
-                                className="text-slate-500 hover:text-red-400"
+                                disabled={disabled}
+                                className={cn("text-slate-500", !disabled ? "hover:text-red-400" : "opacity-30 cursor-not-allowed")}
                               >
                                 <Trash2 className="w-3 h-3" />
                               </button>
@@ -274,7 +310,11 @@ export default function FeedbackSetupTab({ eventId, onToast }) {
                           ))}
                           <button 
                             onClick={() => updateQuestion(q.id, { options: [...q.options, "New Option"] })}
-                            className="px-3 py-1.5 rounded-lg border border-dashed border-white/10 text-slate-500 hover:text-white hover:border-white/20 transition-all text-xs flex items-center gap-1"
+                            disabled={disabled}
+                            className={cn(
+                              "px-3 py-1.5 rounded-lg border border-dashed border-white/10 text-slate-500 transition-all text-xs flex items-center gap-1",
+                              !disabled ? "hover:text-white hover:border-white/20" : "opacity-30 cursor-not-allowed"
+                            )}
                           >
                             <Plus className="w-3 h-3" /> Add Option
                           </button>

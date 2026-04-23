@@ -12,6 +12,7 @@ import DataTable from "../../components/ui/DataTable";
 import { useToast } from "../../components/ui/Toast";
 import { useAuth } from "../../contexts/AuthContext";
 import { EventsAPI, ZonesAPI } from "../../lib/storage";
+import { cn } from "../../lib/utils";
 
 export default function Zones() {
   const [zones, setZones] = useState([]);
@@ -38,7 +39,7 @@ export default function Zones() {
   const [selectedZonesToCopy, setSelectedZonesToCopy] = useState([]);
   const [copying, setCopying] = useState(false);
   const toast = useToast();
-  const { canAccessEvent } = useAuth();
+  const { canAccessEvent, isViewer } = useAuth();
 
   useEffect(() => {
     loadEvents();
@@ -279,15 +280,23 @@ export default function Zones() {
         <div className="flex items-center gap-2">
           <button
             onClick={(e) => { e.stopPropagation(); handleOpenModal(row); }}
-            className="p-2 rounded-lg hover:bg-slate-700 transition-colors"
-            title="Edit"
+            className={cn(
+              "p-2 rounded-lg transition-colors",
+              isViewer ? "opacity-30 cursor-not-allowed" : "hover:bg-slate-700"
+            )}
+            title={isViewer ? "Viewing Only" : "Edit"}
+            disabled={isViewer}
           >
             <Edit className="w-4 h-4 text-slate-400" />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); handleDelete(row); }}
-            className="p-2 rounded-lg hover:bg-red-500/20 transition-colors"
-            title="Delete"
+            className={cn(
+              "p-2 rounded-lg transition-colors",
+              isViewer ? "opacity-30 cursor-not-allowed" : "hover:bg-red-500/20"
+            )}
+            title={isViewer ? "Viewing Only" : "Delete"}
+            disabled={isViewer}
           >
             <Trash2 className="w-4 h-4 text-red-400" />
           </button>
@@ -306,10 +315,21 @@ export default function Zones() {
           </p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" icon={Copy} onClick={() => setCopyModalOpen(true)} disabled={!selectedEvent || events.length < 2}>
+          <Button 
+            variant="outline" 
+            icon={Copy} 
+            onClick={() => setCopyModalOpen(true)} 
+            disabled={isViewer || !selectedEvent || events.length < 2}
+            title={isViewer ? "Viewing Only" : ""}
+          >
             Copy Zones
           </Button>
-          <Button icon={Plus} onClick={() => handleOpenModal()} disabled={!selectedEvent}>
+          <Button 
+            icon={Plus} 
+            onClick={() => handleOpenModal()} 
+            disabled={isViewer || !selectedEvent}
+            title={isViewer ? "Viewing Only" : ""}
+          >
             Create Zone
           </Button>
         </div>
@@ -343,10 +363,21 @@ export default function Zones() {
                 Create zones to define access areas for this event
               </p>
               <div className="flex gap-4">
-                <Button variant="outline" icon={Copy} onClick={() => setCopyModalOpen(true)} disabled={events.length < 2}>
+                <Button 
+                  variant="outline" 
+                  icon={Copy} 
+                  onClick={() => setCopyModalOpen(true)} 
+                  disabled={isViewer || events.length < 2}
+                  title={isViewer ? "Viewing Only" : ""}
+                >
                   Copy from Event
                 </Button>
-                <Button icon={Plus} onClick={() => handleOpenModal()}>
+                <Button 
+                  icon={Plus} 
+                  onClick={() => handleOpenModal()}
+                  disabled={isViewer}
+                  title={isViewer ? "Viewing Only" : ""}
+                >
                   Create Zone
                 </Button>
               </div>

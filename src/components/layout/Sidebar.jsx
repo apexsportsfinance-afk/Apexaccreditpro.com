@@ -40,12 +40,17 @@ const navItems = [
 ];
 
 export default function Sidebar() {
-  const { user, logout, isSuperAdmin, canAccessModule } = useAuth();
+  const { user, logout, isSuperAdmin, isViewer, canAccessModule } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   
   const filteredNavItems = navItems.filter(item => {
     // If it's a superOnly item, check isSuperAdmin
     if (item.superOnly && !isSuperAdmin) return false;
+    
+    // For Viewer role, only show Dashboard, Accreditations and QR System
+    if (isViewer) {
+      return ["Dashboard", "Accreditations", "QR System"].includes(item.label);
+    }
     
     // Check module permission
     return canAccessModule(item.to);
