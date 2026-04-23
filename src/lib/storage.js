@@ -195,6 +195,63 @@ export const ZonesAPI = {
     AuditAPI.log("zone_updated", { zoneId: id });
     return mapZoneFromDB(data);
   },
+  updateWithCascade: async (id, updates, oldCode) => {
+    // 1. Update the zone itself
+    const updatedZone = await ZonesAPI.update(id, updates);
+    const newCode = updates.code;
+
+    // 2. If code hasn't changed, we're done
+    if (!oldCode || oldCode === newCode) return updatedZone;
+
+    const eventId = updatedZone.eventId;
+
+    // 3. Cascade to Accreditations
+    const { data: accs } = await supabase
+      .from("accreditations")
+      .select("id, zone_code")
+      .eq("event_id", eventId)
+      .or(`zone_code.ilike.%${oldCode}%`);
+
+    if (accs && accs.length > 0) {
+      const accUpdates = accs.map(acc => {
+        const codes = acc.zone_code?.split(',').map(c => c.trim()).filter(Boolean) || [];
+        if (codes.includes(oldCode)) {
+          const newCodes = codes.map(c => c === oldCode ? newCode : c);
+          return { id: acc.id, zone_code: newCodes.join(', ') };
+        }
+        return null;
+      }).filter(Boolean);
+
+      // Perform updates sequentially or in small batches to avoid timeouts
+      for (const update of accUpdates) {
+        await supabase.from("accreditations").update({ zone_code: update.zone_code }).eq("id", update.id);
+      }
+    }
+
+    // 4. Cascade to Categories (Default Zone Codes)
+    const { data: cats } = await supabase
+      .from("categories")
+      .select("id, default_zone_codes")
+      .or(`default_zone_codes.ilike.%${oldCode}%`);
+
+    if (cats && cats.length > 0) {
+      const catUpdates = cats.map(cat => {
+        const codes = cat.default_zone_codes?.split(',').map(c => c.trim()).filter(Boolean) || [];
+        if (codes.includes(oldCode)) {
+          const newCodes = codes.map(c => c === oldCode ? newCode : c);
+          return { id: cat.id, default_zone_codes: newCodes.join(', ') };
+        }
+        return null;
+      }).filter(Boolean);
+
+      for (const update of catUpdates) {
+        await supabase.from("categories").update({ default_zone_codes: update.default_zone_codes }).eq("id", update.id);
+      }
+    }
+
+    AuditAPI.log("zone_code_cascaded", { zoneId: id, oldCode, newCode });
+    return updatedZone;
+  },
   delete: async (id) => {
     await handleResponse(() => supabase.from("zones").delete().eq("id", id));
     AuditAPI.log("zone_deleted", { zoneId: id });

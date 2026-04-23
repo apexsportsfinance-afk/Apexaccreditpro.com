@@ -158,8 +158,8 @@ export default function Zones() {
     setSaving(true);
     try {
       if (editingZone) {
-        await ZonesAPI.update(editingZone.id, formData);
-        toast.success("Zone updated successfully");
+        await ZonesAPI.updateWithCascade(editingZone.id, formData, editingZone.code);
+        toast.success("Zone and all linked accreditations updated");
       } else {
         await ZonesAPI.create({ ...formData, eventId: selectedEvent });
         toast.success("Zone created successfully");
