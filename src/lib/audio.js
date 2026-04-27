@@ -58,6 +58,44 @@ class AudioService {
     playBeep(200);
     playBeep(400);
   }
+
+  speak(text) {
+    if (!('speechSynthesis' in window)) return;
+    try {
+      // Cancel any ongoing speech to avoid stacking
+      window.speechSynthesis.cancel();
+      
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+      // Prioritize female-sounding voices
+      const voices = window.speechSynthesis.getVoices();
+      const femaleKeywords = ['female', 'zira', 'samantha', 'victoria', 'hazel', 'susan', 'helena', 'catherine', 'mary', 'linda', 'joan', 'elsa'];
+      
+      const femaleVoice = voices.find(v => {
+        const name = v.name.toLowerCase();
+        return femaleKeywords.some(kw => name.includes(kw)) &&
+               (v.lang.includes('en-US') || v.lang.includes('en-GB'));
+      });
+      
+      const preferredVoice = femaleVoice || voices.find(v => v.lang.includes('en-GB') || v.lang.includes('en-US'));
+      
+      if (preferredVoice) {
+        utterance.voice = preferredVoice;
+        // If we didn't explicitly find "female" in the name, still bump the pitch for the general English voice
+        if (!preferredVoice.name.toLowerCase().includes('female') && !femaleKeywords.some(kw => preferredVoice.name.toLowerCase().includes(kw))) {
+          utterance.pitch = 1.3;
+        }
+      } else {
+        utterance.pitch = 1.3;
+      }
+      
+      window.speechSynthesis.speak(utterance);
+    } catch (e) {
+      console.warn("Speech synthesis failed:", e);
+    }
+  }
 }
 
 export const audioService = new AudioService();
