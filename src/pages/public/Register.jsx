@@ -42,14 +42,49 @@ const DEFAULT_DOCUMENTS = [
   { id: "guardian_id", label: "Parent or Guardian ID", accept: "image/jpeg,image/png,image/webp,application/pdf" }
 ];
 
- function formatDateDisplay(dateStr) {
-  if (!dateStr) return "";
-  const parts = dateStr.split("-");
-  if (parts.length === 3) {
-    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  function formatDateDisplay(dateStr) {
+   if (!dateStr) return "";
+   const parts = dateStr.split("-");
+   if (parts.length === 3) {
+     return `${parts[2]}/${parts[1]}/${parts[0]}`;
+   }
+   return dateStr;
+ }
+
+const COUNTRY_PHONE_CODES = [
+  { code: "+971", country: "UAE" },
+  { code: "+966", country: "KSA" },
+  { code: "+965", country: "Kuwait" },
+  { code: "+968", country: "Oman" },
+  { code: "+974", country: "Qatar" },
+  { code: "+973", country: "Bahrain" },
+  { code: "+20", country: "Egypt" },
+  { code: "+962", country: "Jordan" },
+  { code: "+961", country: "Lebanon" },
+  { code: "+44", country: "UK" },
+  { code: "+1", country: "USA/Canada" },
+  { code: "+91", country: "India" },
+  { code: "+92", country: "Pakistan" },
+  { code: "+63", country: "Philippines" },
+];
+
+const formatEmiratesID = (value) => {
+  const digits = value.replace(/\D/g, "").substring(0, 15);
+  let formatted = "";
+  if (digits.length > 0) {
+    formatted = digits.substring(0, 3);
+    if (digits.length > 3) {
+      formatted += "-" + digits.substring(3, 7);
+      if (digits.length > 7) {
+        formatted += "-" + digits.substring(7, 14);
+        if (digits.length > 14) {
+          formatted += "-" + digits.substring(14, 15);
+        }
+      }
+    }
   }
-  return dateStr;
-}
+  return formatted;
+};
 
 export default function Register() {
   const { slug } = useParams();
@@ -88,6 +123,8 @@ export default function Register() {
     club: "",
     role: "",
     email: "",
+    countryCode: "+971",
+    phone: "",
     photo: null,
     idDocument: null,
     documents: {},
@@ -415,9 +452,18 @@ export default function Register() {
       setFormData((prev) => ({ ...prev, [name]: value, club: newClub, selectedSports: newSports }));
     } else if (name.startsWith("custom_")) {
       const fieldId = name.replace("custom_", "");
+      let finalValue = value;
+      
+      // Auto-format Emirates ID custom fields
+      const fieldConfig = customFieldsConfig.find(f => f.id === fieldId);
+      const label = (language === 'ar' ? fieldConfig?.label_ar : fieldConfig?.label_en) || '';
+      if (label.toLowerCase().includes("emirates id") || fieldId.toLowerCase().includes("eid") || fieldId.toLowerCase().includes("emirates_id")) {
+        finalValue = formatEmiratesID(value);
+      }
+
       setFormData((prev) => ({
         ...prev,
-        customFields: { ...prev.customFields, [fieldId]: value }
+        customFields: { ...prev.customFields, [fieldId]: finalValue }
       }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
@@ -580,6 +626,7 @@ export default function Register() {
         club: formData.club,
         role: formData.role,
         email: formData.email,
+        phone: `${formData.countryCode}${formData.phone}`,
         selectedSports: (formData.selectedSports && formData.selectedSports.length > 0) ? formData.selectedSports : (formData.sportName ? [formData.sportName] : []),
         // APX-Fix: Use actual document IDs from event config, not hardcoded 'picture'/'passport'
         photoUrl: (firstDoc ? formData.documents[firstDoc.id] : null) || formData.documents['picture'] || formData.photo,
@@ -1186,16 +1233,33 @@ export default function Register() {
                     />
                   </div>
                   <div className="flex flex-col h-full">
-                    <Input
-                      label={t("phone")}
-                      name="phone"
-                      value={formData.phone || ""}
-                      onChange={handleInputChange}
-                      error={errors.phone}
-                      placeholder="+971 50 123 4567"
-                      icon={Smartphone}
-                      light
-                    />
+                    <label className={`block text-lg font-medium text-slate-700 mb-1.5 ${language === "ar" ? "text-right" : ""}`}>
+                      {t("phone")}
+                    </label>
+                    <div className="flex gap-2">
+                      <select
+                        name="countryCode"
+                        value={formData.countryCode}
+                        onChange={handleInputChange}
+                        className="w-24 px-3 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-700 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all outline-none font-medium"
+                      >
+                        {COUNTRY_PHONE_CODES.map(c => (
+                          <option key={c.code} value={c.code}>{c.code} ({c.country})</option>
+                        ))}
+                      </select>
+                      <div className="flex-1 relative">
+                        <input
+                          type="tel"
+                          name="phone"
+                          value={formData.phone}
+                          onChange={handleInputChange}
+                          className={`w-full px-4 py-3 pl-11 rounded-xl border-2 transition-all outline-none text-slate-700 font-medium bg-white border-slate-200 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10`}
+                          placeholder="50 123 4567"
+                        />
+                        <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                      </div>
+                    </div>
+                    {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
                   </div>
                 </div>
               </div>

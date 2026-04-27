@@ -630,8 +630,7 @@ export const AccreditationsAPI = {
       status: "approved",
       zone_code: zoneCode,
       badge_number: badgeNumber,
-      accreditation_id: accreditationId,
-      approved_at: new Date().toISOString()
+      accreditation_id: accreditationId
     };
     if (role) updateData.role = role;
 

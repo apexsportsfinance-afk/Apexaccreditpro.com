@@ -99,6 +99,9 @@ export const sendApprovalEmail = async ({
       customSubject = replacePlaceholders(template.subject, vars);
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
     const response = await fetch(
       `${SUPABASE_URL}/functions/v1/send-accreditation-email`,
       {
@@ -107,6 +110,7 @@ export const sendApprovalEmail = async ({
           "Content-Type": "application/json",
           "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
         },
+        signal: controller.signal,
         body: JSON.stringify({
           to,
           name,
@@ -126,6 +130,8 @@ export const sendApprovalEmail = async ({
         })
       }
     );
+
+    clearTimeout(timeoutId);
 
     const data = await response.json();
 
@@ -230,6 +236,9 @@ export const sendCustomEmail = async ({
     }
     console.log("[Email] Attempting to send via Edge Function...", payload.to);
     
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     const response = await fetch(
       `${SUPABASE_URL}/functions/v1/send-accreditation-email`,
       {
@@ -238,10 +247,12 @@ export const sendCustomEmail = async ({
           "Content-Type": "application/json",
           "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
         },
+        signal: controller.signal,
         body: JSON.stringify(payload)
       }
     );
 
+    clearTimeout(timeoutId);
     const data = await response.json();
     console.log("[Email] Edge Function Response:", data);
 

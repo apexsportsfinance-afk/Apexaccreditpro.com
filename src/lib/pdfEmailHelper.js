@@ -129,6 +129,7 @@ export const generatePdfForAccreditation = async (accreditation, event, zones, p
     height: 454,
     windowWidth: 320,
     windowHeight: 454,
+    windowHeight: 454,
   };
 
   const frontCanvas = await html2canvas(frontEl, captureOpts);
