@@ -5,18 +5,18 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: true,
-    port: 5173,
+    port: 5180,
     strictPort: false,
     allowedHosts: true,
     hmr: { overlay: true },
     proxy: {
       '/api/bridge': {
-        target: 'http://localhost:5000',
+        target: 'http://localhost:5001',
         changeOrigin: true,
         secure: false
       },
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'http://localhost:3002',
         changeOrigin: true,
         secure: false
       }

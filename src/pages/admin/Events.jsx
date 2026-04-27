@@ -19,6 +19,7 @@ import {
   PlusCircle,
   X,
   FileText,
+  FileEdit,
   AlertCircle,
   ChevronLeft,
   ArrowRight,
@@ -76,6 +77,25 @@ const toProperCase = (str) => {
   return str.toLowerCase().replace(/(^\w|\s\w)/g, m => m.toUpperCase());
 };
 
+const OVERRIDABLE_FIELDS = [
+  { id: 'personalInfo', label: 'Personal Info Heading' },
+  { id: 'firstName', label: 'First Name' },
+  { id: 'lastName', label: 'Last Name' },
+  { id: 'gender', label: 'Gender' },
+  { id: 'dateOfBirth', label: 'Date of Birth' },
+  { id: 'nationality', label: 'Nationality' },
+  { id: 'affiliation_info', label: 'Affiliation Heading' },
+  { id: 'category_role', label: 'Category/Role' },
+  { id: 'organization', label: 'Organization/Club' },
+  { id: 'participatingSports', label: 'Participating Sports' },
+  { id: 'contact_details', label: 'Contact Details Heading' },
+  { id: 'email', label: 'Email' },
+  { id: 'phone', label: 'Phone Number' },
+  { id: 'documents', label: 'Documents Heading' },
+  { id: 'termsLink', label: 'Terms & Conditions Link' },
+  { id: 'submit', label: 'Submit Button' }
+];
+
 export default function Events() {
   const { id, subpage } = useParams();
   const navigate = useNavigate();
@@ -92,6 +112,11 @@ export default function Events() {
   const [deleteModal, setDeleteModal] = useState({ open: false, event: null });
   const [deleting, setDeleting] = useState(false);
   const [availableCategories, setAvailableCategories] = useState([]);
+  const [duplicateError, setDuplicateError] = useState(null);
+  const [customFieldsConfig, setCustomFieldsConfig] = useState([]);
+  const [visibilityConfig, setVisibilityConfig] = useState({ affiliation: true, contact: true, documents: true });
+  const [showLabelOverrides, setShowLabelOverrides] = useState(false);
+  const [showCustomFields, setShowCustomFields] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     slug: "",
@@ -108,10 +133,13 @@ export default function Events() {
     logoUrl: "",
     backTemplateUrl: "",
     sponsorLogos: [],
+    customFields: [],
+    visibility: { affiliation: true, contact: true, documents: true },
     requiredDocuments: [
       { id: "picture", label: "Picture", format: "JPEG, PNG, WEBP" },
       { id: "passport", label: "Passport", format: "JPEG, PNG, WEBP, PDF" }
-    ]
+    ],
+    labelOverrides: {}
   });
   const [localClosedMessage, setLocalClosedMessage] = useState("");
   const [isSavingMessage, setIsSavingMessage] = useState(false);
@@ -177,36 +205,80 @@ export default function Events() {
       logoUrl: "",
       backTemplateUrl: "",
       sponsorLogos: [],
+      customFields: [],
+      visibility: { affiliation: true, contact: true, documents: true },
       requiredDocuments: [
         { id: "picture", label: "Picture", format: "JPEG, PNG, WEBP" },
         { id: "passport", label: "Passport", format: "JPEG, PNG, WEBP, PDF" }
-      ]
+      ],
+      labelOverrides: {}
     });
     setEditingEvent(null);
   };
 
   const handleOpenModal = async (event = null) => {
     if (event) {
+      // 1. Initialize variables with defaults
       let extSport = ["Swimming"];
+      let customFields = [];
+      let visibility = { affiliation: true, contact: true, documents: true };
+
+      // 2. Fetch all data in parallel
       try {
-        const val = await GlobalSettingsAPI.get(`event_${event.id}_sport`);
-        if (val) {
+        const [sportRes, customFieldsRes, visibilityRes, labelsRes] = await Promise.all([
+          GlobalSettingsAPI.get(`event_${event.id}_sport`).catch(() => null),
+          GlobalSettingsAPI.get(`event_${event.id}_custom_fields`).catch(() => null),
+          GlobalSettingsAPI.get(`event_${event.id}_visibility`).catch(() => null),
+          GlobalSettingsAPI.get(`event_${event.id}_label_overrides`).catch(() => null)
+        ]);
+
+        // Process Sports
+        if (sportRes) {
           try {
-            const parsed = JSON.parse(val);
-            if (Array.isArray(parsed)) {
-              extSport = parsed;
-            } else if (typeof val === 'string') {
-              extSport = [val]; // Legacy single string
-            }
-          } catch(e1) {
-             extSport = [val]; // Legacy single string
+            const parsed = JSON.parse(sportRes);
+            extSport = Array.isArray(parsed) ? parsed : [parsed];
+          } catch {
+            extSport = [sportRes];
           }
         } else if (event.sportList && event.sportList.length > 0) {
-          // Priority 2: Use sportList from DB column
           extSport = event.sportList;
         }
-      } catch (e) {}
 
+        // Process Custom Fields
+        if (customFieldsRes) {
+          try {
+            customFields = JSON.parse(customFieldsRes);
+            setCustomFieldsConfig(customFields);
+          } catch (e) {
+            console.error("Parse custom fields error", e);
+          }
+        }
+
+        // Process Visibility
+        if (visibilityRes) {
+          try {
+            visibility = JSON.parse(visibilityRes);
+            setVisibilityConfig(visibility);
+          } catch (e) {
+            console.error("Parse visibility error", e);
+          }
+        }
+
+        // Process Label Overrides
+        let labels = {};
+        if (labelsRes) {
+          try {
+            labels = JSON.parse(labelsRes);
+          } catch (e) {
+            console.error("Parse labels error", e);
+          }
+        }
+        event.labelOverrides = labels;
+      } catch (err) {
+        console.error("Failed to load event settings", err);
+      }
+
+      // 3. Set editing state and form data
       setEditingEvent(event);
       setFormData({
         name: event.name,
@@ -224,9 +296,10 @@ export default function Events() {
         logoUrl: event.logoUrl || "",
         backTemplateUrl: event.backTemplateUrl || "",
         sponsorLogos: event.sponsorLogos || [],
+        customFields: customFields,
+        visibility: visibility,
         requiredDocuments: (() => {
           const docs = event.requiredDocuments || ["picture", "passport"];
-          // Backward compatibility: Convert strings to objects if needed
           return docs.map(doc => {
             if (typeof doc === 'string') {
               const option = DOCUMENT_OPTIONS.find(d => d.id === doc);
@@ -238,7 +311,8 @@ export default function Events() {
             }
             return doc;
           });
-        })()
+        })(),
+        labelOverrides: event.labelOverrides || {}
       });
     } else {
       resetForm();
@@ -294,6 +368,32 @@ export default function Events() {
     }));
   };
 
+  const addCustomField = () => {
+    setFormData(prev => ({
+      ...prev,
+      customFields: [
+        ...(prev.customFields || []),
+        { id: `cf_${Date.now()}`, label_en: "", label_ar: "", type: "text", required: false, options: "" }
+      ]
+    }));
+  };
+
+  const removeCustomField = (id) => {
+    setFormData(prev => ({
+      ...prev,
+      customFields: (prev.customFields || []).filter(cf => cf.id !== id)
+    }));
+  };
+
+  const updateCustomField = (id, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      customFields: (prev.customFields || []).map(cf => 
+        cf.id === id ? { ...cf, [field]: value } : cf
+      )
+    }));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.name || !formData.slug || !formData.startDate || !formData.endDate) {
@@ -325,6 +425,9 @@ export default function Events() {
         
         if (savedEventId) {
           await GlobalSettingsAPI.set(`event_${savedEventId}_sport`, formData.sportList);
+          await GlobalSettingsAPI.set(`event_${savedEventId}_custom_fields`, JSON.stringify(formData.customFields || []));
+          await GlobalSettingsAPI.set(`event_${savedEventId}_visibility`, JSON.stringify(formData.visibility || { affiliation: true, contact: true, documents: true }));
+          await GlobalSettingsAPI.set(`event_${savedEventId}_label_overrides`, JSON.stringify(formData.labelOverrides || {}));
         }
 
         handleCloseModal();
@@ -1308,6 +1411,247 @@ export default function Events() {
                 <AlertCircle className="w-4 h-4" />
                 Please add at least one required document for registration.
               </p>
+            )}
+          </div>
+
+          {/* Form Visibility Settings */}
+          <div className="border-t border-slate-700 pt-6">
+            <label className="block text-lg font-medium text-slate-300 mb-3">
+              <div className="flex items-center gap-2">
+                <Shield className="w-5 h-5 text-sky-400" />
+                Form Section Visibility
+              </div>
+            </label>
+            <p className="text-lg text-slate-500 mb-6">
+              Toggle which core sections are visible on the registration form.
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-center p-3 bg-slate-900/50 border border-slate-700 rounded-xl">
+                <label className="flex items-center gap-3 cursor-pointer w-full">
+                  <input
+                    type="checkbox"
+                    checked={formData.visibility?.affiliation}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      visibility: { ...prev.visibility, affiliation: e.target.checked }
+                    }))}
+                    className="w-5 h-5 rounded border-slate-700 bg-slate-900 text-primary-500"
+                  />
+                  <div>
+                    <span className="block text-sm font-semibold text-slate-200">Affiliation Section</span>
+                    <span className="block text-xs text-slate-500">Category/Role, Organization, Club</span>
+                  </div>
+                </label>
+              </div>
+              <div className="flex items-center p-3 bg-slate-900/50 border border-slate-700 rounded-xl">
+                <label className="flex items-center gap-3 cursor-pointer w-full">
+                  <input
+                    type="checkbox"
+                    checked={formData.visibility?.contact}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      visibility: { ...prev.visibility, contact: e.target.checked }
+                    }))}
+                    className="w-5 h-5 rounded border-slate-700 bg-slate-900 text-primary-500"
+                  />
+                  <div>
+                    <span className="block text-sm font-semibold text-slate-200">Contact Details</span>
+                    <span className="block text-xs text-slate-500">Email, Phone, Communication</span>
+                  </div>
+                </label>
+              </div>
+              <div className="flex items-center p-3 bg-slate-900/50 border border-slate-700 rounded-xl">
+                <label className="flex items-center gap-3 cursor-pointer w-full">
+                  <input
+                    type="checkbox"
+                    checked={formData.visibility?.documents}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      visibility: { ...prev.visibility, documents: e.target.checked }
+                    }))}
+                    className="w-5 h-5 rounded border-slate-700 bg-slate-900 text-primary-500"
+                  />
+                  <div>
+                    <span className="block text-sm font-semibold text-slate-200">Documents Section</span>
+                    <span className="block text-xs text-slate-500">Photo, ID, Custom Documents</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Field Label Overrides */}
+          <div className="border-t border-slate-700 pt-6">
+            <button 
+              type="button"
+              onClick={() => setShowLabelOverrides(!showLabelOverrides)}
+              className="w-full flex items-center justify-between group text-left"
+            >
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <FileEdit className="w-5 h-5 text-amber-400 group-hover:rotate-12 transition-transform" />
+                  <span className="text-lg font-medium text-slate-300">Standard Field Label Overrides</span>
+                </div>
+                <p className="text-sm text-slate-500">
+                  Customize the display names of standard form fields.
+                </p>
+              </div>
+              <div className={`p-1.5 rounded-lg bg-slate-800 text-slate-400 transition-all ${showLabelOverrides ? 'rotate-180 bg-amber-500/10 text-amber-500' : 'group-hover:bg-slate-700'}`}>
+                <ChevronDown className="w-5 h-5" />
+              </div>
+            </button>
+            
+            {showLabelOverrides && (
+              <motion.div 
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="overflow-hidden"
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 pt-6 pb-2">
+                  {OVERRIDABLE_FIELDS.map((field) => (
+                    <div key={field.id} className="space-y-1.5">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">
+                        {field.label}
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.labelOverrides?.[field.id] || ""}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          labelOverrides: {
+                            ...(prev.labelOverrides || {}),
+                            [field.id]: e.target.value
+                          }
+                        }))}
+                        placeholder={`Custom ${field.label}...`}
+                        className="w-full px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-600 focus:ring-1 focus:ring-amber-500 outline-none transition-all"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </div>
+
+          {/* Custom Fields Configuration */}
+          <div className="border-t border-slate-700 pt-6">
+            <button 
+              type="button"
+              onClick={() => setShowCustomFields(!showCustomFields)}
+              className="w-full flex items-center justify-between group text-left"
+            >
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <PlusCircle className="w-5 h-5 text-emerald-400 group-hover:rotate-12 transition-transform" />
+                  <span className="text-lg font-medium text-slate-300">Custom Fields (Requirements)</span>
+                </div>
+                <p className="text-sm text-slate-500">
+                  Add extra fields for athletes to fill (e.g. Emirates, Region).
+                </p>
+              </div>
+              <div className={`p-1.5 rounded-lg bg-slate-800 text-slate-400 transition-all ${showCustomFields ? 'rotate-180 bg-emerald-500/10 text-emerald-500' : 'group-hover:bg-slate-700'}`}>
+                <ChevronDown className="w-5 h-5" />
+              </div>
+            </button>
+            
+            {showCustomFields && (
+              <motion.div 
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="overflow-hidden"
+              >
+                <div className="space-y-4 pt-6 pb-2">
+                  {(formData.customFields || []).map((field, index) => (
+                    <div 
+                      key={field.id} 
+                      className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-4 relative group space-y-4"
+                    >
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Label (English) *</label>
+                          <input
+                            type="text"
+                            value={field.label_en}
+                            onChange={(e) => updateCustomField(field.id, 'label_en', e.target.value)}
+                            placeholder="e.g. Emirates"
+                            className="w-full px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-600 focus:ring-1 focus:ring-primary-500 outline-none transition-all"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Label (Arabic) *</label>
+                          <input
+                            type="text"
+                            value={field.label_ar}
+                            onChange={(e) => updateCustomField(field.id, 'label_ar', e.target.value)}
+                            placeholder="مثال: الإمارة"
+                            className="w-full px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-600 focus:ring-1 focus:ring-primary-500 outline-none transition-all text-right font-arabic"
+                            dir="rtl"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Field Type</label>
+                          <select
+                            value={field.type}
+                            onChange={(e) => updateCustomField(field.id, 'type', e.target.value)}
+                            className="w-full px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white outline-none focus:ring-1 focus:ring-primary-500 transition-all"
+                          >
+                            <option value="text">Single Line Text</option>
+                            <option value="select">Dropdown Menu</option>
+                          </select>
+                        </div>
+                        <div className="flex items-center h-full pt-6">
+                          <label className="flex items-center gap-2 cursor-pointer group/check">
+                            <input
+                              type="checkbox"
+                              checked={field.required}
+                              onChange={(e) => updateCustomField(field.id, 'required', e.target.checked)}
+                              className="w-5 h-5 rounded border-slate-700 bg-slate-900 text-primary-500 focus:ring-primary-500/50"
+                            />
+                            <span className="text-sm font-medium text-slate-400 group-hover/check:text-slate-200 transition-colors">Required Field</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {field.type === 'select' && (
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Options (Comma separated) *</label>
+                          <input
+                            type="text"
+                            value={field.options}
+                            onChange={(e) => updateCustomField(field.id, 'options', e.target.value)}
+                            placeholder="Dubai, Abu Dhabi, Sharjah..."
+                            className="w-full px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-600 focus:ring-1 focus:ring-primary-500 outline-none transition-all"
+                          />
+                        </div>
+                      )}
+                      
+                      <button
+                        type="button"
+                        onClick={() => removeCustomField(field.id)}
+                        className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100"
+                        title="Remove Field"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  
+                  <button
+                    type="button"
+                    onClick={addCustomField}
+                    className="w-full py-4 border-2 border-dashed border-slate-700 rounded-xl text-slate-400 hover:text-emerald-400 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all flex items-center justify-center gap-2 group"
+                  >
+                    <PlusCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    <span className="font-semibold text-lg">Add Custom Requirement Field</span>
+                  </button>
+                </div>
+              </motion.div>
             )}
           </div>
 

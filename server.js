@@ -56,7 +56,7 @@ app.post('/api/bridge/results', upload.array('files'), async (req, res) => {
       formData.append('files', blob, file.originalname);
     }
 
-    const response = await fetch('http://127.0.0.1:5000/api/bridge/results', {
+    const response = await fetch('http://127.0.0.1:5001/api/bridge/results', {
       method: 'POST',
       body: formData
     });
@@ -89,7 +89,7 @@ app.get('/api/images/:filename', (req, res) => {
   res.sendFile(filePath);
 });
 
-const PORT = 3001;
+const PORT = 3002;
 app.listen(PORT, () => {
   console.log(`Secure Upload Server running on port ${PORT}`);
 });

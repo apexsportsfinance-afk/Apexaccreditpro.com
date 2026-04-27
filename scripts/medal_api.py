@@ -100,4 +100,4 @@ def upload_results():
 
 if __name__ == '__main__':
     print("Starting HY-TEK Parsing Engine Bridge...")
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5001)

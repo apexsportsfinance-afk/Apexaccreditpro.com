@@ -1187,15 +1187,17 @@ function mapAccreditationToDB(acc) {
     remarks: 'remarks', badgeColor: 'badge_color', forceLive: 'force_live',
     paymentStatus: 'payment_status', paymentAmount: 'payment_amount',
     stripeSessionId: 'stripe_session_id', documents: 'documents',
-    selectedSports: 'selected_sports'
+    selectedSports: 'selected_sports', customMessage: 'custom_message'
   };
 
   Object.keys(fields).forEach(k => { if (acc[k] !== undefined) map[fields[k]] = acc[k]; });
   
   // Custom message/meta docs
-  let meta = {};
+  let meta = acc.customMessage ? (typeof acc.customMessage === 'string' ? JSON.parse(acc.customMessage) : { ...acc.customMessage }) : {};
   if (acc.eidUrl) meta.eidUrl = acc.eidUrl;
   if (acc.medicalUrl) meta.medicalUrl = acc.medicalUrl;
+  if (acc.customFields) meta = { ...meta, ...(typeof acc.customFields === 'string' ? JSON.parse(acc.customFields) : acc.customFields) };
+  
   if (Object.keys(meta).length > 0) map.custom_message = JSON.stringify(meta);
   
   return map;

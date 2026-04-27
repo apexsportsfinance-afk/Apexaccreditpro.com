@@ -33,6 +33,7 @@ import { EventsAPI, AccreditationsAPI, EventCategoriesAPI, CategoriesAPI } from 
 import { COUNTRIES, ROLES, validateFile, fileToBase64 } from "../../lib/utils";
 import { SportEventsAPI, GlobalSettingsAPI } from "../../lib/broadcastApi";
 import { uploadToStorage } from "../../lib/uploadToStorage";
+import { registerTranslations } from "../../lib/translations";
 
 const DEFAULT_DOCUMENTS = [
   { id: "picture", label: "Picture", accept: "image/jpeg,image/png,image/webp" },
@@ -41,7 +42,7 @@ const DEFAULT_DOCUMENTS = [
   { id: "guardian_id", label: "Parent or Guardian ID", accept: "image/jpeg,image/png,image/webp,application/pdf" }
 ];
 
-function formatDateDisplay(dateStr) {
+ function formatDateDisplay(dateStr) {
   if (!dateStr) return "";
   const parts = dateStr.split("-");
   if (parts.length === 3) {
@@ -52,6 +53,22 @@ function formatDateDisplay(dateStr) {
 
 export default function Register() {
   const { slug } = useParams();
+  const [language, setLanguage] = useState(localStorage.getItem("register_lang") || "en");
+  
+  const t = (key) => {
+    // Check for label overrides from event config first
+    if (labelOverrides && labelOverrides[key]) {
+      return labelOverrides[key];
+    }
+    // Fallback to translations
+    return registerTranslations[language]?.[key] || registerTranslations["en"]?.[key] || key;
+  };
+
+  const toggleLanguage = () => {
+    const newLang = language === "en" ? "ar" : "en";
+    setLanguage(newLang);
+    localStorage.setItem("register_lang", newLang);
+  };
   const [documentOptions, setDocumentOptions] = useState([]);
   const [globalCategories, setGlobalCategories] = useState([]); // Buffer for UUID-to-Name resolution
   const [event, setEvent] = useState(null);
@@ -75,7 +92,8 @@ export default function Register() {
     idDocument: null,
     documents: {},
     sportName: "",
-    selectedSports: []
+    selectedSports: [],
+    customFields: {}
   });
   const [selectedSportEvents, setSelectedSportEvents] = useState([]);
   const [teamRoles, setTeamRoles] = useState(["athlete", "coach", "head coach", "team admin", "team doctor", "team manager", "team official", "team physiotherapist"]);
@@ -83,10 +101,13 @@ export default function Register() {
   const [termsModalOpen, setTermsModalOpen] = useState(false);
   const [hasViewedTerms, setHasViewedTerms] = useState(false);
   const [duplicateError, setDuplicateError] = useState(null);
+  const [customFieldsConfig, setCustomFieldsConfig] = useState([]);
   const [clubs, setClubs] = useState([]);
   const [categoryAllowlist, setCategoryAllowlist] = useState({});
   const [categorySports, setCategorySports] = useState({});
   const [categoryDocuments, setCategoryDocuments] = useState({});
+  const [visibilityConfig, setVisibilityConfig] = useState({ affiliation: true, contact: true, documents: true });
+  const [labelOverrides, setLabelOverrides] = useState({});
 
   useEffect(() => {
     const loadEvent = async () => {
@@ -180,13 +201,40 @@ export default function Register() {
         console.error("Failed to load sport:", err);
       }
 
+      // Load custom fields
+      try {
+        const val = await GlobalSettingsAPI.get(`event_${eventData.id}_custom_fields`);
+        if (val) {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed)) setCustomFieldsConfig(parsed);
+        }
+      } catch (e) {
+        console.error("Failed to load custom fields config", e);
+      }
+
+      // Load visibility settings
+      try {
+        const val = await GlobalSettingsAPI.get(`event_${eventData.id}_visibility`);
+        if (val) {
+          const parsed = JSON.parse(val);
+          if (parsed && typeof parsed === 'object') setVisibilityConfig(parsed);
+        }
+      } catch (e) {
+        console.error("Failed to load visibility settings", e);
+      }
+
+      // Load label overrides
+      try {
+        const val = await GlobalSettingsAPI.get(`event_${eventData.id}_label_overrides`);
+        if (val) setLabelOverrides(JSON.parse(val));
+      } catch (e) {
+        console.error("Failed to load label overrides", e);
+      }
+
       // Re-set event state with all properties including fetched ones
       setEvent({ ...eventData });
       
-      // Auto-select sport if only one is available
-      if (eventData.sportList && eventData.sportList.length === 1) {
-        setFormData(prev => ({ ...prev, sportName: eventData.sportList[0], selectedSports: [eventData.sportList[0]] }));
-      }
+      // Removed auto-select sports logic per request
       }
       setLoading(false);
     };
@@ -365,6 +413,12 @@ export default function Register() {
       }
 
       setFormData((prev) => ({ ...prev, [name]: value, club: newClub, selectedSports: newSports }));
+    } else if (name.startsWith("custom_")) {
+      const fieldId = name.replace("custom_", "");
+      setFormData((prev) => ({
+        ...prev,
+        customFields: { ...prev.customFields, [fieldId]: value }
+      }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
@@ -436,30 +490,52 @@ export default function Register() {
     if (!formData.gender) newErrors.gender = "Gender is required";
     if (!formData.dateOfBirth) newErrors.dateOfBirth = "Date of birth is required";
     if (!formData.nationality) newErrors.nationality = "Nationality is required";
-    if (!formData.club.trim()) newErrors.club = "Organization/Club/Academy is required";
-    if (!formData.role) newErrors.role = "Role is required";
-    const isTeamRole = formData.role && (teamRoles.includes(formData.role.toLowerCase()) || formData.role.toLowerCase().includes("athlete") || formData.role.toLowerCase().includes("coach"));
-    const selectedCat = eventCategories.find(c => c.name === formData.role);
-    const catId = selectedCat ? selectedCat.id : formData.role;
-    const hasCategorySports = categorySports && categorySports[catId] && categorySports[catId].length > 0;
+    
+    // Conditional validation for Affiliation
+    if (visibilityConfig.affiliation !== false) {
+      if (!formData.club.trim()) newErrors.club = "Organization/Club/Academy is required";
+      if (!formData.role) newErrors.role = "Role is required";
+      
+      const isTeamRole = formData.role && (teamRoles.includes(formData.role.toLowerCase()) || formData.role.toLowerCase().includes("athlete") || formData.role.toLowerCase().includes("coach"));
+      const selectedCat = eventCategories.find(c => c.name === formData.role);
+      const catId = selectedCat ? selectedCat.id : formData.role;
+      const hasCategorySports = categorySports && categorySports[catId] && categorySports[catId].length > 0;
 
-    if ((isTeamRole || hasCategorySports) && event?.sportList && event.sportList.length > 0 && (!formData.selectedSports || formData.selectedSports.length === 0)) {
-      newErrors.sportName = "Sport selection is required";
+      if ((isTeamRole || hasCategorySports) && event?.sportList && event.sportList.length > 0 && (!formData.selectedSports || formData.selectedSports.length === 0)) {
+        newErrors.sportName = "Sport selection is required";
+      }
     }
-    if (!formData.email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = "Invalid email format";
+
+    // Conditional validation for Contact
+    if (visibilityConfig.contact !== false) {
+      if (!formData.email.trim()) {
+        newErrors.email = "Email is required";
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        newErrors.email = "Invalid email format";
+      }
     }
+
+    // Conditional validation for Documents
+    if (visibilityConfig.documents !== false) {
+      const reqDocs = getRequiredDocuments();
+      reqDocs.forEach((doc) => {
+        if (!formData.documents[doc.id]) {
+          newErrors[`doc_${doc.id}`] = `${doc.label} is required`;
+        }
+      });
+    }
+
     if (!termsAccepted) {
       newErrors.terms = "You must accept the terms and conditions";
     }
-    const reqDocs = getRequiredDocuments();
-    reqDocs.forEach((doc) => {
-      if (!formData.documents[doc.id]) {
-        newErrors[`doc_${doc.id}`] = `${doc.label} is required`;
+
+    // Validation for Custom Fields
+    customFieldsConfig.forEach(field => {
+      if (field.required && !formData.customFields[field.id]) {
+        newErrors[`custom_${field.id}`] = `${language === 'ar' ? field.label_ar : field.label_en} is required`;
       }
     });
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -510,7 +586,8 @@ export default function Register() {
         idDocumentUrl: (secondDoc ? formData.documents[secondDoc.id] : null) || formData.documents['passport'] || formData.idDocument,
         eidUrl: formData.documents['eid'] || null,
         medicalUrl: formData.documents['medical'] || formData.documents['guardian_id'] || null,
-        documents: formData.documents // APX: Pass all documents for storage.js mapping
+        documents: formData.documents, // APX: Pass all documents for storage.js mapping
+        customFields: formData.customFields
       }, submissionSecret);
       setSubmitted(true);
     } catch (error) {
@@ -613,7 +690,7 @@ export default function Register() {
                 </div>
 
                 <h1 className="text-2xl md:text-3xl font-black text-slate-900 mb-2 tracking-tight uppercase leading-none">
-                  Registration is closed
+                  {t("registrationClosed")}
                 </h1>
                 
                 <h2 className="text-lg md:text-xl font-bold text-primary-600 mb-6 tracking-tight uppercase opacity-90">
@@ -629,7 +706,7 @@ export default function Register() {
                     </div>
                   ) : (
                     <p className="text-base text-slate-500 font-medium italic">
-                      Please contact event organizers for assistance.
+                      {language === "ar" ? "يرجى الاتصال بمنظمي الحدث للحصول على المساعدة." : "Please contact event organizers for assistance."}
                     </p>
                   )}
                 </div>
@@ -676,14 +753,22 @@ export default function Register() {
               <CheckCircle className="w-10 h-10 text-white" />
               <Droplets className="absolute -top-2 -right-2 w-6 h-6 text-cyan-400 animate-bounce" />
             </motion.div>
-            <h1 className="text-2xl font-bold text-slate-800 mb-3">Registration Submitted!</h1>
-            <p className="text-lg text-slate-600 mb-6">
-              Your accreditation request for <span className="font-semibold text-cyan-700">{event.name}</span> has been successfully submitted.
-              You will receive an email notification within 24 hours confirming whether your accreditation has been approved or rejected. Please make sure to check your spam/junk folder as well.
+            <h1 className="text-2xl font-bold text-slate-800 mb-3" dir={language === 'ar' ? 'rtl' : 'ltr'}>{t("successTitle")}</h1>
+            <p className="text-lg text-slate-600 mb-6" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+              {t("successDesc").replace("{event}", event.name)}
             </p>
-            <div className="bg-white border-2 border-cyan-200 rounded-xl p-4 shadow-inner">
-              <p className="text-lg text-slate-500 mb-1">Reference Email</p>
+            <div className="bg-white border-2 border-cyan-200 rounded-xl p-4 shadow-inner" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+              <p className="text-lg text-slate-500 mb-1">{language === 'ar' ? 'البريد الإلكتروني المرجعي' : 'Reference Email'}</p>
               <p className="text-xl font-mono text-slate-800 font-semibold">{formData.email}</p>
+            </div>
+            <div className="mt-6" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+              <Button
+                onClick={() => window.location.reload()}
+                variant="outline"
+                className="w-full"
+              >
+                {t("registerAnother")}
+              </Button>
             </div>
             <div className="mt-6">
               <Link to="/">
@@ -703,7 +788,13 @@ export default function Register() {
   return (
     <SwimmingBackground>
       <div id="register_page" className="min-h-screen relative py-8 px-4 text-main font-body">
-        <div className="absolute top-4 right-4 z-50">
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+          <button
+            onClick={toggleLanguage}
+            className="px-3 py-1.5 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/30 rounded-lg text-white font-bold transition-all flex items-center gap-2 shadow-lg"
+          >
+            {language === "en" ? "العربية" : "English"}
+          </button>
           <ThemeToggle />
         </div>
         <div className="absolute top-20 right-10 opacity-20 pointer-events-none">
@@ -721,6 +812,7 @@ export default function Register() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-center mb-8"
+            dir={language === "ar" ? "rtl" : "ltr"}
           >
             {event.logoUrl ? (
               <div className="w-full max-w-[500px] mx-auto mb-8 bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-cyan-300 shadow-2xl shadow-cyan-500/20 relative">
@@ -742,7 +834,7 @@ export default function Register() {
               {event.name}
             </h1>
             <h2 className="text-xl lg:text-2xl text-cyan-100 font-bold drop-shadow-md">
-              Accreditation Registration Form
+              {t("formTitle")}
             </h2>
             <p className="text-lg text-white/90 mt-4 font-medium drop-shadow-md">
               {event.location} • {formatDateDisplay(event.startDate)} to {formatDateDisplay(event.endDate)}
@@ -755,10 +847,11 @@ export default function Register() {
             transition={{ delay: 0.1 }}
             onSubmit={handleSubmit}
             noValidate
-            className="bg-white light-form border border-border/50 rounded-2xl p-6 lg:p-8 space-y-6 shadow-2xl relative overflow-hidden transition-colors"
+            dir={language === "ar" ? "rtl" : "ltr"}
+            className={`bg-white light-form border border-border/50 rounded-2xl p-6 lg:p-8 space-y-6 shadow-2xl relative overflow-hidden transition-colors ${language === "ar" ? "font-arabic" : ""}`}
           >
-            <div className="absolute top-0 left-1/3 w-px h-full bg-gradient-to-b from-cyan-200/0 via-cyan-200/20 to-cyan-200/0 pointer-events-none" />
-            <div className="absolute top-0 right-1/3 w-px h-full bg-gradient-to-b from-cyan-200/0 via-cyan-200/20 to-cyan-200/0 pointer-events-none" />
+            <div className={`absolute top-0 ${language === "ar" ? "right-1/3" : "left-1/3"} w-px h-full bg-gradient-to-b from-cyan-200/0 via-cyan-200/20 to-cyan-200/0 pointer-events-none`} />
+            <div className={`absolute top-0 ${language === "ar" ? "left-1/3" : "right-1/3"} w-px h-full bg-gradient-to-b from-cyan-200/0 via-cyan-200/20 to-cyan-200/0 pointer-events-none`} />
 
             {duplicateError && (
               <motion.div
@@ -784,48 +877,46 @@ export default function Register() {
 
             <div className="space-y-4 relative z-50">
               <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">
-                <User className="w-6 h-6 text-cyan-600" />
-                Personal Information
+                <User className={`${language === "ar" ? "ml-2" : ""}`} />
+                {t("personalInfo")}
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
-                  label="First Name"
+                  label={t("firstName")}
                   name="firstName"
                   value={formData.firstName}
                   onChange={handleInputChange}
                   error={errors.firstName}
                   required
-                  placeholder="Enter first name"
+                  placeholder={t("placeholderFirstName")}
                   light
                 />
                 <Input
-                  label="Last Name"
+                  label={t("lastName")}
                   name="lastName"
                   value={formData.lastName}
                   onChange={handleInputChange}
                   error={errors.lastName}
                   required
-                  placeholder="Enter last name"
+                  placeholder={t("placeholderLastName")}
                   light
                 />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Select
-                  label="Gender"
+                  label={t("gender")}
                   name="gender"
                   value={formData.gender}
                   onChange={handleInputChange}
                   error={errors.gender}
                   required
                   light
-                  placeholder="Select gender"
+                  placeholder={t("placeholderGender")}
                   options={[
-                    { value: "Male", label: "Male" },
-                    { value: "Female", label: "Female" }
+                    { value: "Male", label: t("male") },
+                    { value: "Female", label: t("female") }
                   ]}
                 />
                 <Input
-                  label="Date of Birth"
+                  label={t("dateOfBirth")}
                   name="dateOfBirth"
                   type="date"
                   value={formData.dateOfBirth}
@@ -835,42 +926,46 @@ export default function Register() {
                   light
                 />
               </div>
-
+ 
               <div className="relative z-[60]">
                 <SearchableSelect
-                  label="Nationality"
+                  label={t("nationality")}
                   value={formData.nationality}
                   onChange={(e) => handleInputChange({ target: { name: "nationality", value: e.target.value } })}
                   error={errors.nationality}
                   required
                   options={COUNTRIES.map((c) => ({ value: c.code, label: c.name }))}
-                  placeholder="Select your nationality"
+                  placeholder={t("placeholderNationality")}
                   light
                   className="relative"
                 />
               </div>
             </div>
-
-            <div className="space-y-4 relative z-40">
-              <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">
-                <Flag className="w-6 h-6 text-cyan-600" />
-                Affiliation
-              </h2>
-
-              {/* Category/Role */}
-              <div className="relative z-[30]">
-                <Select
-                  label="Category/Role"
-                  name="role"
-                  value={formData.role}
-                  onChange={handleInputChange}
-                  error={errors.role}
-                  required
-                  light
-                  placeholder="Select category/role"
-                  options={getRoleOptions()}
-                />
-              </div>
+              {/* Affiliation Information */}
+              {visibilityConfig.affiliation !== false && (
+                <div className="space-y-4 relative z-[10]">
+                  <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">
+                    <Flag className={`${language === "ar" ? "ml-2" : ""}`} />
+                    {t("affiliation_info")}
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className={`block text-sm font-semibold text-cyan-700 ${language === "ar" ? "text-right" : ""}`}>
+                        {t("category_role")} <span className="text-red-500">*</span>
+                      </label>
+                      <Select
+                        name="role"
+                        value={formData.role}
+                        onChange={handleInputChange}
+                        error={errors.role}
+                        options={getRoleOptions()}
+                        placeholder={t("select_role")}
+                        light
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="relative z-[20]">
                 {(() => {
@@ -963,19 +1058,6 @@ export default function Register() {
                       })()}
                     </>
                   );
-
-                  return (
-                    <Input
-                      label="Organization/Club/Academy"
-                      name="club"
-                      value={formData.club}
-                      onChange={handleInputChange}
-                      error={errors.club}
-                      required
-                      placeholder="Enter organization, club or academy"
-                      light
-                    />
-                  );
                 })()}
               </div>
 
@@ -1016,12 +1098,12 @@ export default function Register() {
 
                   return (
                     <div className="relative z-[15] space-y-2">
-                      <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest px-1">Participating Sports *</label>
+                      <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest px-1">{t("participatingSports")} *</label>
                       <MultiSearchableSelect
                         options={availableSports.map(s => ({ value: s, label: s }))}
                         value={formData.selectedSports || []}
                         onChange={(val) => setFormData(prev => ({ ...prev, selectedSports: val }))}
-                        placeholder="Select your sport(s)"
+                        placeholder={t("placeholderSports")}
                         error={errors.sportName}
                         light
                       />
@@ -1042,35 +1124,89 @@ export default function Register() {
                   />
                 </div>
               )}
-            </div>
 
+              {/* Custom Fields */}
+              {customFieldsConfig.length > 0 && (
+                <div className="space-y-4 relative z-[5]">
+                  <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">
+                    <Files className="w-6 h-6" />
+                    Additional Information
+                  </h2>
+                  {customFieldsConfig.map((field, idx) => (
+                    <div key={idx} className="space-y-4">
+                      {field.type === 'select' ? (
+                        <Select
+                          label={language === "ar" ? field.label_ar : field.label_en}
+                          name={`custom_${field.id}`}
+                          value={formData.customFields[field.id] || ""}
+                          onChange={handleInputChange}
+                          error={errors[`custom_${field.id}`]}
+                          required={field.required}
+                          light
+                          placeholder={language === "ar" ? "اختر خياراً..." : "Select an option..."}
+                          options={(field.options || "").split(",").map(opt => ({ value: opt.trim(), label: opt.trim() }))}
+                        />
+                      ) : (
+                        <Input
+                          label={language === "ar" ? field.label_ar : field.label_en}
+                          name={`custom_${field.id}`}
+                          value={formData.customFields[field.id] || ""}
+                          onChange={handleInputChange}
+                          error={errors[`custom_${field.id}`]}
+                          required={field.required}
+                          light
+                          placeholder={language === "ar" ? "أدخل التفاصيل..." : "Enter details..."}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
 
-
-            <div className="space-y-4 relative z-30">
-              <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">
-                <Mail className="w-6 h-6 text-cyan-600" />
-                Contact
-              </h2>
-
-              <Input
-                label="Email Address (Personal / Coach / Club)"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                error={errors.email}
-                required
-                placeholder="your.email@example.com"
-                light
-              />
-            </div>
-
-            {/* Documents - ONLY SHOWN AFTER ROLE IS SELECTED */}
-            {formData.role && (
-              <div className="space-y-4 relative z-20">
+            {/* Contact Details */}
+            {visibilityConfig.contact !== false && (
+              <div className="space-y-4 relative z-30 border-t border-cyan-100 pt-6">
                 <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">
-                  <Upload className="w-6 h-6 text-cyan-600" />
-                  Documents
+                  <Mail className={`${language === "ar" ? "ml-2" : ""}`} />
+                  {t("contact_details")}
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex flex-col h-full">
+                    <Input
+                      label={t("email")}
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      error={errors.email}
+                      placeholder="e.g., example@domain.com"
+                      icon={Mail}
+                      required
+                      light
+                    />
+                  </div>
+                  <div className="flex flex-col h-full">
+                    <Input
+                      label={t("phone")}
+                      name="phone"
+                      value={formData.phone || ""}
+                      onChange={handleInputChange}
+                      error={errors.phone}
+                      placeholder="+971 50 123 4567"
+                      icon={Smartphone}
+                      light
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Document Upload */}
+            {visibilityConfig.documents !== false && (
+              <div className="space-y-4 relative z-20 border-t border-cyan-100 pt-6">
+                <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">
+                  <Upload className={`${language === "ar" ? "ml-2" : ""}`} />
+                  {t("documents")}
                 </h2>
 
                 <div className="space-y-4">
@@ -1122,15 +1258,15 @@ export default function Register() {
               />
               <div>
                 <label htmlFor="terms" className={`text-lg transition-colors ${!hasViewedTerms ? 'text-slate-400 cursor-not-allowed' : 'text-slate-700 cursor-pointer'} block`}>
-                  I confirm that all information provided is accurate and I agree to the{" "}
+                  {t("termsConfirm")}{" "}
                   <button
                     type="button"
                     onClick={() => setTermsModalOpen(true)}
                     className="text-cyan-600 hover:text-cyan-500 underline font-medium"
                   >
-                    Terms and Conditions
+                    {t("termsLink")}
                   </button>
-                  {!hasViewedTerms && <span className="text-sm text-cyan-600 ml-2 animate-pulse">(Click to read & unlock)</span>}
+                  {!hasViewedTerms && <span className="text-sm text-cyan-600 ml-2 animate-pulse">({t("termsUnlock")})</span>}
                 </label>
                 {errors.terms && (
                   <p className="text-lg text-red-500 mt-1">{errors.terms}</p>
@@ -1150,7 +1286,7 @@ export default function Register() {
               size="lg"
               loading={submitting}
             >
-              Submit Registration
+              {submitting ? t("submitting") : t("submit")}
             </Button>
           </motion.form>
         </div>
