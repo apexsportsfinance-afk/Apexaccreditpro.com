@@ -1,0 +1,76 @@
+{
+  "eventId": "7d1a19c8-6f8f-4477-9f8d-cdb497aa7dcc",
+  "config": [
+    {
+      "id": "cf_1777270704606",
+      "label_en": "Event: Pistol or Rifle",
+      "label_ar": "",
+      "type": "select",
+      "required": true,
+      "options": "Pistol, Rifle"
+    },
+    {
+      "id": "cf_1777270830180",
+      "label_en": "Category: Professional or Begginer",
+      "label_ar": "",
+      "type": "select",
+      "required": true,
+      "options": "Beginner, Professional"
+    },
+    {
+      "id": "cf_1777270895366",
+      "label_en": "Contact Number",
+      "label_ar": "",
+      "type": "text",
+      "required": true,
+      "options": ""
+    },
+    {
+      "id": "cf_1777270929998",
+      "label_en": "Emirates ID Number:",
+      "label_ar": "",
+      "type": "text",
+      "required": true,
+      "options": ""
+    },
+    {
+      "id": "cf_1777270969735",
+      "label_en": "Emirate:",
+      "label_ar": "",
+      "type": "select",
+      "required": false,
+      "options": "Abu Dhabi, Dubai, Sharjah, Ajman, Umm Al Quwain, Ras Al Khaimah, Fujairah"
+    }
+  ],
+  "samples": [
+    {
+      "cf_1777270704606": "Rifle",
+      "cf_1777270830180": "Professional",
+      "cf_1777270895366": "0509240709",
+      "cf_1777270929998": "784-1995-7763983-3",
+      "cf_1777270969735": "Dubai"
+    },
+    {
+      "cf_1777270704606": "Pistol",
+      "cf_1777270830180": "Beginner",
+      "cf_1777270895366": "00971527740709",
+      "cf_1777270929998": "332-145",
+      "cf_1777270969735": "Dubai"
+    },
+    {
+      "cf_1777270704606": "Pistol",
+      "cf_1777270830180": "Beginner",
+      "cf_1777270895366": "0527319181",
+      "cf_1777270929998": "784-1992-5283607-9",
+      "cf_1777270969735": "Sharjah"
+    },
+    {
+      "cf_1777270895366": "SOLIMANABDELLA25@GMAIL.COM",
+      "cf_1777270929998": "784-2002-4578504",
+      "cf_1777270704606": "Rifle",
+      "cf_1777270969735": "Dubai",
+      "cf_1777270830180": "Beginner"
+    },
+    ""
+  ]
+}

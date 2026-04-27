@@ -373,7 +373,7 @@ export default function Events() {
       ...prev,
       customFields: [
         ...(prev.customFields || []),
-        { id: `cf_${Date.now()}`, label_en: "", label_ar: "", type: "text", required: false, options: "" }
+        { id: `cf_${Date.now()}`, label_en: "", label_ar: "", type: "text", required: false, options: "", showOnBadge: false }
       ]
     }));
   };
@@ -1635,7 +1635,7 @@ export default function Events() {
                             <option value="select">Dropdown Menu</option>
                           </select>
                         </div>
-                        <div className="flex items-center h-full pt-6">
+                        <div className="flex items-center gap-6 h-full pt-6">
                           <label className="flex items-center gap-2 cursor-pointer group/check">
                             <input
                               type="checkbox"
@@ -1644,6 +1644,19 @@ export default function Events() {
                               className="w-5 h-5 rounded border-slate-700 bg-slate-900 text-primary-500 focus:ring-primary-500/50"
                             />
                             <span className="text-sm font-medium text-slate-400 group-hover/check:text-slate-200 transition-colors">Required Field</span>
+                          </label>
+
+                          <label className="flex items-center gap-2 cursor-pointer group/badge">
+                            <input
+                              type="checkbox"
+                              checked={field.showOnBadge}
+                              onChange={(e) => updateCustomField(field.id, 'showOnBadge', e.target.checked)}
+                              className="w-5 h-5 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-500/50"
+                            />
+                            <div className="flex flex-col">
+                              <span className="text-sm font-bold text-emerald-500/80 group-hover/badge:text-emerald-400 transition-colors">Show on Badge</span>
+                              <span className="text-[9px] text-slate-500 uppercase tracking-widest leading-none">Accreditation Card</span>
+                            </div>
                           </label>
                         </div>
                       </div>

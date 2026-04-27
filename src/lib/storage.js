@@ -1219,6 +1219,7 @@ function mapAccreditationFromDB(db) {
     const meta = (db.custom_message && db.custom_message.startsWith('{')) ? JSON.parse(db.custom_message) : {};
     acc.eidUrl = meta.eidUrl || null;
     acc.medicalUrl = meta.medicalUrl || null;
+    acc.customFields = meta;
     
     // Priority 1: Use the dedicated 'documents' JSONB column if it exists and has data
     if (db.documents && typeof db.documents === 'object') {

@@ -141,6 +141,7 @@ export default function Accreditations() {
   const [clubs, setClubs] = useState([]);
   const [frontBackgroundUrl, setFrontBackgroundUrl] = useState("");
   const [categoryDocuments, setCategoryDocuments] = useState({});
+  const [customFields, setCustomFields] = useState([]);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -185,10 +186,11 @@ export default function Accreditations() {
           supabase.from("event_categories").select("*, category:categories(*)").eq("event_id", selectedEvent),
           GlobalSettingsAPI.getClubs(selectedEvent),
           GlobalSettingsAPI.get(`event_${selectedEvent}_front_bg`),
-          GlobalSettingsAPI.get(`event_${selectedEvent}_category_documents`)
+          GlobalSettingsAPI.get(`event_${selectedEvent}_category_documents`),
+          GlobalSettingsAPI.get(`event_${selectedEvent}_custom_fields`)
         ]);
 
-        const [accResult, zoneResult, ecResult, clubResult, bgResult, catDocsResult] = results;
+        const [accResult, zoneResult, ecResult, clubResult, bgResult, catDocsResult, customFieldsResult] = results;
 
         if (accResult.status === "fulfilled") setAccreditations(accResult.value);
         else { console.error("Failed to load accreditations:", accResult.reason); toast.error("Failed to load accreditations."); }
@@ -201,6 +203,17 @@ export default function Accreditations() {
         else setFrontBackgroundUrl("");
         if (catDocsResult.status === "fulfilled") setCategoryDocuments(catDocsResult.value || {});
         else setCategoryDocuments({});
+
+        if (customFieldsResult.status === "fulfilled") {
+          try {
+            setCustomFields(JSON.parse(customFieldsResult.value || "[]"));
+          } catch (e) {
+            console.error("Failed to parse custom fields:", e);
+            setCustomFields([]);
+          }
+        } else {
+          setCustomFields([]);
+        }
 
         searchParams.set("event", selectedEvent);
         setSearchParams(searchParams);
@@ -2030,6 +2043,7 @@ export default function Accreditations() {
                     zones={zones}
                     eventCategories={eventCategories}
                     frontBackgroundUrl={frontBackgroundUrl}
+                    customFieldConfigs={customFields}
                   />
                 </div>
 

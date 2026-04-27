@@ -143,10 +143,21 @@ const waitForQR = (container, timeoutMs = 8000) =>
 const renderOffscreenCard = (accreditation, event, zones) =>
   new Promise(async (resolve, reject) => {
     let frontBackgroundUrl = "";
+    let customFieldConfigs = [];
     try {
       const { GlobalSettingsAPI } = await import("../../lib/broadcastApi");
-      const bg = await GlobalSettingsAPI.get(`event_${event.id}_front_bg`);
+      const [bg, cf] = await Promise.all([
+        GlobalSettingsAPI.get(`event_${event.id}_front_bg`),
+        GlobalSettingsAPI.get(`event_${event.id}_custom_fields`)
+      ]);
       if (bg) frontBackgroundUrl = bg;
+      if (cf) {
+        try {
+          customFieldConfigs = JSON.parse(cf);
+        } catch (e) {
+          console.error("[cardExport] Failed to parse custom fields:", e);
+        }
+      }
     } catch (e) {}
 
     const SUFFIX = `_cap_${Date.now()}`;
@@ -178,7 +189,8 @@ const renderOffscreenCard = (accreditation, event, zones) =>
         event,
         zones,
         idSuffix: SUFFIX,
-        frontBackgroundUrl
+        frontBackgroundUrl,
+        customFieldConfigs
       })
     );
 

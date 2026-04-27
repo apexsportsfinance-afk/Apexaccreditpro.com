@@ -180,7 +180,7 @@ const AquaticsHeader = memo(function AquaticsHeader({ event }) {
   );
 });
 
-export const CardInner = memo(function CardInner({ accreditation, event, zones = [], eventCategories = [], idSuffix = "", frontBackgroundUrl = "" }) {
+export const CardInner = memo(function CardInner({ accreditation, event, zones = [], eventCategories = [], idSuffix = "", frontBackgroundUrl = "", customFieldConfigs = [] }) {
   const categoryColor = resolveCategoryColor(accreditation?.role, eventCategories);
   const matchingZone = zones.find(z => z.name?.toLowerCase() === accreditation?.role?.toLowerCase());
   const zoneColor = matchingZone?.color || null;
@@ -362,7 +362,8 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
                 </>
               )}
             </div>
-            {/* Dynamic Flag & Country Name */}
+
+            {/* Dynamic Flag & Country Name - Moved Up */}
             {(() => {
               const isShortName = countryName?.length < 12;
               const flagWidth = isShortName ? 62 : 52;
@@ -370,7 +371,7 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
               const nameSize = isShortName ? 15 : 12;
 
               return (
-                <div style={{ marginTop: "18px", display: "flex", alignItems: "center", gap: "12px" }}>
+                <div style={{ marginTop: "12px", display: "flex", alignItems: "center", gap: "12px" }}>
                   {countryData?.flag && (
                     <img
                       src={`https://flagcdn.com/w160/${countryData.flag}.png`}
@@ -399,6 +400,38 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
                 </div>
               );
             })()}
+
+            {/* Custom Information Fields - Dynamic based on event config */}
+            <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "3px", width: "100%", alignItems: "flex-end" }}>
+              {customFieldConfigs
+                ?.filter(cfg => cfg.showOnBadge === true)
+                ?.map(cfg => {
+                  const value = accreditation?.customFields?.[cfg.id];
+                  if (!value) return null;
+                  return (
+                    <div 
+                      key={cfg.id}
+                      style={{ 
+                        padding: "1.5px 7px", 
+                        border: "1.2px solid #eab308", 
+                        borderRadius: "3px", 
+                        fontSize: "8.5px", 
+                        fontWeight: "900", 
+                        color: "#0f172a", 
+                        textTransform: "uppercase", 
+                        ...cardFont, 
+                        minWidth: "85px", 
+                        textAlign: "center", 
+                        backgroundColor: "white",
+                        boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                        letterSpacing: "0.02em"
+                      }}
+                    >
+                      {value}
+                    </div>
+                  );
+                })}
+            </div>
           </div>
         </div>
 
@@ -563,11 +596,19 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
   );
 });
 
-const AccreditationCardPreview = memo(function AccreditationCardPreview({ accreditation, event, zones = [], eventCategories = [], frontBackgroundUrl = "" }) {
+const AccreditationCardPreview = memo(function AccreditationCardPreview({ accreditation, event, zones = [], eventCategories = [], frontBackgroundUrl = "", customFieldConfigs = [] }) {
   return (
     <div id="accreditation-card-preview" style={{ display: "inline-block", fontFamily: '"Gill Sans MT", "Gill Sans", Calibri, sans-serif' }}>
       <div style={{ display: "flex", flexDirection: "row", gap: "24px", alignItems: "flex-start" }}>
-        <CardInner accreditation={accreditation} event={event} zones={zones} eventCategories={eventCategories} idSuffix="" frontBackgroundUrl={frontBackgroundUrl} />
+        <CardInner 
+          accreditation={accreditation} 
+          event={event} 
+          zones={zones} 
+          eventCategories={eventCategories} 
+          idSuffix="" 
+          frontBackgroundUrl={frontBackgroundUrl} 
+          customFieldConfigs={customFieldConfigs} 
+        />
       </div>
     </div>
   );
