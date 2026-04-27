@@ -114,7 +114,7 @@ export default function Events() {
   const [availableCategories, setAvailableCategories] = useState([]);
   const [duplicateError, setDuplicateError] = useState(null);
   const [customFieldsConfig, setCustomFieldsConfig] = useState([]);
-  const [visibilityConfig, setVisibilityConfig] = useState({ affiliation: true, contact: true, documents: true });
+  const [visibilityConfig, setVisibilityConfig] = useState({ affiliation: true, contact: true, documents: true, phone: "optional" });
   const [showLabelOverrides, setShowLabelOverrides] = useState(false);
   const [showCustomFields, setShowCustomFields] = useState(false);
   const [formData, setFormData] = useState({
@@ -134,7 +134,7 @@ export default function Events() {
     backTemplateUrl: "",
     sponsorLogos: [],
     customFields: [],
-    visibility: { affiliation: true, contact: true, documents: true },
+    visibility: { affiliation: true, contact: true, documents: true, phone: "optional" },
     requiredDocuments: [
       { id: "picture", label: "Picture", format: "JPEG, PNG, WEBP" },
       { id: "passport", label: "Passport", format: "JPEG, PNG, WEBP, PDF" }
@@ -206,7 +206,7 @@ export default function Events() {
       backTemplateUrl: "",
       sponsorLogos: [],
       customFields: [],
-      visibility: { affiliation: true, contact: true, documents: true },
+      visibility: { affiliation: true, contact: true, documents: true, phone: "optional" },
       requiredDocuments: [
         { id: "picture", label: "Picture", format: "JPEG, PNG, WEBP" },
         { id: "passport", label: "Passport", format: "JPEG, PNG, WEBP, PDF" }
@@ -221,7 +221,7 @@ export default function Events() {
       // 1. Initialize variables with defaults
       let extSport = ["Swimming"];
       let customFields = [];
-      let visibility = { affiliation: true, contact: true, documents: true };
+      let visibility = { affiliation: true, contact: true, documents: true, phone: "optional" };
 
       // 2. Fetch all data in parallel
       try {
@@ -426,7 +426,7 @@ export default function Events() {
         if (savedEventId) {
           await GlobalSettingsAPI.set(`event_${savedEventId}_sport`, formData.sportList);
           await GlobalSettingsAPI.set(`event_${savedEventId}_custom_fields`, JSON.stringify(formData.customFields || []));
-          await GlobalSettingsAPI.set(`event_${savedEventId}_visibility`, JSON.stringify(formData.visibility || { affiliation: true, contact: true, documents: true }));
+          await GlobalSettingsAPI.set(`event_${savedEventId}_visibility`, JSON.stringify(formData.visibility || { affiliation: true, contact: true, documents: true, phone: "optional" }));
           await GlobalSettingsAPI.set(`event_${savedEventId}_label_overrides`, JSON.stringify(formData.labelOverrides || {}));
         }
 
@@ -1444,7 +1444,7 @@ export default function Events() {
                   </div>
                 </label>
               </div>
-              <div className="flex items-center p-3 bg-slate-900/50 border border-slate-700 rounded-xl">
+              <div className="flex flex-col p-3 bg-slate-900/50 border border-slate-700 rounded-xl space-y-4">
                 <label className="flex items-center gap-3 cursor-pointer w-full">
                   <input
                     type="checkbox"
@@ -1456,10 +1456,40 @@ export default function Events() {
                     className="w-5 h-5 rounded border-slate-700 bg-slate-900 text-primary-500"
                   />
                   <div>
-                    <span className="block text-sm font-semibold text-slate-200">Contact Details</span>
+                    <span className="block text-sm font-semibold text-slate-200">Contact Details Section</span>
                     <span className="block text-xs text-slate-500">Email, Phone, Communication</span>
                   </div>
                 </label>
+
+                {formData.visibility?.contact && (
+                  <div className="pl-8 pt-2 border-t border-slate-800 space-y-3">
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500">Phone Visibility Mode</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { id: 'hidden', label: 'Hidden', icon: Lock },
+                        { id: 'visible', label: 'Always Show', icon: CheckCircle2 },
+                        { id: 'optional', label: 'User Toggle', icon: Activity }
+                      ].map(mode => (
+                        <button
+                          key={mode.id}
+                          type="button"
+                          onClick={() => setFormData(prev => ({
+                            ...prev,
+                            visibility: { ...prev.visibility, phone: mode.id }
+                          }))}
+                          className={`flex flex-col items-center gap-1.5 p-2 rounded-lg border transition-all ${
+                            (formData.visibility?.phone || 'optional') === mode.id
+                              ? "bg-primary-500/10 border-primary-500 text-primary-400"
+                              : "bg-slate-950/50 border-slate-800 text-slate-500 hover:border-slate-700"
+                          }`}
+                        >
+                          <mode.icon className="w-4 h-4" />
+                          <span className="text-[10px] font-medium leading-tight text-center">{mode.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex items-center p-3 bg-slate-900/50 border border-slate-700 rounded-xl">
                 <label className="flex items-center gap-3 cursor-pointer w-full">

@@ -125,6 +125,7 @@ export default function Register() {
     email: "",
     countryCode: "+971",
     phone: "",
+    showPhone: false,
     photo: null,
     idDocument: null,
     documents: {},
@@ -143,7 +144,7 @@ export default function Register() {
   const [categoryAllowlist, setCategoryAllowlist] = useState({});
   const [categorySports, setCategorySports] = useState({});
   const [categoryDocuments, setCategoryDocuments] = useState({});
-  const [visibilityConfig, setVisibilityConfig] = useState({ affiliation: true, contact: true, documents: true });
+  const [visibilityConfig, setVisibilityConfig] = useState({ affiliation: true, contact: true, documents: true, phone: "optional" });
   const [labelOverrides, setLabelOverrides] = useState({});
 
   useEffect(() => {
@@ -626,7 +627,7 @@ export default function Register() {
         club: formData.club,
         role: formData.role,
         email: formData.email,
-        phone: `${formData.countryCode}${formData.phone}`,
+        phone: (visibilityConfig.phone === "visible" || (visibilityConfig.phone === "optional" && formData.showPhone)) ? `${formData.countryCode}${formData.phone}` : "",
         selectedSports: (formData.selectedSports && formData.selectedSports.length > 0) ? formData.selectedSports : (formData.sportName ? [formData.sportName] : []),
         // APX-Fix: Use actual document IDs from event config, not hardcoded 'picture'/'passport'
         photoUrl: (firstDoc ? formData.documents[firstDoc.id] : null) || formData.documents['picture'] || formData.photo,
@@ -1218,6 +1219,7 @@ export default function Register() {
                   {t("contact_details")}
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-6">
                   <div className="flex flex-col h-full">
                     <Input
                       label={t("email")}
@@ -1232,35 +1234,94 @@ export default function Register() {
                       light
                     />
                   </div>
-                  <div className="flex flex-col h-full">
-                    <label className={`block text-lg font-medium text-slate-700 mb-1.5 ${language === "ar" ? "text-right" : ""}`}>
-                      {t("phone")}
-                    </label>
-                    <div className="flex gap-2">
-                      <select
-                        name="countryCode"
-                        value={formData.countryCode}
-                        onChange={handleInputChange}
-                        className="w-24 px-3 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-700 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all outline-none font-medium"
-                      >
-                        {COUNTRY_PHONE_CODES.map(c => (
-                          <option key={c.code} value={c.code}>{c.code} ({c.country})</option>
-                        ))}
-                      </select>
-                      <div className="flex-1 relative">
-                        <input
-                          type="tel"
-                          name="phone"
-                          value={formData.phone}
+
+                  {/* Phone Input Logic based on Admin Visibility Setting */}
+                  {visibilityConfig.phone === "visible" ? (
+                    /* Always Show Mode */
+                    <div className="flex flex-col h-full space-y-1.5">
+                      <label className={`block text-lg font-medium text-slate-700 mb-1.5 ${language === "ar" ? "text-right" : ""}`}>
+                        {t("phone")}
+                      </label>
+                      <div className="flex gap-2">
+                        <select
+                          name="countryCode"
+                          value={formData.countryCode}
                           onChange={handleInputChange}
-                          className={`w-full px-4 py-3 pl-11 rounded-xl border-2 transition-all outline-none text-slate-700 font-medium bg-white border-slate-200 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10`}
-                          placeholder="50 123 4567"
-                        />
-                        <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                          className="w-24 px-3 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-700 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all outline-none font-medium"
+                        >
+                          {COUNTRY_PHONE_CODES.map(c => (
+                            <option key={c.code} value={c.code}>{c.code} ({c.country})</option>
+                          ))}
+                        </select>
+                        <div className="flex-1 relative">
+                          <input
+                            type="tel"
+                            name="phone"
+                            value={formData.phone}
+                            onChange={handleInputChange}
+                            className={`w-full px-4 py-3 pl-11 rounded-xl border-2 transition-all outline-none text-slate-700 font-medium bg-white border-slate-200 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10`}
+                            placeholder="50 123 4567"
+                          />
+                          <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                        </div>
                       </div>
+                      {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
                     </div>
-                    {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
-                  </div>
+                  ) : visibilityConfig.phone === "optional" || !visibilityConfig.phone ? (
+                    /* User Switch (Optional) Mode */
+                    <>
+                      <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 border-2 border-slate-100 hover:border-cyan-100 transition-colors cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          id="showPhone"
+                          name="showPhone"
+                          checked={formData.showPhone}
+                          onChange={(e) => setFormData(prev => ({ ...prev, showPhone: e.target.checked }))}
+                          className="w-5 h-5 rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
+                        />
+                        <label htmlFor="showPhone" className="text-lg font-medium text-slate-700 cursor-pointer flex-1">
+                          Include Phone Number / WhatsApp
+                        </label>
+                      </div>
+
+                      {formData.showPhone && (
+                        <motion.div 
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          className="flex flex-col h-full space-y-1.5"
+                        >
+                          <label className={`block text-lg font-medium text-slate-700 mb-1.5 ${language === "ar" ? "text-right" : ""}`}>
+                            {t("phone")}
+                          </label>
+                          <div className="flex gap-2">
+                            <select
+                              name="countryCode"
+                              value={formData.countryCode}
+                              onChange={handleInputChange}
+                              className="w-24 px-3 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-700 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all outline-none font-medium"
+                            >
+                              {COUNTRY_PHONE_CODES.map(c => (
+                                <option key={c.code} value={c.code}>{c.code} ({c.country})</option>
+                              ))}
+                            </select>
+                            <div className="flex-1 relative">
+                              <input
+                                type="tel"
+                                name="phone"
+                                value={formData.phone}
+                                onChange={handleInputChange}
+                                className={`w-full px-4 py-3 pl-11 rounded-xl border-2 transition-all outline-none text-slate-700 font-medium bg-white border-slate-200 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10`}
+                                placeholder="50 123 4567"
+                              />
+                              <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                            </div>
+                          </div>
+                          {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
+                        </motion.div>
+                      )}
+                    </>
+                  ) : null /* Hidden Mode */}
+                </div>
                 </div>
               </div>
             )}
