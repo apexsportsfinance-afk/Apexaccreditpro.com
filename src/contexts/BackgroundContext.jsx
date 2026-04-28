@@ -36,7 +36,11 @@ export const BackgroundProvider = ({ children }) => {
     
     setProcessing(true);
     const task = queue[0];
-    setCurrentTask(task);
+    setCurrentTask({
+      ...task,
+      status: "processing",
+      message: "Processing..."
+    });
 
     try {
       if (task.type === "bulk_download") {
@@ -64,10 +68,12 @@ export const BackgroundProvider = ({ children }) => {
         const pdfResult = await generatePdfAttachment(currentAcc, eventData, allZones, pdfSize || "a6");
         if (onSuccess) onSuccess(pdfResult);
       } else if (task.type === "accreditation_approval") {
-        const { id, eventId, approveData, onSuccess, pdfSize } = task.data;
+        // Support both wrapped task.data and flat task properties
+        const taskData = task.data || task;
+        const { id, eventId, approveData, onSuccess, pdfSize } = taskData;
 
         // 1. Get Event & Zones
-        const resolvedEventId = eventId;
+        const resolvedEventId = eventId || taskData.accreditation?.eventId;
         const [eventData, allZones] = await Promise.all([
           EventsAPI.getById(resolvedEventId),
           ZonesAPI.getByEventId(resolvedEventId)

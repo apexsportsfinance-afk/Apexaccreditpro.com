@@ -385,6 +385,7 @@ export default function Accreditations() {
 
       // Sequential background processing via Global Queue
       addToQueue({
+        type: "accreditation_approval",
         id: accreditation.id,
         accreditation,
         eventId: selectedEvent,
@@ -479,6 +480,7 @@ export default function Accreditations() {
         if (!acc) return;
 
         addToQueue({
+          type: "accreditation_approval",
           id: acc.id,
           accreditation: acc,
           eventId: selectedEvent,
@@ -1122,6 +1124,7 @@ export default function Accreditations() {
             const updated = await AccreditationsAPI.adminEdit(accreditation.id, updatePayload, adminUserId);
             
             addToQueue({
+              type: "accreditation_approval",
               id: updated.id,
               accreditation: updated,
               eventId: selectedEvent,
@@ -1220,6 +1223,7 @@ export default function Accreditations() {
                     }
 
                     addToQueue({
+                      type: "accreditation_approval",
                       id: updatedAcc.id,
                       accreditation: updatedAcc,
                       eventId: selectedEvent,
@@ -1243,6 +1247,7 @@ export default function Accreditations() {
                 
                 // Add to background processing queue to generate Badge, ID, PDF, and Email
                 addToQueue({
+                  type: "accreditation_approval",
                   id: newRecord.id,
                   accreditation: newRecord,
                   eventId: selectedEvent,
