@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Unavailable | Apex Sports Academy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --base: #0f172a;
+            --primary: #22d3ee;
+            --primary-glow: rgba(34, 211, 238, 0.2);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--base);
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            text-align: center;
+        }
+
+        .background {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .glow-1 {
+            position: absolute;
+            top: -10%;
+            right: -10%;
+            width: 50vw;
+            height: 50vw;
+            background: radial-gradient(circle, var(--primary-glow) 0%, transparent 70%);
+            border-radius: 50%;
+            filter: blur(100px);
+        }
+
+        .glow-2 {
+            position: absolute;
+            bottom: -10%;
+            left: -10%;
+            width: 40vw;
+            height: 40vw;
+            background: radial-gradient(circle, var(--primary-glow) 0%, transparent 70%);
+            border-radius: 50%;
+            filter: blur(80px);
+        }
+
+        .content {
+            position: relative;
+            z-index: 10;
+            max-width: 500px;
+            padding: 2rem;
+        }
+
+        .logo-container {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 2.5rem;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            transform: rotate(5deg);
+            transition: transform 0.5s ease;
+        }
+
+        .logo-container:hover {
+            transform: rotate(0deg) scale(1.05);
+        }
+
+        .wifi-off-icon {
+            width: 50px;
+            height: 50px;
+            fill: none;
+            stroke: var(--primary);
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            animation: pulse 2s infinite ease-in-out;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 900;
+            letter-spacing: -0.05em;
+            margin-bottom: 1rem;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+        }
+
+        p {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 2.5rem;
+            font-weight: 400;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            background-color: var(--primary);
+            color: #000;
+            padding: 1rem 2rem;
+            border-radius: 16px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 10px 30px var(--primary-glow);
+        }
+
+        .btn:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px var(--primary-glow);
+            filter: brightness(1.1);
+        }
+
+        .btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .metadata {
+            margin-top: 4rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: #334155;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.9); }
+        }
+
+        /* Scanline effect */
+        body::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 4px, 3px 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div class="background">
+        <div class="glow-1"></div>
+        <div class="glow-2"></div>
+    </div>
+
+    <div class="content">
+        <div class="logo-container">
+            <svg class="wifi-off-icon" viewBox="0 0 24 24">
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+                <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+                <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+                <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+                <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+                <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+                <line x1="12" y1="20" x2="12.01" y2="20"></line>
+            </svg>
+        </div>
+
+        <h1>Network Lost</h1>
+        <p>The connection to Apex Sports Academy has been interrupted. Please check your internet settings or try reloading the page.</p>
+        
+        <a href="javascript:window.location.reload()" class="btn">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+            Retry Connection
+        </a>
+
+        <div class="metadata">
+            Offline Mode Active
+        </div>
+    </div>
+    
+    <script>
+      // Developer rescue: If trapped on this page via localhost, nuke the SW and escape.
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            var promises = [];
+            for (var i = 0; i < registrations.length; i++) {
+              promises.push(registrations[i].unregister());
+            }
+            if (promises.length > 0) {
+              Promise.all(promises).then(function() {
+                console.log("Unregistered Service Worker on localhost. Reloading...");
+                setTimeout(function() { window.location.reload(); }, 500);
+              });
+            }
+          });
+        }
+      }
+    </script>
+</body>
+</html>
