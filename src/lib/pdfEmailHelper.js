@@ -13,7 +13,9 @@ let createRoot = null;
  * Lazy-load libraries once
  */
 async function initLibs() {
-  if (jsPDF && html2canvas && CardInner && ReactModule && createRoot) return;
+  // REMOVED GUARD TO FORCE RE-LOADING IN DEV
+  // if (jsPDF && html2canvas && CardInner && ReactModule && createRoot) return;
+  
   const jspdfModule = await import("jspdf");
   jsPDF = jspdfModule.jsPDF;
   html2canvas = (await import("html2canvas")).default;
@@ -80,7 +82,7 @@ export const generatePdfForAccreditation = async (accreditation, event, zones, p
     })
   );
 
-  // Wait for initial render
+  // Wait for initial render and React reconciliation
   await new Promise((r) => setTimeout(r, 150));
 
   // Polling for QR code with faster interval
@@ -132,7 +134,7 @@ export const generatePdfForAccreditation = async (accreditation, event, zones, p
     })
   );
 
-  // Final minor wait for layout stability
+  // Final minor wait for layout stability and font settling
   await new Promise((r) => setTimeout(r, 100));
 
   const captureOpts = {

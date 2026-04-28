@@ -116,8 +116,10 @@ export default function EditAccreditationModal({
     documents: {}, // Generic documents storage
     badgeColor: "#2563eb",
     zoneCodes: [],
-    selectedSports: []
+    selectedSports: [],
+    customFields: {}
   });
+  const [customFieldsConfig, setCustomFieldsConfig] = useState([]);
   const [expiryMode, setExpiryMode] = useState("none");
   const [customExpiryDate, setCustomExpiryDate] = useState("");
   const [errors, setErrors] = useState({});
@@ -190,8 +192,23 @@ export default function EditAccreditationModal({
         documents: mergedDocuments,
         badgeColor: accreditation.badgeColor || "#2563eb",
         zoneCodes: zc,
-        selectedSports: accreditation.selectedSports || accreditation.selected_sports || []
+        selectedSports: accreditation.selectedSports || accreditation.selected_sports || [],
+        customFields: accreditation.customFields || {}
       });
+
+      // Load custom field configs for the event to render inputs
+      if (currentEvent?.id) {
+        GlobalSettingsAPI.get(`event_${currentEvent.id}_custom_fields`).then(val => {
+          if (val) {
+            try {
+              const parsed = JSON.parse(val);
+              if (Array.isArray(parsed)) setCustomFieldsConfig(parsed);
+            } catch (e) {
+              console.error("[EditModal] Failed to parse custom fields config", e);
+            }
+          }
+        });
+      }
 
       setOriginalRole(role);
       setErrors({});
@@ -228,6 +245,13 @@ export default function EditAccreditationModal({
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: null }));
     }
+  };
+
+  const handleCustomFieldChange = (fieldId, value) => {
+    setFormData(prev => ({
+      ...prev,
+      customFields: { ...prev.customFields, [fieldId]: value }
+    }));
   };
 
   const handleRoleChange = (e) => {
@@ -402,6 +426,7 @@ export default function EditAccreditationModal({
       expiresAt: expiresAt,
       zoneCode: formData.zoneCodes.join(","),
       selectedSports: formData.selectedSports,
+      customFields: formData.customFields,
       roleChanged,
       originalRole
     });
@@ -799,6 +824,46 @@ export default function EditAccreditationModal({
             />
           )}
 
+          {/* Dynamic Custom Fields Section */}
+          {customFieldsConfig.length > 0 && (
+            <div className="space-y-4 pt-4 border-t border-slate-700/50">
+              <h3 className="text-lg font-semibold text-cyan-400 flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                Additional Event Data
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {customFieldsConfig.map(cfg => {
+                  const value = formData.customFields[cfg.id] || "";
+                  const label = cfg.label_en || cfg.label || cfg.id;
+                  
+                  if (cfg.type === "select" && cfg.options) {
+                    return (
+                      <Select
+                        key={cfg.id}
+                        label={label}
+                        value={value}
+                        onChange={(e) => handleCustomFieldChange(cfg.id, e.target.value)}
+                        options={cfg.options.split(",").map(opt => ({ value: opt.trim(), label: opt.trim() }))}
+                        required={cfg.required}
+                      />
+                    );
+                  }
+                  
+                  return (
+                    <Input
+                      key={cfg.id}
+                      label={label}
+                      value={value}
+                      onChange={(e) => handleCustomFieldChange(cfg.id, e.target.value)}
+                      placeholder={`Enter ${label.toLowerCase()}...`}
+                      required={cfg.required}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Sports Section - Simplified for Athletes */}
           {isAthlete && (
             <div className="space-y-4">
@@ -978,6 +1043,7 @@ export default function EditAccreditationModal({
                   expiresAt,
                   zoneCode: formData.zoneCodes.join(","),
                   selectedSports: formData.selectedSports,
+                  customFields: formData.customFields,
                   roleChanged,
                   pdfSize // Pass the selected PDF size
                 });

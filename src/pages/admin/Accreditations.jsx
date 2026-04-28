@@ -1112,6 +1112,7 @@ export default function Accreditations() {
               eidUrl: data.eidUrl,
               medicalUrl: data.medicalUrl,
               customMessage: data.customMessage,
+              customFields: data.customFields,
               badgeColor: data.badgeColor,
               zoneCode: data.zoneCode,
               selected_sports: data.selectedSports,
@@ -1166,6 +1167,7 @@ export default function Accreditations() {
                 eidUrl: data.eidUrl,
                 medicalUrl: data.medicalUrl,
                 customMessage: data.customMessage,
+                customFields: data.customFields,
                 badgeColor: data.badgeColor,
                 zoneCode: data.zoneCode || (data.zoneCodes ? data.zoneCodes.join(",") : ""),
                 selected_sports: data.selectedSports

@@ -1,6 +1,8 @@
 import React, { memo, useState, useEffect, useRef } from "react";
 import * as QRCodeLib from "qrcode";
 import { getCountryName, calculateAge, COUNTRIES, isExpired } from "../../lib/utils";
+import { BadgeCustomFields } from "./BadgeCustomFieldsV2";
+
 const CARD_FONT = '"Gill Sans MT", "Gill Sans", Calibri, sans-serif';
 const CARD_FONT_SIZE = 11;
 
@@ -402,39 +404,11 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
             })()}
 
             {/* Custom Information Fields - Dynamic based on event config */}
-            {/* Custom Information Fields - Dynamic based on event config */}
-            <div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "6px", width: "100%", alignItems: "flex-end" }}>
-              {customFieldConfigs
-                ?.filter(cfg => cfg.showOnBadge === true)
-                ?.map(cfg => {
-                  const value = accreditation?.customFields?.[cfg.id];
-                  if (!value) return null;
-                  return (
-                    <div 
-                      key={cfg.id}
-                      style={{ 
-                        padding: "3px 10px", 
-                        border: "1px solid #F5A623", 
-                        borderRadius: "2px", 
-                        backgroundColor: "white",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        minWidth: "120px",
-                        ...cardFont,
-                        boxSizing: "border-box"
-                      }}
-                    >
-                      <div style={{ fontSize: "7px", fontWeight: "bold", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.02em", marginBottom: "1px", width: "100%", textAlign: "center" }}>
-                        {cfg.label}
-                      </div>
-                      <div style={{ fontSize: "11px", fontWeight: "900", color: "#1e293b", textTransform: "uppercase", width: "100%", textAlign: "center", lineHeight: "1" }}>
-                        {value}
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
+            <BadgeCustomFields 
+              accreditation={accreditation} 
+              customFieldConfigs={customFieldConfigs} 
+              cardFont={cardFont} 
+            />
           </div>
         </div>
 
@@ -599,18 +573,18 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
   );
 });
 
-const AccreditationCardPreview = memo(function AccreditationCardPreview({ accreditation, event, zones = [], eventCategories = [], frontBackgroundUrl = "", customFieldConfigs = [] }) {
+const AccreditationCardPreview = memo(function AccreditationCardPreview({ accreditation, event, zones = [], eventCategories = [], frontBackgroundUrl = "", customFieldConfigs = [], idSuffix = "" }) {
   return (
     <div id="accreditation-card-preview" style={{ display: "inline-block", fontFamily: '"Gill Sans MT", "Gill Sans", Calibri, sans-serif' }}>
       <div style={{ display: "flex", flexDirection: "row", gap: "24px", alignItems: "flex-start" }}>
-        <CardInner 
-          accreditation={accreditation} 
-          event={event} 
-          zones={zones} 
-          eventCategories={eventCategories} 
-          idSuffix="" 
-          frontBackgroundUrl={frontBackgroundUrl} 
-          customFieldConfigs={customFieldConfigs} 
+        <CardInner
+          accreditation={accreditation}
+          event={event}
+          zones={zones}
+          eventCategories={eventCategories}
+          idSuffix={idSuffix}
+          frontBackgroundUrl={frontBackgroundUrl}
+          customFieldConfigs={customFieldConfigs}
         />
       </div>
     </div>
