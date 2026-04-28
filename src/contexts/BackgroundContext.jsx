@@ -156,6 +156,8 @@ export const BackgroundProvider = ({ children }) => {
         const pdfBlob = pdfResult?.pdfBlob;
         const pdfName = pdfResult?.pdfFileName;
         const pdfBase64 = pdfResult?.pdfBase64;
+
+        console.log(`[BackgroundQueue] PDF Generated: ${pdfName}, Base64 Length: ${pdfBase64?.length || 0}`);
         
         let finalUpdated = finalAcc;
 

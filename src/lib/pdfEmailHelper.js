@@ -1,40 +1,18 @@
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
+import * as ReactModule from "react";
+import { createRoot } from "react-dom/client";
+import { CardInner } from "../components/accreditation/AccreditationCardPreview";
+
 /**
  * Shared PDF generation utilities for email attachments.
  * Used by both ComposeEmailModal and Accreditations approval flow.
  */
 
-let jsPDF = null;
-let html2canvas = null;
-let CardInner = null;
-let ReactModule = null;
-let createRoot = null;
-
-/**
- * Lazy-load libraries once
- */
-async function initLibs() {
-  // REMOVED GUARD TO FORCE RE-LOADING IN DEV
-  // if (jsPDF && html2canvas && CardInner && ReactModule && createRoot) return;
-  
-  const jspdfModule = await import("jspdf");
-  jsPDF = jspdfModule.jsPDF;
-  html2canvas = (await import("html2canvas")).default;
-  
-  // Use a unique query param to bypass module cache in dev/hot-reloading
-  const version = Date.now();
-  const cardModule = await import(`../components/accreditation/AccreditationCardPreview?v=${version}`);
-  CardInner = cardModule.CardInner;
-  
-  ReactModule = await import("react");
-  const reactDomModule = await import("react-dom/client");
-  createRoot = reactDomModule.createRoot;
-}
-
 /**
  * Generate a PDF blob for an accreditation card (offscreen render + capture)
  */
 export const generatePdfForAccreditation = async (accreditation, event, zones, pdfSize = "a6") => {
-  await initLibs();
   
   // Get dimensions from pdfCapture or fallback to A6
   const { PDF_SIZES } = await import("./pdfCapture");
@@ -89,7 +67,8 @@ export const generatePdfForAccreditation = async (accreditation, event, zones, p
   await new Promise((resolve) => {
     const start = Date.now();
     const check = () => {
-      const qrImg = container.querySelector("img[data-qr-code='true']");
+      // The data-qr-code='true' attribute is on the div wrapper in CardInner
+      const qrImg = container.querySelector("[data-qr-code='true'] img");
       if (qrImg && qrImg.getAttribute("src")?.startsWith("data:")) {
         return resolve(true);
       }
@@ -193,7 +172,6 @@ export const blobToRawBase64 = (blob) => {
  * Generate image blobs for an accreditation card (offscreen render + capture)
  */
 export const generateImagesForAccreditation = async (accreditation, event, zones, scale = 4) => {
-  await initLibs();
   
   let frontBackgroundUrl = "";
   let customFieldConfigs = [];
@@ -240,7 +218,7 @@ export const generateImagesForAccreditation = async (accreditation, event, zones
   await new Promise((resolve) => {
     const start = Date.now();
     const check = () => {
-      const qrImg = container.querySelector("img[data-qr-code='true']");
+      const qrImg = container.querySelector("[data-qr-code='true'] img");
       if (qrImg && qrImg.getAttribute("src")?.startsWith("data:")) return resolve(true);
       if (Date.now() - start > 5000) return resolve(false);
       setTimeout(check, 30);
