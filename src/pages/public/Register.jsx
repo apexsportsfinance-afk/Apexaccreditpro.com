@@ -975,7 +975,7 @@ export default function Register() {
                 />
               </div>
  
-              <div className="relative z-[60]">
+              <div className="relative z-[70]">
                 <SearchableSelect
                   label={t("nationality")}
                   value={formData.nationality}
@@ -991,7 +991,7 @@ export default function Register() {
             </div>
               {/* Affiliation Information */}
               {visibilityConfig.affiliation !== false && (
-                <div className="space-y-4 relative z-[10]">
+                <div className="space-y-4 relative z-[60]">
                   <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">
                     <Flag className={`${language === "ar" ? "ml-2" : ""}`} />
                     {t("affiliation_info")}
@@ -1015,7 +1015,7 @@ export default function Register() {
                 </div>
               )}
 
-              <div className="relative z-[20]">
+              <div className="relative z-[50]">
                 {(() => {
                   const normalizedRole = (formData.role || '').trim().toLowerCase();
                   const selectedCat = eventCategories.find(c => (c.name || '').trim().toLowerCase() === normalizedRole);
@@ -1131,7 +1131,7 @@ export default function Register() {
                   
                   if (availableSports.length === 1) {
                     return (
-                      <div className="relative z-[15] space-y-2">
+                      <div className="relative z-[40] space-y-2">
                         <Input
                           label="Participating Sports *"
                           name="sportName"
@@ -1145,7 +1145,7 @@ export default function Register() {
                   }
 
                   return (
-                    <div className="relative z-[15] space-y-2">
+                    <div className="relative z-[40] space-y-2">
                       <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest px-1">{t("participatingSports")} *</label>
                       <MultiSearchableSelect
                         options={availableSports.map(s => ({ value: s, label: s }))}
@@ -1164,7 +1164,7 @@ export default function Register() {
 
               {/* Event Details section — shown only when Athlete role is selected and sport events exist */}
               {formData.role && formData.role.toLowerCase().includes("athlete") && sportEvents.length > 0 && (
-                <div className="relative z-[10]">
+                <div className="relative z-[30]">
                   <EventScheduleDropdown
                     sportEvents={sportEvents}
                     selectedSportEvents={selectedSportEvents}
@@ -1175,7 +1175,7 @@ export default function Register() {
 
               {/* Custom Fields */}
               {customFieldsConfig.length > 0 && (
-                <div className="space-y-4 relative z-[5]">
+                <div className="space-y-4 relative z-[20]">
                   <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">
                     <Files className="w-6 h-6" />
                     Additional Information
@@ -1213,7 +1213,7 @@ export default function Register() {
 
             {/* Contact Details */}
             {visibilityConfig.contact !== false && (
-              <div className="space-y-4 relative z-30 border-t border-cyan-100 pt-6">
+              <div className="space-y-4 relative z-[10] border-t border-cyan-100 pt-6">
                 <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">
                   <Mail className={`${language === "ar" ? "ml-2" : ""}`} />
                   {t("contact_details")}
@@ -1328,7 +1328,7 @@ export default function Register() {
 
             {/* Document Upload */}
             {visibilityConfig.documents !== false && (
-              <div className="space-y-4 relative z-20 border-t border-cyan-100 pt-6">
+              <div className="space-y-4 relative z-[0] border-t border-cyan-100 pt-6">
                 <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">
                   <Upload className={`${language === "ar" ? "ml-2" : ""}`} />
                   {t("documents")}
