@@ -32,6 +32,8 @@ export const BackgroundProvider = ({ children }) => {
   }, [queue, processing]);
 
   const processNext = async () => {
+    if (queue.length === 0 || processing) return;
+    
     setProcessing(true);
     const task = queue[0];
     setCurrentTask(task);
@@ -53,143 +55,45 @@ export const BackgroundProvider = ({ children }) => {
       } else if (task.type === "single_pdf_generate") {
         const { id, accreditation, eventId, pdfSize, onSuccess } = task;
         const currentAcc = (await AccreditationsAPI.getById(id)) || accreditation;
-        const resolvedEventId = task.eventId || currentAcc.eventId;
+        const resolvedEventId = eventId || currentAcc.eventId;
         const [eventData, allZones] = await Promise.all([
           EventsAPI.getById(resolvedEventId),
           ZonesAPI.getByEventId(resolvedEventId)
         ]);
 
-        // 1. Generate PDF
         const pdfResult = await generatePdfAttachment(currentAcc, eventData, allZones, pdfSize || "a6");
-        const pdfBlob = pdfResult?.pdfBlob;
-        
-        // 2. Upload and Cache
-        if (pdfBlob) {
-          const fixedFileName = `${id}_final.pdf`;
-          const pdfFile = new File([pdfBlob], fixedFileName, { type: "application/pdf" });
-          const uploadResult = await uploadToStorage(pdfFile, "accreditations", fixedFileName);
-          
-          const currentDocs = currentAcc.documents || {};
-          const finalUpdated = await AccreditationsAPI.update(id, {
-            documents: { ...currentDocs, accreditation_pdf: uploadResult.url }
-          });
-          
-          if (onSuccess) onSuccess(finalUpdated);
-        }
-      } else if (task.type === "single_images_generate") {
-        const { id, accreditation, eventId, scale, onSuccess } = task;
-        const currentAcc = (await AccreditationsAPI.getById(id)) || accreditation;
-        const resolvedEventId = task.eventId || currentAcc.eventId;
+        if (onSuccess) onSuccess(pdfResult);
+      } else if (task.type === "accreditation_approval") {
+        const { id, eventId, approveData, onSuccess, pdfSize } = task.data;
+
+        // 1. Get Event & Zones
+        const resolvedEventId = eventId;
         const [eventData, allZones] = await Promise.all([
           EventsAPI.getById(resolvedEventId),
           ZonesAPI.getByEventId(resolvedEventId)
         ]);
-        
-        const { generateImagesForAccreditation } = await import("../lib/pdfEmailHelper");
-        const { frontBlob, backBlob } = await generateImagesForAccreditation(currentAcc, eventData, allZones, scale || 3);
-        
-        if (onSuccess) {
-          onSuccess({ frontBlob, backBlob, accreditation: currentAcc });
-        }
-      } else {
-        // Default task type: approve_edit
-        const id = task.id;
-        const { accreditation: currentAccInput, eventId, approveData, pdfSize, onSuccess } = task;
 
-        // 1. Fetch latest data to ensure we have current status and documents
-        // Use the API wrapper instead of raw supabase for consistent error handling/retries
-        let currentAcc;
-        try {
-          currentAcc = await AccreditationsAPI.getById(id);
-        } catch (e) {
-          console.warn("[BackgroundQueue] Failed to fetch latest accreditation, using input data", e);
-          currentAcc = currentAccInput;
-        }
+        // 2. Fetch fresh accreditation data
+        const currentAcc = await AccreditationsAPI.getById(id);
+        if (!currentAcc) throw new Error("Accreditation not found");
 
-        if (!currentAcc) throw new Error(`Accreditation ${id} not found`);
-
-        const resolvedEventId = eventId || currentAcc?.eventId;
-        if (!resolvedEventId) throw new Error(`Event ID not found for accreditation ${id}`);
-
-        // Fetch auxiliary data in parallel, but handle failures gracefully
-        const [eventData, allZones] = await Promise.all([
-          EventsAPI.getById(resolvedEventId).catch(err => {
-            console.error("[BackgroundQueue] Failed to fetch event data:", err);
-            return null;
-          }),
-          ZonesAPI.getByEventId(resolvedEventId).catch(err => {
-            console.error("[BackgroundQueue] Failed to fetch zones:", err);
-            return [];
-          })
-        ]);
-
-        // 2. Determine if we need to regenerate Badge ID or update status to approved
-        let finalAcc = currentAcc;
-        const needsApproval = finalAcc.status !== "approved";
-        const needsBadge = !finalAcc.badgeNumber || finalAcc.badgeNumber === "---";
-
-        if (needsApproval || needsBadge) {
-          const role = finalAcc.role || "Guest";
-          const { count } = await supabase
-            .from("accreditations")
-            .select("id", { count: "exact", head: true })
-            .eq("event_id", resolvedEventId)
-            .eq("role", role)
-            .eq("status", "approved");
-          
-          const { getBadgePrefix } = await import("../lib/utils");
-          const prefix = getBadgePrefix(role);
-          
-          // Only generate a NEW badge number if we don't already have one
-          const badgeNumber = (finalAcc.badgeNumber && finalAcc.badgeNumber !== "---") 
-            ? finalAcc.badgeNumber 
-            : `${prefix}-${String((count || 0) + 1).padStart(3, "0")}`;
-            
-          const zoneCodeStr = approveData?.zoneCodes?.join(",") || finalAcc.zoneCode || "";
-          
-          // AccreditationsAPI.approve explicitly sets status: "approved"
-          finalAcc = await AccreditationsAPI.approve(id, zoneCodeStr, badgeNumber, role);
-        }
-
-        // 3. Generate PDF (always overwrite stale cache)
-        const pdfResult = await generatePdfAttachment(finalAcc, eventData, allZones, pdfSize || "a6");
-        const pdfBlob = pdfResult?.pdfBlob;
-        const pdfName = pdfResult?.pdfFileName;
+        // 3. Generate PDF
+        console.log(`[BackgroundQueue] Generating PDF for ${currentAcc.firstName}...`);
+        const pdfResult = await generatePdfAttachment(currentAcc, eventData, allZones, pdfSize || "a6");
         const pdfBase64 = pdfResult?.pdfBase64;
+        const pdfName = pdfResult?.pdfFileName;
 
-        console.log(`[BackgroundQueue] PDF Generated: ${pdfName}, Base64 Length: ${pdfBase64?.length || 0}`);
-        
-        let finalUpdated = finalAcc;
-
-        if (pdfBlob) {
-          try {
-            const fixedFileName = `${id}_final.pdf`;
-            const pdfFile = new File([pdfBlob], fixedFileName, { type: "application/pdf" });
-            const uploadResult = await uploadToStorage(pdfFile, "accreditations", fixedFileName);
-            
-            const currentDocs = finalAcc.documents || {};
-            const updatePayload = {
-              documents: { ...currentDocs, accreditation_pdf: uploadResult.url }
-            };
-            
-            // Re-assert approval status to be safe, especially for new events 
-            // where we want to ensure any internal cache is bypassed
-            if (finalAcc.status === "approved") {
-              updatePayload.status = "approved";
-              if (finalAcc.badgeNumber) updatePayload.badge_number = finalAcc.badgeNumber;
-              if (finalAcc.accreditationId) updatePayload.accreditation_id = finalAcc.accreditationId;
-            }
-
-            finalUpdated = await AccreditationsAPI.update(id, updatePayload);
-          } catch (uploadErr) {
-            console.error("[BackgroundQueue] PDF regeneration failed:", uploadErr);
-          }
+        if (pdfResult) {
+          console.log(`[BackgroundQueue] PDF generated successfully. Length: ${pdfBase64?.length || 0}`);
+        } else {
+          console.warn("[BackgroundQueue] PDF generation failed or returned null.");
         }
 
-        // 4. Sync UI state as soon as the main DB transitions are complete
+        // 4. Final update in database (if needed)
+        const finalUpdated = await AccreditationsAPI.getById(id);
         if (onSuccess) onSuccess(finalUpdated);
 
-        // 5. Send Email if requested (Secondary step, failures won't block UI sync)
+        // 5. Send Email if requested
         if (approveData?.sendEmail) {
           console.log(`[BackgroundQueue] Email notification requested for ${finalUpdated.email}`);
           if (!finalUpdated.email) {

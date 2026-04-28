@@ -9,11 +9,13 @@ import { CardInner } from "../components/accreditation/AccreditationCardPreview"
  * Used by both ComposeEmailModal and Accreditations approval flow.
  */
 
+// Simple module-level image cache to speed up repeated generations
+const imageCache = new Map();
+
 /**
  * Generate a PDF blob for an accreditation card (offscreen render + capture)
  */
 export const generatePdfForAccreditation = async (accreditation, event, zones, pdfSize = "a6") => {
-  
   // Get dimensions from pdfCapture or fallback to A6
   const { PDF_SIZES } = await import("./pdfCapture");
   const size = PDF_SIZES[pdfSize?.toLowerCase()] || PDF_SIZES.a6;
@@ -60,22 +62,17 @@ export const generatePdfForAccreditation = async (accreditation, event, zones, p
     })
   );
 
-  // Wait for initial render and React reconciliation
-  await new Promise((r) => setTimeout(r, 150));
+  // Faster initial wait
+  await new Promise((r) => setTimeout(r, 100));
 
-  // Polling for QR code with faster interval
+  // Polling for QR code with faster interval and lower timeout
   await new Promise((resolve) => {
     const start = Date.now();
     const check = () => {
-      // The data-qr-code='true' attribute is on the div wrapper in CardInner
       const qrImg = container.querySelector("[data-qr-code='true'] img");
-      if (qrImg && qrImg.getAttribute("src")?.startsWith("data:")) {
-        return resolve(true);
-      }
-      if (Date.now() - start > 5000) {
-        return resolve(false);
-      }
-      setTimeout(check, 30);
+      if (qrImg && qrImg.getAttribute("src")?.startsWith("data:")) return resolve(true);
+      if (Date.now() - start > 3000) return resolve(false); // Reduced from 5s to 3s
+      setTimeout(check, 20); // Faster polling
     };
     check();
   });
@@ -89,35 +86,42 @@ export const generatePdfForAccreditation = async (accreditation, event, zones, p
     throw new Error("Card render failed");
   }
 
-  // Inline images to base64 for html2canvas
+  // Inline images with cache support
   const imgs = Array.from(container.querySelectorAll("img"));
   await Promise.all(
     imgs.map(async (img) => {
       const src = img.getAttribute("src") || "";
       if (!src || src.startsWith("data:") || src.startsWith("blob:")) return;
+      
+      // Use cache if available
+      if (imageCache.has(src)) {
+        img.setAttribute("src", imageCache.get(src));
+        return;
+      }
+
       try {
         const resp = await fetch(src, { mode: "cors", cache: "force-cache", credentials: "omit" });
         if (resp.ok) {
           const blob = await resp.blob();
-          const reader = new FileReader();
           const b64 = await new Promise((res) => {
+            const reader = new FileReader();
             reader.onloadend = () => res(reader.result);
             reader.onerror = () => res(null);
             reader.readAsDataURL(blob);
           });
-          if (b64) img.setAttribute("src", b64);
+          if (b64) {
+            img.setAttribute("src", b64);
+            imageCache.set(src, b64); // Cache for future use
+          }
         }
-      } catch {
-        /* skip */
-      }
+      } catch { /* skip */ }
     })
   );
 
-  // Final minor wait for layout stability and font settling
-  await new Promise((r) => setTimeout(r, 100));
+  await new Promise((r) => setTimeout(r, 50)); // Reduced from 100ms
 
   const captureOpts = {
-    scale: 3.125, // Updated to 3.125 for 300 DPI support
+    scale: 3.125,
     useCORS: true,
     allowTaint: true,
     backgroundColor: "#ffffff",
@@ -128,7 +132,11 @@ export const generatePdfForAccreditation = async (accreditation, event, zones, p
     windowHeight: 454,
   };
 
-  const frontCanvas = await html2canvas(frontEl, captureOpts);
+  // Parallel capture for front and back
+  const [frontCanvas, backCanvas] = await Promise.all([
+    html2canvas(frontEl, captureOpts),
+    backEl ? html2canvas(backEl, captureOpts) : Promise.resolve(null)
+  ]);
 
   const pdf = new jsPDF({
     orientation: pdfW > pdfH ? "l" : "p",
@@ -139,8 +147,7 @@ export const generatePdfForAccreditation = async (accreditation, event, zones, p
 
   pdf.addImage(frontCanvas.toDataURL("image/png", 1.0), "PNG", 0, 0, pdfW, pdfH, undefined, "FAST");
 
-  if (backEl) {
-    const backCanvas = await html2canvas(backEl, captureOpts);
+  if (backCanvas) {
     pdf.addPage([pdfW, pdfH], pdfW > pdfH ? "l" : "p");
     pdf.addImage(backCanvas.toDataURL("image/png", 1.0), "PNG", 0, 0, pdfW, pdfH, undefined, "FAST");
   }
