@@ -425,12 +425,12 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
                         boxSizing: "border-box"
                       }}
                     >
-                      <span style={{ fontSize: "7px", fontWeight: "bold", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.02em", marginBottom: "1px", display: "block" }}>
+                      <div style={{ fontSize: "7px", fontWeight: "bold", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.02em", marginBottom: "1px", width: "100%", textAlign: "center" }}>
                         {cfg.label}
-                      </span>
-                      <span style={{ fontSize: "11px", fontWeight: "900", color: "#1e293b", textTransform: "uppercase", display: "block", lineHeight: "1" }}>
+                      </div>
+                      <div style={{ fontSize: "11px", fontWeight: "900", color: "#1e293b", textTransform: "uppercase", width: "100%", textAlign: "center", lineHeight: "1" }}>
                         {value}
-                      </span>
+                      </div>
                     </div>
                   );
                 })}

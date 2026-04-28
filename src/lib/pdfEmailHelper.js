@@ -17,8 +17,12 @@ async function initLibs() {
   const jspdfModule = await import("jspdf");
   jsPDF = jspdfModule.jsPDF;
   html2canvas = (await import("html2canvas")).default;
-  const cardModule = await import("../components/accreditation/AccreditationCardPreview");
+  
+  // Use a unique query param to bypass module cache in dev/hot-reloading
+  const version = Date.now();
+  const cardModule = await import(`../components/accreditation/AccreditationCardPreview?v=${version}`);
   CardInner = cardModule.CardInner;
+  
   ReactModule = await import("react");
   const reactDomModule = await import("react-dom/client");
   createRoot = reactDomModule.createRoot;
@@ -140,7 +144,6 @@ export const generatePdfForAccreditation = async (accreditation, event, zones, p
     width: 320,
     height: 454,
     windowWidth: 320,
-    windowHeight: 454,
     windowHeight: 454,
   };
 
