@@ -128,9 +128,11 @@ export default function EditAccreditationModal({
   const [originalRole, setOriginalRole] = useState("");
   const [customRoleMode, setCustomRoleMode] = useState(false);
   const [pdfSize, setPdfSize] = useState("a6");
+  const [sendEmail, setSendEmail] = useState(true);
 
   useEffect(() => {
     if (accreditation) {
+      setSendEmail(true); // Default to sending email on action
       const zc = accreditation.zoneCode
         ? accreditation.zoneCode.split(",").map(z => z.trim()).filter(Boolean)
         : [];
@@ -430,7 +432,9 @@ export default function EditAccreditationModal({
       selectedSports: formData.selectedSports,
       customFields: formData.customFields,
       roleChanged,
-      originalRole
+      originalRole,
+      sendEmail, // include notification toggle
+      pdfSize // include requested size
     });
   };
 
@@ -1019,6 +1023,22 @@ export default function EditAccreditationModal({
             </div>
           )}
         </div>
+        
+        {/* Email Notification Toggle */}
+        <div className="pt-2">
+          <label className="flex items-center gap-3 cursor-pointer p-4 rounded-xl bg-slate-800/50 border border-slate-700 hover:bg-slate-800 transition-colors">
+            <input
+              type="checkbox"
+              checked={sendEmail}
+              onChange={(e) => setSendEmail(e.target.checked)}
+              className="w-6 h-6 rounded border-slate-600 bg-slate-700 text-primary-500 focus:ring-primary-500/40"
+            />
+            <div>
+              <p className="text-lg font-bold text-white">Send Email Notification</p>
+              <p className="text-lg text-slate-400 font-extralight">Send approval email with PDF attachment to the applicant</p>
+            </div>
+          </label>
+        </div>
 
         {/* Action Buttons */}
         <div className="flex gap-3 pt-4 border-t border-slate-700">
@@ -1047,7 +1067,8 @@ export default function EditAccreditationModal({
                   selectedSports: formData.selectedSports,
                   customFields: formData.customFields,
                   roleChanged,
-                  pdfSize // Pass the selected PDF size
+                  pdfSize, // Pass the selected PDF size
+                  sendEmail // Pass email toggle
                 });
               }}
               className="flex-1"

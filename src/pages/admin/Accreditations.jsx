@@ -1225,7 +1225,7 @@ export default function Accreditations() {
                       eventId: selectedEvent,
                       approveData: {
                         zoneCodes: updatedAcc.zoneCode ? updatedAcc.zoneCode.split(",") : [],
-                        sendEmail: false 
+                        sendEmail: data.sendEmail
                       },
                       pdfSize: data.pdfSize || "a6",
                       onSuccess: (final) => {

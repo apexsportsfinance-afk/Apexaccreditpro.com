@@ -189,24 +189,30 @@ export const BackgroundProvider = ({ children }) => {
 
         // 5. Send Email if requested (Secondary step, failures won't block UI sync)
         if (approveData?.sendEmail) {
-          try {
-            await sendApprovalEmail({
-              to: finalUpdated.email,
-              name: `${finalUpdated.firstName} ${finalUpdated.lastName}`,
-              eventName: eventData?.name || "Event",
-              eventLocation: eventData?.location || "",
-              eventDates: eventData ? `${eventData.startDate} - ${eventData.endDate}` : "",
-              role: finalUpdated.role,
-              accreditationId: finalUpdated.accreditationId || finalUpdated.badgeNumber,
-              badgeNumber: finalUpdated.badgeNumber || "",
-              zoneCode: finalUpdated.zoneCode || approveData?.zoneCodes?.join(",") || "",
-              reportingTimes: eventData?.reportingTimes || "",
-              eventId: finalUpdated.eventId,
-              pdfBase64: pdfBase64 || null,
-              pdfFileName: pdfName || null
-            });
-          } catch (emailErr) {
-            console.error("[BackgroundQueue] Email delivery failed:", emailErr);
+          console.log(`[BackgroundQueue] Email notification requested for ${finalUpdated.email}`);
+          if (!finalUpdated.email) {
+            console.warn("[BackgroundQueue] Skipping email dispatch: No email address found.");
+          } else {
+            try {
+              await sendApprovalEmail({
+                to: finalUpdated.email,
+                name: `${finalUpdated.firstName} ${finalUpdated.lastName}`,
+                eventName: eventData?.name || "Event",
+                eventLocation: eventData?.location || "",
+                eventDates: eventData ? `${eventData.startDate} - ${eventData.endDate}` : "",
+                role: finalUpdated.role,
+                accreditationId: finalUpdated.accreditationId || finalUpdated.badgeNumber,
+                badgeNumber: finalUpdated.badgeNumber || "",
+                zoneCode: finalUpdated.zoneCode || approveData?.zoneCodes?.join(",") || "",
+                reportingTimes: eventData?.reportingTimes || "",
+                eventId: finalUpdated.eventId,
+                pdfBase64: pdfBase64 || null,
+                pdfFileName: pdfName || null
+              });
+              console.log("[BackgroundQueue] Email notification dispatched successfully.");
+            } catch (emailErr) {
+              console.error("[BackgroundQueue] Email delivery failed:", emailErr);
+            }
           }
         }
       }
