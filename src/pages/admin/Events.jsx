@@ -50,7 +50,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { EventsAPI, AccreditationsAPI, EventCategoriesAPI, CategoriesAPI } from "../../lib/storage";
 import { GlobalSettingsAPI } from "../../lib/broadcastApi";
 import { AttendanceAPI } from "../../lib/attendanceApi";
-import { formatDate, fileToBase64 } from "../../lib/utils";
+import { cn, formatDate, fileToBase64 } from "../../lib/utils";
 import { generateClubExports } from "../../lib/exportUtils";
 import AttendanceSheet from "../../components/attendance/AttendanceSheet";
 import AttendanceStats from "../../components/accreditation/AttendanceStats";
@@ -2335,21 +2335,29 @@ function TemplateView({ event, onClose, onSave }) {
     logoUrl: event.logoUrl || "",
     backTemplateUrl: event.backTemplateUrl || "",
     sponsorLogos: event.sponsorLogos || [],
-    frontBackgroundUrl: ""
+    frontBackgroundUrl: "",
+    onlyFrontPage: false
   });
   const [saving, setSaving] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
-    const fetchFrontBg = async () => {
+    const fetchSettings = async () => {
       try {
-        const bg = await GlobalSettingsAPI.get(`event_${event.id}_front_bg`);
-        if (bg) setTemplateData(prev => ({ ...prev, frontBackgroundUrl: bg }));
+        const [bg, onlyFront] = await Promise.all([
+          GlobalSettingsAPI.get(`event_${event.id}_front_bg`),
+          GlobalSettingsAPI.get(`event_${event.id}_only_front_page`)
+        ]);
+        setTemplateData(prev => ({ 
+          ...prev, 
+          frontBackgroundUrl: bg || "",
+          onlyFrontPage: onlyFront === "true" || onlyFront === true
+        }));
       } catch (err) {
-        console.error("Failed to load front background");
+        console.error("Failed to load settings");
       }
     };
-    fetchFrontBg();
+    fetchSettings();
   }, [event.id]);
 
   const handleFileUpload = async (e, field) => {
@@ -2367,9 +2375,12 @@ function TemplateView({ event, onClose, onSave }) {
   const save = async () => {
     setSaving(true);
     try {
-      const { frontBackgroundUrl, ...dbTemplateData } = templateData;
+      const { frontBackgroundUrl, onlyFrontPage, ...dbTemplateData } = templateData;
       await EventsAPI.update(event.id, dbTemplateData);
-      await GlobalSettingsAPI.set(`event_${event.id}_front_bg`, frontBackgroundUrl || "");
+      await Promise.all([
+        GlobalSettingsAPI.set(`event_${event.id}_front_bg`, frontBackgroundUrl || ""),
+        GlobalSettingsAPI.set(`event_${event.id}_only_front_page`, onlyFrontPage)
+      ]);
       toast.success("Template settings saved");
       if (onSave) onSave();
       onClose();
@@ -2459,6 +2470,28 @@ function TemplateView({ event, onClose, onSave }) {
                   <p className="text-xs text-slate-500 max-w-[200px]">Background image to fill the white space of the front card. Max 2MB.</p>
                 </div>
               </div>
+
+              <div className="pt-4 border-t border-white/5">
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <div className="relative flex items-center">
+                    <input 
+                      type="checkbox" 
+                      className="peer sr-only" 
+                      checked={templateData.onlyFrontPage}
+                      onChange={e => setTemplateData(prev => ({ ...prev, onlyFrontPage: e.target.checked }))}
+                    />
+                    <div className="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-slate-200 group-hover:text-primary-400 transition-colors">
+                      Single-Sided Mode (Front Only)
+                    </span>
+                    <span className="text-[10px] text-slate-500 uppercase tracking-widest leading-none mt-1">
+                      Disable back page generation in PDF
+                    </span>
+                  </div>
+                </label>
+              </div>
             </div>
           </div>
 
@@ -2470,7 +2503,7 @@ function TemplateView({ event, onClose, onSave }) {
             </h4>
 
             <div className="space-y-6 bg-slate-900/40 p-6 rounded-2xl border border-white/5">
-              <div>
+              <div className={cn("transition-all duration-300", templateData.onlyFrontPage && "opacity-40 grayscale pointer-events-none")}>
                 <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-3">Back Graphic</label>
                 <div className="relative aspect-[3/4] max-w-[200px] border-2 border-dashed border-slate-700 rounded-2xl overflow-hidden group">
                   {templateData.backTemplateUrl ? (

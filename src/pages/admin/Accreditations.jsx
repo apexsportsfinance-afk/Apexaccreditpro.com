@@ -138,10 +138,11 @@ export default function Accreditations() {
   const initializedRef = React.useRef(false);
   const [emailModal, setEmailModal] = useState({ open: false, accreditation: null });
   const [imageDownloadingId, setImageDownloadingId] = useState(null);
-  const [clubs, setClubs] = useState([]);
+  const [onlyFrontPage, setOnlyFrontPage] = useState(false);
   const [frontBackgroundUrl, setFrontBackgroundUrl] = useState("");
-  const [categoryDocuments, setCategoryDocuments] = useState({});
   const [customFields, setCustomFields] = useState([]);
+  const [categoryDocuments, setCategoryDocuments] = useState({});
+  const [clubs, setClubs] = useState([]);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -187,10 +188,11 @@ export default function Accreditations() {
           GlobalSettingsAPI.getClubs(selectedEvent),
           GlobalSettingsAPI.get(`event_${selectedEvent}_front_bg`),
           GlobalSettingsAPI.get(`event_${selectedEvent}_category_documents`),
-          GlobalSettingsAPI.get(`event_${selectedEvent}_custom_fields`)
+          GlobalSettingsAPI.get(`event_${selectedEvent}_custom_fields`),
+          GlobalSettingsAPI.get(`event_${selectedEvent}_only_front_page`)
         ]);
 
-        const [accResult, zoneResult, ecResult, clubResult, bgResult, catDocsResult, customFieldsResult] = results;
+        const [accResult, zoneResult, ecResult, clubResult, bgResult, catDocsResult, customFieldsResult, onlyFrontResult] = results;
 
         if (accResult.status === "fulfilled") setAccreditations(accResult.value);
         else { console.error("Failed to load accreditations:", accResult.reason); toast.error("Failed to load accreditations."); }
@@ -203,6 +205,13 @@ export default function Accreditations() {
         else setFrontBackgroundUrl("");
         if (catDocsResult.status === "fulfilled") setCategoryDocuments(catDocsResult.value || {});
         else setCategoryDocuments({});
+
+        if (onlyFrontResult.status === "fulfilled") {
+          const val = onlyFrontResult.value;
+          setOnlyFrontPage(val === "true" || val === true);
+        } else {
+          setOnlyFrontPage(false);
+        }
 
         if (customFieldsResult.status === "fulfilled") {
           try {
@@ -2051,6 +2060,7 @@ export default function Accreditations() {
                     eventCategories={eventCategories}
                     frontBackgroundUrl={frontBackgroundUrl}
                     customFieldConfigs={customFields}
+                    onlyFrontPage={onlyFrontPage}
                   />
                 </div>
 

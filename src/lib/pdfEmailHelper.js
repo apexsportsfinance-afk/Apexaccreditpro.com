@@ -25,14 +25,17 @@ export const generatePdfForAccreditation = async (accreditation, event, zones, p
 
   let frontBackgroundUrl = "";
   let customFieldConfigs = [];
+  let onlyFrontPage = false;
   try {
     const { GlobalSettingsAPI } = await import("./broadcastApi");
     if (event?.id) {
-      const [bg, cf] = await Promise.all([
+      const [bg, cf, onlyFront] = await Promise.all([
         GlobalSettingsAPI.get(`event_${event.id}_front_bg`),
-        GlobalSettingsAPI.get(`event_${event.id}_custom_fields`)
+        GlobalSettingsAPI.get(`event_${event.id}_custom_fields`),
+        GlobalSettingsAPI.get(`event_${event.id}_only_front_page`)
       ]);
       if (bg) frontBackgroundUrl = bg;
+      onlyFrontPage = onlyFront === "true" || onlyFront === true;
       if (cf) {
         try {
           customFieldConfigs = JSON.parse(cf);
@@ -58,7 +61,8 @@ export const generatePdfForAccreditation = async (accreditation, event, zones, p
       zones,
       idSuffix: SUFFIX,
       frontBackgroundUrl,
-      customFieldConfigs
+      customFieldConfigs,
+      onlyFrontPage
     })
   );
 
@@ -182,14 +186,17 @@ export const generateImagesForAccreditation = async (accreditation, event, zones
   
   let frontBackgroundUrl = "";
   let customFieldConfigs = [];
+  let onlyFrontPage = false;
   try {
     const { GlobalSettingsAPI } = await import("./broadcastApi");
     if (event?.id) {
-      const [bg, cf] = await Promise.all([
+      const [bg, cf, onlyFront] = await Promise.all([
         GlobalSettingsAPI.get(`event_${event.id}_front_bg`),
-        GlobalSettingsAPI.get(`event_${event.id}_custom_fields`)
+        GlobalSettingsAPI.get(`event_${event.id}_custom_fields`),
+        GlobalSettingsAPI.get(`event_${event.id}_only_front_page`)
       ]);
       if (bg) frontBackgroundUrl = bg;
+      onlyFrontPage = onlyFront === "true" || onlyFront === true;
       if (cf) {
         try {
           customFieldConfigs = JSON.parse(cf);
@@ -215,7 +222,8 @@ export const generateImagesForAccreditation = async (accreditation, event, zones
       zones,
       idSuffix: SUFFIX,
       frontBackgroundUrl,
-      customFieldConfigs
+      customFieldConfigs,
+      onlyFrontPage
     })
   );
 

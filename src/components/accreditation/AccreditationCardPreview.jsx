@@ -182,7 +182,7 @@ const AquaticsHeader = memo(function AquaticsHeader({ event }) {
   );
 });
 
-export const CardInner = memo(function CardInner({ accreditation, event, zones = [], eventCategories = [], idSuffix = "", frontBackgroundUrl = "", customFieldConfigs = [] }) {
+export const CardInner = memo(function CardInner({ accreditation, event, zones = [], eventCategories = [], idSuffix = "", frontBackgroundUrl = "", customFieldConfigs = [], onlyFrontPage = false }) {
   const categoryColor = resolveCategoryColor(accreditation?.role, eventCategories);
   const matchingZone = zones.find(z => z.name?.toLowerCase() === accreditation?.role?.toLowerCase());
   const zoneColor = matchingZone?.color || null;
@@ -489,6 +489,7 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
       </div>
 
       {/* BACK CARD CONTAINER */}
+      {!onlyFrontPage && (
       <div className="qr-print-preview" style={{ padding: "8px", background: "white", borderRadius: "8px", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)", border: "1px dashed #cbd5e1" }}>
       <div
         id={`accreditation-back-card${idSuffix}`}
@@ -569,11 +570,12 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
         )}
       </div>
       </div>
+      )}
     </div>
   );
 });
 
-const AccreditationCardPreview = memo(function AccreditationCardPreview({ accreditation, event, zones = [], eventCategories = [], frontBackgroundUrl = "", customFieldConfigs = [], idSuffix = "" }) {
+const AccreditationCardPreview = memo(function AccreditationCardPreview({ accreditation, event, zones = [], eventCategories = [], frontBackgroundUrl = "", customFieldConfigs = [], idSuffix = "", onlyFrontPage = false }) {
   return (
     <div id="accreditation-card-preview" style={{ display: "inline-block", fontFamily: '"Gill Sans MT", "Gill Sans", Calibri, sans-serif' }}>
       <div style={{ display: "flex", flexDirection: "row", gap: "24px", alignItems: "flex-start" }}>
@@ -585,6 +587,7 @@ const AccreditationCardPreview = memo(function AccreditationCardPreview({ accred
           idSuffix={idSuffix}
           frontBackgroundUrl={frontBackgroundUrl}
           customFieldConfigs={customFieldConfigs}
+          onlyFrontPage={onlyFrontPage}
         />
       </div>
     </div>
