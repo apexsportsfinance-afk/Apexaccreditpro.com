@@ -530,11 +530,11 @@ export default function Accreditations() {
     setPdfPreviewModal({ open: false, accreditation: null });
   }, []);
 
-  const handleDownloadPDF = useCallback(async (accreditation, openInBrowser = false, forceRegenerate = false) => {
+  const handleDownloadPDF = useCallback(async (accreditation, openInBrowser = false) => {
     const pdfAccreditation = accreditations.find(a => a.id === accreditation.id) || accreditation;
 
-    // Priority: Use pre-cached PDF if available from latest data (unless forcing regeneration)
-    if (pdfAccreditation.documents?.accreditation_pdf && !forceRegenerate) {
+    // Priority: Use pre-cached PDF if available from latest data
+    if (pdfAccreditation.documents?.accreditation_pdf) {
       const baseUrl = pdfAccreditation.documents.accreditation_pdf;
       const url = baseUrl.includes("?") ? `${baseUrl}&t=${Date.now()}` : `${baseUrl}?t=${Date.now()}`;
       
@@ -2082,7 +2082,7 @@ export default function Accreditations() {
                   <Button
                     variant="primary"
                     icon={Download}
-                    onClick={() => handleDownloadPDF(pdfPreviewModal.accreditation, false, true)}
+                    onClick={() => handleDownloadPDF(pdfPreviewModal.accreditation)}
                     loading={downloadingId === pdfPreviewModal.accreditation.id}
                     className="flex-1"
                   >
@@ -2091,7 +2091,7 @@ export default function Accreditations() {
                   <Button
                     variant="secondary"
                     icon={Eye}
-                    onClick={() => handleDownloadPDF(pdfPreviewModal.accreditation, true, true)}
+                    onClick={() => handleDownloadPDF(pdfPreviewModal.accreditation, true)}
                     className="flex-1"
                   >
                     Open in Browser
