@@ -819,8 +819,9 @@ export default function VerifyAccreditation() {
                           const value = parsedCustomFields[cfg.id];
                           if (!value) return null;
                           return (
-                            <div key={idx} className="px-2 py-0.5 bg-white border border-slate-200 rounded text-[9px] font-black text-slate-800 uppercase shadow-sm">
-                              {value}
+                            <div key={idx} className="px-2 py-1 bg-white border border-slate-200 rounded text-slate-800 shadow-sm flex flex-col items-start min-w-[80px]">
+                              <span className="text-[7px] text-slate-500 font-bold uppercase leading-none mb-0.5">{cfg.label}</span>
+                              <span className="text-[9px] font-black uppercase leading-none">{value}</span>
                             </div>
                           );
                         })}

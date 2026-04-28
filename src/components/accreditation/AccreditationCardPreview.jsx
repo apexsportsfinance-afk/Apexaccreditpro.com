@@ -402,7 +402,8 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
             })()}
 
             {/* Custom Information Fields - Dynamic based on event config */}
-            <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "3px", width: "100%", alignItems: "flex-end" }}>
+            {/* Custom Information Fields - Dynamic based on event config */}
+            <div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "6px", width: "100%", alignItems: "flex-end" }}>
               {customFieldConfigs
                 ?.filter(cfg => cfg.showOnBadge === true)
                 ?.map(cfg => {
@@ -412,22 +413,24 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
                     <div 
                       key={cfg.id}
                       style={{ 
-                        padding: "1.5px 7px", 
-                        border: "1.2px solid #eab308", 
-                        borderRadius: "3px", 
-                        fontSize: "8.5px", 
-                        fontWeight: "900", 
-                        color: "#0f172a", 
-                        textTransform: "uppercase", 
-                        ...cardFont, 
-                        minWidth: "85px", 
-                        textAlign: "center", 
+                        padding: "3px 10px", 
+                        border: "1px solid #F5A623", 
+                        borderRadius: "2px", 
                         backgroundColor: "white",
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-                        letterSpacing: "0.02em"
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        minWidth: "120px",
+                        ...cardFont,
+                        boxSizing: "border-box"
                       }}
                     >
-                      {value}
+                      <span style={{ fontSize: "7px", fontWeight: "bold", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.02em", marginBottom: "1px", display: "block" }}>
+                        {cfg.label}
+                      </span>
+                      <span style={{ fontSize: "11px", fontWeight: "900", color: "#1e293b", textTransform: "uppercase", display: "block", lineHeight: "1" }}>
+                        {value}
+                      </span>
                     </div>
                   );
                 })}
