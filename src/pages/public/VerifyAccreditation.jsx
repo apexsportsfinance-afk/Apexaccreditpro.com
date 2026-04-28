@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   CheckCircle, XCircle, Download, Calendar,
@@ -438,6 +438,26 @@ export default function VerifyAccreditation() {
     } catch (e) { return []; }
   }, [globSettings, data?.event_id]);
 
+  const customFieldConfigs = useMemo(() => {
+    const eid = data?.event_id;
+    if (!eid || !globSettings) return [];
+    try {
+      const json = globSettings[`event_${eid}_custom_fields`];
+      return json ? JSON.parse(json) : [];
+    } catch (e) { return []; }
+  }, [globSettings, data?.event_id]);
+
+  const parsedCustomFields = useMemo(() => {
+    if (!data?.custom_message) return {};
+    try {
+      return typeof data.custom_message === "string" 
+        ? JSON.parse(data.custom_message) 
+        : data.custom_message;
+    } catch (e) {
+      return {};
+    }
+  }, [data?.custom_message]);
+
   const showForQR = (key) => {
     const loc = fieldSettings[key] || "both";
     return loc === "both" || loc === "qr";
@@ -790,6 +810,21 @@ export default function VerifyAccreditation() {
                   <div className="flex flex-col">
                     <span className="text-[9px] font-black text-slate-900 uppercase">ID: {data.accreditation_id?.split("-")?.pop() || data.id?.slice(0,8)}</span>
                     <span className="text-[9px] font-black text-slate-900 uppercase">Badge: {data.badge_number}</span>
+                    
+                    {/* Dynamic Custom Fields */}
+                    <div className="mt-2 flex flex-col gap-1 items-start">
+                      {customFieldConfigs
+                        ?.filter(cfg => cfg.showOnBadge === true)
+                        ?.map((cfg, idx) => {
+                          const value = parsedCustomFields[cfg.id];
+                          if (!value) return null;
+                          return (
+                            <div key={idx} className="px-2 py-0.5 bg-white border border-slate-200 rounded text-[9px] font-black text-slate-800 uppercase shadow-sm">
+                              {value}
+                            </div>
+                          );
+                        })}
+                    </div>
                   </div>
                   <div className="flex items-center gap-3">
                      {data.nationality && (

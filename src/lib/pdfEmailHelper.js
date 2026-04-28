@@ -38,11 +38,22 @@ export const generatePdfForAccreditation = async (accreditation, event, zones, p
   const pdfH = size.height;
 
   let frontBackgroundUrl = "";
+  let customFieldConfigs = [];
   try {
     const { GlobalSettingsAPI } = await import("./broadcastApi");
     if (event?.id) {
-      const bg = await GlobalSettingsAPI.get(`event_${event.id}_front_bg`);
+      const [bg, cf] = await Promise.all([
+        GlobalSettingsAPI.get(`event_${event.id}_front_bg`),
+        GlobalSettingsAPI.get(`event_${event.id}_custom_fields`)
+      ]);
       if (bg) frontBackgroundUrl = bg;
+      if (cf) {
+        try {
+          customFieldConfigs = JSON.parse(cf);
+        } catch (e) {
+          console.error("[pdfEmailHelper] Failed to parse custom fields:", e);
+        }
+      }
     }
   } catch (e) {}
 
@@ -60,7 +71,8 @@ export const generatePdfForAccreditation = async (accreditation, event, zones, p
       event,
       zones,
       idSuffix: SUFFIX,
-      frontBackgroundUrl
+      frontBackgroundUrl,
+      customFieldConfigs
     })
   );
 
@@ -179,11 +191,22 @@ export const generateImagesForAccreditation = async (accreditation, event, zones
   await initLibs();
   
   let frontBackgroundUrl = "";
+  let customFieldConfigs = [];
   try {
     const { GlobalSettingsAPI } = await import("./broadcastApi");
     if (event?.id) {
-      const bg = await GlobalSettingsAPI.get(`event_${event.id}_front_bg`);
+      const [bg, cf] = await Promise.all([
+        GlobalSettingsAPI.get(`event_${event.id}_front_bg`),
+        GlobalSettingsAPI.get(`event_${event.id}_custom_fields`)
+      ]);
       if (bg) frontBackgroundUrl = bg;
+      if (cf) {
+        try {
+          customFieldConfigs = JSON.parse(cf);
+        } catch (e) {
+          console.error("[pdfEmailHelper] Failed to parse custom fields:", e);
+        }
+      }
     }
   } catch (e) {}
 
@@ -201,7 +224,8 @@ export const generateImagesForAccreditation = async (accreditation, event, zones
       event,
       zones,
       idSuffix: SUFFIX,
-      frontBackgroundUrl
+      frontBackgroundUrl,
+      customFieldConfigs
     })
   );
 
