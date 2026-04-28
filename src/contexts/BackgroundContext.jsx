@@ -66,7 +66,25 @@ export const BackgroundProvider = ({ children }) => {
         ]);
 
         const pdfResult = await generatePdfAttachment(currentAcc, eventData, allZones, pdfSize || "a6");
-        if (onSuccess) onSuccess(pdfResult);
+        
+        if (pdfResult?.pdfBlob) {
+          // Upload to storage
+          const { url } = await uploadToStorage(
+            new File([pdfResult.pdfBlob], pdfResult.pdfFileName, { type: "application/pdf" }),
+            "accreditations/pdfs"
+          );
+          
+          // Update database with URL
+          const updated = await AccreditationsAPI.update(id, {
+            documents: {
+              ...(currentAcc.documents || {}),
+              accreditation_pdf: url
+            }
+          });
+          if (onSuccess) onSuccess(updated);
+        } else if (onSuccess) {
+          onSuccess(pdfResult);
+        }
       } else if (task.type === "accreditation_approval") {
         // Support both wrapped task.data and flat task properties
         const taskData = task.data || task;
@@ -83,23 +101,47 @@ export const BackgroundProvider = ({ children }) => {
         const currentAcc = await AccreditationsAPI.getById(id);
         if (!currentAcc) throw new Error("Accreditation not found");
 
-        // 3. Generate PDF
+        // 3. Status Update (Approve)
+        console.log(`[BackgroundQueue] Approving ${currentAcc.firstName}...`);
+        await AccreditationsAPI.approve(
+          id, 
+          approveData?.zoneCodes?.join(",") || "", 
+          currentAcc.badgeNumber || "", 
+          currentAcc.role
+        );
+
+        // 4. Generate PDF
         console.log(`[BackgroundQueue] Generating PDF for ${currentAcc.firstName}...`);
         const pdfResult = await generatePdfAttachment(currentAcc, eventData, allZones, pdfSize || "a6");
         const pdfBase64 = pdfResult?.pdfBase64;
         const pdfName = pdfResult?.pdfFileName;
+        const pdfBlob = pdfResult?.pdfBlob;
 
-        if (pdfResult) {
-          console.log(`[BackgroundQueue] PDF generated successfully. Length: ${pdfBase64?.length || 0}`);
+        let finalPdfUrl = null;
+        if (pdfBlob) {
+          console.log(`[BackgroundQueue] PDF generated successfully. Uploading to storage...`);
+          const { url } = await uploadToStorage(
+            new File([pdfBlob], pdfName, { type: "application/pdf" }),
+            "accreditations/pdfs"
+          );
+          finalPdfUrl = url;
+          
+          // Update database with URL
+          await AccreditationsAPI.update(id, {
+            documents: {
+              ...(currentAcc.documents || {}),
+              accreditation_pdf: url
+            }
+          });
         } else {
           console.warn("[BackgroundQueue] PDF generation failed or returned null.");
         }
 
-        // 4. Final update in database (if needed)
+        // 5. Final fetch of updated record
         const finalUpdated = await AccreditationsAPI.getById(id);
         if (onSuccess) onSuccess(finalUpdated);
 
-        // 5. Send Email if requested
+        // 6. Send Email if requested
         if (approveData?.sendEmail) {
           console.log(`[BackgroundQueue] Email notification requested for ${finalUpdated.email}`);
           if (!finalUpdated.email) {
