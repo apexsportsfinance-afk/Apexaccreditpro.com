@@ -510,6 +510,31 @@ export const AccreditationsAPI = {
     }
   },
 
+  getPaginatedByEventId: async (eventId, options = {}) => {
+    const { status = null, limit = 50, offset = 0 } = options;
+    
+    let q = supabase
+      .from("accreditations")
+      .select(ACCREDITATION_LIST_COLUMNS, { count: "exact" })
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
+      
+    if (eventId && eventId !== "null") q = q.eq("event_id", eventId);
+    if (status) q = q.eq("status", status);
+
+    const { data, count, error } = await q; // Bypass handleResponse to get count
+    
+    if (error) {
+      console.error(`Failed to fetch paginated accreditations for event ${eventId}:`, error);
+      throw error;
+    }
+    
+    return {
+      data: (data || []).map(mapAccreditationFromDB),
+      count: count || 0
+    };
+  },
+
   search: async (eventId, { club = [], name = "", limit = 20, offset = 0 }) => {
     let q = supabase
       .from("accreditations")

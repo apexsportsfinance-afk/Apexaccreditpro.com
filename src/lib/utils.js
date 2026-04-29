@@ -30,6 +30,25 @@ const differenceInHours = (d1, d2) => {
   return Math.floor(diff / (1000 * 60 * 60));
 };
 
+export const getThumbnailUrl = (originalUrl, width = 100) => {
+  if (!originalUrl || typeof originalUrl !== 'string') return originalUrl;
+  
+  // Only apply to Supabase Storage URLs that are images
+  if (originalUrl.includes('/storage/v1/object/public/') && !originalUrl.toLowerCase().endsWith('.pdf')) {
+    try {
+      const urlObj = new URL(originalUrl);
+      urlObj.pathname = urlObj.pathname.replace('/object/public/', '/render/image/public/');
+      urlObj.searchParams.set('width', width.toString());
+      urlObj.searchParams.set('resize', 'contain');
+      return urlObj.toString();
+    } catch {
+      return originalUrl;
+    }
+  }
+  
+  return originalUrl;
+};
+
 export const cn = (...classes) => {
   return classes.filter(Boolean).join(" ");
 };

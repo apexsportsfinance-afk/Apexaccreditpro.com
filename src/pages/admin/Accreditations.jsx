@@ -62,7 +62,8 @@ import {
   COUNTRIES,
   printPdfBlob,
   isExpired,
-  getExpirationLabel
+  getExpirationLabel,
+  getThumbnailUrl
 } from "../../lib/utils";
 import {
   downloadCapturedPDF,
@@ -85,6 +86,8 @@ export default function Accreditations() {
 
   const [events, setEvents] = useState([]);
   const [accreditations, setAccreditations] = useState([]);
+  const [totalAccreditations, setTotalAccreditations] = useState(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [zones, setZones] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [eventCategories, setEventCategories] = useState([]);
@@ -182,7 +185,7 @@ export default function Accreditations() {
       try {
         // APX-PERF: All 6 data calls in parallel instead of waterfall
         const results = await Promise.allSettled([
-          AccreditationsAPI.getByEventId(selectedEvent),
+          AccreditationsAPI.getPaginatedByEventId(selectedEvent, { limit: 100, offset: 0 }),
           ZonesAPI.getByEventId(selectedEvent),
           supabase.from("event_categories").select("*, category:categories(*)").eq("event_id", selectedEvent),
           GlobalSettingsAPI.getClubs(selectedEvent),
@@ -194,8 +197,10 @@ export default function Accreditations() {
 
         const [accResult, zoneResult, ecResult, clubResult, bgResult, catDocsResult, customFieldsResult, onlyFrontResult] = results;
 
-        if (accResult.status === "fulfilled") setAccreditations(accResult.value);
-        else { console.error("Failed to load accreditations:", accResult.reason); toast.error("Failed to load accreditations."); }
+        if (accResult.status === "fulfilled") {
+          setAccreditations(accResult.value.data);
+          setTotalAccreditations(accResult.value.count);
+        } else { console.error("Failed to load accreditations:", accResult.reason); toast.error("Failed to load accreditations."); }
 
         if (zoneResult.status === "fulfilled") setZones(zoneResult.value);
         if (ecResult.status === "fulfilled" && ecResult.value?.data) setEventCategories(ecResult.value.data);
@@ -240,8 +245,10 @@ export default function Accreditations() {
   const refreshAccreditations = useCallback(async () => {
     if (!selectedEvent) return;
     try {
-      const accData = await AccreditationsAPI.getByEventId(selectedEvent);
-      setAccreditations(accData);
+      const currentCount = Math.max(100, accreditations.length);
+      const accData = await AccreditationsAPI.getPaginatedByEventId(selectedEvent, { limit: currentCount, offset: 0 });
+      setAccreditations(accData.data);
+      setTotalAccreditations(accData.count);
     } catch (error) {
       console.error("Failed to refresh accreditations:", error);
     }
@@ -251,6 +258,27 @@ export default function Accreditations() {
     setFilters({ status: "", role: "", nationality: "", club: "" });
     toast.success("Filters cleared");
   }, [toast]);
+
+  const handleLoadMore = useCallback(async () => {
+    if (isLoadingMore || !selectedEvent) return;
+    setIsLoadingMore(true);
+    try {
+      const nextOffset = accreditations.length;
+      const nextBatch = await AccreditationsAPI.getPaginatedByEventId(selectedEvent, { limit: 100, offset: nextOffset });
+      setAccreditations(prev => {
+        // Prevent accidental duplication if clicked quickly
+        const existingIds = new Set(prev.map(a => a.id));
+        const newRecords = nextBatch.data.filter(a => !existingIds.has(a.id));
+        return [...prev, ...newRecords];
+      });
+      setTotalAccreditations(nextBatch.count);
+    } catch (err) {
+      console.error("Failed to load more:", err);
+      toast.error("Failed to load more accreditations");
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore, selectedEvent, accreditations.length, toast]);
 
   const filteredAccreditations = useMemo(() => {
     return (Array.isArray(accreditations) ? accreditations : []).filter((acc) => {
@@ -697,7 +725,7 @@ export default function Accreditations() {
             <div className="relative group">
               {row.photoUrl ? (
                 <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-border group-hover:border-primary-500 transition-colors">
-                  <img src={row.photoUrl} alt="" className="w-full h-full object-cover" />
+                  <img src={getThumbnailUrl(row.photoUrl, 100)} alt="" className="w-full h-full object-cover" />
                 </div>
               ) : (
                 <div className="w-12 h-12 rounded-full bg-base-alt flex items-center justify-center text-muted border-2 border-border">
@@ -1076,17 +1104,39 @@ export default function Accreditations() {
               description="No accreditations match your current filters"
             />
           ) : (
-            <DataTable
-              data={filteredAccreditations}
-              columns={columns}
-              searchable
-              searchFields={["firstName", "lastName", "email", "club"]}
-              selectable
-              selectedRows={selectedRows}
-              onSelectRows={setSelectedRows}
-              onRowClick={(row) => setViewModal({ open: true, accreditation: row })}
-              rowClassName={(row) => duplicateIds.has(row.id) ? "bg-amber-900/10 hover:bg-amber-900/20" : ""}
-            />
+            <>
+              <DataTable
+                data={filteredAccreditations}
+                columns={columns}
+                searchable
+                searchFields={["firstName", "lastName", "email", "club"]}
+                selectable
+                selectedRows={selectedRows}
+                onSelectRows={setSelectedRows}
+                onRowClick={(row) => setViewModal({ open: true, accreditation: row })}
+                rowClassName={(row) => duplicateIds.has(row.id) ? "bg-amber-900/10 hover:bg-amber-900/20" : ""}
+              />
+              
+              {accreditations.length < totalAccreditations && (
+                <div className="flex justify-center mt-6 pt-4 border-t border-slate-700/50">
+                  <Button
+                    variant="secondary"
+                    onClick={handleLoadMore}
+                    disabled={isLoadingMore}
+                    className="w-full sm:w-auto min-w-[250px] flex items-center justify-center gap-2"
+                  >
+                    {isLoadingMore ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      `Load More (${accreditations.length} of ${totalAccreditations} loaded)`
+                    )}
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
