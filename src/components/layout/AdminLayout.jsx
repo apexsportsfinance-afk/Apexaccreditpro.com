@@ -1,11 +1,11 @@
 import React, { useEffect } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import Sidebar from "./Sidebar";
+import Sidebar, { navItems } from "./Sidebar";
 import { useAuth } from "../../contexts/AuthContext";
 import BackgroundProgress from "../accreditation/BackgroundProgress";
 
 export default function AdminLayout() {
-  const { isAuthenticated, loading, isSuperAdmin, canAccessModule } = useAuth();
+  const { isAuthenticated, loading, isSuperAdmin, canAccessModule, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -16,12 +16,22 @@ export default function AdminLayout() {
       } else {
         // Protect routes based on module permissions
         if (!canAccessModule(location.pathname)) {
-          // If dashboard is available, go there, otherwise find first accessible module
-          navigate("/admin/dashboard");
+          // APX-Fix: Find first authorized module instead of always defaulting to dashboard
+          const firstAllowed = navItems.find(item => {
+            if (item.superOnly && !isSuperAdmin) return false;
+            return canAccessModule(item.to);
+          });
+
+          if (firstAllowed) {
+            navigate(firstAllowed.to);
+          } else if (location.pathname !== "/admin/dashboard") {
+            // Ultimate fallback
+            navigate("/admin/dashboard");
+          }
         }
       }
     }
-  }, [isAuthenticated, loading, navigate, isSuperAdmin, location.pathname]);
+  }, [isAuthenticated, loading, navigate, isSuperAdmin, location.pathname, user?.allowedModules]);
 
   if (loading) {
     return (

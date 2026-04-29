@@ -24,7 +24,7 @@ import { useTheme } from "../../contexts/ThemeContext";
 import ThemeToggle from "../ui/ThemeToggle";
 import { cn } from "../../lib/utils";
 
-const navItems = [
+export const navItems = [
   { to: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/admin/events", icon: Calendar, label: "Events" },
   { to: "/admin/ticketing", icon: Ticket, label: "Spectator Portal" },
@@ -46,11 +46,6 @@ export default function Sidebar() {
   const filteredNavItems = navItems.filter(item => {
     // If it's a superOnly item, check isSuperAdmin
     if (item.superOnly && !isSuperAdmin) return false;
-    
-    // For Viewer role, only show Dashboard, Accreditations and QR System
-    if (isViewer) {
-      return ["Dashboard", "Accreditations", "QR System"].includes(item.label);
-    }
     
     // Check module permission
     return canAccessModule(item.to);
