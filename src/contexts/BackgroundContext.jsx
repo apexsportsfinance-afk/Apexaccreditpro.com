@@ -112,7 +112,12 @@ export const BackgroundProvider = ({ children }) => {
 
         // 4. Generate PDF
         console.log(`[BackgroundQueue] Generating PDF for ${currentAcc.firstName}...`);
-        const pdfResult = await generatePdfAttachment(currentAcc, eventData, allZones, pdfSize || "a6");
+        const pdfPayload = {
+          ...currentAcc,
+          status: "approved",
+          zoneCode: approveData?.zoneCodes?.join(",") || currentAcc.zoneCode || ""
+        };
+        const pdfResult = await generatePdfAttachment(pdfPayload, eventData, allZones, pdfSize || "a6");
         const pdfBase64 = pdfResult?.pdfBase64;
         const pdfName = pdfResult?.pdfFileName;
         const pdfBlob = pdfResult?.pdfBlob;
