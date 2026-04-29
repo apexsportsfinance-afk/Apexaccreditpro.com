@@ -144,11 +144,14 @@ const renderOffscreenCard = (accreditation, event, zones) =>
   new Promise(async (resolve, reject) => {
     let frontBackgroundUrl = "";
     let customFieldConfigs = [];
+    let eventCategories = [];
     try {
       const { GlobalSettingsAPI } = await import("../../lib/broadcastApi");
-      const [bg, cf] = await Promise.all([
+      const { CategoriesAPI } = await import("../../lib/storage");
+      const [bg, cf, cats] = await Promise.all([
         GlobalSettingsAPI.get(`event_${event.id}_front_bg`),
-        GlobalSettingsAPI.get(`event_${event.id}_custom_fields`)
+        GlobalSettingsAPI.get(`event_${event.id}_custom_fields`),
+        CategoriesAPI.getAll(event.id)
       ]);
       if (bg) frontBackgroundUrl = bg;
       if (cf) {
@@ -158,6 +161,7 @@ const renderOffscreenCard = (accreditation, event, zones) =>
           console.error("[cardExport] Failed to parse custom fields:", e);
         }
       }
+      if (cats) eventCategories = cats;
     } catch (e) {}
 
     const SUFFIX = `_cap_${Date.now()}`;
@@ -188,6 +192,7 @@ const renderOffscreenCard = (accreditation, event, zones) =>
         accreditation,
         event,
         zones,
+        eventCategories,
         idSuffix: SUFFIX,
         frontBackgroundUrl,
         customFieldConfigs
