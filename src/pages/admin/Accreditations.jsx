@@ -572,27 +572,6 @@ export default function Accreditations() {
   const handleDownloadPDF = useCallback(async (accreditation, openInBrowser = false) => {
     const pdfAccreditation = accreditations.find(a => a.id === accreditation.id) || accreditation;
 
-    // Priority: Use pre-cached PDF if available from latest data
-    if (pdfAccreditation.documents?.accreditation_pdf) {
-      const baseUrl = pdfAccreditation.documents.accreditation_pdf;
-      const url = baseUrl.includes("?") ? `${baseUrl}&t=${Date.now()}` : `${baseUrl}?t=${Date.now()}`;
-      
-      if (openInBrowser) {
-        window.open(url, '_blank');
-        toast.success("PDF opened from cache!");
-      } else {
-        const link = document.createElement('a');
-        link.href = url;
-        link.target = "_blank";
-        link.download = `${pdfAccreditation.firstName}_${pdfAccreditation.lastName}_Card.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success("Downloading cached PDF...");
-      }
-      return;
-    }
-
     const id = pdfAccreditation.id;
     if (downloadingId === id) return;
     setDownloadingId(id);
