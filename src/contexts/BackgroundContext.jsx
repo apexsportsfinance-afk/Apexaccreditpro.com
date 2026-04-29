@@ -101,23 +101,36 @@ export const BackgroundProvider = ({ children }) => {
         const currentAcc = await AccreditationsAPI.getById(id);
         if (!currentAcc) throw new Error("Accreditation not found");
 
+        let badgeNumber = currentAcc.badgeNumber;
+        if (!badgeNumber) {
+          const prefix = getBadgePrefix(currentAcc.role);
+          const { count } = await supabase
+            .from("accreditations")
+            .select("id", { count: "exact", head: true })
+            .eq("event_id", resolvedEventId)
+            .eq("role", currentAcc.role)
+            .eq("status", "approved");
+          
+          const nextCount = (count || 0) + 1;
+          badgeNumber = `${prefix}-${String(nextCount).padStart(3, "0")}`;
+          console.log(`[BackgroundQueue] Generated badge number ${badgeNumber} for ${currentAcc.firstName}`);
+        }
+
         // 3. Status Update (Approve)
         console.log(`[BackgroundQueue] Approving ${currentAcc.firstName}...`);
         await AccreditationsAPI.approve(
           id, 
           approveData?.zoneCodes?.join(",") || "", 
-          currentAcc.badgeNumber || "", 
+          badgeNumber, 
           currentAcc.role
         );
 
-        // 4. Generate PDF
-        console.log(`[BackgroundQueue] Generating PDF for ${currentAcc.firstName}...`);
-        const pdfPayload = {
-          ...currentAcc,
-          status: "approved",
-          zoneCode: approveData?.zoneCodes?.join(",") || currentAcc.zoneCode || ""
-        };
-        const pdfResult = await generatePdfAttachment(pdfPayload, eventData, allZones, pdfSize || "a6");
+        // 3.5 Fetch strictly perfectly updated accreditation directly from database
+        const fullyUpdatedAcc = await AccreditationsAPI.getById(id);
+
+        // 4. Generate PDF using exactly what's inside the database!
+        console.log(`[BackgroundQueue] Generating PDF for ${fullyUpdatedAcc.firstName}...`);
+        const pdfResult = await generatePdfAttachment(fullyUpdatedAcc, eventData, allZones, pdfSize || "a6");
         const pdfBase64 = pdfResult?.pdfBase64;
         const pdfName = pdfResult?.pdfFileName;
         const pdfBlob = pdfResult?.pdfBlob;
@@ -134,7 +147,7 @@ export const BackgroundProvider = ({ children }) => {
           // Update database with URL
           await AccreditationsAPI.update(id, {
             documents: {
-              ...(currentAcc.documents || {}),
+              ...(fullyUpdatedAcc.documents || {}),
               accreditation_pdf: url
             }
           });
@@ -142,29 +155,29 @@ export const BackgroundProvider = ({ children }) => {
           console.warn("[BackgroundQueue] PDF generation failed or returned null.");
         }
 
-        // 5. Final fetch of updated record
-        const finalUpdated = await AccreditationsAPI.getById(id);
-        if (onSuccess) onSuccess(finalUpdated);
+        // 5. Finalize State
+        const finalDelivered = await AccreditationsAPI.getById(id);
+        if (onSuccess) onSuccess(finalDelivered);
 
         // 6. Send Email if requested
         if (approveData?.sendEmail) {
-          console.log(`[BackgroundQueue] Email notification requested for ${finalUpdated.email}`);
-          if (!finalUpdated.email) {
+          console.log(`[BackgroundQueue] Email notification requested for ${finalDelivered.email}`);
+          if (!finalDelivered.email) {
             console.warn("[BackgroundQueue] Skipping email dispatch: No email address found.");
           } else {
             try {
               await sendApprovalEmail({
-                to: finalUpdated.email,
-                name: `${finalUpdated.firstName} ${finalUpdated.lastName}`,
+                to: finalDelivered.email,
+                name: `${finalDelivered.firstName} ${finalDelivered.lastName}`,
                 eventName: eventData?.name || "Event",
                 eventLocation: eventData?.location || "",
                 eventDates: eventData ? `${eventData.startDate} - ${eventData.endDate}` : "",
-                role: finalUpdated.role,
-                accreditationId: finalUpdated.accreditationId || finalUpdated.badgeNumber,
-                badgeNumber: finalUpdated.badgeNumber || "",
-                zoneCode: finalUpdated.zoneCode || approveData?.zoneCodes?.join(",") || "",
+                role: finalDelivered.role,
+                accreditationId: finalDelivered.accreditationId || finalDelivered.badgeNumber,
+                badgeNumber: finalDelivered.badgeNumber || "",
+                zoneCode: finalDelivered.zoneCode || "",
                 reportingTimes: eventData?.reportingTimes || "",
-                eventId: finalUpdated.eventId,
+                eventId: finalDelivered.eventId,
                 pdfBase64: pdfBase64 || null,
                 pdfFileName: pdfName || null
               });
