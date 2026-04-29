@@ -167,8 +167,11 @@ export default function Events() {
     loadCategories();
   }, []);
 
+  const [fetchingEvents, setFetchingEvents] = useState(true);
+
   const loadEvents = async () => {
     try {
+      setFetchingEvents(true);
       const data = await EventsAPI.getAll();
       const filteredData = data.filter(e => canAccessEvent(e.id));
       setEvents(filteredData);
@@ -180,6 +183,8 @@ export default function Events() {
       }
     } catch (error) {
       console.error("Failed to load events:", error);
+    } finally {
+      setFetchingEvents(false);
     }
   };
 
@@ -719,6 +724,26 @@ export default function Events() {
       return doc.label;
     }).join(", ");
   };
+
+  if (fetchingEvents) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin w-10 h-10 border-2 border-primary-500 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (id && events.length > 0 && !events.find(e => e.id === id)) {
+    return (
+      <EmptyState
+        icon={AlertCircle}
+        title="Event Not Found"
+        description="The event you are looking for does not exist or you do not have permission to access it."
+        action={() => navigate("/admin/events")}
+        actionLabel="Back to Events List"
+      />
+    );
+  }
 
   return (
     <div id="events_page" className="space-y-6">
@@ -1947,6 +1972,7 @@ function CategoriesView({ event, availableCategories, onClose }) {
   const [categoryAllowlists, setCategoryAllowlists] = useState({});
   const [categorySports, setCategorySports] = useState({});
   const [categoryDocuments, setCategoryDocuments] = useState({});
+  const [categoryCustomFields, setCategoryCustomFields] = useState({});
 
   const [catModal, setCatModal] = useState({ open: false, mode: "add_main", data: null });
   const [deleteModal, setDeleteModal] = useState({ open: false, data: null });
@@ -1954,6 +1980,8 @@ function CategoriesView({ event, availableCategories, onClose }) {
   const [tempAllowlist, setTempAllowlist] = useState([]);
   const [tempSports, setTempSports] = useState([]);
   const [tempDocuments, setTempDocuments] = useState([]);
+  const [tempCustomFields, setTempCustomFields] = useState([]);
+  const [eventCustomFields, setEventCustomFields] = useState([]);
   const [allowlistSearch, setAllowlistSearch] = useState("");
 
   useEffect(() => {
@@ -1966,13 +1994,15 @@ function CategoriesView({ event, availableCategories, onClose }) {
 
   const loadData = async () => {
     try {
-      const [data, clubsList, allowlistRaw, sportsRaw, eventSportsRaw, docsRaw] = await Promise.all([
+      const [data, clubsList, allowlistRaw, sportsRaw, eventSportsRaw, docsRaw, customFieldsEventRaw, categoryCustomFieldsRaw] = await Promise.all([
         EventCategoriesAPI.getByEventId(event.id),
         GlobalSettingsAPI.getClubs(event.id),
         GlobalSettingsAPI.get(`event_${event.id}_category_allowlist`),
         GlobalSettingsAPI.get(`event_${event.id}_category_sports`),
         GlobalSettingsAPI.get(`event_${event.id}_sport`),
-        GlobalSettingsAPI.get(`event_${event.id}_category_documents`)
+        GlobalSettingsAPI.get(`event_${event.id}_category_documents`),
+        GlobalSettingsAPI.get(`event_${event.id}_custom_fields`),
+        GlobalSettingsAPI.get(`event_${event.id}_category_custom_fields`)
       ]);
       setSelectedCategories(data.map(r => r.categoryId));
       
@@ -1999,6 +2029,22 @@ function CategoriesView({ event, availableCategories, onClose }) {
       if (docsRaw) {
         setCategoryDocuments(typeof docsRaw === 'string' ? JSON.parse(docsRaw) : docsRaw);
       }
+
+      // Load event-level custom fields to populate the multi-select options
+      if (customFieldsEventRaw) {
+        try {
+          const parsed = typeof customFieldsEventRaw === 'string' ? JSON.parse(customFieldsEventRaw) : customFieldsEventRaw;
+          setEventCustomFields(Array.isArray(parsed) ? parsed : []);
+        } catch { setEventCustomFields([]); }
+      }
+
+      // Load category-specific custom field allocations
+      if (categoryCustomFieldsRaw) {
+        try {
+          const parsed = typeof categoryCustomFieldsRaw === 'string' ? JSON.parse(categoryCustomFieldsRaw) : categoryCustomFieldsRaw;
+          setCategoryCustomFields(parsed || {});
+        } catch { setCategoryCustomFields({}); }
+      }
     } catch (err) {
       console.error("Failed to load category data", err);
     }
@@ -2017,6 +2063,7 @@ function CategoriesView({ event, availableCategories, onClose }) {
       await GlobalSettingsAPI.set(`event_${event.id}_category_allowlist`, JSON.stringify(categoryAllowlists));
       await GlobalSettingsAPI.set(`event_${event.id}_category_sports`, JSON.stringify(categorySports));
       await GlobalSettingsAPI.set(`event_${event.id}_category_documents`, JSON.stringify(categoryDocuments));
+      await GlobalSettingsAPI.set(`event_${event.id}_category_custom_fields`, JSON.stringify(categoryCustomFields));
       toast.success("Categories and rules updated successfully");
       onClose();
     } catch (err) {
@@ -2032,10 +2079,12 @@ function CategoriesView({ event, availableCategories, onClose }) {
       setTempAllowlist(categoryAllowlists[categoryId] || []);
       setTempSports(categorySports[categoryId] || []);
       setTempDocuments(categoryDocuments[categoryId] || []);
+      setTempCustomFields(categoryCustomFields[categoryId] || []);
     } else {
       setTempAllowlist([]);
       setTempSports([]);
       setTempDocuments([]);
+      setTempCustomFields([]);
     }
     setCatModal({ open: true, mode, data });
   };
@@ -2071,6 +2120,7 @@ function CategoriesView({ event, availableCategories, onClose }) {
         setCategoryAllowlists(prev => ({ ...prev, [finalId]: tempAllowlist }));
         setCategorySports(prev => ({ ...prev, [finalId]: tempSports }));
         setCategoryDocuments(prev => ({ ...prev, [finalId]: tempDocuments }));
+        setCategoryCustomFields(prev => ({ ...prev, [finalId]: tempCustomFields }));
       }
 
       setCatModal({ open: false, mode: "add_main", data: null });
@@ -2212,13 +2262,13 @@ function CategoriesView({ event, availableCategories, onClose }) {
                           <button 
                             onClick={(e) => { e.stopPropagation(); openCatModal('edit', cat); }} 
                             className={`text-[10px] font-black uppercase tracking-widest px-3 py-2 rounded-lg flex items-center gap-2 transition-colors ${
-                              categoryDocuments[cat.id]?.length > 0 
-                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
+                              categoryCustomFields[cat.id]?.length > 0 
+                                ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" 
                                 : "bg-slate-800 text-slate-400 border border-slate-700"
                             }`}
                           >
-                            <FileText className="w-3.5 h-3.5" />
-                            {categoryDocuments[cat.id]?.length > 0 ? `${categoryDocuments[cat.id].length} Docs` : "Docs: Default"}
+                            <PlusCircle className="w-3.5 h-3.5" />
+                            {categoryCustomFields[cat.id]?.length > 0 ? `${categoryCustomFields[cat.id].length} Custom Fields` : "Fields: None"}
                           </button>
                         </div>
 
@@ -2298,6 +2348,21 @@ function CategoriesView({ event, availableCategories, onClose }) {
               />
               <p className="text-[10px] text-slate-500 mt-1">If empty, the event's default required documents will be used.</p>
             </div>
+            {eventCustomFields.length > 0 && (
+              <div>
+                <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Additional Information Fields</label>
+                <MultiSearchableSelect
+                  options={eventCustomFields.map(field => ({
+                    value: field.id,
+                    label: field.label_en || field.label_ar || field.label || field.id
+                  }))}
+                  value={tempCustomFields}
+                  onChange={setTempCustomFields}
+                  placeholder="Select fields to show for this role..."
+                />
+                <p className="text-[10px] text-slate-500 mt-1">Select specific fields or sub-options to show for this role. If nothing is selected, no additional fields will be displayed.</p>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3 pt-4">

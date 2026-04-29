@@ -144,6 +144,7 @@ export default function Register() {
   const [categoryAllowlist, setCategoryAllowlist] = useState({});
   const [categorySports, setCategorySports] = useState({});
   const [categoryDocuments, setCategoryDocuments] = useState({});
+  const [categoryCustomFields, setCategoryCustomFields] = useState({});
   const [visibilityConfig, setVisibilityConfig] = useState({ affiliation: true, contact: true, documents: true, phone: "optional" });
   const [labelOverrides, setLabelOverrides] = useState({});
 
@@ -220,6 +221,16 @@ export default function Register() {
         }
       } catch (err) {
         console.error("Failed to load category documents:", err);
+      }
+
+      // Fetch dynamic category custom fields allocations
+      try {
+        const fieldsRaw = await GlobalSettingsAPI.get(`event_${eventData.id}_category_custom_fields`);
+        if (fieldsRaw) {
+          setCategoryCustomFields(typeof fieldsRaw === 'string' ? JSON.parse(fieldsRaw) : fieldsRaw);
+        }
+      } catch (err) {
+        console.error("Failed to load category custom fields:", err);
       }
 
       // Fetch event sport category
@@ -585,6 +596,37 @@ export default function Register() {
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const getFilteredCustomFields = () => {
+    if (!customFieldsConfig || customFieldsConfig.length === 0) return [];
+    if (!formData.role) return []; // Opt-in: don't show fields until role is selected
+
+    const normalizedRole = formData.role.trim().toLowerCase();
+    const selectedCat = eventCategories.find(c => (c.name || '').trim().toLowerCase() === normalizedRole);
+    const catId = selectedCat ? selectedCat.id : null;
+
+    let allowedKeys = null;
+    if (categoryCustomFields) {
+      // 1. Match by ID
+      if (catId && categoryCustomFields[catId]) {
+        allowedKeys = categoryCustomFields[catId];
+      }
+      // 2. Match by Name
+      if (!allowedKeys) {
+        const nameMatchKey = Object.keys(categoryCustomFields).find(k => k.trim().toLowerCase() === normalizedRole);
+        if (nameMatchKey) allowedKeys = categoryCustomFields[nameMatchKey];
+      }
+    }
+
+    // If no config found for this role, default to showing NONE (per user request: opt-in)
+    // "if i dont select any then it should not show any extra field"
+    if (!allowedKeys || !Array.isArray(allowedKeys) || allowedKeys.length === 0) return [];
+
+    return customFieldsConfig.filter(field => {
+      // Check if the field itself is allowed
+      return allowedKeys.includes(field.id);
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -1174,42 +1216,58 @@ export default function Register() {
               )}
 
               {/* Custom Fields */}
-              {customFieldsConfig.length > 0 && (
-                <div className="space-y-4 relative z-[50]">
-                  <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">
-                    <Files className="w-6 h-6" />
-                    Additional Information
-                  </h2>
-                  {customFieldsConfig.map((field, idx) => (
-                    <div key={idx} className="space-y-4">
-                      {field.type === 'select' ? (
-                        <Select
-                          label={language === "ar" ? field.label_ar : field.label_en}
-                          name={`custom_${field.id}`}
-                          value={formData.customFields[field.id] || ""}
-                          onChange={handleInputChange}
-                          error={errors[`custom_${field.id}`]}
-                          required={field.required}
-                          light
-                          placeholder={language === "ar" ? "اختر خياراً..." : "Select an option..."}
-                          options={(field.options || "").split(",").map(opt => ({ value: opt.trim(), label: opt.trim() }))}
-                        />
-                      ) : (
-                        <Input
-                          label={language === "ar" ? field.label_ar : field.label_en}
-                          name={`custom_${field.id}`}
-                          value={formData.customFields[field.id] || ""}
-                          onChange={handleInputChange}
-                          error={errors[`custom_${field.id}`]}
-                          required={field.required}
-                          light
-                          placeholder={language === "ar" ? "أدخل التفاصيل..." : "Enter details..."}
-                        />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+              {(() => {
+                const filteredFields = getFilteredCustomFields();
+                if (filteredFields.length === 0) return null;
+
+                return (
+                  <div className="space-y-4 relative z-[50]">
+                    <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">
+                      <Files className="w-6 h-6" />
+                      Additional Information
+                    </h2>
+                    {filteredFields.map((field, idx) => (
+                      <div key={idx} className="space-y-4">
+                        {field.type === 'select' ? (
+                          <Select
+                            label={language === "ar" ? field.label_ar : field.label_en}
+                            name={`custom_${field.id}`}
+                            value={formData.customFields[field.id] || ""}
+                            onChange={handleInputChange}
+                            error={errors[`custom_${field.id}`]}
+                            required={field.required}
+                            light
+                            placeholder={language === "ar" ? "اختر خياراً..." : "Select an option..."}
+                            options={(() => {
+                              let opts = [];
+                              if (Array.isArray(field.options)) {
+                                opts = field.options;
+                              } else if (typeof field.options === 'string') {
+                                opts = field.options.split(",").map(o => o.trim()).filter(Boolean);
+                              }
+                              return opts.map(opt => ({ 
+                                value: typeof opt === 'string' ? opt : (opt.value || opt.label || opt), 
+                                label: typeof opt === 'string' ? opt : (opt.label || opt.value || opt)
+                              }));
+                            })()}
+                          />
+                        ) : (
+                          <Input
+                            label={language === "ar" ? field.label_ar : field.label_en}
+                            name={`custom_${field.id}`}
+                            value={formData.customFields[field.id] || ""}
+                            onChange={handleInputChange}
+                            error={errors[`custom_${field.id}`]}
+                            required={field.required}
+                            light
+                            placeholder={language === "ar" ? "أدخل التفاصيل..." : "Enter details..."}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
 
             {/* Contact Details */}
             {visibilityConfig.contact !== false && (
