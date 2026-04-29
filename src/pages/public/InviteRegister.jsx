@@ -609,7 +609,7 @@ export default function InviteRegister() {
               </div>
             )}
 
-            <div className="space-y-4 relative z-50">
+            <div className="space-y-4 relative z-[100]">
               <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">
                 <User className="w-6 h-6 text-cyan-600" /> Personal Information
               </h2>
@@ -630,7 +630,7 @@ export default function InviteRegister() {
             </div>
 
             {/* Affiliation */}
-            <div className="space-y-4 relative z-40">
+            <div className="space-y-4 relative z-[90]">
               <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">
                 <Flag className="w-6 h-6 text-cyan-600" /> Affiliation
               </h2>
@@ -674,7 +674,7 @@ export default function InviteRegister() {
             </div>
 
             {/* Contact */}
-            <div className="space-y-4 relative z-30">
+            <div className="space-y-4 relative z-[80]">
               <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">
                 <Mail className="w-6 h-6 text-cyan-600" /> Contact
               </h2>
@@ -683,7 +683,7 @@ export default function InviteRegister() {
 
             {/* Documents - ONLY SHOWN AFTER ROLE IS SELECTED */}
             {formData.role && (
-              <div className="space-y-4 relative z-20">
+              <div className="space-y-4 relative z-[70]">
                 <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">
                   <Upload className="w-6 h-6 text-cyan-600" /> Documents
                 </h2>
