@@ -31,21 +31,7 @@ const differenceInHours = (d1, d2) => {
 };
 
 export const getThumbnailUrl = (originalUrl, width = 100) => {
-  if (!originalUrl || typeof originalUrl !== 'string') return originalUrl;
-  
-  // Only apply to Supabase Storage URLs that are images
-  if (originalUrl.includes('/storage/v1/object/public/') && !originalUrl.toLowerCase().endsWith('.pdf')) {
-    try {
-      const urlObj = new URL(originalUrl);
-      urlObj.pathname = urlObj.pathname.replace('/object/public/', '/render/image/public/');
-      urlObj.searchParams.set('width', width.toString());
-      urlObj.searchParams.set('resize', 'contain');
-      return urlObj.toString();
-    } catch {
-      return originalUrl;
-    }
-  }
-  
+  // Bypassed Supabase Image Transformations to prevent 400 errors on unsupported tiers.
   return originalUrl;
 };
 
