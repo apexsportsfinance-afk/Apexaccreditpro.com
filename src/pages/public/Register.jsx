@@ -991,11 +991,7 @@ export default function Register() {
             </div>
               {/* Affiliation Information */}
               {visibilityConfig.affiliation !== false && (
-<<<<<<< HEAD
-                <div className="space-y-4 relative z-[60]">
-=======
                 <div className="space-y-4 relative z-[90]">
->>>>>>> 31f28fd (Fix: nationality dropdown overlap and z-index layering)
                   <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">
                     <Flag className={`${language === "ar" ? "ml-2" : ""}`} />
                     {t("affiliation_info")}
