@@ -587,8 +587,9 @@ export default function Register() {
       newErrors.terms = "You must accept the terms and conditions";
     }
 
-    // Validation for Custom Fields
-    customFieldsConfig.forEach(field => {
+    // Validation for Custom Fields - ONLY validate fields visible to this role (APX-Fix)
+    const visibleCustomFields = getFilteredCustomFields();
+    visibleCustomFields.forEach(field => {
       if (field.required && !formData.customFields[field.id]) {
         newErrors[`custom_${field.id}`] = `${language === 'ar' ? field.label_ar : field.label_en} is required`;
       }
@@ -631,7 +632,16 @@ export default function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      // APX-UX: Scroll to first error
+      setTimeout(() => {
+        const firstError = document.querySelector('.text-red-500');
+        if (firstError) {
+          firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+      return;
+    }
 
     setSubmitting(true);
     setDuplicateError(null);
