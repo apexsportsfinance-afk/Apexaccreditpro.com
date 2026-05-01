@@ -20,6 +20,7 @@ export default function BulkOperations({
   onBulkDelete,
   eventCategories = [],
   clubs = [],
+  customFields = [],
   disabled = false
 }) {
   const [showEditModal, setShowEditModal] = useState(false);
@@ -57,11 +58,11 @@ export default function BulkOperations({
     }
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     const dataToExport = selectedRows.length > 0 
       ? filteredData.filter(r => selectedRows.includes(r.id)) 
       : filteredData;
-    exportToExcel(dataToExport, `accreditations-${event?.name || "export"}`);
+    await exportToExcel(dataToExport, `accreditations-${event?.name || "export"}`, event, customFields);
   };
 
   const handleExportPDF = async () => {

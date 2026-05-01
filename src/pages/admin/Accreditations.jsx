@@ -1080,6 +1080,7 @@ export default function Accreditations() {
             zones={zones}
             clubs={clubs}
             eventCategories={eventCategories}
+            customFields={customFields}
             onClearSelection={setSelectedRows}
             onBulkEdit={handleBulkEdit}
             onBulkApprove={handleBulkApprove}

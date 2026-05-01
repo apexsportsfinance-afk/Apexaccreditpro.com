@@ -1,28 +1,106 @@
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import * as XLSX from "xlsx";
+import { calculateAge } from "../../lib/utils";
+
+import { GlobalSettingsAPI } from "../../lib/broadcastApi";
 
 /**
  * Export data to Excel file
  */
-export const exportToExcel = (data, filename = "export") => {
+export const exportToExcel = async (data, filename = "export", event = null, passedConfigs = []) => {
   if (!data || data.length === 0) return;
 
-  const exportData = data.map((row) => ({
-    "Accreditation ID": row.accreditationId || "",
-    "Badge Number": row.badgeNumber || "",
-    "First Name": row.firstName || "",
-    "Last Name": row.lastName || "",
-    "Gender": row.gender || "",
-    "Date of Birth": row.dateOfBirth || "",
-    "Nationality": row.nationality || "",
-    "Club": row.club || "",
-    "Role": row.role || "",
-    "Email": row.email || "",
-    "Status": row.status || "",
-    "Zone Access": row.zoneCode || "",
-    "Created At": row.createdAt || ""
-  }));
+  // 1. Fetch fresh configs directly from the database to ensure zero stale data
+  let customFieldConfigs = passedConfigs;
+  if (event?.id) {
+    try {
+      const fetched = await GlobalSettingsAPI.get(`event_${event.id}_custom_fields`);
+      if (fetched) {
+        const parsed = JSON.parse(fetched);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          customFieldConfigs = parsed;
+        }
+      }
+    } catch (e) {
+      console.error("Export: Failed to fetch fresh custom field configs:", e);
+    }
+  }
+
+  // Helper to get friendly name
+  const getFriendlyName = (key) => {
+    if (!customFieldConfigs || !Array.isArray(customFieldConfigs)) return key;
+    
+    const clean = (str) => String(str || "").replace(/[^a-z0-9]/gi, "").toLowerCase();
+    const targetKey = clean(key);
+    
+    if (!targetKey) return key;
+
+    // Aggressive search: match if targetKey is anywhere in cf.id, cf.name or cf.label
+    const config = customFieldConfigs.find(cf => {
+      if (!cf) return false;
+      const cid = clean(cf.id);
+      const cname = clean(cf.name);
+      const clabel = clean(cf.label);
+      
+      return (cid && (targetKey === cid || targetKey.includes(cid) || cid.includes(targetKey))) ||
+             (cname && (targetKey === cname || targetKey.includes(cname) || cname.includes(targetKey))) ||
+             (clabel && (targetKey === clabel || targetKey.includes(clabel) || clabel.includes(targetKey)));
+    });
+    
+    if (config) {
+      const label = config.label || config.name || config.placeholder;
+      if (label) return label;
+    }
+
+    // EMERGENCY HARDCODED MAPPING (as a final fail-safe for current event)
+    const emergencyMapping = {
+      "1777270895366": "Phone Number",
+      "1777270969735": "City / Emirate",
+      "1777270704606": "Weapon Type",
+      "1777270830180": "Level / Category",
+      "1777270929998": "Emirates ID"
+    };
+
+    const match = Object.keys(emergencyMapping).find(mKey => targetKey.includes(mKey));
+    if (match) return emergencyMapping[match];
+    
+    return key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim();
+  };
+
+  const allCustomFieldKeys = new Set();
+  data.forEach(row => {
+    if (row.customFields && typeof row.customFields === 'object') {
+      Object.keys(row.customFields).forEach(key => allCustomFieldKeys.add(key));
+    }
+  });
+
+  const exportData = data.map((row) => {
+    const rowData = {
+      "Accreditation ID": row.accreditationId || "",
+      "Badge Number": row.badgeNumber || "",
+      "First Name": row.firstName || "",
+      "Last Name": row.lastName || "",
+      "Gender": row.gender || "",
+      "Date of Birth": row.dateOfBirth || "",
+      "Age": (row.dateOfBirth && event?.ageCalculationYear) ? calculateAge(row.dateOfBirth, event.ageCalculationYear) : "",
+      "Nationality": row.nationality || "",
+      "Club": row.club || "",
+      "Role": row.role || "",
+    };
+
+    allCustomFieldKeys.forEach(key => {
+      const header = getFriendlyName(key);
+      rowData[header] = row.customFields?.[key] || "";
+    });
+
+    rowData["Email"] = row.email || "";
+    rowData["Status"] = row.status || "";
+    rowData["Zone Access"] = row.zoneCode || "";
+    rowData["Created At"] = row.createdAt || "";
+
+    return rowData;
+  });
 
   const worksheet = XLSX.utils.json_to_sheet(exportData);
   const workbook = XLSX.utils.book_new();
