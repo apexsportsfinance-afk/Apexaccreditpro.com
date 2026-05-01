@@ -27,7 +27,7 @@ export const exportToExcel = async (data, filename = "export", event = null, pas
     }
   }
 
-  // Helper to get friendly name
+    // Helper to get friendly name
   const getFriendlyName = (key) => {
     if (!customFieldConfigs || !Array.isArray(customFieldConfigs)) return key;
     
@@ -70,8 +70,12 @@ export const exportToExcel = async (data, filename = "export", event = null, pas
 
   const allCustomFieldKeys = new Set();
   data.forEach(row => {
-    if (row.customFields && typeof row.customFields === 'object') {
-      Object.keys(row.customFields).forEach(key => allCustomFieldKeys.add(key));
+    // Robust detection: check all possible names for custom field data
+    const cFields = row.customFields || row.custom_fields || (row.custom_message && row.custom_message.startsWith('{') ? JSON.parse(row.custom_message) : {});
+    if (cFields && typeof cFields === 'object') {
+      Object.keys(cFields).forEach(key => allCustomFieldKeys.add(key));
+      // Map it back to row.customFields for the column loop below
+      row._computedFields = cFields;
     }
   });
 
@@ -83,7 +87,7 @@ export const exportToExcel = async (data, filename = "export", event = null, pas
       "Last Name": row.lastName || "",
       "Gender": row.gender || "",
       "Date of Birth": row.dateOfBirth || "",
-      "Age": (row.dateOfBirth && event?.ageCalculationYear) ? calculateAge(row.dateOfBirth, event.ageCalculationYear) : "",
+      "Age": (row.dateOfBirth && event?.ageCalculationYear) ? calculateAge(row.dateOfBirth, event.ageCalculationYear) : (row.age || ""),
       "Nationality": row.nationality || "",
       "Club": row.club || "",
       "Role": row.role || "",
@@ -91,7 +95,7 @@ export const exportToExcel = async (data, filename = "export", event = null, pas
 
     allCustomFieldKeys.forEach(key => {
       const header = getFriendlyName(key);
-      rowData[header] = row.customFields?.[key] || "";
+      rowData[header] = row._computedFields?.[key] || row.customFields?.[key] || row.custom_fields?.[key] || "";
     });
 
     rowData["Email"] = row.email || "";
