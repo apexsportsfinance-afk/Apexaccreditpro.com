@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import { Plus, Users as UsersIcon, Shield, Calendar, Eye, Edit, Trash2, Loader2, AlertCircle } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";

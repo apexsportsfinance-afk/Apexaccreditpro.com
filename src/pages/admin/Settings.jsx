@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import { Settings as SettingsIcon, Save, Shield, Bell, Database, Info, Mail, Send, Eye, EyeOff, CheckCircle, XCircle, Loader2, RefreshCw, Server, FileText, RotateCcw, Lock, X } from "lucide-react";
 import Card, { CardHeader, CardContent } from "../../components/ui/Card";
 import Button from "../../components/ui/Button";

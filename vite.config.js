@@ -44,7 +44,7 @@ export default defineConfig({
           'vendor-pdf': ['jspdf', 'html2canvas'],
           'vendor-charts': ['recharts'],
           'vendor-excel': ['xlsx'],
-          'vendor-motion': ['motion'],
+          'vendor-motion': ['framer-motion'],
         }
       }
     }
