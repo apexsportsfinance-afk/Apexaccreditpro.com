@@ -843,13 +843,17 @@ export default function VerifyAccreditation() {
                        const hiddenZones = allZones.filter(z => z.settings?.isHidden);
                        
                        const completedHidden = hiddenZones.filter(zone => {
-                         const zName = String(zone.name).trim().toLowerCase();
-                         const zCode = String(zone.code).trim().toLowerCase();
+                         const zName = String(zone.name || "").trim().toLowerCase();
+                         const zCode = String(zone.code || "").trim().toLowerCase();
 
                          // 1. Check Attendance Records
                          const hasAttendance = athleteScans.some(scan => {
                            const loc = String(scan.scanner_location || "").trim().toLowerCase();
-                           return loc === zName || loc === zCode || loc.includes(zCode) || loc.includes(zName);
+                           // Lenient match: direct match or contains code/name
+                           return loc === zName || 
+                                  loc === zCode || 
+                                  (zCode.length > 1 && loc.includes(zCode)) || 
+                                  (zName.length > 3 && loc.includes(zName));
                          });
                          
                          if (hasAttendance) return true;
@@ -857,7 +861,10 @@ export default function VerifyAccreditation() {
                          // 2. Check Scan Logs (Backup)
                          const hasLog = athleteLogs.some(log => {
                            const dev = String(log.device_label || "").trim().toLowerCase();
-                           return dev === zName || dev === zCode || dev.includes(zCode) || dev.includes(zName);
+                           return dev === zName || 
+                                  dev === zCode || 
+                                  (zCode.length > 1 && dev.includes(zCode)) || 
+                                  (zName.length > 3 && dev.includes(zName));
                          });
 
                          return hasLog;
@@ -891,11 +898,11 @@ export default function VerifyAccreditation() {
                        <div className="flex gap-1">
                           {[...new Set((data.zone_code || "").split(",").map(z => z.trim()).filter(Boolean))]
                             .filter(code => {
-                              const zone = allZones.find(z => String(z.code) === code);
+                              const zone = allZones.find(z => String(z.code).toUpperCase() === String(code).toUpperCase());
                               return !zone?.settings?.isHidden;
                             })
                             .map((code, i) => (
-                              <span key={i} className="w-5 h-5 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-[9px] font-black text-slate-600 shadow-sm">{code}</span>
+                              <span key={i} className="w-5 h-5 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-[9px] font-black text-slate-600 shadow-sm">{code.toUpperCase()}</span>
                             ))}
                        </div>
                      </div>
