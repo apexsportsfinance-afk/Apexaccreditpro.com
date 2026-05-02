@@ -7,7 +7,7 @@ import {
   Files, FileSpreadsheet, FileBox, ShieldAlert, ChevronRight, Trophy, Search, Medal as MedalIcon, Target,
   Heart
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { supabase } from "../../lib/supabase";
 import { EventSettingsAPI, FormFieldSettingsAPI, BroadcastV2API, AthleteEventsAPI, GlobalSettingsAPI } from "../../lib/broadcastApi";
 import { AttendanceAPI } from "../../lib/attendanceApi";

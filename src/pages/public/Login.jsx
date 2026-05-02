@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { Shield, Mail, Lock, AlertCircle, Waves, Droplets } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";

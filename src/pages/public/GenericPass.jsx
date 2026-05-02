@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { Lock, Shield, ChevronRight, Loader2, QrCode, Download, Printer, MapPin, Calendar, AlertCircle, Check, ArrowRight, Sparkles } from "lucide-react";
 import { TicketingAPI, EventsAPI } from "../../lib/storage";
 import { useToast } from "../../components/ui/Toast";

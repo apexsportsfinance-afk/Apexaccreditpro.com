@@ -23,7 +23,7 @@ import {
   FileSpreadsheet
 } from "lucide-react";
 import * as XLSX from 'xlsx';
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { EventsAPI, TicketingAPI } from "../../lib/storage";
 import { useToast } from "../../components/ui/Toast";
 import { useAuth } from "../../contexts/AuthContext";

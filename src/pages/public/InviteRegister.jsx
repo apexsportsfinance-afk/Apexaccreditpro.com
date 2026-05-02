@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import {
   Shield, User, Mail, Flag, Upload,
   CheckCircle, AlertCircle, ArrowLeft, Waves,
