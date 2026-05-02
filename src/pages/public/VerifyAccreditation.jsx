@@ -834,10 +834,6 @@ export default function VerifyAccreditation() {
                      )}
                      <div className="flex gap-1">
                         {[...new Set((data.zone_code || "").split(",").map(z => z.trim()).filter(Boolean))]
-                          .filter(code => {
-                            const zone = allZones.find(z => String(z.code) === code);
-                            return !zone?.settings?.isHidden;
-                          })
                           .map((code, i) => (
                             <span key={i} className="w-5 h-5 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-[9px] font-black text-slate-600 shadow-sm">{code}</span>
                           ))}
