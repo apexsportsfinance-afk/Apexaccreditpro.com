@@ -11,8 +11,11 @@ import "jspdf-autotable";
 
 export default function APIDocs() {
   const { toast } = useToast();
-  const baseUrl = window.location.origin;
   const [activeTab, setActiveTab] = useState("curl");
+
+  // APX-102: Use production URL for documentation if on localhost
+  const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+  const baseUrl = isLocal ? "https://apexaccreditpro.com" : window.location.origin;
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
