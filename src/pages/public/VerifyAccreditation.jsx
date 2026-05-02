@@ -792,13 +792,42 @@ export default function VerifyAccreditation() {
                           )}
                         </div>
                       </div>
-
                       {/* APX-Fix: Auto-adjusting Allocated Sports (Merged and De-duplicated) */}
-                      {allocatedSports.length > 0 && (
-                        <div className="flex flex-col items-start lg:items-end gap-1.5 shrink-0 max-w-full lg:max-w-[60%]">
-                          <div className="flex items-center gap-1.5 lg:justify-end">
-                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Allocated Sports</span>
-                          </div>
+                      <div className="flex flex-col items-start lg:items-end gap-2 shrink-0 max-w-full lg:max-w-[60%]">
+                        {(() => {
+                           const hiddenZones = allZones.filter(z => z.settings?.isHidden);
+                           const completedHidden = hiddenZones.filter(zone => {
+                             const zName = String(zone.name || "").trim().toLowerCase();
+                             const zCode = String(zone.code || "").trim().toLowerCase();
+                             const hasAttendance = athleteScans.some(scan => {
+                               const loc = String(scan.scanner_location || "").trim().toLowerCase();
+                               return loc === zName || loc === zCode || (zCode.length > 1 && loc.startsWith(zCode)) || (zName.length > 3 && loc.includes(zName)) || (loc.length > 3 && zName.includes(loc));
+                             });
+                             if (hasAttendance) return true;
+                             const hasLog = athleteLogs.some(log => {
+                               const dev = String(log.device_label || "").trim().toLowerCase();
+                               return dev === zName || dev === zCode || (zCode.length > 1 && dev.startsWith(zCode)) || (zName.length > 3 && dev.includes(zName)) || (dev.length > 3 && zName.includes(dev));
+                             });
+                             return hasLog;
+                           });
+
+                           if (completedHidden.length === 0) return null;
+
+                           return (
+                             <div className="flex flex-wrap gap-1.5 lg:justify-end mb-1">
+                               {completedHidden.map((zone, i) => (
+                                 <div key={i} className="px-2 py-1 bg-emerald-500 border border-emerald-400 rounded-lg flex items-center gap-1.5 shadow-sm">
+                                   <CheckCircle className="w-3.5 h-3.5 text-white" />
+                                   <span className="text-[10px] font-black uppercase text-white tracking-wider">
+                                     {zone.code} DONE
+                                   </span>
+                                 </div>
+                               ))}
+                             </div>
+                           );
+                        })()}
+
+                        {allocatedSports.length > 0 && (
                           <div className="flex flex-wrap justify-start lg:justify-end gap-1.5">
                             {allocatedSports.map((sport, idx) => (
                               <div 
@@ -809,8 +838,8 @@ export default function VerifyAccreditation() {
                               </div>
                             ))}
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>)}
                     </div>
                   </div>
                 </div>
