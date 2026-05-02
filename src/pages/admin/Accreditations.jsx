@@ -200,8 +200,9 @@ export default function Accreditations() {
         const [accResult, zoneResult, ecResult, clubResult, bgResult, catDocsResult, customFieldsResult, onlyFrontResult] = results;
 
         if (accResult.status === "fulfilled") {
-          setAccreditations(accResult.value.data);
-          setTotalAccreditations(accResult.value.count);
+          const accData = accResult.value;
+          setAccreditations(Array.isArray(accData) ? accData : []);
+          setTotalAccreditations(Array.isArray(accData) ? accData.length : 0);
         } else { console.error("Failed to load accreditations:", accResult.reason); toast.error("Failed to load accreditations."); }
 
         if (zoneResult.status === "fulfilled") setZones(zoneResult.value);
