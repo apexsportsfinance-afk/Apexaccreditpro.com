@@ -47,15 +47,15 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-base relative overflow-hidden font-body">
-      {/* Design System Ambient Background Glow */}
-      <div className="absolute inset-0 pointer-events-none transition-opacity duration-500">
-        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary-500/5 dark:bg-primary-500/10 rounded-full blur-[140px] opacity-20 dark:opacity-30" />
-        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-primary-600/5 dark:bg-primary-600/10 rounded-full blur-[140px] opacity-20 dark:opacity-30" />
+      {/* Design System Ambient Background Glow - Optimized */}
+      <div className="absolute inset-0 pointer-events-none transition-opacity duration-700">
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary-500/5 dark:bg-primary-500/10 rounded-full blur-[100px] opacity-10 dark:opacity-20" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-primary-600/5 dark:bg-primary-600/10 rounded-full blur-[100px] opacity-10 dark:opacity-20" />
       </div>
 
       <Sidebar />
       
-      <main className="ml-20 lg:ml-[280px] min-h-screen transition-all duration-300 relative z-10">
+      <main className="ml-20 lg:ml-[280px] min-h-screen transition-[margin] duration-300 relative z-10">
         <div className="p-lg lg:p-xl max-w-[1600px] mx-auto">
           <BackgroundProgress />
           <Outlet />

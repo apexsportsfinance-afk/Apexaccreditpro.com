@@ -90,7 +90,8 @@ export default function Dashboard() {
     };
 
     fetchLiveStats();
-    interval = setInterval(fetchLiveStats, 20000);
+    // APX-PERF: Increased interval from 20s to 60s to reduce background overhead
+    interval = setInterval(fetchLiveStats, 60000);
     return () => clearInterval(interval);
   }, [isSuperAdmin, user?.allowedEventIds, selectedEventId]);
 
@@ -115,6 +116,19 @@ export default function Dashboard() {
     return summary;
   }, [liveScanLogs, allZones]);
 
+  // APX-PERF: Pre-calculate counts to avoid O(N^2) complexity in memo blocks
+  const accreditationZoneMap = useMemo(() => {
+    const map = new Map();
+    eventAccreditations.forEach(acc => {
+      if (!acc.zoneCode) return;
+      const codes = Array.isArray(acc.zoneCode) ? acc.zoneCode : [acc.zoneCode];
+      codes.forEach(code => {
+        map.set(code, (map.get(code) || 0) + 1);
+      });
+    });
+    return map;
+  }, [eventAccreditations]);
+
   // Compute zone ratios: scanned unique vs allocated (Aggregated by name for Global View)
   const liveZoneRatios = useMemo(() => {
     const ratios = {};
@@ -124,16 +138,13 @@ export default function Dashboard() {
       if (!z.name) return;
       
       const normalizedName = z.name.toLowerCase();
-      // Use all possible codes for this zone name to get the full allocation count
       const codesForName = z.allCodes || [z.code];
       
-      // Aggregate allocations: Find all accreditations where the zone code matches ANY of the codes for this name
-      const allocated = eventAccreditations.filter(acc => {
-        if (!acc.zoneCode) return false;
-        return codesForName.some(code => 
-          acc.zoneCode === code || (acc.zoneCode && acc.zoneCode.includes(code))
-        );
-      }).length;
+      // APX-PERF: Use the pre-calculated map instead of filtering the whole array for every zone
+      let allocated = 0;
+      codesForName.forEach(code => {
+        allocated += (accreditationZoneMap.get(code) || 0);
+      });
 
       // Count unique athletes scanned at this zone label
       const uniqueScanned = new Set();
@@ -151,7 +162,7 @@ export default function Dashboard() {
       };
     });
     return ratios;
-  }, [liveScanLogs, allZones, eventAccreditations, liveAreaSummary]);
+  }, [liveScanLogs, allZones, accreditationZoneMap, liveAreaSummary]);
 
   // Compute role distribution for the specific event
   const subAdminRoleDist = useMemo(() => {

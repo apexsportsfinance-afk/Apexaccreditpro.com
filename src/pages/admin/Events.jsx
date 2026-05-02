@@ -561,99 +561,133 @@ export default function Events() {
         const reader = new FileReader();
         reader.onload = (evt) => {
           try {
-            const bstr = evt.target.result;
-            const wb = XLSX.read(bstr, { type: 'binary' });
+            const data = new Uint8Array(evt.target.result);
+            const wb = XLSX.read(data, { type: 'array' });
             const wsname = wb.SheetNames[0];
             const ws = wb.Sheets[wsname];
-            const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+            const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
             
+            if (!jsonData || jsonData.length === 0) {
+              toast.error("The file appears to be empty");
+              setParsingClubs(false);
+              return;
+            }
+
             // SS 1 logic: Column P (index 15) is Short Name, Column Q (index 16) is Full Name
             // Fallback to searching for "club" in header if columns P/Q aren't present
             let shortNameIdx = 15;
             let fullNameIdx = 16;
             
-            if (data[0] && data[0].length < 17) {
-              const header = data[0].map(h => String(h).toLowerCase());
+            if (jsonData[0] && jsonData[0].length < 17) {
+              const header = jsonData[0].map(h => String(h || "").toLowerCase());
               const foundIndex = header.indexOf("club");
               if (foundIndex !== -1) {
                 shortNameIdx = foundIndex;
                 fullNameIdx = foundIndex;
               } else {
-                shortNameIdx = 0;
-                fullNameIdx = 0;
+                // Try searching for partial match "team" or "club"
+                const fallbackIdx = header.findIndex(h => h.includes("club") || h.includes("team"));
+                if (fallbackIdx !== -1) {
+                  shortNameIdx = fallbackIdx;
+                  fullNameIdx = fallbackIdx;
+                } else {
+                  shortNameIdx = 0;
+                  fullNameIdx = 0;
+                }
               }
             }
 
-            const extracted = data.slice(1)
+            const firstRow = jsonData[0] || [];
+            const isHeader = firstRow.some(cell => {
+              const val = String(cell || "").toLowerCase();
+              return val.includes("club") || val.includes("team") || val.includes("academy") || 
+                     val.includes("name") || val.includes("sr#") || val.includes("serial");
+            });
+
+            const dataToProcess = isHeader ? jsonData.slice(1) : jsonData;
+
+            const extracted = dataToProcess
               .map(row => {
-                const short = String(row[shortNameIdx] || "").trim();
                 const full = String(row[fullNameIdx] || "").trim();
-                if (!full) return null;
                 return full;
               })
               .filter(val => val && val.length > 0);
             
             const uniqueClubs = [...new Set(extracted)].sort();
-            setParsedClubs(uniqueClubs);
-            toast.success(`Extracted ${uniqueClubs.length} unique clubs`);
+            if (uniqueClubs.length === 0) {
+              toast.error("No valid club names found in the file. Please check column headers.");
+            } else {
+              setParsedClubs(uniqueClubs);
+              toast.success(`Extracted ${uniqueClubs.length} unique clubs`);
+            }
             setParsingClubs(false);
           } catch (err) {
             console.error("XLSX parse error:", err);
-            toast.error("Failed to parse file");
+            toast.error(`Parse Error: ${err.message || "Unknown error"}`);
             setParsingClubs(false);
           }
         };
-        reader.readAsBinaryString(file);
+        reader.readAsArrayBuffer(file);
       } else if (extension === 'pdf') {
-        const pdfjsLib = await import("pdfjs-dist");
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-        
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        let fullText = "";
-        
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const content = await page.getTextContent();
-          fullText += content.items.map(item => item.str).join(" ");
-        }
+        try {
+          const pdfjsLib = await import("pdfjs-dist");
+          // Use a local worker if possible, or ensure the version matches
+          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+          
+          const arrayBuffer = await file.arrayBuffer();
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          let fullText = "";
+          
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            fullText += content.items.map(item => item.str).join(" ");
+          }
 
-        // SS 2 logic: Under "Team" heading, pattern is [Serial] [ShortName] [FullName]
-        // Search for the "Team" column and extract lines that look like [Num] [Code] [Name]
-        const teamMatch = fullText.match(/Team\s+Relays\s+Athletes/i);
-        let extractedClubs = [];
-        
-        if (teamMatch) {
-          const tableText = fullText.substring(teamMatch.index);
-          // Regex to match Serial (1-3 digits), Code (2-6 uppercase/chars), Name (rest of line until next num)
-          // Simplified: split into lines and find rows starting with a number
-          const lines = tableText.split(/\n|\s{3,}/).map(l => l.trim()).filter(l => l.length > 5);
-          lines.forEach(line => {
-            const parts = line.split(/\s+/);
-            if (parts.length >= 3 && /^\d+$/.test(parts[0]) && parts[1].length >= 2 && parts[1].toUpperCase() === parts[1]) {
-              const short = parts[1];
-              const full = parts.slice(2).join(" ");
-              // Guard against capturing the whole line with numbers at end (Relays, Athletes, etc)
-              // We know athletes/entries follow. Usually they are separated by more space.
-              // Taking only the text parts.
-              const cleanFull = full.split(/\d+/)[0].trim();
-              if (cleanFull) {
-                extractedClubs.push(cleanFull);
+          // SS 2 logic: Under "Team" heading, pattern is [Serial] [ShortName] [FullName]
+          const teamMatch = fullText.match(/Team\s+Relays\s+Athletes/i);
+          let extractedClubs = [];
+          
+          if (teamMatch) {
+            const tableText = fullText.substring(teamMatch.index);
+            const lines = tableText.split(/\n|\s{3,}/).map(l => l.trim()).filter(l => l.length > 5);
+            lines.forEach(line => {
+              const parts = line.split(/\s+/);
+              if (parts.length >= 3 && /^\d+$/.test(parts[0]) && parts[1].length >= 2 && parts[1].toUpperCase() === parts[1]) {
+                const full = parts.slice(2).join(" ");
+                const cleanFull = full.split(/\d+/)[0].trim();
+                if (cleanFull) {
+                  extractedClubs.push(cleanFull);
+                }
               }
+            });
+          }
+
+          if (extractedClubs.length === 0) {
+            // Fallback: search for lines that look like [Num] [Code] [Name] anywhere
+            const lines = fullText.split(/\s{2,}|\n/).map(l => l.trim()).filter(l => l.length > 3);
+            extractedClubs = lines.filter(l => /^\d+\s+[A-Z]{2,6}\s+[A-Za-z]/.test(l))
+                                  .map(l => l.split(/\s+/).slice(2).join(" ").split(/\d+/)[0].trim());
+            
+            if (extractedClubs.length === 0) {
+              // Final fallback: just take unique lines that look like club names
+              extractedClubs = [...new Set(lines.filter(l => l.length > 10 && !l.includes("Page")))];
             }
-          });
-        }
+          }
 
-        if (extractedClubs.length === 0) {
-          // Fallback to basic extraction
-          const lines = fullText.split(/\s{2,}|\n/).map(l => l.trim()).filter(l => l.length > 3);
-          extractedClubs = [...new Set(lines)];
+          const uniqueClubs = [...new Set(extractedClubs)].sort();
+          if (uniqueClubs.length === 0) {
+            toast.error("No clubs detected in PDF. This parser is tuned for standard HY-TEK reports.");
+          } else {
+            setParsedClubs(uniqueClubs);
+            toast.success(`Extracted ${uniqueClubs.length} potential club entries from PDF`);
+          }
+          setParsingClubs(false);
+        } catch (pdfErr) {
+          console.error("PDF parse error:", pdfErr);
+          toast.error(`PDF Error: ${pdfErr.message || "Failed to parse PDF contents"}`);
+          setParsingClubs(false);
         }
-
-        const uniqueClubs = [...new Set(extractedClubs)].sort();
-        setParsedClubs(uniqueClubs);
-        toast.success(`Extracted ${uniqueClubs.length} potential club entries from PDF`);
-        setParsingClubs(false);
       } else {
         toast.error("Unsupported file format");
         setParsingClubs(false);
@@ -2684,7 +2718,8 @@ function ClubsAnalyticsView({ event }) {
           
           let headIdx = -1;
           for (let i = 0; i < lines.length; i++) {
-            if (lines[i].toLowerCase().includes('registered') && lines[i].toLowerCase().includes('club')) {
+            const low = lines[i].toLowerCase();
+            if (low.includes('registered') && (low.includes('club') || low.includes('team'))) {
               headIdx = i;
               break;
             }
@@ -2697,12 +2732,10 @@ function ClubsAnalyticsView({ event }) {
             if (parts.length < 3) return null;
             
             // Typical line: 01 ABA-ZZ Aba Aquatics 24 ...
-            // Or: ABA-ZZ Aba Aquatics 24
             const firstPartIsNumber = /^\d+$/.test(parts[0]);
             const startIdx = firstPartIsNumber ? 1 : 0;
             const code = parts[startIdx];
             
-            // Find where the numbers start after the name
             let countStr = "0";
             let nameEndIdx = parts.length - 1;
             for (let i = startIdx + 2; i < parts.length; i++) {
@@ -2724,38 +2757,64 @@ function ClubsAnalyticsView({ event }) {
           }).filter(Boolean);
         } else {
           // Excel or CSV
-          const bstr = evt.target.result;
-          const wb = XLSX.read(bstr, { type: 'binary' });
+          const XLSX = await import("xlsx");
+          const data = new Uint8Array(evt.target.result);
+          const wb = XLSX.read(data, { type: 'array' });
           const wsname = wb.SheetNames[0];
           const ws = wb.Sheets[wsname];
-          const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+          const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+          if (!jsonData || jsonData.length === 0) {
+            toast.error("File appears to be empty");
+            setParsing(false);
+            return;
+          }
 
           // SS logic: Column P (15) is Short, Q (16) is Full, S (18) is Reg
-          // But we'll be flexible and check R (17) and T (19) if S is 0
-          clubNames = data.slice(0)
+          // Fallback if structure is different
+          let sIdx = 15, fIdx = 16, rIdx = 18;
+          
+          if (jsonData[0] && jsonData[0].length < 17) {
+            const header = jsonData[0].map(h => String(h || "").toLowerCase());
+            const foundIdx = header.findIndex(h => h.includes("club") || h.includes("team") || h.includes("academy"));
+            if (foundIdx !== -1) {
+              sIdx = foundIdx;
+              fIdx = foundIdx;
+              rIdx = -1; // Unknown
+            } else {
+              sIdx = 0; fIdx = 0; rIdx = -1;
+            }
+          }
+
+          const dataToProcess = jsonData; 
+
+
+          clubNames = dataToProcess
             .map(row => {
-              const full = toProperCase(String(row[16] || row[0] || "").trim());
+              const fullRaw = row[fIdx] || row[0] || "";
+              const full = String(fullRaw).trim(); 
               if (!full || full.length < 2) return null;
               
-              const valS = parseInt(row[18]) || 0;
-              const valR = parseInt(row[17]) || 0;
-              const valT = parseInt(row[19]) || 0;
+              let regCount = 0;
+              if (rIdx !== -1) {
+                regCount = parseInt(row[rIdx]) || parseInt(row[rIdx-1]) || parseInt(row[rIdx+1]) || 0;
+              }
               
               return {
-                short: String(row[15] || row[0] || "").trim(),
+                short: String(row[sIdx] || row[0] || "").trim(),
                 full: full,
-                fileRegistered: valS || valR || valT || 0
+                fileRegistered: regCount
               };
             })
             .filter(Boolean);
         }
 
-        // Unique clubs by Full Name
         const uniqueClubs = [];
         const seen = new Set();
         for (const club of clubNames) {
-          if (!seen.has(club.full.toLowerCase())) {
-            seen.add(club.full.toLowerCase());
+          const key = club.full.trim(); 
+          if (!seen.has(key)) {
+            seen.add(key);
             uniqueClubs.push(club);
           }
         }
@@ -2764,24 +2823,29 @@ function ClubsAnalyticsView({ event }) {
         if (uniqueClubs.length > 0) {
           const metadata = { name: file.name, timestamp: new Date().toISOString() };
           await GlobalSettingsAPI.setClubs(event.id, uniqueClubs, metadata);
+          const duplicatesRemoved = clubNames.length - uniqueClubs.length;
           setClubs(uniqueClubs);
           setUploadedFile(metadata);
-          toast.success(`Successfully imported ${uniqueClubs.length} clubs`);
+          if (duplicatesRemoved > 0) {
+            toast.success(`Imported ${uniqueClubs.length} clubs (${duplicatesRemoved} duplicates merged)`);
+          } else {
+            toast.success(`Successfully imported ${uniqueClubs.length} clubs`);
+          }
         } else {
-          toast.error("No clubs found in file");
+          toast.error("No valid club entries detected. Please check file columns.");
         }
       } catch (err) {
-        console.error("Parsing failed", err);
-        toast.error("Failed to parse file");
+        console.error("Clubs Import Error:", err);
+        toast.error(`Import Error: ${err.message || "Failed to parse file"}`);
       } finally {
         setParsing(false);
       }
     };
 
     if (file.name.endsWith('.pdf')) {
-      reader.onload(); // trigger immediate for PDF as we use parsePDFText
+      reader.onload(); 
     } else {
-      reader.readAsBinaryString(file);
+      reader.readAsArrayBuffer(file);
     }
     e.target.value = '';
   };

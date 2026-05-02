@@ -17,6 +17,7 @@ import {
   Copy,
   Check,
   Plus,
+  Search,
   AlertCircle,
   AlertTriangle,
   Mail,
@@ -92,6 +93,7 @@ export default function Accreditations() {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [eventCategories, setEventCategories] = useState([]);
   const [filters, setFilters] = useState({ status: "", role: "", nationality: "", club: "" });
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedRows, setSelectedRows] = useState([]);
   const [viewModal, setViewModal] = useState({ open: false, accreditation: null });
   const [approveModal, setApproveModal] = useState({ open: false, accreditation: null });
@@ -185,7 +187,7 @@ export default function Accreditations() {
       try {
         // APX-PERF: All 6 data calls in parallel instead of waterfall
         const results = await Promise.allSettled([
-          AccreditationsAPI.getPaginatedByEventId(selectedEvent, { limit: 100, offset: 0 }),
+          AccreditationsAPI.getByEventId(selectedEvent),
           ZonesAPI.getByEventId(selectedEvent),
           supabase.from("event_categories").select("*, category:categories(*)").eq("event_id", selectedEvent),
           GlobalSettingsAPI.getClubs(selectedEvent),
@@ -245,10 +247,9 @@ export default function Accreditations() {
   const refreshAccreditations = useCallback(async () => {
     if (!selectedEvent) return;
     try {
-      const currentCount = Math.max(100, accreditations.length);
-      const accData = await AccreditationsAPI.getPaginatedByEventId(selectedEvent, { limit: currentCount, offset: 0 });
-      setAccreditations(accData.data);
-      setTotalAccreditations(accData.count);
+      const accData = await AccreditationsAPI.getByEventId(selectedEvent);
+      setAccreditations(accData);
+      setTotalAccreditations(accData.length);
     } catch (error) {
       console.error("Failed to refresh accreditations:", error);
     }
@@ -256,6 +257,7 @@ export default function Accreditations() {
 
   const resetFilters = useCallback(() => {
     setFilters({ status: "", role: "", nationality: "", club: "" });
+    setSearchTerm("");
     toast.success("Filters cleared");
   }, [toast]);
 
@@ -281,14 +283,33 @@ export default function Accreditations() {
   }, [isLoadingMore, selectedEvent, accreditations.length, toast]);
 
   const filteredAccreditations = useMemo(() => {
-    return (Array.isArray(accreditations) ? accreditations : []).filter((acc) => {
+    const list = Array.isArray(accreditations) ? accreditations : [];
+    
+    return list.filter((acc) => {
+      // Dropdown Filters
       if (filters.status && acc.status !== filters.status) return false;
       if (filters.role && acc.role !== filters.role) return false;
       if (filters.nationality && acc.nationality !== filters.nationality) return false;
       if (filters.club && !acc.club?.toLowerCase().includes(filters.club.toLowerCase())) return false;
+      
+      // Search Term (Global across Name, Email, Club, ID, Badge)
+      if (searchTerm) {
+        const query = searchTerm.toLowerCase();
+        const matches = 
+          `${acc.firstName} ${acc.lastName}`.toLowerCase().includes(query) ||
+          (acc.email || "").toLowerCase().includes(query) ||
+          (acc.club || "").toLowerCase().includes(query) ||
+          (acc.accreditationId || "").toLowerCase().includes(query) ||
+          (acc.badgeNumber || "").toLowerCase().includes(query) ||
+          (acc.nationality || "").toLowerCase().includes(query) ||
+          (acc.role || "").toLowerCase().includes(query);
+        
+        if (!matches) return false;
+      }
+
       return true;
     });
-  }, [accreditations, filters]);
+  }, [accreditations, filters, searchTerm]);
 
   const duplicateIds = useMemo(() => {
     const ids = new Set();
@@ -996,7 +1017,6 @@ export default function Accreditations() {
 
       <Card>
         <CardContent className="space-y-4">
-          {/* Filters */}
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1">
               <Select
@@ -1105,39 +1125,18 @@ export default function Accreditations() {
               description="No accreditations match your current filters"
             />
           ) : (
-            <>
-              <DataTable
-                data={filteredAccreditations}
-                columns={columns}
-                searchable
-                searchFields={["firstName", "lastName", "email", "club"]}
-                selectable
-                selectedRows={selectedRows}
-                onSelectRows={setSelectedRows}
-                onRowClick={(row) => setViewModal({ open: true, accreditation: row })}
-                rowClassName={(row) => duplicateIds.has(row.id) ? "bg-amber-900/10 hover:bg-amber-900/20" : ""}
-              />
-              
-              {accreditations.length < totalAccreditations && (
-                <div className="flex justify-center mt-6 pt-4 border-t border-slate-700/50">
-                  <Button
-                    variant="secondary"
-                    onClick={handleLoadMore}
-                    disabled={isLoadingMore}
-                    className="w-full sm:w-auto min-w-[250px] flex items-center justify-center gap-2"
-                  >
-                    {isLoadingMore ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Loading...
-                      </>
-                    ) : (
-                      `Load More (${accreditations.length} of ${totalAccreditations} loaded)`
-                    )}
-                  </Button>
-                </div>
-              )}
-            </>
+            <DataTable
+              data={filteredAccreditations}
+              columns={columns}
+              searchable={true}
+              externalSearchValue={searchTerm}
+              onExternalSearchChange={(val) => setSearchTerm(val)}
+              selectable
+              selectedRows={selectedRows}
+              onSelectRows={setSelectedRows}
+              onRowClick={(row) => setViewModal({ open: true, accreditation: row })}
+              rowClassName={(row) => duplicateIds.has(row.id) ? "bg-amber-900/10 hover:bg-amber-900/20" : ""}
+            />
           )}
         </CardContent>
       </Card>

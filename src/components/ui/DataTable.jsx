@@ -69,24 +69,39 @@ export default function DataTable({
   emptyMessage = "No data available",
   className,
   isLoading = false,
-  pageSize: initialPageSize = 50
+  pageSize: initialPageSize = 50,
+  externalSearchValue,
+  onExternalSearchChange
 }) {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [internalSearchQuery, setInternalSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: "createdAt", direction: "desc" });
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(initialPageSize);
   const debounceRef = useRef(null);
 
+  // Sync internal state with external if provided
+  const searchQuery = onExternalSearchChange ? (externalSearchValue || "") : internalSearchQuery;
+
+  // APX-FIX: Reset to first page whenever the raw data source changes (external filters)
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [data]);
+
   const handleSearchChange = useCallback((e) => {
     const val = e.target.value;
-    setSearchQuery(val);
+    if (onExternalSearchChange) {
+      onExternalSearchChange(val);
+    } else {
+      setInternalSearchQuery(val);
+    }
+
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setDebouncedQuery(val);
       setCurrentPage(1);
     }, 300);
-  }, []);
+  }, [onExternalSearchChange]);
 
   const handleSort = useCallback((key) => {
     setSortConfig((prev) => ({
@@ -101,7 +116,9 @@ export default function DataTable({
   const filteredData = useMemo(() => {
     let result = data;
 
-    if (searchLower && searchFields.length > 0) {
+    // APX-FIX: If we are handling search externally (in the parent), 
+    // we don't need to filter again here. The 'data' prop is already filtered.
+    if (!onExternalSearchChange && searchLower && searchFields.length > 0) {
       result = result.filter((item) =>
         searchFields.some((field) => {
           const value = field.split(".").reduce((obj, key) => obj?.[key], item);

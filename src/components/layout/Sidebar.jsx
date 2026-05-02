@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, memo } from "react";
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -39,7 +39,7 @@ export const navItems = [
   { to: "/admin/settings", icon: Settings, label: "Settings", superOnly: true }
 ];
 
-export default function Sidebar() {
+const Sidebar = memo(function Sidebar() {
   const { user, logout, isSuperAdmin, isViewer, canAccessModule } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   
@@ -164,4 +164,6 @@ export default function Sidebar() {
       </div>
     </aside>
   );
-}
+});
+
+export default Sidebar;
