@@ -801,12 +801,27 @@ export default function VerifyAccreditation() {
                              const zCode = String(zone.code || "").trim().toLowerCase();
                              const hasAttendance = athleteScans.some(scan => {
                                const loc = String(scan.scanner_location || "").trim().toLowerCase();
-                               return loc === zName || loc === zCode || (zCode.length > 1 && loc.startsWith(zCode)) || (zName.length > 3 && loc.includes(zName)) || (loc.length > 3 && zName.includes(loc));
+                               if (!loc || loc.includes("self-scan")) return false;
+                               if (!zCode && !zName) return false;
+
+                               return (zCode && loc === zCode) || 
+                                      (zName && loc === zName) || 
+                                      (zCode && zCode.length > 1 && loc.startsWith(zCode)) || 
+                                      (zName && zName.length > 3 && loc.includes(zName)) || 
+                                      (loc.length > 3 && zName && zName.includes(loc));
                              });
                              if (hasAttendance) return true;
+
                              const hasLog = athleteLogs.some(log => {
                                const dev = String(log.device_label || "").trim().toLowerCase();
-                               return dev === zName || dev === zCode || (zCode.length > 1 && dev.startsWith(zCode)) || (zName.length > 3 && dev.includes(zName)) || (dev.length > 3 && zName.includes(dev));
+                               if (!dev || dev.includes("self-scan")) return false;
+                               if (!zCode && !zName) return false;
+
+                               return (zCode && dev === zCode) || 
+                                      (zName && dev === zName) || 
+                                      (zCode && zCode.length > 1 && dev.startsWith(zCode)) || 
+                                      (zName && zName.length > 3 && dev.includes(zName)) || 
+                                      (dev.length > 3 && zName && zName.includes(dev));
                              });
                              return hasLog;
                            });
