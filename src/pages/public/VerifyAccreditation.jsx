@@ -806,9 +806,9 @@ export default function VerifyAccreditation() {
 
                                return (zCode && loc === zCode) || 
                                       (zName && loc === zName) || 
-                                      (zCode && zCode.length > 1 && loc.startsWith(zCode)) || 
-                                      (zName && zName.length > 3 && loc.includes(zName)) || 
-                                      (loc.length > 3 && zName && zName.includes(loc));
+                                      (zCode && zCode.length >= 2 && (loc.startsWith(zCode + " ") || loc.startsWith(zCode + "-") || loc.startsWith(zCode + ":"))) ||
+                                      (zName && zName.length > 3 && (loc.startsWith(zName + " ") || loc.startsWith(zName + "-"))) ||
+                                      (loc === zName);
                              });
                              if (hasAttendance) return true;
 
@@ -819,9 +819,9 @@ export default function VerifyAccreditation() {
 
                                return (zCode && dev === zCode) || 
                                       (zName && dev === zName) || 
-                                      (zCode && zCode.length > 1 && dev.startsWith(zCode)) || 
-                                      (zName && zName.length > 3 && dev.includes(zName)) || 
-                                      (dev.length > 3 && zName && zName.includes(dev));
+                                      (zCode && zCode.length >= 2 && (dev.startsWith(zCode + " ") || dev.startsWith(zCode + "-") || dev.startsWith(zCode + ":"))) ||
+                                      (zName && zName.length > 3 && (dev.startsWith(zName + " ") || dev.startsWith(zName + "-"))) ||
+                                      (dev === zName);
                              });
                              return hasLog;
                            });
