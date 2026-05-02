@@ -31,7 +31,7 @@ export default function ZoneScannerTab({ eventId, onToast, disabled }) {
       mode: "attendance",
       event_id: eventId,
       zone: zone.code,
-      device_label: `${zone.name}`
+      device_label: `${zone.name} (${zone.code})`
     });
     return `${baseUrl}/scanner?${params.toString()}`;
   };

@@ -812,18 +812,18 @@ export default function VerifyAccreditation() {
                              const hasAttendance = athleteScans.some(scan => {
                                const loc = scan.scanner_location;
                                if (!loc || String(loc).toLowerCase().includes("self-scan")) return false;
-                               if (zCode && isMatch(loc, zCode)) return true;
-                               if (!zCode && zName && isMatch(loc, zName)) return true;
-                               return false;
+                               const codeMatch = zCode && isMatch(loc, zCode);
+                               const nameMatch = zName && isMatch(loc, zName);
+                               return codeMatch || nameMatch;
                              });
                              if (hasAttendance) return true;
 
                              const hasLog = athleteLogs.some(log => {
                                const dev = log.device_label;
                                if (!dev || String(dev).toLowerCase().includes("self-scan")) return false;
-                               if (zCode && isMatch(dev, zCode)) return true;
-                               if (!zCode && zName && isMatch(dev, zName)) return true;
-                               return false;
+                               const codeMatch = zCode && isMatch(dev, zCode);
+                               const nameMatch = zName && isMatch(dev, zName);
+                               return codeMatch || nameMatch;
                              });
                              return hasLog;
                            });
