@@ -32,6 +32,9 @@ const BroadcastHistory = lazy(() => import("./pages/admin/BroadcastHistory"));
 const Ticketing = lazy(() => import("./pages/admin/Ticketing"));
 const MedalRankings = lazy(() => import("./pages/admin/MedalRankings"));
 const Feedback = lazy(() => import("./pages/admin/Feedback"));
+const Partners = lazy(() => import("./pages/admin/Partners"));
+const APIDocs = lazy(() => import("./pages/admin/APIDocs"));
+
 
 const PageLoader = () => (
   <div id="app_pageloader" className="flex items-center justify-center min-h-screen bg-swim-deep">
@@ -83,7 +86,11 @@ export default function App() {
                 <Route path="settings" element={<Settings />} />
                 <Route path="audit" element={<AuditLog />} />
                 <Route path="feedback" element={<Feedback />} />
+                <Route path="partners" element={<Partners />} />
+                <Route path="api-docs" element={<APIDocs />} />
               </Route>
+
+
 
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

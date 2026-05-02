@@ -17,7 +17,8 @@ import {
   History,
   RefreshCw,
   Trophy,
-  MessageSquare
+  MessageSquare,
+  Book
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -34,6 +35,8 @@ export const navItems = [
   { to: "/admin/broadcasts", icon: Radio, label: "Broadcast History" },
   { to: "/admin/medals", icon: Trophy, label: "Medal Rankings" },
   { to: "/admin/feedback", icon: MessageSquare, label: "Feedback" },
+  { to: "/admin/partners", icon: Settings, label: "Integrations", superOnly: true },
+  { to: "/admin/api-docs", icon: Book, label: "API Documentation", superOnly: true },
   { to: "/admin/users", icon: Users, label: "Users", superOnly: true },
   { to: "/admin/audit", icon: History, label: "Audit Log", superOnly: true },
   { to: "/admin/settings", icon: Settings, label: "Settings", superOnly: true }

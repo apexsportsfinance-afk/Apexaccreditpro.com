@@ -1309,3 +1309,74 @@ function mapFeedbackFromDB(db) {
 }
 
 export const initializeDefaultData = async () => {};
+// --- PARTNERS & API KEYS API ---
+export const PartnersAPI = {
+  getPartners: async () => {
+    return await handleResponse(
+      () => supabase.from("partners").select("*").order("created_at", { ascending: false })
+    );
+  },
+
+  createPartner: async (partnerData) => {
+    const { data, error } = await supabase
+      .from("partners")
+      .insert(partnerData)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  updatePartner: async (id, partnerData) => {
+    const { data, error } = await supabase
+      .from("partners")
+      .update(partnerData)
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  deletePartner: async (id) => {
+    const { error } = await supabase.from("partners").delete().eq("id", id);
+    if (error) throw error;
+    return true;
+  },
+
+  getKeys: async (partnerId) => {
+    return await handleResponse(
+      () => supabase
+        .from("partner_api_keys")
+        .select("*")
+        .eq("partner_id", partnerId)
+        .order("created_at", { ascending: false })
+    );
+  },
+
+  generateKey: async (partnerId, label, permissions = [], allowedFields = []) => {
+    const apiKey = `apex_live_${Math.random().toString(36).substring(2)}${Math.random().toString(36).substring(2)}`;
+    const { data, error } = await supabase
+      .from("partner_api_keys")
+      .insert({
+        partner_id: partnerId,
+        label,
+        api_key: apiKey,
+        permissions: permissions.length > 0 ? permissions : ["read_basic"],
+        allowed_fields: allowedFields.length > 0 ? allowedFields : ["firstName", "lastName", "role", "badgeNumber"]
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  revokeKey: async (id) => {
+    const { error } = await supabase
+      .from("partner_api_keys")
+      .update({ status: 'revoked' })
+      .eq("id", id);
+    if (error) throw error;
+    return true;
+  }
+};
