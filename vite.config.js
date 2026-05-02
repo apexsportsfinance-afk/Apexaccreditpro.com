@@ -41,12 +41,15 @@ export default defineConfig({
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-supabase': ['@supabase/supabase-js'],
-          'vendor-pdf': ['jspdf', 'html2canvas'],
+          'vendor-framer': ['framer-motion'],
           'vendor-charts': ['recharts'],
-          'vendor-excel': ['xlsx'],
-          'vendor-motion': ['framer-motion'],
+          'vendor-icons': ['lucide-react'],
+          'vendor-jspdf': ['jspdf'],
+          'vendor-html2canvas': ['html2canvas'],
+          'vendor-xlsx': ['xlsx'],
         }
       }
-    }
+    },
+    chunkSizeWarningLimit: 1000,
   }
 });
