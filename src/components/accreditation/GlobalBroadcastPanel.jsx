@@ -86,6 +86,7 @@ export default function GlobalBroadcastPanel({ eventId, onToast, disabled = fals
         })}
       </div>
 
+      {activeSubTab === "general" && (
         <GeneralBroadcastPage 
           eventId={eventId} 
           onToast={onToast} 
