@@ -866,60 +866,6 @@ export default function VerifyAccreditation() {
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2">
-                     {(() => {
-                       // New approach: Look at ALL hidden zones for this event.
-                       // If any hidden zone has a corresponding scan log or attendance record, show it as DONE.
-                       const hiddenZones = allZones.filter(z => z.settings?.isHidden);
-                       
-                       const completedHidden = hiddenZones.filter(zone => {
-                         const zName = String(zone.name || "").trim().toLowerCase();
-                         const zCode = String(zone.code || "").trim().toLowerCase();
-
-                         // 1. Check Attendance Records
-                         const hasAttendance = athleteScans.some(scan => {
-                           const loc = String(scan.scanner_location || "").trim().toLowerCase();
-                           // Lenient match: direct match or contains code/name
-                           // Also handle cases like "A1 Medical" matching "A1" or "Medical"
-                           return loc === zName || 
-                                  loc === zCode || 
-                                  (zCode.length > 1 && loc.startsWith(zCode)) ||
-                                  (zName.length > 3 && loc.includes(zName)) ||
-                                  (loc.length > 3 && zName.includes(loc));
-                         });
-                         
-                         if (hasAttendance) return true;
-
-                         // 2. Check Scan Logs (Backup)
-                         const hasLog = athleteLogs.some(log => {
-                           const dev = String(log.device_label || "").trim().toLowerCase();
-                           return dev === zName || 
-                                  dev === zCode || 
-                                  (zCode.length > 1 && dev.startsWith(zCode)) ||
-                                  (zName.length > 3 && dev.includes(zName)) ||
-                                  (dev.length > 3 && zName.includes(dev));
-                         });
-
-                         return hasLog;
-                       });
-
-                       if (completedHidden.length === 0) return null;
-
-                       return (
-                         <div className="flex gap-1.5">
-                           {completedHidden.map((zone, i) => {
-                             return (
-                               <div key={i} className="px-2 py-0.5 bg-emerald-50 border border-emerald-200 rounded flex items-center gap-1 shadow-sm" title={`Completed Check: ${zone.name}`}>
-                                 <CheckCircle className="w-3 h-3 text-emerald-500" />
-                                 <span className="text-[9px] font-black uppercase text-emerald-700 tracking-wider">
-                                   {zone.code} DONE
-                                 </span>
-                               </div>
-                             );
-                           })}
-                         </div>
-                       );
-                     })()}
-
                      <div className="flex items-center gap-3">
                        {data.nationality && (
                          <div className="flex items-center gap-1.5">
