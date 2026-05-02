@@ -466,19 +466,17 @@ export default function VerifyAccreditation() {
   // APX-Fix: Unified Allocated Sports Logic for Filtering and Display
   const allocatedSports = useMemo(() => {
     if (!data) return [];
-    const selectedSports = Array.isArray(data.selected_sports) ? data.selected_sports : [];
-    const zoneCodes = (data.zone_code || "").split(",").map(z => z.trim()).filter(Boolean);
     
-    // Find zone names for the assigned codes (which often correspond to sports)
-    const zoneSportNames = zoneCodes.map(code => {
-      const zone = allZones.find(z => String(z.code) === code);
-      return zone ? zone.name : null;
-    }).filter(Boolean);
-
-    // Combine, trim, and de-duplicate case-insensitively
+    // APX-Fix: Pull sports ONLY from selected_sports/selectedSports fields.
+    // Do NOT pull zone names into the sports list as they are separate concepts.
+    const selectedSports = Array.isArray(data.selected_sports) 
+      ? data.selected_sports 
+      : (Array.isArray(data.selectedSports) ? data.selectedSports : []);
+    
+    // De-duplicate and clean
     const combined = [];
     const seen = new Set();
-    [...selectedSports, ...zoneSportNames].forEach(s => {
+    selectedSports.forEach(s => {
       if (!s) return;
       const normalized = s.trim().toUpperCase();
       if (!seen.has(normalized)) {
@@ -487,7 +485,7 @@ export default function VerifyAccreditation() {
       }
     });
     return combined;
-  }, [data, allZones]);
+  }, [data]);
 
   // Filter Technical Documents based on Athlete's Allocated Sports
   const visibleTechnicalDocs = useMemo(() => {
@@ -835,8 +833,8 @@ export default function VerifyAccreditation() {
                        </div>
                      )}
                      <div className="flex gap-1">
-                        {data.zone_code && data.zone_code.split(",").map((code, i) => (
-                          <span key={i} className="w-5 h-5 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-[9px] font-black text-slate-600 shadow-sm">{code.trim()}</span>
+                        {[...new Set((data.zone_code || "").split(",").map(z => z.trim()).filter(Boolean))].map((code, i) => (
+                          <span key={i} className="w-5 h-5 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-[9px] font-black text-slate-600 shadow-sm">{code}</span>
                         ))}
                      </div>
                   </div>
