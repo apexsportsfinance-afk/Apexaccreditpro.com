@@ -195,8 +195,9 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
 
   const zoneCodes = accreditation?.zoneCode?.split(",").map(z => z.trim()).filter(code => {
     if (!code) return false;
-    const zoneInfo = zones.find(z => String(z.code) === code);
-    return !zoneInfo?.settings?.isHidden;
+    const zoneInfo = zones.find(z => String(z.code).toUpperCase() === String(code).toUpperCase());
+    // STRICT FILTER: If the zone is marked as hidden, it MUST NOT appear on the printed card
+    return zoneInfo && !zoneInfo?.settings?.isHidden;
   }) || [];
   const countryData = COUNTRIES.find(c => 
     c.code?.toUpperCase() === accreditation?.nationality?.toUpperCase() || 
