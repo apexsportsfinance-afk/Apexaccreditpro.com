@@ -253,8 +253,37 @@ export const ZonesAPI = {
     return updatedZone;
   },
   delete: async (id) => {
+    // 1. Get the zone first to know its code
+    const zone = await ZonesAPI.getById?.(id) || await handleResponse(() => supabase.from("zones").select("*").eq("id", id).maybeSingle());
+    if (!zone) return;
+
+    const { code, event_id } = zone;
+
+    // 2. Cascade to Accreditations: Remove this code from the comma-separated list
+    const { data: accs } = await supabase
+      .from("accreditations")
+      .select("id, zone_code")
+      .eq("event_id", event_id)
+      .or(`zone_code.ilike.%${code}%`);
+
+    if (accs && accs.length > 0) {
+      const updates = accs.map(acc => {
+        const codes = acc.zone_code?.split(',').map(c => c.trim()).filter(Boolean) || [];
+        if (codes.includes(code)) {
+          const newCodes = codes.filter(c => c !== code);
+          return { id: acc.id, zone_code: newCodes.join(', ') };
+        }
+        return null;
+      }).filter(Boolean);
+
+      for (const update of updates) {
+        await supabase.from("accreditations").update({ zone_code: update.zone_code }).eq("id", update.id);
+      }
+    }
+
+    // 3. Delete the zone
     await handleResponse(() => supabase.from("zones").delete().eq("id", id));
-    AuditAPI.log("zone_deleted", { zoneId: id });
+    AuditAPI.log("zone_deleted", { zoneId: id, code });
   }
 };
 

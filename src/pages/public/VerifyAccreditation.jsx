@@ -850,10 +850,12 @@ export default function VerifyAccreditation() {
                          const hasAttendance = athleteScans.some(scan => {
                            const loc = String(scan.scanner_location || "").trim().toLowerCase();
                            // Lenient match: direct match or contains code/name
+                           // Also handle cases like "A1 Medical" matching "A1" or "Medical"
                            return loc === zName || 
                                   loc === zCode || 
-                                  (zCode.length > 1 && loc.includes(zCode)) || 
-                                  (zName.length > 3 && loc.includes(zName));
+                                  (zCode.length > 1 && loc.startsWith(zCode)) ||
+                                  (zName.length > 3 && loc.includes(zName)) ||
+                                  (loc.length > 3 && zName.includes(loc));
                          });
                          
                          if (hasAttendance) return true;
@@ -863,8 +865,9 @@ export default function VerifyAccreditation() {
                            const dev = String(log.device_label || "").trim().toLowerCase();
                            return dev === zName || 
                                   dev === zCode || 
-                                  (zCode.length > 1 && dev.includes(zCode)) || 
-                                  (zName.length > 3 && dev.includes(zName));
+                                  (zCode.length > 1 && dev.startsWith(zCode)) ||
+                                  (zName.length > 3 && dev.includes(zName)) ||
+                                  (dev.length > 3 && zName.includes(dev));
                          });
 
                          return hasLog;
@@ -899,7 +902,8 @@ export default function VerifyAccreditation() {
                           {[...new Set((data.zone_code || "").split(",").map(z => z.trim()).filter(Boolean))]
                             .filter(code => {
                               const zone = allZones.find(z => String(z.code).toUpperCase() === String(code).toUpperCase());
-                              return !zone?.settings?.isHidden;
+                              // Only show if the zone exists AND is not hidden
+                              return zone && !zone?.settings?.isHidden;
                             })
                             .map((code, i) => (
                               <span key={i} className="w-5 h-5 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-[9px] font-black text-slate-600 shadow-sm">{code.toUpperCase()}</span>
