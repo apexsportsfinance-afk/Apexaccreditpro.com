@@ -511,8 +511,9 @@ export default function ScannerPage() {
         // Zone Validation (if locked)
         if (isZoneLocked) {
           const rawZones = athlete.zoneCode || athlete.zone_code || "";
-          const athleteZones = String(rawZones).split(",").map(z => z.trim());
-          const hasAccess = athleteZones.includes("∞") || athleteZones.includes(config.zone);
+          const athleteZones = String(rawZones).split(",").map(z => z.trim().toUpperCase());
+          const targetZone = String(config.zone).trim().toUpperCase();
+          const hasAccess = athleteZones.includes("∞") || athleteZones.includes(targetZone);
           
           if (!hasAccess) {
             showScanError("Access Denied", `You do not have permission for ${config.deviceLabel || 'this zone'}.`);

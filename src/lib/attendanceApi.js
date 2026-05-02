@@ -250,6 +250,25 @@ export const AttendanceAPI = {
   },
 
   /**
+   * Retrieves scan logs for a specific athlete
+   */
+  getAthleteLogs: async (eventId, athleteId) => {
+    try {
+      const { data, error } = await supabase
+        .from("unified_scan_logs")
+        .select("*")
+        .eq("event_id", eventId)
+        .eq("athlete_id", athleteId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.error("[AttendanceAPI] getAthleteLogs error:", err);
+      return [];
+    }
+  },
+
+  /**
    * Logs a scan event to the unified_scan_logs table for auditing
    */
   logScanEvent: async ({ eventId, athleteId, spectatorId, scanMode, deviceLabel, sessionId }) => {
