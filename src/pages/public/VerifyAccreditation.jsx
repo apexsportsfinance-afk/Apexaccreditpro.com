@@ -806,9 +806,13 @@ export default function VerifyAccreditation() {
                                const zCodeLow = zCode?.toLowerCase();
                                const zNameLow = zName?.toLowerCase();
                                
-                               return (zCodeLow && locWords.includes(zCodeLow)) || 
-                                      (zNameLow && locWords.includes(zNameLow)) ||
-                                      (zNameLow && loc === zNameLow);
+                               // Priority 1: Match by Code (if code exists)
+                               if (zCodeLow) {
+                                 return locWords.includes(zCodeLow);
+                               }
+                               
+                               // Priority 2: Match by Name (only if no code)
+                               return zNameLow && (locWords.includes(zNameLow) || loc === zNameLow);
                              });
                              if (hasAttendance) return true;
 
@@ -819,9 +823,11 @@ export default function VerifyAccreditation() {
                                const zCodeLow = zCode?.toLowerCase();
                                const zNameLow = zName?.toLowerCase();
 
-                               return (zCodeLow && devWords.includes(zCodeLow)) || 
-                                      (zNameLow && devWords.includes(zNameLow)) ||
-                                      (zNameLow && dev === zNameLow);
+                               if (zCodeLow) {
+                                 return devWords.includes(zCodeLow);
+                               }
+
+                               return zNameLow && (devWords.includes(zNameLow) || dev === zNameLow);
                              });
                              return hasLog;
                            });
