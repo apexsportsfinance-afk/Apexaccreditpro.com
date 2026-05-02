@@ -799,35 +799,30 @@ export default function VerifyAccreditation() {
                            const completedHidden = hiddenZones.filter(zone => {
                              const zName = String(zone.name || "").trim().toLowerCase();
                              const zCode = String(zone.code || "").trim().toLowerCase();
+                             const isMatch = (text, target) => {
+                               if (!text || !target) return false;
+                               const t = String(target).toLowerCase().trim();
+                               const txt = String(text).toLowerCase().trim();
+                               if (txt === t) return true;
+                               const regex = new RegExp(`(^|[^a-z0-9])${t}([^a-z0-9]|$)`, "i");
+                               return regex.test(txt);
+                             };
+
                              const hasAttendance = athleteScans.some(scan => {
-                               const loc = String(scan.scanner_location || "").trim().toLowerCase();
-                               if (!loc || loc.includes("self-scan")) return false;
-                               const locWords = loc.split(/[\s\-:]+/);
-                               const zCodeLow = zCode?.toLowerCase();
-                               const zNameLow = zName?.toLowerCase();
-                               
-                               // Priority 1: Match by Code (if code exists)
-                               if (zCodeLow) {
-                                 return locWords.includes(zCodeLow);
-                               }
-                               
-                               // Priority 2: Match by Name (only if no code)
-                               return zNameLow && (locWords.includes(zNameLow) || loc === zNameLow);
+                               const loc = scan.scanner_location;
+                               if (!loc || String(loc).toLowerCase().includes("self-scan")) return false;
+                               if (zCode && isMatch(loc, zCode)) return true;
+                               if (!zCode && zName && isMatch(loc, zName)) return true;
+                               return false;
                              });
                              if (hasAttendance) return true;
 
                              const hasLog = athleteLogs.some(log => {
-                               const dev = String(log.device_label || "").trim().toLowerCase();
-                               if (!dev || dev.includes("self-scan")) return false;
-                               const devWords = dev.split(/[\s\-:]+/);
-                               const zCodeLow = zCode?.toLowerCase();
-                               const zNameLow = zName?.toLowerCase();
-
-                               if (zCodeLow) {
-                                 return devWords.includes(zCodeLow);
-                               }
-
-                               return zNameLow && (devWords.includes(zNameLow) || dev === zNameLow);
+                               const dev = log.device_label;
+                               if (!dev || String(dev).toLowerCase().includes("self-scan")) return false;
+                               if (zCode && isMatch(dev, zCode)) return true;
+                               if (!zCode && zName && isMatch(dev, zName)) return true;
+                               return false;
                              });
                              return hasLog;
                            });
