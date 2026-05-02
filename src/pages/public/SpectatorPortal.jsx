@@ -1,7 +1,7 @@
 // Deployment Trigger: 2026-03-31T17:39:00Z
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Ticket, 
   Users, 

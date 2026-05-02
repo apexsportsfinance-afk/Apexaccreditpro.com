@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import { Plus, Edit, Trash2, MapPin, AlertCircle, Copy } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";

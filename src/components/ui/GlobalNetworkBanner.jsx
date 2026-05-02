@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Wifi, WifiOff, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "../../lib/utils";
 
 /**

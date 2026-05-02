@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import {
   Radio, Globe, Users, Trash2, RefreshCw,
   ChevronDown, ChevronUp, Search, Calendar, MessageSquare, X, Edit2, Check

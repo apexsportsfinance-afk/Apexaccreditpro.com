@@ -32,7 +32,7 @@ import { EventSettingsAPI, FormFieldSettingsAPI, BroadcastV2API, AthleteEventsAP
 import { computeExpiryStatus, formatEventDateTime } from "../../lib/expiryUtils";
 import { toast } from "sonner";
 import { getCountryFlag, calculateAge } from "../../lib/utils";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence } from "framer-motion";
 import { audioService } from "../../lib/audio";
 
 // Helper for time differentials

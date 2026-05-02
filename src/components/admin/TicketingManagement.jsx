@@ -4,7 +4,7 @@ import {
   Check, X, AlertCircle, ShoppingBag,
   DollarSign, Package, Shield, Lock
 } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence } from "framer-motion";
 import Button from "../ui/Button";
 import Card, { CardHeader, CardContent } from "../ui/Card";
 import Input from "../ui/Input";

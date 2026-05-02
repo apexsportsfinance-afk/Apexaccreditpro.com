@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, memo } from "react";
 import { ChevronUp, ChevronDown, Search, ChevronLeft, ChevronRight } from "lucide-react";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import { cn } from "../../lib/utils";
 
 const ROWS_PER_PAGE_OPTIONS = [25, 50, 100, 200, 500];

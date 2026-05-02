@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import SearchableSelect from "../../components/ui/SearchableSelect";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import EditAccreditationModal from "../../components/EditAccreditationModal";
 import {
   Filter,
