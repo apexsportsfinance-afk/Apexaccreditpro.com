@@ -839,7 +839,7 @@ export default function VerifyAccreditation() {
                             ))}
                           </div>
                         )}
-                      </div>)}
+                      </div>
                     </div>
                   </div>
                 </div>
