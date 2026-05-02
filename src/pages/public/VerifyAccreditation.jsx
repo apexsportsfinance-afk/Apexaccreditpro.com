@@ -804,7 +804,8 @@ export default function VerifyAccreditation() {
                                const t = String(target).toLowerCase().trim();
                                const txt = String(text).toLowerCase().trim();
                                if (txt === t) return true;
-                               const regex = new RegExp(`(^|[^a-z0-9])${t}([^a-z0-9]|$)`, "i");
+                               const escapedT = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                               const regex = new RegExp(`(^|[^a-z0-9])${escapedT}([^a-z0-9]|$)`, "i");
                                return regex.test(txt);
                              };
 
