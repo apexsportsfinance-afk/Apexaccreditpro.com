@@ -104,6 +104,25 @@ export const AttendanceAPI = {
   },
 
   /**
+   * Gets ALL attendance records for an athlete
+   */
+  getAthleteAttendance: async (eventId, athleteId) => {
+    try {
+      const { data, error } = await supabase
+        .from("event_attendance")
+        .select("*")
+        .eq("event_id", eventId)
+        .eq("athlete_id", athleteId);
+        
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.error("[AttendanceAPI] getAthleteAttendance error:", err);
+      return [];
+    }
+  },
+
+  /**
    * Gets ALL attendance records for an event regardless of date
    */
   getEventAttendance: async (eventId) => {

@@ -81,6 +81,7 @@ export default function VerifyAccreditation() {
   const [medalsLoading, setMedalsLoading] = useState(false);
   const [feedbackConfig, setFeedbackConfig] = useState(null);
   const [allZones, setAllZones] = useState([]);
+  const [athleteScans, setAthleteScans] = useState([]);
   const [scannerResult, setScannerResult] = useState(null); // { status: "granted" | "denied", zoneName: string }
   
   // Get zone from URL
@@ -162,7 +163,7 @@ export default function VerifyAccreditation() {
       if (!accData) throw new Error("Accreditation not found");
 
       
-      const [eSettings, fieldSets, matrix, gSettings, fConfig, feedbackIsActiveRaw, zonesResult] = await Promise.all([
+      const [eSettings, fieldSets, matrix, gSettings, fConfig, feedbackIsActiveRaw, zonesResult, scansResult] = await Promise.all([
         accData?.event_id
           ? EventSettingsAPI.getAll(accData.event_id)
           : Promise.resolve({}),
@@ -181,6 +182,9 @@ export default function VerifyAccreditation() {
           : Promise.resolve(null),
         accData?.event_id
           ? ZonesAPI.getByEventId(accData.event_id)
+          : Promise.resolve([]),
+        accData?.event_id && accData?.id
+          ? AttendanceAPI.getAthleteAttendance(accData.event_id, accData.id)
           : Promise.resolve([])
       ]);
 
@@ -191,6 +195,7 @@ export default function VerifyAccreditation() {
       setAthleteMatrix(matrix || []);
       setGlobSettings(gSettings || {});
       setAllZones(zonesResult || []);
+      setAthleteScans(scansResult || []);
       // Merge is_active from GlobalSettings (stored separately, bypasses missing DB column)
       const feedbackIsActive = feedbackIsActiveRaw === 'true' || feedbackIsActiveRaw === true;
       setFeedbackConfig(fConfig ? { ...fConfig, is_active: feedbackIsActive } : null);
@@ -825,18 +830,56 @@ export default function VerifyAccreditation() {
                         })}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                     {data.nationality && (
-                       <div className="flex items-center gap-1.5">
-                         {getCountryFlag(data.nationality) && <img src={getCountryFlag(data.nationality)} alt="flag" className="w-6 shadow-sm rounded-sm" />}
-                         <span className="text-[10px] font-black text-slate-900 uppercase">{data.nationality}</span>
+                  <div className="flex flex-col items-end gap-2">
+                     {/* Completed Checks (Hidden Zones) */}
+                     {(() => {
+                       const assignedZones = (data.zone_code || "").split(",").map(z => z.trim()).filter(Boolean);
+                       const hiddenAssigned = assignedZones.filter(code => {
+                         const zone = allZones.find(z => String(z.code) === code);
+                         return zone?.settings?.isHidden;
+                       });
+                       const completedHidden = hiddenAssigned.filter(code => {
+                         const zone = allZones.find(z => String(z.code) === code);
+                         const zoneName = zone ? zone.name : `Zone ${code}`;
+                         return athleteScans.some(scan => scan.scanner_location === zoneName || scan.scanner_location === code);
+                       });
+
+                       if (completedHidden.length === 0) return null;
+
+                       return (
+                         <div className="flex gap-1.5">
+                           {completedHidden.map((code, i) => {
+                             const zone = allZones.find(z => String(z.code) === code);
+                             return (
+                               <div key={i} className="px-2 py-0.5 bg-emerald-50 border border-emerald-200 rounded flex items-center gap-1 shadow-sm" title={`Completed Check: ${zone ? zone.name : code}`}>
+                                 <CheckCircle className="w-3 h-3 text-emerald-500" />
+                                 <span className="text-[9px] font-black uppercase text-emerald-700 tracking-wider">
+                                   {code} DONE
+                                 </span>
+                               </div>
+                             );
+                           })}
+                         </div>
+                       );
+                     })()}
+
+                     <div className="flex items-center gap-3">
+                       {data.nationality && (
+                         <div className="flex items-center gap-1.5">
+                           {getCountryFlag(data.nationality) && <img src={getCountryFlag(data.nationality)} alt="flag" className="w-6 shadow-sm rounded-sm" />}
+                           <span className="text-[10px] font-black text-slate-900 uppercase">{data.nationality}</span>
+                         </div>
+                       )}
+                       <div className="flex gap-1">
+                          {[...new Set((data.zone_code || "").split(",").map(z => z.trim()).filter(Boolean))]
+                            .filter(code => {
+                              const zone = allZones.find(z => String(z.code) === code);
+                              return !zone?.settings?.isHidden;
+                            })
+                            .map((code, i) => (
+                              <span key={i} className="w-5 h-5 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-[9px] font-black text-slate-600 shadow-sm">{code}</span>
+                            ))}
                        </div>
-                     )}
-                     <div className="flex gap-1">
-                        {[...new Set((data.zone_code || "").split(",").map(z => z.trim()).filter(Boolean))]
-                          .map((code, i) => (
-                            <span key={i} className="w-5 h-5 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-[9px] font-black text-slate-600 shadow-sm">{code}</span>
-                          ))}
                      </div>
                   </div>
                 </div>
