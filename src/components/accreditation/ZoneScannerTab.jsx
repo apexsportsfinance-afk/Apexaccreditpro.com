@@ -92,7 +92,12 @@ export default function ZoneScannerTab({ eventId, onToast, disabled }) {
                     {zone.code}
                   </div>
                   <div>
-                    <h4 className="text-white font-bold uppercase tracking-tight leading-tight">{zone.name}</h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-white font-bold uppercase tracking-tight leading-tight">{zone.name}</h4>
+                      {zone.settings?.isHidden && (
+                        <span className="px-1.5 py-0.5 bg-amber-500/20 text-amber-500 text-[8px] font-black uppercase rounded border border-amber-500/20">Hidden</span>
+                      )}
+                    </div>
                     <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest leading-none mt-1">
                       Sector {zone.code}
                     </p>

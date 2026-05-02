@@ -193,7 +193,11 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
   const roleData = resolvedColor ? { bg: "", hex: resolvedColor } : getRoleData(accreditation?.role);
   const finalColor = resolvedColor || roleData.hex;
 
-  const zoneCodes = accreditation?.zoneCode?.split(",").map(z => z.trim()).filter(Boolean) || [];
+  const zoneCodes = accreditation?.zoneCode?.split(",").map(z => z.trim()).filter(code => {
+    if (!code) return false;
+    const zoneInfo = zones.find(z => String(z.code) === code);
+    return !zoneInfo?.settings?.isHidden;
+  }) || [];
   const countryData = COUNTRIES.find(c => 
     c.code?.toUpperCase() === accreditation?.nationality?.toUpperCase() || 
     c.name?.toLowerCase() === accreditation?.nationality?.toLowerCase()

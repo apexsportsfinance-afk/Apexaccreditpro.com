@@ -30,7 +30,8 @@ export default function Zones() {
     description: "",
     settings: {
       accessMode: "general", // general | time_restricted
-      timeSlots: []
+      timeSlots: [],
+      isHidden: false
     }
   });
   const [copyModalOpen, setCopyModalOpen] = useState(false);
@@ -80,7 +81,7 @@ export default function Zones() {
       name: "", 
       color: "#2563eb", 
       description: "",
-      settings: { accessMode: "general", timeSlots: [] }
+      settings: { accessMode: "general", timeSlots: [], isHidden: false }
     });
     setEditingZone(null);
   };
@@ -132,7 +133,7 @@ export default function Zones() {
         name: zone.name,
         color: zone.color || "#2563eb",
         description: zone.description || "",
-        settings: zone.settings || { accessMode: "general", timeSlots: [] }
+        settings: zone.settings || { accessMode: "general", timeSlots: [], isHidden: false }
       });
     } else {
       resetForm();
@@ -263,7 +264,14 @@ export default function Zones() {
       header: "Name",
       sortable: true,
       render: (_, row) => (
-        <span className="text-lg text-slate-200">{row.name}</span>
+        <div className="flex flex-col">
+          <span className="text-lg text-slate-200">{row.name}</span>
+          {row.settings?.isHidden && (
+            <span className="text-[10px] font-black uppercase tracking-widest text-amber-500 mt-1">
+              Hidden Zone
+            </span>
+          )}
+        </div>
       )
     },
     {
@@ -420,6 +428,7 @@ export default function Zones() {
             onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
             placeholder="Access restricted to athletes only"
           />
+
           <div>
             <label className="block text-lg font-medium text-slate-300 mb-1.5">
               Zone Color
@@ -438,6 +447,32 @@ export default function Zones() {
               >
                 {formData.code || "Z"}
               </div>
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-slate-700/50">
+            <div className="flex items-center justify-between p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
+              <div className="flex-1">
+                <p className="text-sm font-bold text-white uppercase tracking-tight">Hidden Zone</p>
+                <p className="text-[10px] text-slate-400 font-extralight uppercase tracking-widest mt-0.5">
+                  Does not show on participant QR profile
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFormData(p => ({ ...p, settings: { ...p.settings, isHidden: !p.settings?.isHidden } }))}
+                className={cn(
+                  "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                  formData.settings?.isHidden ? "bg-amber-500" : "bg-slate-700"
+                )}
+              >
+                <span
+                  className={cn(
+                    "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                    formData.settings?.isHidden ? "translate-x-6" : "translate-x-1"
+                  )}
+                />
+              </button>
             </div>
           </div>
 

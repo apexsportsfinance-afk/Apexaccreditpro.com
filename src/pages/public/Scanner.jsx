@@ -26,7 +26,7 @@ import {
   FileText,
   MessageSquare
 } from "lucide-react";
-import { AccreditationsAPI, TicketingAPI, EventsAPI } from "../../lib/storage";
+import { AccreditationsAPI, TicketingAPI, EventsAPI, ZonesAPI } from "../../lib/storage";
 import { AttendanceAPI } from "../../lib/attendanceApi";
 import { EventSettingsAPI, FormFieldSettingsAPI, BroadcastV2API, AthleteEventsAPI, GlobalSettingsAPI } from "../../lib/broadcastApi";
 import { computeExpiryStatus, formatEventDateTime } from "../../lib/expiryUtils";
@@ -114,6 +114,7 @@ export default function ScannerPage() {
   // UI States for Aesthetic Upgrade
   const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
   const [activeZoneConfig, setActiveZoneConfig] = useState(null);
+  const [allZones, setAllZones] = useState([]);
 
   // High-Speed Hardware Locking (APX-FIX for Spectators)
   const isCurrentlyProcessing = useRef(false);
@@ -163,18 +164,22 @@ export default function ScannerPage() {
     fetchSessions();
   }, [config.eventId, config.mode]);
 
-  // 3. Fetch Zone configuration for time-based rules
+  // 3. Fetch Zone configuration for time-based rules and hidden zone filtering
   useEffect(() => {
     const fetchZoneConfig = async () => {
-      if (config.eventId && config.zone && config.mode === "attendance") {
+      if (config.eventId) {
         try {
           const zones = await ZonesAPI.getByEventId(config.eventId);
-          const currentZone = zones.find(z => String(z.code).toUpperCase() === String(config.zone).toUpperCase());
-          if (currentZone) {
-            setActiveZoneConfig(currentZone);
+          setAllZones(zones || []);
+          // Only look for active zone config in attendance mode with a zone code
+          if (config.zone && config.mode === "attendance") {
+            const currentZone = zones.find(z => String(z.code).toUpperCase() === String(config.zone).toUpperCase());
+            if (currentZone) {
+              setActiveZoneConfig(currentZone);
+            }
           }
         } catch (err) {
-          console.warn("Failed to load zone configuration for time-based access:", err);
+          console.warn("Failed to load zone configuration:", err);
         }
       }
     };
@@ -611,6 +616,7 @@ export default function ScannerPage() {
           eventSettings: eSettings,
           globalSettings: gSettings,
           messages: msgs,
+          zones: allZones,
           message: config.mode === "verify" ? "Accreditation Verified" : "Profile Loaded"
         });
 
@@ -1140,18 +1146,27 @@ function ResultView({ config, result, onResume, onRedeem, isPublic, zoneConfig }
              </div>
           </div>
 
-          {athlete.zoneCode && (
-             <div className="grid grid-cols-1 gap-4">
-                <span className="text-xs font-black text-white/20 uppercase tracking-[0.5em] text-center">Security Zone Authorization</span>
-                <div className="flex flex-wrap justify-center gap-4">
-                   {athlete.zoneCode.split(",").map((code, i) => (
-                      <div key={i} className="px-12 py-6 rounded-3xl border-4 bg-white/5 text-4xl font-black text-white uppercase tracking-tighter" style={{ borderColor: `${accentColor}40`, color: accentColor }}>
-                         {code.trim()}
-                      </div>
-                   ))}
-                </div>
-             </div>
-          )}
+          {athlete.zoneCode && (() => {
+            const visibleZoneCodes = athlete.zoneCode.split(",")
+              .map(c => c.trim())
+              .filter(code => {
+                if (!code) return false;
+                const zoneInfo = result.zones?.find?.(z => String(z.code) === code);
+                return !zoneInfo?.settings?.isHidden;
+              });
+            return visibleZoneCodes.length > 0 ? (
+               <div className="grid grid-cols-1 gap-4">
+                  <span className="text-xs font-black text-white/20 uppercase tracking-[0.5em] text-center">Security Zone Authorization</span>
+                  <div className="flex flex-wrap justify-center gap-4">
+                     {visibleZoneCodes.map((code, i) => (
+                        <div key={i} className="px-12 py-6 rounded-3xl border-4 bg-white/5 text-4xl font-black text-white uppercase tracking-tighter" style={{ borderColor: `${accentColor}40`, color: accentColor }}>
+                           {code.trim()}
+                        </div>
+                     ))}
+                  </div>
+               </div>
+            ) : null;
+          })()}
 
           <div className="pt-20">
             <button onClick={onResume} className="w-full py-10 bg-blue-600 hover:bg-blue-500 text-white text-4xl font-black uppercase tracking-[0.2em] rounded-[3rem] transition-all shadow-[0_40px_80px_-20px_rgba(37,99,235,0.5)]">
