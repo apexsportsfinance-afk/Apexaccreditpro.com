@@ -802,26 +802,26 @@ export default function VerifyAccreditation() {
                              const hasAttendance = athleteScans.some(scan => {
                                const loc = String(scan.scanner_location || "").trim().toLowerCase();
                                if (!loc || loc.includes("self-scan")) return false;
-                               if (!zCode && !zName) return false;
-
-                               return (zCode && loc === zCode) || 
-                                      (zName && loc === zName) || 
-                                      (zCode && zCode.length >= 2 && (loc.startsWith(zCode + " ") || loc.startsWith(zCode + "-") || loc.startsWith(zCode + ":"))) ||
-                                      (zName && zName.length > 3 && (loc.startsWith(zName + " ") || loc.startsWith(zName + "-"))) ||
-                                      (loc === zName);
+                               const locWords = loc.split(/[\s\-:]+/);
+                               const zCodeLow = zCode?.toLowerCase();
+                               const zNameLow = zName?.toLowerCase();
+                               
+                               return (zCodeLow && locWords.includes(zCodeLow)) || 
+                                      (zNameLow && locWords.includes(zNameLow)) ||
+                                      (zNameLow && loc === zNameLow);
                              });
                              if (hasAttendance) return true;
 
                              const hasLog = athleteLogs.some(log => {
                                const dev = String(log.device_label || "").trim().toLowerCase();
                                if (!dev || dev.includes("self-scan")) return false;
-                               if (!zCode && !zName) return false;
+                               const devWords = dev.split(/[\s\-:]+/);
+                               const zCodeLow = zCode?.toLowerCase();
+                               const zNameLow = zName?.toLowerCase();
 
-                               return (zCode && dev === zCode) || 
-                                      (zName && dev === zName) || 
-                                      (zCode && zCode.length >= 2 && (dev.startsWith(zCode + " ") || dev.startsWith(zCode + "-") || dev.startsWith(zCode + ":"))) ||
-                                      (zName && zName.length > 3 && (dev.startsWith(zName + " ") || dev.startsWith(zName + "-"))) ||
-                                      (dev === zName);
+                               return (zCodeLow && devWords.includes(zCodeLow)) || 
+                                      (zNameLow && devWords.includes(zNameLow)) ||
+                                      (zNameLow && dev === zNameLow);
                              });
                              return hasLog;
                            });
