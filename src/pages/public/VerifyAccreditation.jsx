@@ -811,19 +811,23 @@ export default function VerifyAccreditation() {
 
                             const hasAttendance = athleteScans.some(scan => {
                               const loc = scan.scanner_location;
-                              if (!loc || String(loc).toLowerCase().includes("self-scan")) return false;
-                              const codeMatch = zCode && isMatch(loc, zCode);
-                              const nameMatch = zName && isMatch(loc, zName);
-                              return codeMatch || nameMatch;
+                              if (!loc) return false;
+                              const locs = String(loc).split('|').map(l => l.trim().toLowerCase());
+                              const validLocs = locs.filter(l => !l.includes("self-scan"));
+                              if (validLocs.length === 0) return false;
+                              const codeMatch = zCode && validLocs.some(l => isMatch(l, zCode));
+                              return codeMatch;
                             });
                             if (hasAttendance) return true;
 
                             const hasLog = athleteLogs.some(log => {
                               const dev = log.device_label;
-                              if (!dev || String(dev).toLowerCase().includes("self-scan")) return false;
-                              const codeMatch = zCode && isMatch(dev, zCode);
-                              const nameMatch = zName && isMatch(dev, zName);
-                              return codeMatch || nameMatch;
+                              if (!dev) return false;
+                              const devs = String(dev).split('|').map(d => d.trim().toLowerCase());
+                              const validDevs = devs.filter(d => !d.includes("self-scan"));
+                              if (validDevs.length === 0) return false;
+                              const codeMatch = zCode && validDevs.some(d => isMatch(d, zCode));
+                              return codeMatch;
                             });
                             return hasLog;
                           });
