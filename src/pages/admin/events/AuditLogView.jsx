@@ -79,7 +79,9 @@ export default function AuditLogView({ event }) {
   const areaSummary = useMemo(() => {
     const summary = {};
     
-    // 1. Initialize with all defined zones
+    const getCanonicalName = (z) => `${z.name} (${z.code})`;
+
+    // 1. Initialize with all defined zones using the canonical format
     zones.forEach(z => {
       // Find how many people are allocated to this zone
       const allocatedCount = accreditations.filter(acc => 
@@ -87,7 +89,7 @@ export default function AuditLogView({ event }) {
         (acc.zoneCode && acc.zoneCode.includes(z.code))
       ).length;
 
-      summary[z.name] = { 
+      summary[getCanonicalName(z)] = { 
         scanned: new Set(), // Store unique athlete IDs
         allocated: allocatedCount,
         code: z.code 
@@ -99,9 +101,37 @@ export default function AuditLogView({ event }) {
       const logDate = new Date(log.created_at).toISOString().split('T')[0];
       if (dateFilter !== "all" && logDate !== dateFilter) return;
 
-      const label = log.device_label || 'Other';
-      if (summary[label]) {
-        if (log.athlete_id) summary[label].scanned.add(log.athlete_id);
+      let areaName = log.device_label || 'Other';
+      
+      // If it doesn't strictly match a canonical name, try to find one by code or name
+      if (!summary[areaName]) {
+        const matchingZone = zones.find(z => 
+          areaName === z.name || 
+          areaName === `${z.name} (${z.code})` ||
+          (z.code && areaName.includes(`(${z.code})`))
+        );
+        if (matchingZone) {
+          areaName = getCanonicalName(matchingZone);
+        }
+      }
+      
+      // Attach the resolved area name to the log so filtering works
+      log.resolved_area = areaName;
+
+      // Determine if this is a recognized system default area
+      const isSystemDefault = 
+        areaName.toLowerCase().includes("self-scan") || 
+        areaName.toLowerCase() === "main entrance" || 
+        areaName.toLowerCase() === "unknown";
+
+      // If it's a completely unknown area (like a deleted zone), SKIP IT unless it's a system default
+      if (!summary[areaName] && isSystemDefault) {
+        summary[areaName] = { scanned: new Set(), allocated: 0, code: null };
+      }
+      
+      // Only count scans for valid active zones or system defaults
+      if (summary[areaName] && log.athlete_id) {
+        summary[areaName].scanned.add(log.athlete_id);
       }
     });
 
@@ -150,12 +180,15 @@ export default function AuditLogView({ event }) {
                            club.includes(searchTerm.toLowerCase()) ||
                            badge.includes(searchTerm.toLowerCase());
       
+      // If the log's resolved area isn't in areaSummary, it means the zone was deleted. Hide it entirely.
+      if (!areaSummary[log.resolved_area]) return false;
+
       const matchesArea = selectedArea === "all" || 
-                         (log.device_label === selectedArea);
+                         (log.resolved_area === selectedArea);
       
       return matchesSearch && matchesArea;
     });
-  }, [logs, searchTerm, selectedArea, dateFilter]);
+  }, [logs, searchTerm, selectedArea, dateFilter, areaSummary]);
 
   const totalUniqueScanned = useMemo(() => {
     const unique = new Set();
@@ -173,7 +206,7 @@ export default function AuditLogView({ event }) {
       
       const exportData = filteredLogs.map(log => ({
         'Scan Date/Time': new Date(log.created_at).toLocaleString(),
-        'Gate Location': log.device_label || 'Unknown',
+        'Gate Location': log.resolved_area || log.device_label || 'Unknown',
         'Athlete Name': `${log.accreditations?.first_name || 'Guest'} ${log.accreditations?.last_name || ''}`,
         'Badge #': log.accreditations?.badge_number || 'N/A',
         'Organization': log.accreditations?.club || 'N/A',
@@ -181,9 +214,9 @@ export default function AuditLogView({ event }) {
         'Assigned Sports': log.accreditations?.selected_sports?.join(', ') || 'N/A'
       }));
 
-      const summaryData = Object.entries(areaSummary).map(([area, count]) => ({
+      const summaryData = Object.entries(areaSummary).map(([area, data]) => ({
         'Gate Location': area,
-        'Total Scans': count
+        'Total Scans': data.scanned.size
       }));
       
       summaryData.push({
