@@ -1,19 +1,8 @@
 {
   "version": 2,
   "framework": "vite",
-  "redirects": [
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "(.*).vercel.app"
-        }
-      ],
-      "destination": "https://accreditation.apexsports.ae",
-      "permanent": true
-    }
-  ],
+  "cleanUrls": true,
+  "trailingSlash": false,
   "routes": [
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
