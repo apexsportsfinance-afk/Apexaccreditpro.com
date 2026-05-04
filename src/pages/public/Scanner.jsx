@@ -1071,7 +1071,7 @@ function ResultView({ config, result, onResume, onRedeem, isPublic, zoneConfig }
     );
   }
 
-  // --- ATHLETE ENTRY HUD ---
+  // --- ATHLETE ENTRY HUD (Redesigned for Mobile Excellence) ---
   if (result.type === 'athlete_entry') {
     const athlete = result.athlete;
     const isApproved = athlete.status === 'approved';
@@ -1079,58 +1079,107 @@ function ResultView({ config, result, onResume, onRedeem, isPublic, zoneConfig }
     const isSuspended = athlete.status === 'suspended' || athlete.status === 'rejected';
     const isPending = athlete.status === 'pending';
     const isFlagged = isSuspended || isPending;
+    const athleteEvents = result.competitionData || [];
 
     return (
-      <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center p-6 bg-black animate-in fade-in zoom-in duration-300">
+      <div className="fixed inset-0 z-[100] flex flex-col bg-[#020617] animate-in fade-in zoom-in duration-300 overflow-hidden font-sans">
+        {/* Animated Background Pulse */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <motion.div 
+            animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.2, 0.1] }}
+            transition={{ duration: 4, repeat: Infinity }}
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] rounded-full blur-[100px]"
+            style={{ backgroundColor: accentColor }}
+          />
+        </div>
+
         {isFlagged && (
-           <div className={`absolute top-0 left-0 right-0 p-8 flex items-center justify-center gap-6 ${isSuspended ? 'bg-red-600' : 'bg-amber-600'} animate-bounce shadow-2xl z-50`}>
-              <ShieldAlert className="w-12 h-12 text-white" />
-              <div className="text-center">
-                 <h2 className="text-3xl font-black text-white uppercase tracking-tighter">ALERT: {isSuspended ? 'SUSPENDED PROFILE' : 'PENDING APPROVAL'}</h2>
-                 <p className="text-white/90 font-bold uppercase text-sm">REFER TO INFORMATION DESK IMMEDIATELY</p>
-              </div>
+           <div className={`shrink-0 p-4 flex items-center justify-center gap-3 ${isSuspended ? 'bg-red-600' : 'bg-amber-600'} shadow-2xl z-50`}>
+              <ShieldAlert className="w-6 h-6 text-white animate-pulse" />
+              <h2 className="text-sm font-black text-white uppercase tracking-widest">
+                {isSuspended ? 'SUSPENDED PROFILE' : 'PENDING APPROVAL'}
+              </h2>
            </div>
         )}
 
-        <div className="relative z-10 flex flex-col items-center text-center w-full max-w-4xl">
-          <div className="relative mb-12 group">
-            <div className="relative w-72 h-72 rounded-full border-8 shadow-2xl overflow-hidden bg-gray-900 border-white/20" style={{ borderColor: isFlagged ? '#ef4444' : accentColor }}>
-               {athlete.photoUrl ? (
-                 <img src={athlete.photoUrl} alt="" className="w-full h-full object-cover" />
-               ) : (
-                 <div className="w-full h-full flex items-center justify-center bg-white/5">
-                    <User className="w-32 h-32 text-white/20" />
-                 </div>
-               )}
+        <div className="flex-1 flex flex-col items-center justify-start p-4 pt-6 relative z-10 overflow-y-auto custom-scrollbar">
+          {/* Identity Hub (Compact) */}
+          <div className="flex flex-col items-center gap-4 mb-6 w-full">
+            <div className="relative">
+              <div className="w-40 h-40 rounded-full border-4 shadow-2xl overflow-hidden bg-slate-900 ring-4 ring-white/10" style={{ borderColor: isFlagged ? '#ef4444' : accentColor }}>
+                 {athlete.photoUrl ? (
+                   <img src={athlete.photoUrl} alt="" className="w-full h-full object-cover" />
+                 ) : (
+                   <div className="w-full h-full flex items-center justify-center bg-white/5">
+                      <User className="w-16 h-16 text-white/20" />
+                   </div>
+                 )}
+              </div>
+              <div className={`absolute -bottom-2 left-1/2 -translate-x-1/2 px-6 py-2 rounded-full border-2 shadow-2xl z-20 whitespace-nowrap ${isFlagged ? 'bg-red-600 border-white' : 'bg-emerald-600 border-white'}`}>
+                 <span className="text-xs font-black text-white uppercase tracking-[0.2em]">{isFlagged ? athlete.status : (result.message || 'ACCESS GRANTED')}</span>
+              </div>
             </div>
-            <div className={`absolute -bottom-4 left-1/2 -translate-x-1/2 px-10 py-3 rounded-full border-4 shadow-xl z-20 ${isFlagged ? 'bg-red-600 border-white' : 'bg-emerald-600 border-white'}`}>
-               <span className="text-xl font-black text-white uppercase tracking-widest">{isFlagged ? athlete.status : 'ACCESS GRANTED'}</span>
+
+            <div className="text-center mt-2">
+               <h1 className="text-4xl font-black text-white uppercase tracking-tighter leading-none mb-1">
+                 {athlete.firstName} {athlete.lastName}
+               </h1>
+               <div className="flex items-center justify-center gap-2">
+                 <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">{athlete.club || "Independent"}</span>
+                 <div className="w-1 h-1 bg-white/20 rounded-full" />
+                 <span className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em]">{athlete.role || "Participant"}</span>
+               </div>
             </div>
           </div>
 
-          <div className="mt-8 space-y-4">
-             <h1 className="text-8xl font-black text-white uppercase tracking-tighter leading-none">
-               {athlete.firstName}
-             </h1>
-             <h2 className="text-6xl font-black text-white/60 uppercase tracking-tighter leading-none mb-12">
-               {athlete.lastName}
-             </h2>
-          </div>
-
-          <div className="grid grid-cols-2 gap-6 w-full mt-12">
-             <div className="bg-white/5 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/10 text-left">
-                <span className="text-xs font-black text-white/30 uppercase tracking-[0.3em] block mb-2">Club / Team</span>
-                <p className="text-3xl font-black text-white uppercase truncate">{athlete.club || "Independent"}</p>
+          {/* Details Grid (Highly Compact) */}
+          <div className="grid grid-cols-2 gap-3 w-full max-w-md">
+             <div className="bg-white/5 backdrop-blur-md p-4 rounded-3xl border border-white/10">
+                <span className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-1">Sector / Zone</span>
+                <p className="text-lg font-black text-white uppercase truncate">{config.zone || "Main"}</p>
              </div>
-             <div className="bg-white/5 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/10 text-left">
-                <span className="text-xs font-black text-white/30 uppercase tracking-[0.3em] block mb-2">Role & Zone</span>
-                <p className="text-3xl font-black text-white uppercase">{athlete.role || "ATHLETE"} / {config.zone || "MAIN"}</p>
+             <div className="bg-white/5 backdrop-blur-md p-4 rounded-3xl border border-white/10">
+                <span className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-1">Badge ID</span>
+                <p className="text-lg font-black text-white uppercase">#{athlete.badge_number || athlete.accreditationId?.split("-")?.pop() || "---"}</p>
              </div>
           </div>
 
-          <p className="mt-16 text-white/20 font-black uppercase tracking-[0.6em] text-sm animate-pulse">
-            Next scan ready in 8s
-          </p>
+          {/* Athlete Activity / Competition Schedule (Premium Addition) */}
+          {athleteEvents.length > 0 && (
+            <div className="w-full max-w-md mt-6 space-y-3">
+              <div className="flex items-center justify-between px-2">
+                <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em]">Event Schedule</span>
+                <span className="text-[10px] font-bold text-blue-400 uppercase">{athleteEvents.length} Entries</span>
+              </div>
+              <div className="space-y-2">
+                {athleteEvents.slice(0, 3).map((evt, i) => (
+                  <div key={i} className="bg-white/5 backdrop-blur-sm px-4 py-3 rounded-2xl border border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center text-[10px] font-black text-blue-400 border border-blue-500/20">
+                        {evt.event_code}
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-bold text-white uppercase leading-none mb-1">{evt.event_name}</p>
+                        <p className="text-[9px] font-medium text-white/40 uppercase tracking-tighter">{evt.round} • {evt.heat || 'Standard'}</p>
+                      </div>
+                    </div>
+                    {evt.rank && (
+                      <div className="px-2 py-1 bg-emerald-500/20 rounded-md text-[9px] font-black text-emerald-400 border border-emerald-500/20">
+                        POS: {evt.rank}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Resume Footer (Floating Style) */}
+          <div className="mt-auto pt-8 pb-4 text-center">
+             <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.5em] animate-pulse">
+               Terminal Ready in 8s
+             </p>
+          </div>
         </div>
       </div>
     );
