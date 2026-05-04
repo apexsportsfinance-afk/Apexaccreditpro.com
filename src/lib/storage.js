@@ -1240,7 +1240,8 @@ function mapAccreditationToDB(acc) {
     remarks: 'remarks', badgeColor: 'badge_color', forceLive: 'force_live',
     paymentStatus: 'payment_status', paymentAmount: 'payment_amount',
     stripeSessionId: 'stripe_session_id', documents: 'documents',
-    selectedSports: 'selected_sports', customMessage: 'custom_message'
+    selectedSports: 'selected_sports', customMessage: 'custom_message',
+    expiresAt: 'expires_at'
   };
 
   Object.keys(fields).forEach(k => { if (acc[k] !== undefined) map[fields[k]] = acc[k]; });
@@ -1266,7 +1267,8 @@ function mapAccreditationFromDB(db) {
     badgeNumber: db.badge_number, accreditationId: db.accreditation_id,
     remarks: db.remarks, badgeColor: db.badge_color || "#2563eb",
     paymentStatus: db.payment_status || 'unpaid', paymentAmount: db.payment_amount,
-    stripeSessionId: db.stripe_session_id
+    stripeSessionId: db.stripe_session_id,
+    expiresAt: db.expires_at
   };
   
   try {
