@@ -534,18 +534,63 @@ export default function ScannerPage() {
             const now = new Date();
             const currentTimeStr = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
             
-            const isAllowed = slots.some(slot => {
+            // Find the SPECIFIC slot they are currently in
+            const activeSlot = slots.find(slot => {
               return currentTimeStr >= slot.start && currentTimeStr <= slot.end;
             });
 
-            if (!isAllowed) {
+            if (!activeSlot) {
               showScanError("Access Denied", "Outside of allowed time slots for this zone.");
               return;
             }
+
+            // [NEW] Logic for Time-Restricted Zones: Mark Attendance per Slot
+            const slotSuffix = ` [${activeSlot.start}-${activeSlot.end}]`;
+            const recordRes = await AttendanceAPI.recordScan({
+              eventId: config.eventId,
+              athleteId: athlete.id,
+              clubName: athlete.club,
+              scannerLocation: `${config.deviceLabel || `Zone-${config.zone}`}${slotSuffix}`,
+              sessionId: activeSession?.id || null,
+              zoneOnly: true
+            });
+
+            const isDuplicate = recordRes.message?.includes("Repeat Entry");
+            const finalMessage = isDuplicate ? "Already Attended" : "Attendance Marked";
+
+            setLastScanResult({
+              type: "athlete_entry",
+              status: recordRes.status,
+              athlete,
+              message: finalMessage,
+              sessionName: activeSession?.session_name || null
+            });
+
+            // AUDIT LOG
+            AttendanceAPI.logScanEvent({
+              eventId: config.eventId,
+              athleteId: athlete.id,
+              scanMode: "zone_attendance",
+              deviceLabel: config.deviceLabel,
+              sessionId: activeSession?.id || null
+            });
+
+            // Play appropriate sound and voice
+            if (isDuplicate) {
+              audioService.beep(440, 200, 'sine', 0.2); // Softer double-beep for "Already"
+              audioService.speak("Already Attended");
+            } else {
+              audioService.playSuccessEntry();
+              audioService.speak("Attendance Marked");
+            }
+
+            // AUTO-RESUME
+            resultTimerRef.current = setTimeout(resumeScanner, 8000);
+            return; // EXIT early so standard general access logic doesn't run
           }
         }
 
-        const recordRes = await AttendanceAPI.recordScan({
+        // --- STANDARD ACCESS LOGIC (General Zones) ---
           eventId: config.eventId,
           athleteId: athlete.id,
           clubName: athlete.club,
