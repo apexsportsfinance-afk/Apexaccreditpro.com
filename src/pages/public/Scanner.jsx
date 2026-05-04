@@ -555,7 +555,7 @@ export default function ScannerPage() {
               zoneOnly: true
             });
 
-            const isDuplicate = recordRes.message?.includes("Repeat Entry");
+            const isDuplicate = recordRes.isNew === false;
             const finalMessage = isDuplicate ? "Already Attended" : "Attendance Marked";
 
             setLastScanResult({

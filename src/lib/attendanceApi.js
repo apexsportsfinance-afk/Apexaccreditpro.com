@@ -49,7 +49,9 @@ export const AttendanceAPI = {
         // or if the user wants "Access Granted" every time.
         return {
           status: "success",
-          message: "Access Granted (Repeat Entry)"
+          message: "Access Granted (Repeat Entry)",
+          scanCount: (existing.scan_count || 1) + 1,
+          isNew: false
         };
       }
 
@@ -69,12 +71,12 @@ export const AttendanceAPI = {
 
       if (insertError) {
         if (insertError.code === "23505") { // Unique violation
-          return { status: "success", message: "Access Granted" };
+          return { status: "success", message: "Access Granted", scanCount: 1, isNew: false };
         }
         throw insertError;
       }
 
-      return { status: "success", message: "Access Granted" };
+      return { status: "success", message: "Access Granted", scanCount: 1, isNew: true };
 
     } catch (err) {
       console.error("[AttendanceAPI] error recording scan:", err);
