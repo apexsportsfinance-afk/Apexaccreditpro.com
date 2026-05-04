@@ -148,6 +148,7 @@ export default function Accreditations() {
   const [customFields, setCustomFields] = useState([]);
   const [categoryDocuments, setCategoryDocuments] = useState({});
   const [clubs, setClubs] = useState([]);
+  const [activeEventSports, setActiveEventSports] = useState([]);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -194,10 +195,11 @@ export default function Accreditations() {
           GlobalSettingsAPI.get(`event_${selectedEvent}_front_bg`),
           GlobalSettingsAPI.get(`event_${selectedEvent}_category_documents`),
           GlobalSettingsAPI.get(`event_${selectedEvent}_custom_fields`),
-          GlobalSettingsAPI.get(`event_${selectedEvent}_only_front_page`)
+          GlobalSettingsAPI.get(`event_${selectedEvent}_only_front_page`),
+          GlobalSettingsAPI.get(`event_${selectedEvent}_sport`)
         ]);
 
-        const [accResult, zoneResult, ecResult, clubResult, bgResult, catDocsResult, customFieldsResult, onlyFrontResult] = results;
+        const [accResult, zoneResult, ecResult, clubResult, bgResult, catDocsResult, customFieldsResult, onlyFrontResult, sportResult] = results;
 
         if (accResult.status === "fulfilled") {
           const accData = accResult.value;
@@ -230,6 +232,20 @@ export default function Accreditations() {
           }
         } else {
           setCustomFields([]);
+        }
+
+        if (sportResult.status === "fulfilled") {
+          const sportRaw = sportResult.value;
+          let sportList = [];
+          if (sportRaw) {
+            try {
+              const parsed = JSON.parse(sportRaw);
+              sportList = Array.isArray(parsed) ? parsed : [parsed];
+            } catch {
+              sportList = [sportRaw];
+            }
+          }
+          setActiveEventSports(sportList);
         }
 
         searchParams.set("event", selectedEvent);
@@ -1151,7 +1167,7 @@ export default function Accreditations() {
         eventCategories={eventCategories}
         clubs={clubs}
         saving={editSaving}
-        currentEvent={currentEvent}
+        currentEvent={currentEvent ? { ...currentEvent, sportList: activeEventSports } : null}
         categoryDocuments={categoryDocuments}
         onApprove={async (data) => {
           setEditSaving(true);
@@ -1177,7 +1193,7 @@ export default function Accreditations() {
               customFields: data.customFields,
               badgeColor: data.badgeColor,
               zoneCode: data.zoneCode,
-              selected_sports: data.selectedSports,
+              selectedSports: data.selectedSports,
               expiresAt: data.expiresAt
             };
 
@@ -1233,7 +1249,7 @@ export default function Accreditations() {
                 customFields: data.customFields,
                 badgeColor: data.badgeColor,
                 zoneCode: data.zoneCode || (data.zoneCodes ? data.zoneCodes.join(",") : ""),
-                selected_sports: data.selectedSports
+                selectedSports: data.selectedSports
               };
               updatePayload.expiresAt = data.expiresAt !== undefined ? data.expiresAt : null;
 
