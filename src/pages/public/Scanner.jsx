@@ -591,6 +591,7 @@ export default function ScannerPage() {
         }
 
         // --- STANDARD ACCESS LOGIC (General Zones) ---
+        const recordRes = await AttendanceAPI.recordScan({
           eventId: config.eventId,
           athleteId: athlete.id,
           clubName: athlete.club,
