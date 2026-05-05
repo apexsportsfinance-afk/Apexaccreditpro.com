@@ -207,8 +207,8 @@ function GeneralBroadcastPage({ eventId, onToast, draft, setDraft, disabled }) {
       }
       await BroadcastV2API.sendGlobal(message, eventId, attachmentUrl, attachmentName, null, null);
       setSuccessInfo("General broadcast sent to all participants.");
-      // Refresh to get the latest sent info
-      loadLatest();
+      // Keep the message in the area after sending
+      // loadLatest(); 
     } catch (err) { onToast?.("Failed: " + err.message, "error"); }
     finally { setSaving(false); }
   };
@@ -286,7 +286,7 @@ function TargetedBroadcastPage({ eventId, onToast, draft, setDraft, disabled }) 
       }
       await BroadcastV2API.sendGlobal(message, eventId, attachmentUrl, attachmentName, targets, zones);
       setSuccessInfo(`Targeted broadcast sent to ${targets.length} roles and ${zones.length} zones.`);
-      setDraft({ message: "", targets: [], zones: [], file: null });
+      // setDraft({ message: "", targets: [], zones: [], file: null });
     } catch (err) { onToast?.("Failed: " + err.message, "error"); }
     finally { setSaving(false); }
   };
@@ -589,10 +589,10 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft, disabled })
       const names = selectedAthletes.slice(0, 3).map(a => `${a.firstName} ${a.lastName}`).join(", ");
       const extra = count > 3 ? ` and ${count - 3} more` : "";
       setSuccessInfo(`Message sent to ${count} athlete${count > 1 ? "s" : ""}: ${names}${extra}`);
-      setMessage("");
-      setAttachmentFile(null);
-      if (attachInputRef.current) attachInputRef.current.value = "";
-      setSelectedAthletes([]);
+      // setMessage("");
+      // setAttachmentFile(null);
+      // if (attachInputRef.current) attachInputRef.current.value = "";
+      // setSelectedAthletes([]);
       setConfirmOpen(false);
     } catch (err) {
       onToast?.("Failed to send: " + err.message, "error");

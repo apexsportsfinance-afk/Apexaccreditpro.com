@@ -115,8 +115,8 @@ export default function BirthdayBroadcastPage({ eventId, onToast, draft, setDraf
       await Promise.all(sendPromises);
       
       setSuccessInfo(`Personalized birthday wishes sent to ${selectedPeople.length} participant(s)!`);
-      setMessage("");
-      setAttachmentFile(null);
+      // setMessage("");
+      // setAttachmentFile(null);
     } catch (err) { 
       onToast?.("Failed: " + err.message, "error"); 
     }
