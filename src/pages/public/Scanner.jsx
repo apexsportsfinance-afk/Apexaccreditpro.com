@@ -528,6 +528,72 @@ export default function ScannerPage() {
             return;
           }
 
+          // --- CHECK-IN / CHECK-OUT TRACKING ---
+          if (activeZoneConfig?.settings?.accessMode === "check_in_out") {
+            try {
+              // --- SMART TOGGLE LOGIC (Local Persistence) ---
+              // Since public scanners often cannot READ logs due to RLS security, 
+              // we use the local device's memory to track the last state.
+              const storageKey = `presence_${config.eventId}_${athlete.id}_${config.zone}`;
+              const lastState = localStorage.getItem(storageKey); // "IN" or "OUT"
+              
+              const isCheckingIn = lastState !== "IN"; // If never scanned or last was OUT, we are checking IN
+              const nextMode = isCheckingIn ? "zone_check_in" : "zone_check_out";
+
+              // 1. Log to the audit ledger (This always works)
+              await AttendanceAPI.logScanEvent({
+                eventId: config.eventId,
+                athleteId: athlete.id,
+                scanMode: nextMode,
+                deviceLabel: config.deviceLabel,
+                sessionId: activeSession?.id || null
+              });
+
+              // 2. Save the NEW state to local memory for the next scan
+              localStorage.setItem(storageKey, isCheckingIn ? "IN" : "OUT");
+
+              // 3. Silently update attendance table
+              AttendanceAPI.recordScan({
+                eventId: config.eventId,
+                athleteId: athlete.id,
+                clubName: athlete.club,
+                scannerLocation: config.deviceLabel, 
+                zoneOnly: true
+              }).catch(() => {});
+
+              setLastScanResult({
+                type: "athlete_entry",
+                status: isCheckingIn ? "success" : "info",
+                athlete,
+                message: `${isCheckingIn ? "Check-In" : "Check-Out"} Successful`,
+                debug: `MODE: ${isCheckingIn ? 'IN' : 'OUT'} (MEM: ${lastState || 'NEW'})`,
+                sessionName: activeSession?.session_name || null
+              });
+
+              // Play appropriate sound and voice
+              if (isCheckingIn) {
+                audioService.playSuccessEntry();
+                audioService.speak(`Check-In. Welcome ${athlete.firstName}`);
+              } else {
+                audioService.playSuccessExit();
+                audioService.speak(`Check-Out. Goodbye ${athlete.firstName}`);
+              }
+            } catch (err) {
+              console.error("Zone tracking failed:", err);
+              setLastScanResult({
+                type: "athlete_entry",
+                status: "error",
+                athlete,
+                message: "System Error",
+                sessionName: activeSession?.session_name || null
+              });
+            }
+
+            // AUTO-RESUME
+            resultTimerRef.current = setTimeout(resumeScanner, 8000);
+            return;
+          }
+
           // --- TIME BASED ACCESS ENFORCEMENT ---
           if (activeZoneConfig?.settings?.accessMode === "time_restricted") {
             const slots = activeZoneConfig.settings.timeSlots || [];
@@ -1116,7 +1182,10 @@ function ResultView({ config, result, onResume, onRedeem, isPublic, zoneConfig }
                  )}
               </div>
               <div className={`absolute -bottom-2 left-1/2 -translate-x-1/2 px-6 py-2 rounded-full border-2 shadow-2xl z-20 whitespace-nowrap ${isFlagged ? 'bg-red-600 border-white' : 'bg-emerald-600 border-white'}`}>
-                 <span className="text-xs font-black text-white uppercase tracking-[0.2em]">{isFlagged ? athlete.status : (result.message || 'ACCESS GRANTED')}</span>
+                 <div className="flex flex-col items-center">
+                   <span className="text-xs font-black text-white uppercase tracking-[0.2em]">{isFlagged ? athlete.status : (result.message || 'ACCESS GRANTED')}</span>
+                   {result.debug && <span className="text-[8px] font-bold text-white/50 uppercase tracking-tighter mt-0.5">{result.debug}</span>}
+                 </div>
               </div>
             </div>
 

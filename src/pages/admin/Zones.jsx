@@ -480,11 +480,11 @@ export default function Zones() {
             <label className="block text-lg font-bold text-white mb-3 uppercase tracking-tight">
               Access Rule
             </label>
-            <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="grid grid-cols-3 gap-3 mb-4">
               <button
                 type="button"
                 onClick={() => setFormData(p => ({ ...p, settings: { ...p.settings, accessMode: "general" } }))}
-                className={`py-3 px-4 rounded-xl border text-sm font-bold uppercase tracking-widest transition-all ${
+                className={`py-3 px-2 rounded-xl border text-[10px] font-bold uppercase tracking-widest transition-all ${
                   formData.settings?.accessMode === "general"
                     ? "bg-primary-500/20 border-primary-500 text-primary-400 shadow-[0_0_15px_rgba(37,99,235,0.2)]"
                     : "bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800"
@@ -495,13 +495,24 @@ export default function Zones() {
               <button
                 type="button"
                 onClick={() => setFormData(p => ({ ...p, settings: { ...p.settings, accessMode: "time_restricted" } }))}
-                className={`py-3 px-4 rounded-xl border text-sm font-bold uppercase tracking-widest transition-all ${
+                className={`py-3 px-2 rounded-xl border text-[10px] font-bold uppercase tracking-widest transition-all ${
                   formData.settings?.accessMode === "time_restricted"
                     ? "bg-amber-500/20 border-amber-500 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
                     : "bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800"
                 }`}
               >
                 Time Restricted
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData(p => ({ ...p, settings: { ...p.settings, accessMode: "check_in_out" } }))}
+                className={`py-3 px-2 rounded-xl border text-[10px] font-bold uppercase tracking-widest transition-all ${
+                  formData.settings?.accessMode === "check_in_out"
+                    ? "bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+                    : "bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800"
+                }`}
+              >
+                Check-In / Out
               </button>
             </div>
 
