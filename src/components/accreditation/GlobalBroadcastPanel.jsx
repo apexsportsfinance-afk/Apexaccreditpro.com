@@ -26,7 +26,7 @@ const SUB_TABS = [
 const INITIAL_DRAFT_TEMPLATE = {
   general: { message: "", file: null },
   targeted: { message: "", targets: [], zones: [], file: null },
-  athlete: { message: "", selectedAthletes: [], selectedClubs: [], selectedHeats: [], file: null },
+  athlete: { message: "", selectedAthletes: [], selectedClubs: [], selectedRoles: [], selectedHeats: [], file: null },
   birthday: { message: "", file: null }
 };
 
@@ -328,6 +328,7 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft, disabled })
     message = "", 
     selectedAthletes = [], 
     selectedClubs = [], 
+    selectedRoles = [], 
     selectedHeats = [], 
     file: attachmentFile = null 
   } = draft || {};
@@ -336,6 +337,7 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft, disabled })
   const setMessage = (m) => setDraft({ message: m });
   const setSelectedAthletes = (sa) => setDraft({ selectedAthletes: typeof sa === 'function' ? sa(selectedAthletes) : sa });
   const setSelectedClubs = (sc) => setDraft({ selectedClubs: typeof sc === 'function' ? sc(selectedClubs) : sc });
+  const setSelectedRoles = (sr) => setDraft({ selectedRoles: typeof sr === 'function' ? sr(selectedRoles) : sr });
   const setSelectedHeats = (sh) => setDraft({ selectedHeats: typeof sh === 'function' ? sh(selectedHeats) : sh });
   const setAttachmentFile = (f) => setDraft({ file: f });
 
@@ -350,6 +352,7 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft, disabled })
   const [successInfo, setSuccessInfo] = useState(null);
   const [currentAttachment, setCurrentAttachment] = useState(null); // { url, name, broadcastId }
   const [deletingAttachment, setDeletingAttachment] = useState(false);
+  const [availableRoles, setAvailableRoles] = useState(ROLES);
   const attachInputRef = useRef(null);
 
   // Load latest athlete broadcast attachment
@@ -448,6 +451,32 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft, disabled })
     if (eventId) fetchRegisteredClubs();
   }, [eventId]);
 
+  // Load unique roles available in this event
+  useEffect(() => {
+    const fetchAvailableRoles = async () => {
+      try {
+        const { data } = await supabase
+          .from("accreditations")
+          .select("role")
+          .eq("event_id", eventId);
+        
+        const dbRoles = [...new Set((data || []).map(a => a.role).filter(Boolean))];
+        
+        // Merge with standard ROLES to ensure common ones are always there, or just use DB roles?
+        // User specifically wants roles based on the event.
+        if (dbRoles.length > 0) {
+          // Combine and unique
+          const combined = [...new Set([...ROLES, ...dbRoles])];
+          combined.sort((a, b) => a.localeCompare(b));
+          setAvailableRoles(combined);
+        }
+      } catch (err) {
+        console.error("Failed to fetch roles:", err);
+      }
+    };
+    if (eventId) fetchAvailableRoles();
+  }, [eventId]);
+
   // Load sport events / heats from the sport_events table
   useEffect(() => {
     const fetchSportEvents = async () => {
@@ -465,14 +494,14 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft, disabled })
   // Debounced search for athletes
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (search.length >= 2 || selectedClubs.length > 0 || selectedHeats.length > 0) {
+      if (search.length >= 2 || selectedClubs.length > 0 || selectedRoles.length > 0 || selectedHeats.length > 0) {
         fetchAthletes();
       } else {
         setAthletes([]);
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [search, selectedClubs, selectedHeats]);
+  }, [search, selectedClubs, selectedRoles, selectedHeats]);
 
   const fetchAthletes = async () => {
     setLoading(true);
@@ -487,6 +516,7 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft, disabled })
 
       const results = await AccreditationsAPI.search(eventId, {
         club: rawFilter.length > 0 ? rawFilter : [],
+        role: selectedRoles,
         heat: selectedHeats,
         name: search,
         limit: 200
@@ -526,6 +556,7 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft, disabled })
 
       const results = await AccreditationsAPI.search(eventId, {
         club: rawFilter.length > 0 ? rawFilter : [],
+        role: selectedRoles,
         heat: selectedHeats,
         name: search,
         limit: 500
@@ -617,7 +648,7 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft, disabled })
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Selection Interface */}
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-gray-400 text-xs font-bold uppercase tracking-widest mb-2">Filter Clubs</label>
               <div className="bg-gray-900 border border-gray-700 rounded-xl p-2 max-h-40 overflow-y-auto space-y-1">
@@ -644,6 +675,29 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft, disabled })
                 })}
               </div>
             </div>
+
+            <div>
+              <label className="block text-gray-400 text-xs font-bold uppercase tracking-widest mb-2">Filter Roles</label>
+              <div className="bg-gray-900 border border-gray-700 rounded-xl p-2 max-h-40 overflow-y-auto space-y-1">
+                {availableRoles.map(role => (
+                  <label key={role} className="flex items-center gap-2 px-2 py-1 hover:bg-gray-800 rounded cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={selectedRoles.includes(role)}
+                      disabled={disabled}
+                      onChange={() => {
+                        setSelectedRoles(prev => 
+                          prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]
+                        );
+                      }}
+                      className={cn("w-4 h-4 rounded border-gray-600 bg-gray-800 text-blue-600 focus:ring-0", disabled && "opacity-50 cursor-not-allowed")}
+                    />
+                    <span className="text-sm text-gray-300 truncate">{role}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
             <div>
               <label className="block text-gray-400 text-xs font-bold uppercase tracking-widest mb-2">Filter Events / Heats</label>
               <div className="bg-gray-900 border border-gray-700 rounded-xl p-2 max-h-40 overflow-y-auto space-y-1">
@@ -701,7 +755,11 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft, disabled })
                 <>
                   <Users className="w-4 h-4" />
                   Load All Matching Athletes into Selection
-                  {selectedClubs.length > 0 && <span className="text-blue-200 text-xs">({selectedClubs.join(", ")})</span>}
+                  {(selectedClubs.length > 0 || selectedRoles.length > 0) && (
+                    <span className="text-blue-200 text-xs">
+                      ({[...selectedClubs, ...selectedRoles].join(", ")})
+                    </span>
+                  )}
                 </>
               )}
             </button>

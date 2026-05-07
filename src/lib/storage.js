@@ -564,13 +564,14 @@ export const AccreditationsAPI = {
     };
   },
 
-  search: async (eventId, { club = [], name = "", limit = 20, offset = 0 }) => {
+  search: async (eventId, { club = [], role = [], name = "", limit = 20, offset = 0 }) => {
     let q = supabase
       .from("accreditations")
       .select(ACCREDITATION_LIST_COLUMNS)
       .eq("event_id", eventId);
 
     if (club && club.length > 0) q = q.in("club", club);
+    if (role && role.length > 0) q = q.in("role", role);
     if (name) q = q.or(`first_name.ilike.%${name}%,last_name.ilike.%${name}%`);
     
     const data = await handleResponse(
