@@ -529,7 +529,9 @@ export default function ScannerPage() {
           }
 
           // --- CHECK-IN / CHECK-OUT TRACKING ---
-          if (activeZoneConfig?.settings?.accessMode === "check_in_out") {
+          // DEFAULT: All zone scanners use check-in/out UNLESS explicitly set to "general" or "time_restricted"
+          const zoneAccessMode = activeZoneConfig?.settings?.accessMode || "check_in_out";
+          if (zoneAccessMode === "check_in_out") {
             try {
               // --- SMART TOGGLE LOGIC (Local Persistence) ---
               // Since public scanners often cannot READ logs due to RLS security, 
@@ -566,7 +568,6 @@ export default function ScannerPage() {
                 status: isCheckingIn ? "success" : "info",
                 athlete,
                 message: `${isCheckingIn ? "Check-In" : "Check-Out"} Successful`,
-                debug: `MODE: ${isCheckingIn ? 'IN' : 'OUT'} (MEM: ${lastState || 'NEW'})`,
                 sessionName: activeSession?.session_name || null
               });
 
