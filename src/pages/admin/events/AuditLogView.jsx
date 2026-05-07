@@ -127,14 +127,20 @@ export default function AuditLogView({ event }) {
 
   // ... (keeping loadZones, availableDates, areaSummary, sportSummary as is)
 
+  // Scan modes that come from real gate scanners (not self-service)
+  const GATE_SCAN_MODES = ["zone_check_in", "zone_check_out"];
+
   // CALCULATE PRESENCE SUMMARY (Who is currently where)
+  // Only includes scans from real gate operators, not self-scan or info modes
   const presenceSummary = useMemo(() => {
     const summaryMap = {};
     
-    // Process logs in chronological order to determine final state
-    const chronLogs = [...logs].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    // Only process gate-scanner events in chronological order
+    const gateLogs = logs
+      .filter(log => GATE_SCAN_MODES.includes(log.scan_mode))
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
     
-    chronLogs.forEach(log => {
+    gateLogs.forEach(log => {
       const athleteId = log.athlete_id;
       if (!athleteId) return;
 
