@@ -91,7 +91,7 @@ export default function Dashboard() {
 
     fetchLiveStats();
     // APX-PERF: Increased interval from 20s to 60s to reduce background overhead
-    interval = setInterval(fetchLiveStats, 60);
+    interval = setInterval(fetchLiveStats, 1000);
     return () => clearInterval(interval);
   }, [isSuperAdmin, user?.allowedEventIds, selectedEventId]);
 
