@@ -22,10 +22,10 @@ import {
   Search,
   MoreHorizontal
 } from "lucide-react";
-import { 
-  AreaChart, Area, 
+import {
+  AreaChart, Area,
   LineChart, Line,
-  XAxis, YAxis, Tooltip, ResponsiveContainer, 
+  XAxis, YAxis, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell,
   PieChart, Pie, Legend
 } from "recharts";
@@ -91,7 +91,7 @@ export default function Dashboard() {
 
     fetchLiveStats();
     // APX-PERF: Increased interval from 20s to 60s to reduce background overhead
-    interval = setInterval(fetchLiveStats, 60000);
+    interval = setInterval(fetchLiveStats, 60);
     return () => clearInterval(interval);
   }, [isSuperAdmin, user?.allowedEventIds, selectedEventId]);
 
@@ -104,13 +104,13 @@ export default function Dashboard() {
 
     liveScanLogs.forEach(log => {
       const label = log.device_label || 'Other';
-      
+
       let matchedLabel = label;
       const existingKey = Object.keys(summary).find(k => k.toLowerCase() === label.toLowerCase());
       if (existingKey) {
         matchedLabel = existingKey;
       }
-      
+
       summary[matchedLabel] = (summary[matchedLabel] || 0) + 1;
     });
     return summary;
@@ -136,10 +136,10 @@ export default function Dashboard() {
 
     allZones.forEach(z => {
       if (!z.name) return;
-      
+
       const normalizedName = z.name.toLowerCase();
       const codesForName = z.allCodes || [z.code];
-      
+
       // APX-PERF: Use the pre-calculated map instead of filtering the whole array for every zone
       let allocated = 0;
       codesForName.forEach(code => {
@@ -174,10 +174,10 @@ export default function Dashboard() {
     const colors = ['#6366f1', '#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
     return Object.entries(dist)
       .sort((a, b) => b[1] - a[1])
-      .map(([name, value], i) => ({ 
-        name, 
-        value, 
-        color: colors[i % colors.length] 
+      .map(([name, value], i) => ({
+        name,
+        value,
+        color: colors[i % colors.length]
       }));
   }, [eventAccreditations]);
 
@@ -192,10 +192,10 @@ export default function Dashboard() {
     setLoading(true);
     try {
       const allowedEventIds = user?.allowedEventIds || [];
-      const targetEventId = isSuperAdmin 
-        ? (selectedEventId === "all" ? null : selectedEventId) 
+      const targetEventId = isSuperAdmin
+        ? (selectedEventId === "all" ? null : selectedEventId)
         : (allowedEventIds[0] || null);
-      
+
       const targetEventIds = targetEventId ? [targetEventId] : (isSuperAdmin ? null : allowedEventIds);
 
       const [eventsRes, statsRes, recentRes, auditRes, zonesRes] = await Promise.allSettled([
@@ -203,7 +203,7 @@ export default function Dashboard() {
         AccreditationsAPI.getStats(targetEventIds),
         AccreditationsAPI.getRecent(100, targetEventIds),
         AuditAPI.getRecent(10),
-        isSuperAdmin 
+        isSuperAdmin
           ? (targetEventId ? ZonesAPI.getByEventId(targetEventId) : ZonesAPI.getAll())
           : Promise.all(allowedEventIds.map(id => ZonesAPI.getByEventId(id))).then(res => res.flat())
       ]);
@@ -214,7 +214,7 @@ export default function Dashboard() {
       if (eventsRes.status === "fulfilled") {
         allEvents = eventsRes.value.filter(e => canAccessEvent(e.id));
         setEvents(allEvents);
-        
+
         // Update counts by event
         const eventIds = allEvents.map(e => e.id);
         AccreditationsAPI.getCountsByEventIds(eventIds)
@@ -275,11 +275,11 @@ export default function Dashboard() {
         // deduplicate zones by name but KEEP ALL CODES for global aggregation
         const uniqueZones = [];
         const seen = new Map(); // name -> index in uniqueZones
-        
+
         zonesRes.value.forEach(z => {
           if (!z.name) return;
           const name = z.name.toLowerCase();
-          
+
           if (!seen.has(name)) {
             seen.set(name, uniqueZones.length);
             uniqueZones.push({
@@ -346,11 +346,11 @@ export default function Dashboard() {
           <div className="h-10 mt-6 -mx-1 opacity-50">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data.map((v, i) => ({ v, i }))}>
-                <Area 
-                  type="monotone" 
-                  dataKey="v" 
-                  stroke={changeType === "positive" ? "#10b981" : "#6366f1"} 
-                  fill={changeType === "positive" ? "#10b981" : "#6366f1"} 
+                <Area
+                  type="monotone"
+                  dataKey="v"
+                  stroke={changeType === "positive" ? "#10b981" : "#6366f1"}
+                  fill={changeType === "positive" ? "#10b981" : "#6366f1"}
                   fillOpacity={0.15}
                   strokeWidth={2}
                 />
@@ -411,7 +411,7 @@ export default function Dashboard() {
               </div>
               <div className="h-8 -mx-1 opacity-20 group-hover:opacity-40 transition-opacity">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={(data || [0,0,0,0,0]).map((v, i) => ({ v, i }))} barSize={3}>
+                  <BarChart data={(data || [0, 0, 0, 0, 0]).map((v, i) => ({ v, i }))} barSize={3}>
                     <Bar dataKey="v" radius={[1, 1, 0, 0]} fill="currentColor" className={color} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -423,10 +423,10 @@ export default function Dashboard() {
 
       <Card className="bg-slate-900/40 border border-white/5 shadow-2xl overflow-hidden group">
         <CardHeader className="border-b border-white/5 py-2.5 px-5 flex items-center justify-between bg-white/[0.02]">
-           <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-3">
-             <MapPin className="w-3.5 h-3.5 text-sky-500" strokeWidth={2} /> Operational Capacity Flow
-           </h3>
-           <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest opacity-60">Real-time Zone Occupancy</span>
+          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-3">
+            <MapPin className="w-3.5 h-3.5 text-sky-500" strokeWidth={2} /> Operational Capacity Flow
+          </h3>
+          <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest opacity-60">Real-time Zone Occupancy</span>
         </CardHeader>
         <CardContent className="p-4 max-h-[480px] overflow-y-auto custom-scrollbar">
           <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3.5 pt-1 pb-2">
@@ -435,30 +435,30 @@ export default function Dashboard() {
               const perc = data.allocated > 0 ? Math.round((data.scanned / data.allocated) * 100) : (data.scanned > 0 ? 100 : 0);
               const cappedPerc = Math.min(perc, 100);
               return (
-                 <div key={zone.id || zone.name} className="relative bg-slate-800/40 border border-white/5 p-3.5 rounded-2xl group/zone hover:border-indigo-500/30 transition-all flex flex-col justify-between h-[88px] shadow-lg overflow-hidden group">
-                   <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover/zone:opacity-100 transition-opacity pointer-events-none" />
-                   <div className="flex items-center justify-between min-w-0 relative z-10">
-                     <span className="text-[9px] font-black uppercase tracking-tight text-slate-500 truncate group-hover/zone:text-white transition-colors">{zone.name}</span>
-                     <span className={cn("text-[10px] font-black tracking-tighter", perc > 90 ? "text-rose-500 animate-pulse" : "text-emerald-400")}>{perc}%</span>
-                   </div>
-                   <div className="flex items-baseline gap-1 relative z-10 -mt-1">
-                     <p className="text-2xl font-bold text-white tracking-tighter leading-none">{data.scanned}</p>
-                     <sub className="text-[9px] font-bold text-slate-600 uppercase tracking-tighter">/ {data.allocated || 1}</sub>
-                   </div>
-                    <div className="w-full bg-slate-900/80 rounded-full h-[6px] overflow-hidden border border-white/5 relative z-10 mt-1.5">
-                     <motion.div 
-                       initial={{ width: 0 }}
-                       animate={{ width: `${cappedPerc}%` }}
-                       transition={{ duration: 1.2, delay: idx * 0.04 }}
-                       className={cn(
-                         "h-full rounded-full transition-all shadow-sm", 
-                         perc > 0 
-                           ? "bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.4)]" 
-                           : "bg-emerald-500/10 border border-emerald-500/5"
-                       )} 
-                     />
-                   </div>
-                 </div>
+                <div key={zone.id || zone.name} className="relative bg-slate-800/40 border border-white/5 p-3.5 rounded-2xl group/zone hover:border-indigo-500/30 transition-all flex flex-col justify-between h-[88px] shadow-lg overflow-hidden group">
+                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover/zone:opacity-100 transition-opacity pointer-events-none" />
+                  <div className="flex items-center justify-between min-w-0 relative z-10">
+                    <span className="text-[9px] font-black uppercase tracking-tight text-slate-500 truncate group-hover/zone:text-white transition-colors">{zone.name}</span>
+                    <span className={cn("text-[10px] font-black tracking-tighter", perc > 90 ? "text-rose-500 animate-pulse" : "text-emerald-400")}>{perc}%</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 relative z-10 -mt-1">
+                    <p className="text-2xl font-bold text-white tracking-tighter leading-none">{data.scanned}</p>
+                    <sub className="text-[9px] font-bold text-slate-600 uppercase tracking-tighter">/ {data.allocated || 1}</sub>
+                  </div>
+                  <div className="w-full bg-slate-900/80 rounded-full h-[6px] overflow-hidden border border-white/5 relative z-10 mt-1.5">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${cappedPerc}%` }}
+                      transition={{ duration: 1.2, delay: idx * 0.04 }}
+                      className={cn(
+                        "h-full rounded-full transition-all shadow-sm",
+                        perc > 0
+                          ? "bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.4)]"
+                          : "bg-emerald-500/10 border border-emerald-500/5"
+                      )}
+                    />
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -471,37 +471,37 @@ export default function Dashboard() {
 
 
           <Card className="flex-1 bg-slate-900/40 border border-white/5 shadow-sm flex flex-col overflow-hidden">
-             <CardHeader className="py-1.5 px-3 border-b border-white/5 flex items-center justify-between">
-               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Event Audit Feed</h3>
-             </CardHeader>
-             <CardContent className="p-0 flex-1 overflow-y-auto max-h-[300px] custom-scrollbar">
-                <div className="divide-y divide-white/5">
-                  {liveScanLogs.slice(-12).reverse().map((log, i) => (
-                    <div key={log.id || i} className="px-4 py-3 flex items-center justify-between group hover:bg-white/[0.02] transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 shadow-sm transition-all group-hover:scale-110">
-                           <Activity className="w-4 h-4 opacity-70" />
-                        </div>
-                        <div className="min-w-0">
-                           <p className="text-sm font-black text-white truncate leading-tight group-hover:text-indigo-400 transition-colors uppercase tracking-tight">
-                             {log.accreditations?.first_name ? `${log.accreditations.first_name} ${log.accreditations.last_name}` : 'Security Node'}
-                           </p>
-                           <p className="text-[11px] font-black text-indigo-400/60 uppercase tracking-widest leading-none mt-1 flex items-center gap-2">
-                             <span className="px-1.5 py-0.5 bg-indigo-500/10 rounded border border-indigo-500/20">{log.accreditations?.role || 'Attendee'}</span>
-                             <span>{log.device_label || 'Gate'}</span>
-                           </p>
-                        </div>
+            <CardHeader className="py-1.5 px-3 border-b border-white/5 flex items-center justify-between">
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Event Audit Feed</h3>
+            </CardHeader>
+            <CardContent className="p-0 flex-1 overflow-y-auto max-h-[300px] custom-scrollbar">
+              <div className="divide-y divide-white/5">
+                {liveScanLogs.slice(-12).reverse().map((log, i) => (
+                  <div key={log.id || i} className="px-4 py-3 flex items-center justify-between group hover:bg-white/[0.02] transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 shadow-sm transition-all group-hover:scale-110">
+                        <Activity className="w-4 h-4 opacity-70" />
                       </div>
-                      <div className="text-right">
-                         <p className="text-[10px] font-black text-white opacity-90 uppercase leading-none">
-                           {new Date(log.scanned_at || log.created_at || log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                         </p>
-                         <p className="text-[6px] font-black text-emerald-500 uppercase tracking-[0.2em] mt-1">CONFIRMED</p>
+                      <div className="min-w-0">
+                        <p className="text-sm font-black text-white truncate leading-tight group-hover:text-indigo-400 transition-colors uppercase tracking-tight">
+                          {log.accreditations?.first_name ? `${log.accreditations.first_name} ${log.accreditations.last_name}` : 'Security Node'}
+                        </p>
+                        <p className="text-[11px] font-black text-indigo-400/60 uppercase tracking-widest leading-none mt-1 flex items-center gap-2">
+                          <span className="px-1.5 py-0.5 bg-indigo-500/10 rounded border border-indigo-500/20">{log.accreditations?.role || 'Attendee'}</span>
+                          <span>{log.device_label || 'Gate'}</span>
+                        </p>
                       </div>
                     </div>
-                  ))}
-                </div>
-             </CardContent>
+                    <div className="text-right">
+                      <p className="text-[10px] font-black text-white opacity-90 uppercase leading-none">
+                        {new Date(log.scanned_at || log.created_at || log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                      <p className="text-[6px] font-black text-emerald-500 uppercase tracking-[0.2em] mt-1">CONFIRMED</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
           </Card>
         </div>
 
@@ -528,7 +528,7 @@ export default function Dashboard() {
                         >
                           {subAdminRoleDist.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                         </Pie>
-                        <Tooltip 
+                        <Tooltip
                           content={({ active, payload }) => {
                             if (active && payload && payload.length) {
                               return (
@@ -567,12 +567,12 @@ export default function Dashboard() {
                             </div>
                           </div>
                           <div className="w-full bg-white/5 h-1 rounded-full overflow-hidden border border-white/[0.02]">
-                            <motion.div 
-                              initial={{ width: 0 }} 
-                              animate={{ width: `${perc}%` }} 
-                              transition={{ duration: 1.2, delay: idx * 0.05 }} 
-                              className="h-full rounded-full shadow-sm" 
-                              style={{ backgroundColor: role.color }} 
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${perc}%` }}
+                              transition={{ duration: 1.2, delay: idx * 0.05 }}
+                              className="h-full rounded-full shadow-sm"
+                              style={{ backgroundColor: role.color }}
                             />
                           </div>
                         </div>
@@ -605,7 +605,7 @@ export default function Dashboard() {
             {selectedEventId === "all" ? "Apex Sports Global Intelligence" : "Event-Specific Operational Hub"}
           </p>
         </div>
-        
+
         {/* Event Selector - Refined & Premium */}
         <div className="flex-1 flex max-w-sm px-2">
           <div className="w-full relative group">
@@ -625,7 +625,7 @@ export default function Dashboard() {
                 ))}
               </select>
               <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none text-indigo-400/50">
-                 <ChevronRight className="w-4 h-4 rotate-90" />
+                <ChevronRight className="w-4 h-4 rotate-90" />
               </div>
             </div>
           </div>
@@ -634,30 +634,30 @@ export default function Dashboard() {
         <div className="flex items-center gap-5 w-full md:w-auto">
           <div className="relative flex-1 md:w-72 group">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-hover:text-indigo-400 transition-colors" />
-            <input 
-              type="text" 
-              placeholder="Search datasets or logs..." 
+            <input
+              type="text"
+              placeholder="Search datasets or logs..."
               className="w-full bg-slate-900/50 border border-white/5 focus:border-indigo-500/40 rounded-xl py-3 pl-11 pr-4 text-[11px] font-bold text-white shadow-inner outline-none placeholder:text-slate-600 transition-all"
             />
           </div>
-          
+
           <div className="h-10 w-[1px] bg-white/5 mx-1" />
 
           <div className="flex items-center gap-4">
-             <button className="relative p-3 bg-slate-900/50 border border-white/5 rounded-xl hover:bg-slate-800 transition-all group shadow-lg">
-               <Bell className="w-5 h-5 text-slate-400 group-hover:text-white transition-colors" />
-               <span className="absolute top-3 right-3 w-2 h-2 bg-rose-500 rounded-full border-2 border-slate-950 shadow-[0_0_10px_rgba(244,63,94,0.5)]"></span>
-             </button>
-             
-             <div className="flex items-center gap-3 pl-2 group cursor-pointer">
-               <div className="flex flex-col items-end">
-                 <span className="text-[11px] font-bold text-white uppercase tracking-tight group-hover:text-indigo-400 transition-colors">{user?.email?.split('@')[0] || "Admin"}</span>
-                 <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-none">Super Admin</span>
-               </div>
-               <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-slate-800 to-slate-700 border border-white/10 flex items-center justify-center text-xs font-black text-indigo-400 shadow-xl group-hover:border-indigo-500/50 transition-all">
-                 {user?.email?.[0]?.toUpperCase() || "S"}
-               </div>
-             </div>
+            <button className="relative p-3 bg-slate-900/50 border border-white/5 rounded-xl hover:bg-slate-800 transition-all group shadow-lg">
+              <Bell className="w-5 h-5 text-slate-400 group-hover:text-white transition-colors" />
+              <span className="absolute top-3 right-3 w-2 h-2 bg-rose-500 rounded-full border-2 border-slate-950 shadow-[0_0_10px_rgba(244,63,94,0.5)]"></span>
+            </button>
+
+            <div className="flex items-center gap-3 pl-2 group cursor-pointer">
+              <div className="flex flex-col items-end">
+                <span className="text-[11px] font-bold text-white uppercase tracking-tight group-hover:text-indigo-400 transition-colors">{user?.email?.split('@')[0] || "Admin"}</span>
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-none">Super Admin</span>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-slate-800 to-slate-700 border border-white/10 flex items-center justify-center text-xs font-black text-indigo-400 shadow-xl group-hover:border-indigo-500/50 transition-all">
+                {user?.email?.[0]?.toUpperCase() || "S"}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -759,13 +759,13 @@ export default function Dashboard() {
                           </div>
                         </div>
                         <div className="h-[6px] w-full bg-slate-800/40 rounded-full overflow-hidden border border-white/5 shadow-inner">
-                          <motion.div 
-                            initial={{ width: 0 }} 
-                            animate={{ width: `${cappedRatio}%` }} 
-                            transition={{ duration: 1.5, ease: "easeOut", delay: i * 0.05 }} 
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${cappedRatio}%` }}
+                            transition={{ duration: 1.5, ease: "easeOut", delay: i * 0.05 }}
                             className={cn(
                               "h-full rounded-full shadow-[0_0_10px_rgba(16,185,129,0.3)] bg-gradient-to-r from-emerald-600 to-emerald-400"
-                            )} 
+                            )}
                           />
                         </div>
                       </div>
@@ -831,7 +831,7 @@ export default function Dashboard() {
               <CardContent className="flex-1 p-4 min-h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={attendanceData}>
-                    <defs><linearGradient id="colorVelocity" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/><stop offset="95%" stopColor="#6366f1" stopOpacity={0}/></linearGradient></defs>
+                    <defs><linearGradient id="colorVelocity" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} /><stop offset="95%" stopColor="#6366f1" stopOpacity={0} /></linearGradient></defs>
                     <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: '700' }} />
                     <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: '700' }} width={30} />
                     <Area type="monotone" dataKey="checkins" stroke="#6366f1" strokeWidth={2.5} fillOpacity={1} fill="url(#colorVelocity)" />
@@ -874,11 +874,11 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="flex items-center gap-6">
-           <div className="flex flex-col items-end">
-             <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest leading-none mb-1">Data Pipeline Sync</span>
-             <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest leading-none">20.0s OFFSET</span>
-           </div>
-           <button onClick={loadData} className="w-11 h-11 bg-slate-900 border border-white/10 text-indigo-400 rounded-2xl hover:bg-slate-800 transition-all shadow-xl flex items-center justify-center group">
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest leading-none mb-1">Data Pipeline Sync</span>
+            <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest leading-none">20.0s OFFSET</span>
+          </div>
+          <button onClick={loadData} className="w-11 h-11 bg-slate-900 border border-white/10 text-indigo-400 rounded-2xl hover:bg-slate-800 transition-all shadow-xl flex items-center justify-center group">
             <RefreshCw className="w-5 h-5 group-hover:rotate-180 transition-transform duration-700" />
           </button>
         </div>
