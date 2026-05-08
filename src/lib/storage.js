@@ -1167,7 +1167,8 @@ function mapEventToDB(event) {
     backTemplateUrl: 'back_template_url', sponsorLogos: 'sponsor_logos',
     requiredDocuments: 'required_documents', timezone: 'timezone',
     termsAndConditions: 'terms_and_conditions',
-    sportList: 'sport_list'
+    sportList: 'sport_list',
+    registrationClosedMessage: 'athlete_qr_broadcast_message'
   };
   Object.keys(fields).forEach(key => { if (event[key] !== undefined) map[fields[key]] = event[key]; });
   return map;
@@ -1185,7 +1186,8 @@ function mapEventFromDB(db) {
     requiredDocuments: db.required_documents || ["picture", "passport"],
     termsAndConditions: db.terms_and_conditions || "",
     timezone: db.timezone || "UTC",
-    sportList: db.sport_list || []
+    sportList: db.sport_list || [],
+    registrationClosedMessage: db.athlete_qr_broadcast_message || ""
   };
 }
 
