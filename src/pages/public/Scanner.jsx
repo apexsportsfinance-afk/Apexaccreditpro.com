@@ -715,9 +715,12 @@ export default function ScannerPage() {
           const fname = athlete.firstName;
           const lname = athlete.lastName;
 
-          const [matrixById, matrixByAcc, legacyMatrix, eventSets, globSets, athleteMsgs, zonesData] = await Promise.all([
+          const shortId = athlete.accreditationId?.includes('-') ? athlete.accreditationId.split('-').pop() : athlete.accreditationId;
+
+          const [matrixById, matrixByAcc, matrixByShort, legacyMatrix, eventSets, globSets, athleteMsgs, zonesData] = await Promise.all([
             AthleteEventsAPI.getForAthlete(aid),
             athlete.accreditationId ? AthleteEventsAPI.getForAthlete(athlete.accreditationId) : Promise.resolve([]),
+            shortId ? AthleteEventsAPI.getForAthlete(shortId) : Promise.resolve([]),
             HeatSheetMatrixAPI.getForAthlete(eid, fname, lname),
             EventSettingsAPI.getAll(eid),
             GlobalSettingsAPI.getAll(),
@@ -727,7 +730,9 @@ export default function ScannerPage() {
 
           // Combine modern events (De-duplicate by unique ID only to ensure no rounds are lost)
           const allModern = [...(matrixById || [])];
-          (matrixByAcc || []).forEach(m => {
+          const combinedModernPool = [...(matrixByAcc || []), ...(matrixByShort || [])];
+          
+          combinedModernPool.forEach(m => {
             if (!allModern.some(ex => ex.id === m.id)) {
               allModern.push(m);
             }
