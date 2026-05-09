@@ -172,7 +172,7 @@ export default function Events() {
   const loadEvents = async () => {
     try {
       setFetchingEvents(true);
-      const data = await EventsAPI.getAll();
+      const data = await EventsAPI.getAllMinimal();
       const filteredData = data.filter(e => canAccessEvent(e.id));
       setEvents(filteredData);
       

@@ -346,8 +346,26 @@ export default function Accreditations() {
 
   const currentEvent = events.find((e) => e.id === selectedEvent);
 
+  const handleOpenView = useCallback(async (accreditation) => {
+    try {
+      // Fetch full record including documents for the modal
+      const fullRecord = await AccreditationsAPI.getById(accreditation.id);
+      setViewModal({ open: true, accreditation: fullRecord || accreditation });
+    } catch (error) {
+      console.error("Failed to fetch full record:", error);
+      setViewModal({ open: true, accreditation });
+    }
+  }, []);
+
   const handleOpenEdit = useCallback(async (accreditation) => {
-    setEditModal({ open: true, accreditation });
+    try {
+      // Fetch full record including documents for editing
+      const fullRecord = await AccreditationsAPI.getById(accreditation.id);
+      setEditModal({ open: true, accreditation: fullRecord || accreditation });
+    } catch (error) {
+      console.error("Failed to fetch full record for edit:", error);
+      setEditModal({ open: true, accreditation });
+    }
     setLoadingCategories(true);
     try {
       const eventCats = await EventCategoriesAPI.getByEventId(accreditation.eventId);
@@ -906,7 +924,7 @@ export default function Accreditations() {
       render: (_, row) => (
         <div className="flex items-center flex-wrap gap-1.5">
           <button
-            onClick={(e) => { e.stopPropagation(); setViewModal({ open: true, accreditation: row }); }}
+            onClick={(e) => { e.stopPropagation(); handleOpenView(row); }}
             className="p-1.5 rounded-lg hover:bg-primary-800/30 transition-colors"
             title="View Details"
           >

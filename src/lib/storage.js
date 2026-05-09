@@ -98,6 +98,12 @@ export const EventsAPI = {
     );
     return (data || []).map(mapEventFromDB);
   },
+  getAllMinimal: async () => {
+    const data = await handleResponse(
+      () => supabase.from("events").select("id, name, slug, start_date, end_date, location, age_calculation_year, registration_open, header_arabic, header_subtitle, timezone").order("created_at", { ascending: false })
+    );
+    return (data || []).map(mapEventFromDB);
+  },
   getById: async (id) => {
     const data = await handleResponse(
       () => supabase.from("events").select("*").eq("id", id).maybeSingle()
@@ -375,22 +381,20 @@ const ACCREDITATION_LIST_COLUMNS = [
   "id", "event_id", "first_name", "last_name", "gender", "date_of_birth",
   "nationality", "club", "role", "email", "photo_url", "id_document_url",
   "status", "zone_code", "badge_number", "accreditation_id", "remarks",
-  "badge_color", "updated_by", "created_by", "expires_at",
-  "created_at", "updated_at", "custom_message", "force_live",
-  "payment_status", "payment_amount", "stripe_session_id",
-  "documents", "selected_sports"
+  "badge_color", "payment_status", "payment_amount", "stripe_session_id",
+  "expires_at", "custom_message", "selected_sports"
 ].join(",");
 
 export const AccreditationsAPI = {
   getStats: async (eventIds = null) => {
-    // If eventIds is an empty array, it means the user has NO events allocated.
-    // We must return 0 instead of falling back to global stats.
     if (eventIds !== null && Array.isArray(eventIds) && eventIds.length === 0) {
       return { total: 0, pending: 0, approved: 0, rejected: 0 };
     }
 
+    // APX-PERF: Using head:true queries is the fastest way to get exact counts in Supabase
+    // as it bypasses data transfer entirely.
     const buildQuery = (status = null) => {
-      let q = supabase.from("accreditations").select("*", { count: "exact", head: true });
+      let q = supabase.from("accreditations").select("id", { count: "exact", head: true });
       if (eventIds && eventIds.length > 0) q = q.in("event_id", eventIds);
       if (status) q = q.eq("status", status);
       return q;

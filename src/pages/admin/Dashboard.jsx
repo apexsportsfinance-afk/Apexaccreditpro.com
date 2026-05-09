@@ -91,7 +91,7 @@ export default function Dashboard() {
 
     fetchLiveStats();
     // APX-PERF: Increased interval from 20s to 60s to reduce background overhead
-    interval = setInterval(fetchLiveStats, 1000);
+    interval = setInterval(fetchLiveStats, 60000);
     return () => clearInterval(interval);
   }, [isSuperAdmin, user?.allowedEventIds, selectedEventId]);
 
@@ -199,9 +199,9 @@ export default function Dashboard() {
       const targetEventIds = targetEventId ? [targetEventId] : (isSuperAdmin ? null : allowedEventIds);
 
       const [eventsRes, statsRes, recentRes, auditRes, zonesRes] = await Promise.allSettled([
-        EventsAPI.getAll(),
+        EventsAPI.getAllMinimal(),
         AccreditationsAPI.getStats(targetEventIds),
-        AccreditationsAPI.getRecent(100, targetEventIds),
+        AccreditationsAPI.getRecent(10, targetEventIds),
         AuditAPI.getRecent(10),
         isSuperAdmin
           ? (targetEventId ? ZonesAPI.getByEventId(targetEventId) : ZonesAPI.getAll())
