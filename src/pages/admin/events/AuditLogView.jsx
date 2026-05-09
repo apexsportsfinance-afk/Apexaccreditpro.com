@@ -25,6 +25,8 @@ export default function AuditLogView({ event }) {
   const [selectedArea, setSelectedArea] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
   const [viewMode, setViewMode] = useState("ledger"); // 'ledger' or 'presence'
+  const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [isSyncing, setIsSyncing] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
@@ -43,6 +45,7 @@ export default function AuditLogView({ event }) {
   }, [event?.id]);
 
   const silentRefresh = async () => {
+    setIsSyncing(true);
     try {
       const [logsData, accsData] = await Promise.all([
         AttendanceAPI.getScanLogsByEvent(event.id, 2000),
@@ -50,8 +53,8 @@ export default function AuditLogView({ event }) {
       ]);
       setLogs(logsData || []);
       setAccreditations(accsData || []);
+      setLastUpdated(new Date());
       
-      // Also refresh zones in case names changed
       const { data } = await supabase
         .from("zones")
         .select("code, name")
@@ -60,6 +63,8 @@ export default function AuditLogView({ event }) {
       if (data) setZones(data);
     } catch (err) {
       console.error("Silent refresh error:", err);
+    } finally {
+      setTimeout(() => setIsSyncing(false), 1000);
     }
   };
 
@@ -72,6 +77,7 @@ export default function AuditLogView({ event }) {
       ]);
       setLogs(logsData || []);
       setAccreditations(accsData || []);
+      setLastUpdated(new Date());
     } catch (err) {
       console.error("Error loading ledger data:", err);
       toast.error("Failed to load scanner logs");
@@ -298,9 +304,16 @@ export default function AuditLogView({ event }) {
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
       <div className="space-y-4">
-        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted ml-1">Live Scan Statistics</label>
+        <div className="flex items-center justify-between px-1">
+          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted ml-1">Live Scan Statistics</label>
+          <div className="flex items-center gap-2">
+            <div className={`w-1.5 h-1.5 rounded-full ${isSyncing ? 'bg-emerald-400 animate-ping' : 'bg-emerald-500/40'}`} />
+            <span className="text-[9px] font-black uppercase tracking-widest text-muted">
+              {isSyncing ? "Refreshing..." : `Last Sync: ${lastUpdated.toLocaleTimeString()}`}
+            </span>
+          </div>
+        </div>
         
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
           <div className="bg-[#1e293b] border border-gray-700/50 p-3 rounded-xl shadow-sm group">
