@@ -732,15 +732,28 @@ export default function ScannerPage() {
             if (!exists) allModern.push(m);
           });
 
-          // Merge modern and legacy data to ensure no missing events
+          // Merge modern and legacy data to ensure no missing events and enrich Heat/Lane info
           const combined = [...allModern];
           (legacyMatrix || []).forEach(leg => {
-             const exists = combined.some(m => String(m.event_code) === String(leg.event_code));
-             if (!exists) {
+             // Try to find an exact match by code and round (case-insensitive)
+             const legRound = String(leg.round || 'Finals').toLowerCase();
+             const existing = combined.find(m => 
+                String(m.event_code) === String(leg.event_code) && 
+                String(m.round || 'Finals').toLowerCase() === legRound
+             );
+
+             if (existing) {
+                // Enrich existing record with Heat/Lane if missing
+                if (!existing.heat && leg.heat) existing.heat = leg.heat;
+                if (!existing.lane && leg.lane) existing.lane = leg.lane;
+                if (!existing.result_time && leg.result_time) existing.result_time = leg.result_time;
+                if (!existing.rank && leg.rank) existing.rank = leg.rank;
+             } else {
+                // No modern record for this code+round combination, add it
                 combined.push({
                    event_code: leg.event_code,
                    event_name: leg.event_name,
-                   round: 'Finals',
+                   round: leg.round || 'Finals',
                    heat: leg.heat,
                    lane: leg.lane,
                    rank: leg.rank,
