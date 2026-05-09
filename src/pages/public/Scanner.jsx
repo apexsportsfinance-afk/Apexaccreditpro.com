@@ -708,11 +708,11 @@ export default function ScannerPage() {
         let msgs = [];
 
         try {
-          // APX-FIX: Use snake_case for raw DB object or map it
+          // AccreditationsAPI returns camelCase objects, so we use mapped properties
           const aid = athlete.id;
-          const eid = athlete.event_id;
-          const fname = athlete.first_name;
-          const lname = athlete.last_name;
+          const eid = athlete.eventId;
+          const fname = athlete.firstName;
+          const lname = athlete.lastName;
 
           const [matrix, legacyMatrix, eventSets, globSets, athleteMsgs] = await Promise.all([
             AthleteEventsAPI.getForAthlete(aid),
@@ -747,22 +747,8 @@ export default function ScannerPage() {
           console.warn("Failed to load extended profile data:", err);
         }
 
-        // Map the athlete object to camelCase for the UI components
-        const mappedAthlete = {
-          id: athlete.id,
-          eventId: athlete.event_id,
-          firstName: athlete.first_name,
-          lastName: athlete.last_name,
-          photoUrl: athlete.photo_url,
-          club: athlete.club,
-          role: athlete.role,
-          accreditationId: athlete.accreditation_id,
-          status: athlete.status,
-          zoneCode: athlete.zone_code,
-          nationality: athlete.nationality,
-          gender: athlete.gender,
-          dateOfBirth: athlete.date_of_birth
-        };
+        // The athlete object is already mapped by AccreditationsAPI
+        const mappedAthlete = { ...athlete };
 
         setLastScanResult({
           type: config.mode === "verify" ? "athlete_verify" : "athlete_info",
