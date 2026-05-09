@@ -725,17 +725,18 @@ export default function ScannerPage() {
             ZonesAPI.getByEventId(eid)
           ]);
 
-          // Combine and de-duplicate modern events
+          // Combine modern events (De-duplicate by unique ID only to ensure no rounds are lost)
           const allModern = [...(matrixById || [])];
           (matrixByAcc || []).forEach(m => {
-            const exists = allModern.some(ex => ex.id === m.id || (ex.event_code === m.event_code && ex.round === m.round));
-            if (!exists) allModern.push(m);
+            if (!allModern.some(ex => ex.id === m.id)) {
+              allModern.push(m);
+            }
           });
 
           // Merge modern and legacy data to ensure no missing events and enrich Heat/Lane info
           const combined = [...allModern];
           (legacyMatrix || []).forEach(leg => {
-             // Try to find an exact match by code and round (case-insensitive)
+             // Try to find a modern record to enrich (match by code and round)
              const legRound = String(leg.round || 'Finals').toLowerCase();
              const existing = combined.find(m => 
                 String(m.event_code) === String(leg.event_code) && 
@@ -743,13 +744,13 @@ export default function ScannerPage() {
              );
 
              if (existing) {
-                // Enrich existing record with Heat/Lane if missing
-                if (!existing.heat && leg.heat) existing.heat = leg.heat;
-                if (!existing.lane && leg.lane) existing.lane = leg.lane;
-                if (!existing.result_time && leg.result_time) existing.result_time = leg.result_time;
-                if (!existing.rank && leg.rank) existing.rank = leg.rank;
+                // Enrich existing modern record with legacy Heat/Lane if modern is missing them
+                if (!existing.heat) existing.heat = leg.heat;
+                if (!existing.lane) existing.lane = leg.lane;
+                if (!existing.result_time) existing.result_time = leg.result_time;
+                if (!existing.rank) existing.rank = leg.rank;
              } else {
-                // No modern record for this code+round combination, add it
+                // This is a unique legacy record not found in modern tables, add it
                 combined.push({
                    event_code: leg.event_code,
                    event_name: leg.event_name,
