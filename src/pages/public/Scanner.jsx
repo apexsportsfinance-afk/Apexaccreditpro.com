@@ -706,6 +706,7 @@ export default function ScannerPage() {
         let eSettings = {};
         let gSettings = {};
         let msgs = [];
+        let finalZones = [];
 
         try {
           // AccreditationsAPI returns camelCase objects, so we use mapped properties
@@ -758,7 +759,7 @@ export default function ScannerPage() {
           gSettings = globSets || {};
           msgs = athleteMsgs || [];
           // Use the fetched zonesData for the result
-          const finalZones = zonesData || [];
+          finalZones = zonesData || [];
         } catch (err) {
           console.warn("Failed to load extended profile data:", err);
         }
