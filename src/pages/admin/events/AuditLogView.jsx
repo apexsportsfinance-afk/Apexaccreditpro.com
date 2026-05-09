@@ -31,8 +31,37 @@ export default function AuditLogView({ event }) {
     if (event?.id) {
       loadLogs();
       loadZones();
+
+      // APX-PERF: Auto-refresh data every 60 seconds to keep the ledger live
+      const interval = setInterval(() => {
+        // We use a "silent" refresh (no loading spinner) for the interval
+        silentRefresh();
+      }, 60000);
+
+      return () => clearInterval(interval);
     }
   }, [event?.id]);
+
+  const silentRefresh = async () => {
+    try {
+      const [logsData, accsData] = await Promise.all([
+        AttendanceAPI.getScanLogsByEvent(event.id, 2000),
+        AccreditationsAPI.getByEventId(event.id, { status: "approved" })
+      ]);
+      setLogs(logsData || []);
+      setAccreditations(accsData || []);
+      
+      // Also refresh zones in case names changed
+      const { data } = await supabase
+        .from("zones")
+        .select("code, name")
+        .eq("event_id", event.id)
+        .order("code");
+      if (data) setZones(data);
+    } catch (err) {
+      console.error("Silent refresh error:", err);
+    }
+  };
 
   const loadLogs = async () => {
     setLoading(true);
