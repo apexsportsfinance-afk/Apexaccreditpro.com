@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { AccreditationsAPI, TicketingAPI, EventsAPI, ZonesAPI } from "../../lib/storage";
 import { AttendanceAPI } from "../../lib/attendanceApi";
-import { EventSettingsAPI, FormFieldSettingsAPI, BroadcastV2API, AthleteEventsAPI, GlobalSettingsAPI } from "../../lib/broadcastApi";
+import { EventSettingsAPI, FormFieldSettingsAPI, BroadcastV2API, AthleteEventsAPI, GlobalSettingsAPI, HeatSheetMatrixAPI } from "../../lib/broadcastApi";
 import { computeExpiryStatus, formatEventDateTime } from "../../lib/expiryUtils";
 import { toast } from "sonner";
 import { getCountryFlag, calculateAge } from "../../lib/utils";
