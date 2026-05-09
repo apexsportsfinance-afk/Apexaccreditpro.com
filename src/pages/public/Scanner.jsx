@@ -708,12 +708,18 @@ export default function ScannerPage() {
         let msgs = [];
 
         try {
+          // APX-FIX: Use snake_case for raw DB object or map it
+          const aid = athlete.id;
+          const eid = athlete.event_id;
+          const fname = athlete.first_name;
+          const lname = athlete.last_name;
+
           const [matrix, legacyMatrix, eventSets, globSets, athleteMsgs] = await Promise.all([
-            AthleteEventsAPI.getForAthlete(athlete.id),
-            HeatSheetMatrixAPI.getForAthlete(athlete.eventId, athlete.firstName, athlete.lastName),
-            EventSettingsAPI.getAll(athlete.eventId),
+            AthleteEventsAPI.getForAthlete(aid),
+            HeatSheetMatrixAPI.getForAthlete(eid, fname, lname),
+            EventSettingsAPI.getAll(eid),
             GlobalSettingsAPI.getAll(),
-            BroadcastV2API.getForAthlete(athlete.eventId, athlete.id)
+            BroadcastV2API.getForAthlete(eid, aid)
           ]);
 
           // Merge modern and legacy data to ensure no missing events
@@ -724,7 +730,7 @@ export default function ScannerPage() {
                 combined.push({
                    event_code: leg.event_code,
                    event_name: leg.event_name,
-                   round: 'Unknown',
+                   round: 'Finals',
                    heat: leg.heat,
                    lane: leg.lane,
                    rank: leg.rank,
@@ -741,10 +747,27 @@ export default function ScannerPage() {
           console.warn("Failed to load extended profile data:", err);
         }
 
+        // Map the athlete object to camelCase for the UI components
+        const mappedAthlete = {
+          id: athlete.id,
+          eventId: athlete.event_id,
+          firstName: athlete.first_name,
+          lastName: athlete.last_name,
+          photoUrl: athlete.photo_url,
+          club: athlete.club,
+          role: athlete.role,
+          accreditationId: athlete.accreditation_id,
+          status: athlete.status,
+          zoneCode: athlete.zone_code,
+          nationality: athlete.nationality,
+          gender: athlete.gender,
+          dateOfBirth: athlete.date_of_birth
+        };
+
         setLastScanResult({
           type: config.mode === "verify" ? "athlete_verify" : "athlete_info",
           status: "info",
-          athlete,
+          athlete: mappedAthlete,
           competitionData,
           eventSettings: eSettings,
           globalSettings: gSettings,
@@ -1283,14 +1306,119 @@ function ResultView({ config, result, onResume, onRedeem, isPublic, zoneConfig }
              </p>
           </div>
         </div>
-      </div>
-    );
-  }
-
-  // --- ATHLETE INFO/VERIFY HUD ---
+      </div>  // --- ATHLETE INFO/VERIFY HUD ---
   if (result.type === 'athlete_info' || result.type === 'athlete_verify') {
     const { athlete, competitionData } = result;
     const isInfoMode = config.mode === 'info';
+    
+    // For Info Mode, we use a cleaner, simpler white-card layout as requested
+    if (isInfoMode) {
+      return (
+        <div className="flex-1 flex flex-col p-4 md:p-8 overflow-y-auto custom-scrollbar bg-slate-100/50">
+          <div className="max-w-4xl mx-auto w-full space-y-6">
+            
+            {/* CLEAN WHITE CARD HEADER */}
+            <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 overflow-hidden border border-white">
+              <div className="p-8 flex flex-col md:flex-row items-center gap-8">
+                <div className="w-32 h-32 rounded-3xl overflow-hidden bg-slate-50 border-4 border-slate-50 shadow-inner shrink-0">
+                  {athlete.photoUrl ? (
+                    <img src={athlete.photoUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <User className="w-16 h-16 text-slate-200" />
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex-1 text-center md:text-left">
+                  <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight mb-1">
+                    {athlete.firstName} {athlete.lastName}
+                  </h1>
+                  <div className="flex flex-wrap justify-center md:justify-start gap-4 items-center">
+                    <span className="text-xs font-bold text-blue-600 uppercase tracking-widest">{athlete.club || "Independent"}</span>
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">•</span>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{athlete.role || "Athlete"}</span>
+                    {athlete.nationality && (
+                      <>
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">•</span>
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{athlete.nationality}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0">
+                  <div className="bg-slate-50 px-6 py-4 rounded-2xl border border-slate-100">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] block mb-1">Accreditation ID</span>
+                    <span className="text-lg font-mono font-black text-slate-800 tracking-tighter">#{athlete.accreditationId?.split("-")?.pop() || "---"}</span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* ACCESSIBLE ZONES */}
+              {athlete.zoneCode && (
+                <div className="bg-slate-50/50 border-t border-slate-100 p-6 flex flex-wrap justify-center gap-3">
+                  {athlete.zoneCode.split(",").map((code, i) => (
+                    <div key={i} className="px-6 py-2 bg-white rounded-xl border border-slate-200 shadow-sm text-sm font-black text-slate-700">
+                      ZONE {code.trim()}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* EVENT LIST - MATCHING THE VERIFY PAGE STYLE */}
+            <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-white overflow-hidden">
+              <div className="p-6 border-b border-slate-50 flex items-center justify-between">
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Competition Schedule</h3>
+                <span className="text-[10px] font-black bg-blue-50 text-blue-600 px-3 py-1 rounded-full">{competitionData.length} Entries Found</span>
+              </div>
+              
+              <div className="divide-y divide-slate-50">
+                {competitionData.map((evt, i) => (
+                  <div key={i} className="p-6 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center gap-6">
+                      <span className="text-lg font-black text-slate-900 w-10">{evt.event_code}</span>
+                      <div>
+                        <p className="text-sm font-bold text-slate-700">{evt.event_name}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{evt.round}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-8">
+                      {(evt.heat || evt.lane) && (
+                        <div className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200">
+                          HEAT {evt.heat || '---'} • LANE {evt.lane || '---'}
+                        </div>
+                      )}
+                      
+                      <div className="text-right min-w-[60px]">
+                        {evt.result_time ? (
+                          <span className="text-xl font-mono font-black text-slate-900">{evt.result_time}</span>
+                        ) : (
+                          <span className="text-xl font-mono font-black text-slate-200">NT</span>
+                        )}
+                        {evt.rank && (
+                          <p className="text-[10px] font-black text-emerald-600 uppercase">Rank #{evt.rank}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="pt-4 pb-12">
+              <button onClick={onResume} className="w-full py-6 bg-blue-600 hover:bg-blue-500 text-white text-xl font-black uppercase tracking-widest rounded-2xl transition-all shadow-xl shadow-blue-200 active:scale-[0.98]">
+                Next Participant
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // --- VERIFICATION MODE (Keep original for security/guards) ---
     const isSuspended = athlete.status === 'suspended' || athlete.status === 'rejected';
     const isPending = athlete.status === 'pending';
     const isFlagged = isSuspended || isPending;
@@ -1310,66 +1438,44 @@ function ResultView({ config, result, onResume, onRedeem, isPublic, zoneConfig }
         )}
 
         <div className="max-w-5xl mx-auto w-full space-y-10 relative z-10">
-          {/* PROFILE HEADER: Dynamic based on mode */}
-          {isInfoMode ? (
-            /* COMPACT HEADER FOR SELF-SERVICE */
-            <div className="flex items-center justify-between bg-white/5 border border-white/10 p-6 rounded-[2.5rem] backdrop-blur-xl">
-              <div className="flex items-center gap-6">
-                <div className="w-16 h-16 rounded-2xl border-2 border-white/10 overflow-hidden bg-slate-900">
-                  {athlete.photoUrl && <img src={athlete.photoUrl} alt="" className="w-full h-full object-cover" />}
-                </div>
-                <div>
-                  <h1 className="text-3xl font-black text-white uppercase tracking-tighter leading-none mb-1">
-                    {athlete.firstName} {athlete.lastName}
-                  </h1>
-                  <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em]">{athlete.club || "Independent Participant"}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <span className="text-[10px] font-black text-white/30 uppercase tracking-widest block mb-1 text-right">Reference</span>
-                <span className="text-xl font-mono font-black text-white tracking-tighter uppercase">ID #{athlete.accreditationId?.split("-")?.pop() || "---"}</span>
-              </div>
-            </div>
-          ) : (
-            /* FULL SECURITY PROFILE FOR VERIFICATION */
-            <div className="flex flex-col md:flex-row items-center gap-12">
-               <div className="w-64 h-80 rounded-[3rem] border-8 shadow-2xl overflow-hidden bg-white/5 border-white/10 shrink-0" style={{ borderColor: accentColor }}>
-                  {athlete.photoUrl ? (
-                    <img src={athlete.photoUrl} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-white/5">
-                       <User className="w-32 h-32 text-white/10" />
-                    </div>
-                  )}
-               </div>
-
-               <div className="flex-1 text-center md:text-left space-y-4">
-                  <div className="inline-flex items-center gap-4 px-6 py-2 bg-white/5 rounded-full border border-white/10 mb-4">
-                     <div className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: accentColor }} />
-                     <span className="text-xs font-black text-white uppercase tracking-[0.3em]">{athlete.role || "ATHLETE"} ID #{athlete.accreditationId?.split("-")?.pop() || "---"}</span>
+          {/* PROFILE HEADER FOR VERIFICATION */}
+          <div className="flex flex-col md:flex-row items-center gap-12">
+             <div className="w-64 h-80 rounded-[3rem] border-8 shadow-2xl overflow-hidden bg-white/5 border-white/10 shrink-0" style={{ borderColor: accentColor }}>
+                {athlete.photoUrl ? (
+                  <img src={athlete.photoUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-white/5">
+                     <User className="w-32 h-32 text-white/10" />
                   </div>
-                  <h1 className="text-8xl font-black text-white uppercase tracking-tighter leading-none">
-                    {athlete.firstName}
-                  </h1>
-                  <h2 className="text-7xl font-black text-white/40 uppercase tracking-tighter leading-none">
-                    {athlete.lastName}
-                  </h2>
-                  <div className="flex flex-wrap gap-4 mt-8">
-                     <div className="px-5 py-2 bg-white/10 rounded-xl border border-white/10">
-                        <span className="text-xs font-black text-blue-400 uppercase tracking-widest">{athlete.club || "INDEPENDENT"}</span>
-                     </div>
-                     {athlete.nationality && (
-                        <div className="px-5 py-2 bg-white/10 rounded-xl border border-white/10 flex items-center gap-2">
-                          {getCountryFlag(athlete.nationality) && <img src={getCountryFlag(athlete.nationality)} className="w-6 h-4 rounded-sm" />}
-                          <span className="text-xs font-black text-white uppercase tracking-widest">{athlete.nationality}</span>
-                        </div>
-                     )}
-                  </div>
-               </div>
-            </div>
-          )}
+                )}
+             </div>
 
-          {/* SECURITY ZONES (Always relevant for both modes) */}
+             <div className="flex-1 text-center md:text-left space-y-4">
+                <div className="inline-flex items-center gap-4 px-6 py-2 bg-white/5 rounded-full border border-white/10 mb-4">
+                   <div className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: accentColor }} />
+                   <span className="text-xs font-black text-white uppercase tracking-[0.3em]">{athlete.role || "ATHLETE"} ID #{athlete.accreditationId?.split("-")?.pop() || "---"}</span>
+                </div>
+                <h1 className="text-8xl font-black text-white uppercase tracking-tighter leading-none">
+                  {athlete.firstName}
+                </h1>
+                <h2 className="text-7xl font-black text-white/40 uppercase tracking-tighter leading-none">
+                  {athlete.lastName}
+                </h2>
+                <div className="flex flex-wrap gap-4 mt-8">
+                   <div className="px-5 py-2 bg-white/10 rounded-xl border border-white/10">
+                      <span className="text-xs font-black text-blue-400 uppercase tracking-widest">{athlete.club || "INDEPENDENT"}</span>
+                   </div>
+                   {athlete.nationality && (
+                      <div className="px-5 py-2 bg-white/10 rounded-xl border border-white/10 flex items-center gap-2">
+                        {getCountryFlag(athlete.nationality) && <img src={getCountryFlag(athlete.nationality)} className="w-6 h-4 rounded-sm" />}
+                        <span className="text-xs font-black text-white uppercase tracking-widest">{athlete.nationality}</span>
+                      </div>
+                   )}
+                </div>
+             </div>
+          </div>
+
+          {/* SECURITY ZONES */}
           {athlete.zoneCode && (() => {
             const visibleZoneCodes = athlete.zoneCode.split(",")
               .map(c => c.trim())
@@ -1392,7 +1498,7 @@ function ResultView({ config, result, onResume, onRedeem, isPublic, zoneConfig }
             ) : null;
           })()}
 
-          {/* TARGETED EVENT SCHEDULE: The core focus of the update */}
+          {/* TARGETED EVENT SCHEDULE */}
           {competitionData && competitionData.length > 0 && (
             <div className="w-full space-y-6">
                <div className="flex items-center justify-between px-4">
@@ -1465,12 +1571,14 @@ function ResultView({ config, result, onResume, onRedeem, isPublic, zoneConfig }
           )}
 
           <div className="pt-10 pb-12">
-            <button onClick={onResume} className="w-full py-8 bg-blue-600 hover:bg-blue-500 text-white text-3xl font-black uppercase tracking-[0.2em] rounded-[2.5rem] transition-all shadow-[0_40px_80px_-20px_rgba(37,99,235,0.4)] hover:scale-[1.01] active:scale-[0.99]">
+            <button onClick={onResume} className="w-full py-8 bg-blue-600 hover:bg-blue-500 text-white text-3xl font-black uppercase tracking-[0.2em] rounded-[2.5rem] transition-all shadow-[0_40px_80px_-20px_rgba(37,99,235,0.4)] hover:scale-[1.01] active:scale-[0.98]">
               Next Participant
             </button>
           </div>
         </div>
       </div>
+    );
+  }/div>
     );
   }
 
