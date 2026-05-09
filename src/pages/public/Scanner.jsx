@@ -1306,7 +1306,11 @@ function ResultView({ config, result, onResume, onRedeem, isPublic, zoneConfig }
              </p>
           </div>
         </div>
-      </div>  // --- ATHLETE INFO/VERIFY HUD ---
+      </div>
+    );
+  }
+
+  // --- ATHLETE INFO/VERIFY HUD ---
   if (result.type === 'athlete_info' || result.type === 'athlete_verify') {
     const { athlete, competitionData } = result;
     const isInfoMode = config.mode === 'info';
@@ -1577,8 +1581,6 @@ function ResultView({ config, result, onResume, onRedeem, isPublic, zoneConfig }
           </div>
         </div>
       </div>
-    );
-  }/div>
     );
   }
 
