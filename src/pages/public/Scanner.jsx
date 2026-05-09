@@ -714,16 +714,25 @@ export default function ScannerPage() {
           const fname = athlete.firstName;
           const lname = athlete.lastName;
 
-          const [matrix, legacyMatrix, eventSets, globSets, athleteMsgs] = await Promise.all([
+          const [matrixById, matrixByAcc, legacyMatrix, eventSets, globSets, athleteMsgs, zonesData] = await Promise.all([
             AthleteEventsAPI.getForAthlete(aid),
+            athlete.accreditationId ? AthleteEventsAPI.getForAthlete(athlete.accreditationId) : Promise.resolve([]),
             HeatSheetMatrixAPI.getForAthlete(eid, fname, lname),
             EventSettingsAPI.getAll(eid),
             GlobalSettingsAPI.getAll(),
-            BroadcastV2API.getForAthlete(eid, aid)
+            BroadcastV2API.getForAthlete(eid, aid),
+            ZonesAPI.getByEventId(eid)
           ]);
 
+          // Combine and de-duplicate modern events
+          const allModern = [...(matrixById || [])];
+          (matrixByAcc || []).forEach(m => {
+            const exists = allModern.some(ex => ex.id === m.id || (ex.event_code === m.event_code && ex.round === m.round));
+            if (!exists) allModern.push(m);
+          });
+
           // Merge modern and legacy data to ensure no missing events
-          const combined = [...(matrix || [])];
+          const combined = [...allModern];
           (legacyMatrix || []).forEach(leg => {
              const exists = combined.some(m => String(m.event_code) === String(leg.event_code));
              if (!exists) {
@@ -739,10 +748,17 @@ export default function ScannerPage() {
              }
           });
 
-          competitionData = combined.sort((a, b) => String(a.event_code).localeCompare(String(b.event_code)));
+          competitionData = combined.sort((a, b) => {
+            const numA = parseInt(a.event_code, 10);
+            const numB = parseInt(b.event_code, 10);
+            if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+            return String(a.event_code).localeCompare(String(b.event_code));
+          });
           eSettings = eventSets || {};
           gSettings = globSets || {};
           msgs = athleteMsgs || [];
+          // Use the fetched zonesData for the result
+          const finalZones = zonesData || [];
         } catch (err) {
           console.warn("Failed to load extended profile data:", err);
         }
@@ -758,7 +774,7 @@ export default function ScannerPage() {
           eventSettings: eSettings,
           globalSettings: gSettings,
           messages: msgs,
-          zones: allZones,
+          zones: finalZones,
           message: config.mode === "verify" ? "Accreditation Verified" : "Profile Loaded"
         });
 
