@@ -708,13 +708,32 @@ export default function ScannerPage() {
         let msgs = [];
 
         try {
-          const [matrix, eventSets, globSets, athleteMsgs] = await Promise.all([
+          const [matrix, legacyMatrix, eventSets, globSets, athleteMsgs] = await Promise.all([
             AthleteEventsAPI.getForAthlete(athlete.id),
+            HeatSheetMatrixAPI.getForAthlete(athlete.eventId, athlete.firstName, athlete.lastName),
             EventSettingsAPI.getAll(athlete.eventId),
             GlobalSettingsAPI.getAll(),
             BroadcastV2API.getForAthlete(athlete.eventId, athlete.id)
           ]);
-          competitionData = matrix || [];
+
+          // Merge modern and legacy data to ensure no missing events
+          const combined = [...(matrix || [])];
+          (legacyMatrix || []).forEach(leg => {
+             const exists = combined.some(m => String(m.event_code) === String(leg.event_code));
+             if (!exists) {
+                combined.push({
+                   event_code: leg.event_code,
+                   event_name: leg.event_name,
+                   round: 'Unknown',
+                   heat: leg.heat,
+                   lane: leg.lane,
+                   rank: leg.rank,
+                   result_time: leg.result_time
+                });
+             }
+          });
+
+          competitionData = combined.sort((a, b) => String(a.event_code).localeCompare(String(b.event_code)));
           eSettings = eventSets || {};
           gSettings = globSets || {};
           msgs = athleteMsgs || [];
