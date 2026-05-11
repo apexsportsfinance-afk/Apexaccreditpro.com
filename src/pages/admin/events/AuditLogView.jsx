@@ -25,7 +25,7 @@ export default function AuditLogView({ event }) {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedArea, setSelectedArea] = useState("all");
-  const [dateFilter, setDateFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState(() => new Date().toISOString().split('T')[0]);
   const [viewMode, setViewMode] = useState("ledger"); 
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [isSyncing, setIsSyncing] = useState(false);
@@ -136,9 +136,20 @@ export default function AuditLogView({ event }) {
 
   const presenceSummary = useMemo(() => {
     const summaryMap = {};
+    
+    // Determine the active date for presence calculation
+    // If dateFilter is "all", we use the most recent date from logs
+    const activeDate = dateFilter === "all" ? availableDates[0] : dateFilter;
+
     const gateLogs = logs
       .filter(log => GATE_SCAN_MODES.includes(log.scan_mode))
+      .filter(log => {
+        if (!activeDate) return true;
+        const logDate = new Date(log.created_at).toISOString().split('T')[0];
+        return logDate === activeDate;
+      })
       .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
     gateLogs.forEach(log => {
       const athleteId = log.athlete_id;
       if (!athleteId) return;
@@ -159,14 +170,28 @@ export default function AuditLogView({ event }) {
       }
       summaryMap[athleteId].zones[zoneName] = currentZone;
     });
+
     const flattened = [];
     Object.entries(summaryMap).forEach(([athleteId, data]) => {
       Object.entries(data.zones).forEach(([zoneName, stats]) => {
-        flattened.push({ id: `${athleteId}-${zoneName}`, athlete: data.athlete, zone: zoneName, ...stats });
+        // Compute latest activity for sorting
+        const latestTime = Math.max(
+          new Date(stats.lastIn || 0).getTime(), 
+          new Date(stats.lastOut || 0).getTime()
+        );
+        flattened.push({ 
+          id: `${athleteId}-${zoneName}`, 
+          athlete: data.athlete, 
+          zone: zoneName, 
+          ...stats,
+          latestTime 
+        });
       });
     });
-    return flattened;
-  }, [logs]);
+
+    // Sort by latest activity descending (New scanning on top)
+    return flattened.sort((a, b) => b.latestTime - a.latestTime);
+  }, [logs, dateFilter, availableDates]);
 
   const filteredPresence = useMemo(() => {
     return presenceSummary.filter(item => {
@@ -179,7 +204,7 @@ export default function AuditLogView({ event }) {
   }, [presenceSummary, searchTerm, selectedArea]);
 
   const filteredLogs = useMemo(() => {
-    return logs.filter(log => {
+    const filtered = logs.filter(log => {
       const logDate = new Date(log.created_at).toISOString().split('T')[0];
       if (dateFilter !== "all" && logDate !== dateFilter) return false;
       const name = `${log.accreditations?.first_name || ''} ${log.accreditations?.last_name || ''}`.toLowerCase();
@@ -191,6 +216,9 @@ export default function AuditLogView({ event }) {
       const matchesArea = selectedArea === "all" || (log.resolved_area === selectedArea);
       return matchesSearch && matchesArea;
     });
+    
+    // Sort by created_at descending (New scanning on top)
+    return filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   }, [logs, searchTerm, selectedArea, dateFilter]);
 
   const totalUniqueScanned = useMemo(() => {
@@ -360,6 +388,16 @@ export default function AuditLogView({ event }) {
           <div className="relative flex-1 group">
             <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-primary-400 transition-colors" />
             <input type="text" placeholder="QUICK SEARCH SUBJECT..." className="bg-black/20 border border-white/10 rounded-2xl pl-14 pr-6 py-4 text-xs font-black uppercase tracking-widest w-full text-white placeholder:text-slate-700 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 outline-none transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          </div>
+          <div className="relative min-w-[200px] group">
+            <Clock className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-primary-500/40 group-focus-within:text-primary-400 transition-colors" />
+            <select className="bg-black/20 border border-white/10 text-slate-400 rounded-2xl pl-14 pr-12 py-4 text-[10px] font-black uppercase tracking-[0.2em] w-full focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 outline-none appearance-none cursor-pointer hover:bg-black/40 transition-all" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}>
+              <option value="all">ALL TIME</option>
+              {availableDates.map(d => (
+                <option key={d} value={d}>{new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-700 pointer-events-none" />
           </div>
           <div className="relative min-w-[280px] group">
             <Filter className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500/40 group-focus-within:text-emerald-400 transition-colors" />
