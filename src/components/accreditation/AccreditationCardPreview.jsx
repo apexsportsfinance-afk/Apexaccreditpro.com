@@ -1,6 +1,6 @@
 import React, { memo, useState, useEffect, useRef } from "react";
 import * as QRCodeLib from "qrcode";
-import { getCountryName, calculateAge, COUNTRIES, isExpired } from "../../lib/utils";
+import { getCountryName, getCountryCode3, calculateAge, COUNTRIES, isExpired } from "../../lib/utils";
 import { BadgeCustomFields } from "./BadgeCustomFieldsV2";
 
 const CARD_FONT = '"Gill Sans MT", "Gill Sans", Calibri, sans-serif';
@@ -203,7 +203,7 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
     c.code?.toUpperCase() === accreditation?.nationality?.toUpperCase() || 
     c.name?.toLowerCase() === accreditation?.nationality?.toLowerCase()
   );
-  const countryName = getCountryName(accreditation?.nationality);
+  const countryName = getCountryCode3(accreditation?.nationality);
   const isAthlete = accreditation?.role?.toLowerCase() === "athlete";
   const age = isAthlete && accreditation?.dateOfBirth && event?.ageCalculationYear
     ? calculateAge(accreditation.dateOfBirth, event.ageCalculationYear)

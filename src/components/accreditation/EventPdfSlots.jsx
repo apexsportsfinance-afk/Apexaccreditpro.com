@@ -88,34 +88,9 @@ export default function EventPdfSlots({ eventId, onToast, disabled }) {
           
           let rawRows = [];
           
-          try {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('type', slot.key);
-  
-            const isLocal = window.location.hostname === "localhost" || window.location.hostname.startsWith("172.");
-            const API_URL = isLocal 
-              ? `http://${window.location.hostname}:5000/api/index` 
-              : "/api/index";
-
-            const pyRes = await fetch(API_URL, {
-              method: "POST",
-              body: formData
-            });
-  
-            if (!pyRes.ok) throw new Error("Python Engine unreachable");
-            
-            const pyData = await pyRes.json();
-            if (!pyData.success) throw new Error(pyData.error || "Python parsing failed");
-            
-            rawRows = pyData.results || [];
-            console.log("Extracted via Python Backend");
-            
-          } catch (pyErr) {
-            console.warn("Python engine offline or unreachable (remote). Falling back to JavaScript engine...", pyErr);
-            // GRACEFUL FALLBACK TO JAVASCRIPT NATIVE COMPILER
-            rawRows = await parseCompetitionFile(file, slot.key);
-          }
+          // APEX: Bypassing Python engine and using the fixed JavaScript engine directly
+          // to ensure robust name matching and race time extraction.
+          rawRows = await parseCompetitionFile(file, slot.key);
           
           if (rawRows.length === 0) {
             onToast?.(`No athlete rows could be extracted. Please check the file format.`, "warning");

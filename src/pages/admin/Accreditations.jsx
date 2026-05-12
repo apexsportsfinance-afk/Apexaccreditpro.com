@@ -8,7 +8,6 @@ import {
   Download,
   CheckCircle,
   XCircle,
-  Clock,
   Eye,
   Trash2,
   Loader2,
@@ -25,7 +24,9 @@ import {
   CreditCard,
   User,
   FileText,
-  Files
+  Files,
+  Clock,
+  Timer
 } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
@@ -45,7 +46,7 @@ import {
   ZonesAPI,
   EventCategoriesAPI
 } from "../../lib/storage";
-import { GlobalSettingsAPI } from "../../lib/broadcastApi";
+import { GlobalSettingsAPI, AthleteEventsAPI } from "../../lib/broadcastApi";
 import { supabase } from "../../lib/supabase";
 import { useBackground } from "../../contexts/BackgroundContext";
 import {
@@ -61,6 +62,7 @@ import {
   ROLES,
   ROLE_BADGE_PREFIXES,
   COUNTRIES,
+  getCountryCode3,
   printPdfBlob,
   isExpired,
   getExpirationLabel,
@@ -149,6 +151,7 @@ export default function Accreditations() {
   const [categoryDocuments, setCategoryDocuments] = useState({});
   const [clubs, setClubs] = useState([]);
   const [activeEventSports, setActiveEventSports] = useState([]);
+  const [athleteEvents, setAthleteEvents] = useState([]);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -349,7 +352,11 @@ export default function Accreditations() {
   const handleOpenView = useCallback(async (accreditation) => {
     try {
       // Fetch full record including documents for the modal
-      const fullRecord = await AccreditationsAPI.getById(accreditation.id);
+      const [fullRecord, events] = await Promise.all([
+        AccreditationsAPI.getById(accreditation.id),
+        AthleteEventsAPI.getForAthlete(accreditation.accreditationId || accreditation.id)
+      ]);
+      setAthleteEvents(events || []);
       setViewModal({ open: true, accreditation: fullRecord || accreditation });
     } catch (error) {
       console.error("Failed to fetch full record:", error);
@@ -845,7 +852,7 @@ export default function Accreditations() {
       header: "Country",
       sortable: true,
       className: "w-[100px]",
-      render: (_, row) => <span className="text-lg">{row.nationality}</span>
+      render: (_, row) => <span className="text-lg">{getCountryCode3(row.nationality)}</span>
     },
     {
       key: "status",
@@ -1420,7 +1427,7 @@ export default function Accreditations() {
                     <span className="text-slate-500">Email:</span> {viewModal.accreditation.email}
                   </p>
                   <p className="text-lg text-slate-400">
-                    <span className="text-slate-500">Nationality:</span> {viewModal.accreditation.nationality}
+                    <span className="text-slate-500">Nationality:</span> {getCountryCode3(viewModal.accreditation.nationality)}
                   </p>
                   <p className="text-lg text-slate-400">
                     <span className="text-slate-500">Gender:</span> {viewModal.accreditation.gender}
@@ -1515,6 +1522,56 @@ export default function Accreditations() {
               {renderParticipatingSports(viewModal.accreditation)}
             </div>
 
+            {athleteEvents.length > 0 && (
+              <div className="border-t border-slate-700/50 pt-6">
+                <h4 className="text-lg font-medium text-white mb-3 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-400" />
+                  Competition Schedule (Hy-Tek)
+                </h4>
+                <div className="space-y-3">
+                  {athleteEvents.map((ev, i) => (
+                    <div key={i} className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{ev.event_code}</span>
+                          <span className="text-sm font-bold text-white truncate">{ev.event_name}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] font-black rounded uppercase">
+                            Heat {ev.heat} • Lane {ev.lane}
+                          </span>
+                          {ev.session_name && (
+                            <span className="text-[10px] font-bold text-slate-500 uppercase">{ev.session_name}</span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-3 shrink-0">
+                        {ev.call_room_time && (
+                          <div className="flex flex-col items-end">
+                            <span className="text-[8px] font-black text-amber-500 uppercase tracking-tighter">Call Room</span>
+                            <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded text-amber-500">
+                              <Clock className="w-3 h-3" />
+                              <span className="text-xs font-black">{ev.call_room_time}</span>
+                            </div>
+                          </div>
+                        )}
+                        {ev.race_time && (
+                          <div className="flex flex-col items-end">
+                            <span className="text-[8px] font-black text-blue-500 uppercase tracking-tighter">Race Time</span>
+                            <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-500/10 border border-blue-100/20 rounded text-blue-400">
+                              <Timer className="w-3 h-3" />
+                              <span className="text-xs font-black">{ev.race_time}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-3">
               <Button
                 variant="secondary"
@@ -1559,34 +1616,36 @@ export default function Accreditations() {
               </Button>
             </div>
 
-            {viewModal.accreditation.status === "approved" && (
-              <div className="flex gap-3">
-                <Button
-                  variant="primary"
-                  icon={Eye}
-                  className="flex-1"
-                  onClick={() => {
-                    setViewModal({ open: false, accreditation: null });
-                    handlePreviewPDF(viewModal.accreditation);
-                  }}
-                >
-                  Preview and Download PDF
-                </Button>
-                <Button
-                  variant="secondary"
-                  icon={Link}
-                  className="flex-1"
-                  disabled={isViewer}
-                  title={isViewer ? "Viewing Only" : ""}
-                  onClick={() => {
-                    setViewModal({ open: false, accreditation: null });
-                    handleOpenShareLink(viewModal.accreditation);
-                  }}
-                >
-                  Share Link
-                </Button>
-              </div>
-            )}
+            <div className="flex gap-3">
+              {(viewModal.accreditation.status === "approved" || viewModal.accreditation.role?.toLowerCase() === "athlete") && (
+                <>
+                  <Button
+                    variant="primary"
+                    icon={Eye}
+                    className="flex-1"
+                    onClick={() => {
+                      setViewModal({ open: false, accreditation: null });
+                      handlePreviewPDF(viewModal.accreditation);
+                    }}
+                  >
+                    Preview and Download PDF
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    icon={Link}
+                    className="flex-1"
+                    disabled={isViewer}
+                    title={isViewer ? "Viewing Only" : ""}
+                    onClick={() => {
+                      setViewModal({ open: false, accreditation: null });
+                      handleOpenShareLink(viewModal.accreditation);
+                    }}
+                  >
+                    Share Link
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         )}
       </Modal>
@@ -1614,7 +1673,7 @@ export default function Accreditations() {
                 {approveModal.accreditation?.firstName} {approveModal.accreditation?.lastName}
               </h3>
               <p className="text-lg text-cyan-400 font-medium">
-                {approveModal.accreditation?.role} • {approveModal.accreditation?.nationality}
+                {approveModal.accreditation?.role} • {getCountryCode3(approveModal.accreditation?.nationality)}
               </p>
               <p className="text-sm text-slate-400 truncate mt-0.5">
                 {approveModal.accreditation?.club}

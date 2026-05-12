@@ -7,31 +7,22 @@ import { cn } from "../../lib/utils";
  * APX-101: Global Network Resilience Banner
  * 
  * Provides real-time feedback on connectivity and API reachability.
- * Uses persistent pings to verify actual route health beyond standard navigator.onLine.
  */
 export default function GlobalNetworkBanner() {
   const [status, setStatus] = useState("online"); // online, offline, degraded
-  const [isVisible, setIsVisible] = useState(false);
-  const [lastOnline, setLastOnline] = useState(Date.now());
+  const [isVisible, setIsVisible] = useState(true); // FORCED VISIBLE FOR DEBUGGING
 
   const checkConnectivity = useCallback(async () => {
     try {
-      // APX-101: Ping manifest.json (which exists) instead of non-existent favicon.ico
       const response = await fetch(`${window.location.origin}/manifest.json`, { 
         method: 'HEAD', 
         cache: 'no-store' 
       });
-      
-      // If we reached HERE, the server is reachable (even if 404/500, but manifest should be 200)
       if (status !== "online") {
         setStatus("online");
-        setLastOnline(Date.now());
-        // Auto-dismiss success after 2s
         setTimeout(() => setIsVisible(false), 2000);
       }
     } catch (err) {
-      // Only show offline if navigator also thinks we are disconnected
-      // Prevents "Not Secure" fetch errors from showing false offline status
       if (!navigator.onLine) {
         setStatus("offline");
         setIsVisible(true);
@@ -42,30 +33,18 @@ export default function GlobalNetworkBanner() {
   }, [status]);
 
   useEffect(() => {
-    const handleOnline = () => checkConnectivity();
-    const handleOffline = () => {
+    window.addEventListener("online", checkConnectivity);
+    window.addEventListener("offline", () => {
       setStatus("offline");
       setIsVisible(true);
-    };
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    // Periodic heartbeat every 30s to detect silent failures
+    });
     const interval = setInterval(checkConnectivity, 30000);
-
-    // Initial check if navigator says we are online but might be "lying"
     if (navigator.onLine) checkConnectivity();
     else {
       setStatus("offline");
       setIsVisible(true);
     }
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-      clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, [checkConnectivity]);
 
   return (
@@ -84,8 +63,8 @@ export default function GlobalNetworkBanner() {
         >
           {status === "online" && (
             <>
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Back Online</span>
+              <div className="w-2 h-2 bg-white rounded-full animate-ping mr-2" />
+              <span>APEX SYSTEM: V2.2 ACTIVE (SYSTEM READY)</span>
             </>
           )}
           {status === "offline" && (

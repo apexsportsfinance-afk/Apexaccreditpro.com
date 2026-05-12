@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import * as XLSX from "xlsx";
-import { calculateAge } from "../../lib/utils";
+import { calculateAge, getCountryCode3 } from "../../lib/utils";
 
 import { GlobalSettingsAPI } from "../../lib/broadcastApi";
 
@@ -88,7 +88,7 @@ export const exportToExcel = async (data, filename = "export", event = null, pas
       "Gender": row.gender || "",
       "Date of Birth": row.dateOfBirth || "",
       "Age": (row.dateOfBirth && event?.ageCalculationYear) ? calculateAge(row.dateOfBirth, event.ageCalculationYear) : (row.age || ""),
-      "Nationality": row.nationality || "",
+      "Nationality": getCountryCode3(row.nationality),
       "Club": row.club || "",
       "Role": row.role || "",
     };
@@ -145,7 +145,8 @@ export const exportTableToPDF = async (data, columns, title = "Export") => {
   const headers = columns.map((col) => col.header);
   const rows = data.map((row) =>
     columns.map((col) => {
-      const value = row[col.key];
+      let value = row[col.key];
+      if (col.key === "nationality") value = getCountryCode3(value);
       if (value === null || value === undefined) return "";
       return String(value);
     })

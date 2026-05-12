@@ -5,21 +5,21 @@ import {
   MessageSquare, Globe, AlertTriangle, ChevronDown, ChevronUp, ShieldCheck,
   User, Hash, MapPin, Building, Cake, ExternalLink, Bell, X, Paperclip, FileText,
   Files, FileSpreadsheet, FileBox, ShieldAlert, ChevronRight, Trophy, Search, Medal as MedalIcon, Target,
-  Heart
+  Heart, Clock, Timer, RotateCcw
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase";
-import { EventSettingsAPI, FormFieldSettingsAPI, BroadcastV2API, AthleteEventsAPI, GlobalSettingsAPI } from "../../lib/broadcastApi";
+import { EventSettingsAPI, FormFieldSettingsAPI, BroadcastV2API, AthleteEventsAPI, GlobalSettingsAPI, HeatSheetMatrixAPI } from "../../lib/broadcastApi";
 import { AttendanceAPI } from "../../lib/attendanceApi";
 import { ConfigAPI, ZonesAPI } from "../../lib/storage";
 import { computeExpiryStatus, formatEventDateTime } from "../../lib/expiryUtils";
-import { getCountryFlag, COUNTRIES, calculateAge, cn } from "../../lib/utils";
+import { getCountryFlag, getCountryCode3, COUNTRIES, calculateAge, cn } from "../../lib/utils";
 import { toast } from "sonner";
 import { createPortal } from "react-dom";
 
 // Helper function to calculate exact split time between PB and Record
 const parseTimeSeconds = (timeStr) => {
-  if (!timeStr || timeStr === "NT" || timeStr === "NP") return null;
+  if (!timeStr || typeof timeStr !== "string" || timeStr === "NT" || timeStr === "NP") return null;
   let clean = timeStr.trim().replace(/[A-Za-z]/g, '');
   if (!clean) return null;
   if (clean.includes(':')) {
@@ -48,7 +48,7 @@ const formatTimeDiff = (resultStr, seedStr) => {
 };
 
 const formatDocName = (name) => {
-  if (!name) return "";
+  if (!name || typeof name !== "string") return "";
   // 1. Remove .pdf extension case-insensitively
   let clean = name.replace(/\.pdf\s*$/i, '');
   // 2. Replace separators with spaces
@@ -60,8 +60,43 @@ const formatDocName = (name) => {
   }).join(' ');
 };
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-[#050b18] flex items-center justify-center p-6 text-center">
+          <div className="max-w-md">
+            <div className="inline-flex p-5 bg-red-500/10 border border-red-500/20 rounded-full mb-8">
+              <AlertTriangle className="w-12 h-12 text-red-500" />
+            </div>
+            <h2 className="text-2xl font-black text-white uppercase mb-4">Profile Error</h2>
+            <p className="text-white/40 mb-8 text-sm font-mono">
+              {this.state.error?.message || "Internal Rendering Crash"}
+            </p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="px-8 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-bold text-xs uppercase"
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function VerifyAccreditation() {
-  const { id } = useParams();
+  const { id: rawId } = useParams();
+  const id = (rawId || "").replace(/^\/+/, "").trim();
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [eventSettings, setEventSettings] = useState({});
@@ -69,6 +104,8 @@ export default function VerifyAccreditation() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [athleteMatrix, setAthleteMatrix] = useState([]);
+  const [legacyMatrix, setLegacyMatrix] = useState([]);
+  const [phase, setPhase] = useState("Initializing");
 
   const [messages, setMessages] = useState([]);
   const [showMessagesModal, setShowMessagesModal] = useState(false);
@@ -119,7 +156,7 @@ export default function VerifyAccreditation() {
   }, [messages, eventSettings]);
 
   useEffect(() => {
-    if (id) loadAll();
+    if (id) loadData();
   }, [id]);
 
   useEffect(() => {
@@ -128,82 +165,105 @@ export default function VerifyAccreditation() {
     }
   }, [data]);
 
-  const loadAll = async () => {
+  const loadData = async () => {
     setLoading(true);
+    setError(null);
+    setPhase("Fetching Profile");
     try {
-      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-      let accData, accErr;
+      console.log("APEX_DEBUG: Starting loadData for ID:", id);
 
       const fetchAccreditation = async () => {
-        if (isUUID) {
-          const { data: byAcc } = await supabase
-            .from("accreditations")
-            .select("*, events:event_id(id, name, slug, start_date, logo_url)")
-            .eq("accreditation_id", id)
-            .maybeSingle();
-          if (byAcc) return { data: byAcc, error: null };
+        const cleanId = id.includes("ACC-") ? id.split("-").pop() : id;
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || 
+                       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
 
-          return supabase
-            .from("accreditations")
-            .select("*, events:event_id(id, name, slug, start_date, logo_url)")
-            .eq("id", id)
-            .maybeSingle();
+        // 1. Primary Lookup (Fastest: UUID or Direct ID)
+        if (isUUID) {
+          const uuid = id.length === 36 ? id : cleanId;
+          const { data } = await supabase.from("accreditations").select("*, events:event_id(id, name, slug, start_date, logo_url)").eq("id", uuid).maybeSingle();
+          if (data) return { data, error: null };
         }
+
+        // 2. Secondary Lookup (Accreditation ID or Badge Number)
+        const filters = [`accreditation_id.eq.${id}`, `badge_number.eq.${id}`];
+        if (id !== cleanId) {
+          filters.push(`accreditation_id.eq.${cleanId}`, `badge_number.eq.${cleanId}`);
+        }
+
         return supabase
           .from("accreditations")
           .select("*, events:event_id(id, name, slug, start_date, logo_url)")
-          .eq("accreditation_id", id)
+          .or(filters.join(","))
           .maybeSingle();
       };
 
-      const { data: fetchedData, error: fetchedError } = await fetchAccreditation();
-      accData = fetchedData;
-      accErr = fetchedError;
+      const timeoutPromise = (ms, label) => new Promise((_, reject) => 
+        setTimeout(() => reject(new Error(`Timeout: ${label} after ${ms}ms`)), ms)
+      );
+
+      const { data: fetchedData, error: fetchedError } = await Promise.race([
+        fetchAccreditation(),
+        timeoutPromise(45000, "Main Fetch")
+      ]);
+
+      let accData = fetchedData;
+      let accErr = fetchedError;
 
       if (accErr) throw accErr;
       if (!accData) throw new Error("Accreditation not found");
 
+      console.log("APEX_DEBUG: Main data loaded:", accData.id);
+      setPhase("Loading Event Details");
 
-      const [eSettings, fieldSets, matrix, gSettings, fConfig, feedbackIsActiveRaw, zonesResult, scansResult, logsResult] = await Promise.all([
-        accData?.event_id
-          ? EventSettingsAPI.getAll(accData.event_id)
-          : Promise.resolve({}),
-        accData?.event_id
-          ? FormFieldSettingsAPI.getByEventId(accData.event_id)
-          : Promise.resolve({}),
-        accData?.id && accData?.role?.toLowerCase() === "athlete"
-          ? AthleteEventsAPI.getForAthlete(accData.id)
-          : Promise.resolve([]),
-        GlobalSettingsAPI.getAll(),
-        accData?.event_id
-          ? ConfigAPI.getFeedback(accData.event_id)
-          : Promise.resolve(null),
-        accData?.event_id
-          ? GlobalSettingsAPI.get(`event_${accData.event_id}_feedback_is_active`)
-          : Promise.resolve(null),
-        accData?.event_id
-          ? ZonesAPI.getByEventId(accData.event_id)
-          : Promise.resolve([]),
-        accData?.event_id && accData?.id
-          ? AttendanceAPI.getAthleteAttendance(accData.event_id, accData.id)
-          : Promise.resolve([]),
-        accData?.event_id && accData?.id
-          ? AttendanceAPI.getAthleteLogs(accData.event_id, accData.id)
-          : Promise.resolve([])
+      const nameParts = (accData?.name || "").trim().split(/\s+/);
+      const fname = nameParts[0] || "";
+      const lname = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+
+      const [eSettings, fieldSets, matrix, legMatrix, gSettings, fConfig, feedbackIsActiveRaw, zonesResult, scansResult, logsResult] = await Promise.race([
+        Promise.all([
+          (async () => { console.log("APEX_SYNC: EventSettings..."); const r = await (accData?.event_id ? EventSettingsAPI.getAll(accData.event_id) : Promise.resolve({})); console.log("APEX_SYNC: EventSettings DONE"); return r; })(),
+          (async () => { console.log("APEX_SYNC: FieldSettings..."); const r = await (accData?.event_id ? FormFieldSettingsAPI.getByEventId(accData.event_id) : Promise.resolve({})); console.log("APEX_SYNC: FieldSettings DONE"); return r; })(),
+          (async () => { console.log("APEX_SYNC: AthleteEvents..."); const r = await (accData?.id && accData?.role?.toLowerCase() === "athlete" ? AthleteEventsAPI.getForAthlete(accData.id) : Promise.resolve([])); console.log("APEX_SYNC: AthleteEvents DONE"); return r; })(),
+          (async () => { console.log("APEX_SYNC: LegacyMatrix..."); const r = await (accData?.event_id && accData?.role?.toLowerCase() === "athlete" ? HeatSheetMatrixAPI.getForAthlete(accData.event_id, fname, lname) : Promise.resolve([])); console.log("APEX_SYNC: LegacyMatrix DONE"); return r; })(),
+          (async () => { console.log("APEX_SYNC: GlobalSettings..."); const r = await GlobalSettingsAPI.getAll(); console.log("APEX_SYNC: GlobalSettings DONE"); return r; })(),
+          (async () => { console.log("APEX_SYNC: FeedbackConfig..."); const r = await (accData?.event_id ? ConfigAPI.getFeedback(accData.event_id) : Promise.resolve(null)); console.log("APEX_SYNC: FeedbackConfig DONE"); return r; })(),
+          (async () => { console.log("APEX_SYNC: FeedbackStatus..."); const r = await (accData?.event_id ? GlobalSettingsAPI.get(`event_${accData.event_id}_feedback_is_active`) : Promise.resolve(null)); console.log("APEX_SYNC: FeedbackStatus DONE"); return r; })(),
+          (async () => { console.log("APEX_SYNC: Zones..."); const r = await (accData?.event_id ? ZonesAPI.getByEventId(accData.event_id) : Promise.resolve([])); console.log("APEX_SYNC: Zones DONE"); return r; })(),
+          (async () => { console.log("APEX_SYNC: Attendance..."); const r = await (accData?.event_id && accData?.id ? AttendanceAPI.getAthleteAttendance(accData.event_id, accData.id) : Promise.resolve([])); console.log("APEX_SYNC: Attendance DONE"); return r; })(),
+          (async () => { console.log("APEX_SYNC: Logs..."); const r = await (accData?.event_id && accData?.id ? AttendanceAPI.getAthleteLogs(accData.event_id, accData.id) : Promise.resolve([])); console.log("APEX_SYNC: Logs DONE"); return r; })(),
+        ]),
+        timeoutPromise(45000, "Metadata Sync")
       ]);
 
-
+      console.log("APEX_DEBUG: All metadata synced");
+      console.log("APEX_DEBUG: Finalizing data states...");
+      setPhase("Applying Data");
+      
       setData(accData);
       setEventSettings(eSettings);
       setFieldSettings(fieldSets || {});
       setAthleteMatrix(matrix || []);
+      setLegacyMatrix(legMatrix || []);
+      
+      // APEX-DEEP: If no events found, perform a deep fuzzy search fallback
+      if ((!matrix || matrix.length === 0) && (!legMatrix || legMatrix.length === 0) && accData?.role?.toLowerCase() === "athlete") {
+        console.log("APEX_DEBUG: Triggering Deep Search Fallback...");
+        const deepSearch = await HeatSheetMatrixAPI.getForAthlete(accData.event_id, fname.substring(0, 4), lname.substring(0, 4));
+        if (deepSearch && deepSearch.length > 0) {
+           console.log(`APEX_DEBUG: Deep Search found ${deepSearch.length} potential matches.`);
+           setLegacyMatrix(deepSearch);
+        }
+      }
+
       setGlobSettings(gSettings || {});
       setAllZones(zonesResult || []);
       setAthleteScans(scansResult || []);
       setAthleteLogs(logsResult || []);
-      // Merge is_active from GlobalSettings (stored separately, bypasses missing DB column)
+      
       const feedbackIsActive = feedbackIsActiveRaw === 'true' || feedbackIsActiveRaw === true;
       setFeedbackConfig(fConfig ? { ...fConfig, is_active: feedbackIsActive } : null);
+
+      console.log("APEX_DEBUG: State updates dispatched");
 
 
       // APX-P0: Transparent Self-Scan Logging
@@ -253,21 +313,26 @@ export default function VerifyAccreditation() {
 
       if (accData?.events?.name) {
         setMedalsLoading(true);
-        const compName = accData.events.name.trim().toLowerCase();
-        const { data: mData } = await supabase
-          .from("medal_results")
-          .select("*")
-          .ilike("competition", compName);
+        try {
+          const compName = accData.events.name.trim().toLowerCase();
+          const { data: mData } = await Promise.race([
+            supabase.from("medal_results").select("*").ilike("competition", compName),
+            timeoutPromise(5000, "Medal Sync")
+          ]);
 
-        if (mData && mData.length > 0) {
-          const processed = mData.map(r => {
-            const ageMatch = r.age_group.match(/^(\d+\s*&\s*Over|\d+\s*-\s*\d+|\d+\s*Year\s*Olds)/i);
-            const ageCategory = ageMatch ? ageMatch[1] : r.age_group;
-            return { ...r, ageCategory };
-          });
-          setLiveMedals(processed);
+          if (mData && mData.length > 0) {
+            const processed = mData.map(r => {
+              const ageMatch = r.age_group.match(/^(\d+\s*&\s*Over|\d+\s*-\s*\d+|\d+\s*Year\s*Olds)/i);
+              const ageCategory = ageMatch ? ageMatch[1] : r.age_group;
+              return { ...r, ageCategory };
+            });
+            setLiveMedals(processed);
+          }
+        } catch (e) {
+          console.warn("Medal sync bypassed:", e.message);
+        } finally {
+          setMedalsLoading(false);
         }
-        setMedalsLoading(false);
       }
     } catch (err) {
       console.error("Error loading accreditation data:", err);
@@ -293,6 +358,8 @@ export default function VerifyAccreditation() {
     } catch (err) {
       console.error("Failed to load messages:", err);
       setMessages([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -313,46 +380,87 @@ export default function VerifyAccreditation() {
   }, [filteredMessages.allMessages, loading, data]);
 
   const mergedEvents = React.useMemo(() => {
-    if (!data) return [];
-
-    const matrixRows = [...athleteMatrix];
-    const grouped = {};
-
-    matrixRows.forEach(row => {
-      const code = row.event_code;
-      if (!grouped[code]) grouped[code] = [];
-      grouped[code].push(row);
-    });
-
-    const finalResults = [];
-    Object.keys(grouped).forEach(code => {
-      const rounds = grouped[code];
-      const finalsWithResult = rounds.find(r => r.round === 'Finals' && (r.result_time || r.rank));
-      const prelimsWithResult = rounds.find(r => r.round === 'Prelims' && (r.result_time || r.rank));
-      const finalsNoResult = rounds.find(r => r.round === 'Finals');
-      const prelimsNoResult = rounds.find(r => r.round === 'Prelims');
-
-      let selected = finalsWithResult || prelimsWithResult || finalsNoResult || prelimsNoResult || rounds[0];
-      const hasMultipleRounds = rounds.length > 1;
-      const time = (selected.result_time || "").toLowerCase();
-      const isQualified = time.includes('q');
-
-      finalResults.push({
-        ...selected,
-        showRoundBadge: hasMultipleRounds,
-        hideRank: selected.round === 'Prelims' && isQualified
+    try {
+      if (!data) return [];
+      console.log("APEX_DEBUG: Merging Events Flow", {
+        athleteMatrixCount: athleteMatrix?.length,
+        legacyMatrixCount: legacyMatrix?.length,
+        accreditationId: data.id
       });
-    });
 
-    return finalResults.sort((a, b) => {
-      const numA = parseInt(a.event_code, 10);
-      const numB = parseInt(b.event_code, 10);
-      if (isNaN(numA) && isNaN(numB)) return String(a.event_code).localeCompare(String(b.event_code));
-      if (isNaN(numA)) return 1;
-      if (isNaN(numB)) return -1;
-      return numA - numB;
-    });
-  }, [athleteMatrix, data]);
+      const allModern = [...(athleteMatrix || [])];
+      (legacyMatrix || []).forEach(leg => {
+        if (!leg) return;
+        // APX-Fix: Match by event_code more aggressively to ensure times are synced
+        const existing = allModern.find(m => String(m.event_code) === String(leg.event_code));
+        
+        if (existing) {
+          // Sync missing metadata from legacy matrix
+          if (!existing.heat || existing.heat === 0) existing.heat = leg.heat;
+          if (!existing.lane || existing.lane === 0) existing.lane = leg.lane;
+          if (!existing.race_time && leg.race_time) existing.race_time = leg.race_time;
+          if (!existing.call_room_time && leg.call_room_time) existing.call_room_time = leg.call_room_time;
+          if (!existing.session_name && leg.session_name) existing.session_name = leg.session_name || leg.session_time;
+          if (!existing.seed_time && leg.seed_time) existing.seed_time = leg.seed_time || leg.seedTime;
+          if (!existing.team_name && leg.team) existing.team_name = leg.team;
+        } else {
+          // If not in modern table, add as new legacy record
+          allModern.push({
+            ...leg,
+            round: leg.round || 'Finals',
+            event_name: leg.event_name || `Event ${leg.event_code}`,
+            seed_time: leg.seed_time || leg.seedTime,
+            team_name: leg.team
+          });
+        }
+      });
+
+      const matrixRows = [...allModern];
+      const grouped = {};
+
+      matrixRows.forEach(row => {
+        if (!row) return;
+        const code = row.event_code;
+        if (!grouped[code]) grouped[code] = [];
+        grouped[code].push(row);
+      });
+
+      const finalResults = [];
+      Object.keys(grouped).forEach(code => {
+        const rounds = grouped[code];
+        const finalsWithResult = rounds.find(r => r.round === 'Finals' && (r.result_time || r.rank));
+        const prelimsWithResult = rounds.find(r => r.round === 'Prelims' && (r.result_time || r.rank));
+        const finalsNoResult = rounds.find(r => r.round === 'Finals');
+        const prelimsNoResult = rounds.find(r => r.round === 'Prelims');
+
+        let selected = finalsWithResult || prelimsWithResult || finalsNoResult || prelimsNoResult || rounds[0];
+        const hasMultipleRounds = rounds.length > 1;
+        const time = (selected.result_time || "").toLowerCase();
+        const isQualified = time.includes('q');
+
+        finalResults.push({
+          ...selected,
+          showRoundBadge: hasMultipleRounds,
+          hideRank: selected.round === 'Prelims' && isQualified
+        });
+      });
+
+      const sorted = finalResults.sort((a, b) => {
+        const numA = parseInt(a.event_code, 10);
+        const numB = parseInt(b.event_code, 10);
+        if (isNaN(numA) && isNaN(numB)) return String(a.event_code).localeCompare(String(b.event_code));
+        if (isNaN(numA)) return 1;
+        if (isNaN(numB)) return -1;
+        return numA - numB;
+      });
+
+      console.log("APEX_DEBUG: Final Merged Events", sorted);
+      return sorted;
+    } catch (e) {
+      console.error("CRITICAL: MergedEvents Error:", e);
+      return athleteMatrix || []; // Fallback to modern only
+    }
+  }, [athleteMatrix, legacyMatrix, data]);
 
   const markAllAsRead = () => {
     try {
@@ -541,323 +649,259 @@ export default function VerifyAccreditation() {
     visible: { opacity: 1, y: 0 }
   };
 
-  if (loading) return <ScanSkeleton />;
+  if (loading) return <ScanSkeleton id={id} phase={phase} />;
   if (error || !data) return <ScanError error={error} />;
 
   return (
-    <div id="verify-accreditation-page" className="min-h-screen bg-[#050b18] text-slate-200 font-inter selection:bg-cyan-500/30">
-      {/* Scanner Result Overlay */}
-      <AnimatePresence>
-        {scannerResult && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/90 backdrop-blur-xl"
-          >
+    <ErrorBoundary>
+      <div id="verify-accreditation-page" className="min-h-screen bg-[#050b18] text-slate-200 font-inter selection:bg-cyan-500/30">
+        {/* Scanner Result Overlay */}
+        <AnimatePresence>
+          {scannerResult && (
             <motion.div
-              initial={{ scale: 0.8, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              className={cn(
-                "w-full max-w-sm rounded-[3rem] p-10 text-center border-4 shadow-2xl overflow-hidden relative",
-                scannerResult.status === "granted"
-                  ? "bg-emerald-500/10 border-emerald-500/50 shadow-emerald-500/20"
-                  : "bg-red-500/10 border-red-500/50 shadow-red-500/20"
-              )}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/90 backdrop-blur-xl"
             >
-              <div className="absolute top-0 left-0 w-full h-2 rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: "100%" }}
-                  animate={{ width: "0%" }}
-                  transition={{ duration: 3, ease: "linear" }}
-                  className={scannerResult.status === "granted" ? "bg-emerald-500" : "bg-red-500"}
-                  onAnimationComplete={() => setScannerResult(null)}
-                />
-              </div>
-
-              <div className={cn(
-                "w-24 h-24 rounded-full mx-auto mb-6 flex items-center justify-center shadow-lg",
-                scannerResult.status === "granted" ? "bg-emerald-500 shadow-emerald-500/40" : "bg-red-500 shadow-red-500/40"
-              )}>
-                {scannerResult.status === "granted" ? (
-                  <CheckCircle className="w-14 h-14 text-white" />
-                ) : (
-                  <XCircle className="w-14 h-14 text-white" />
+              <motion.div
+                initial={{ scale: 0.8, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                className={cn(
+                  "w-full max-w-sm rounded-[3rem] p-10 text-center border-4 shadow-2xl overflow-hidden relative",
+                  scannerResult.status === "granted"
+                    ? "bg-emerald-500/10 border-emerald-500/50 shadow-emerald-500/20"
+                    : "bg-red-500/10 border-red-500/50 shadow-red-500/20"
                 )}
-              </div>
-
-              <h2 className={cn(
-                "text-4xl font-black uppercase tracking-tighter mb-4",
-                scannerResult.status === "granted" ? "text-emerald-400" : "text-red-400"
-              )}>
-                {scannerResult.status === "granted" ? "Access Granted" : "Access Denied"}
-              </h2>
-
-              <div className="bg-white/5 rounded-2xl py-3 px-6 mb-8 border border-white/10">
-                <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-1">Current Sector</p>
-                <p className="text-xl font-bold text-white uppercase">{scannerResult.zoneName}</p>
-              </div>
-
-              <button
-                onClick={() => setScannerResult(null)}
-                className="w-full py-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-black uppercase tracking-widest text-xs transition-all border border-white/10"
               >
-                Continue to Profile
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      {/* Messages Modal */}
-      <AnimatePresence>
-        {showMessagesModal && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center"
-            onClick={() => setShowMessagesModal(false)}
-          >
-            <motion.div
-              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="bg-[#0a1120] w-full max-w-lg rounded-t-[2.5rem] sm:rounded-3xl border border-white/10 shadow-2xl p-6 sm:p-8 max-h-[85vh] overflow-hidden flex flex-col"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/5">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-cyan-500/10 rounded-xl"><Bell className="w-5 h-5 text-cyan-400" /></div>
-                  <h2 className="text-xl font-black text-white uppercase tracking-tighter">Event Messages</h2>
+                <div className="absolute top-0 left-0 w-full h-2 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: "100%" }}
+                    animate={{ width: "0%" }}
+                    transition={{ duration: 3, ease: "linear" }}
+                    className={scannerResult.status === "granted" ? "bg-emerald-500" : "bg-red-500"}
+                    onAnimationComplete={() => setScannerResult(null)}
+                  />
                 </div>
-                <button onClick={() => setShowMessagesModal(false)} className="p-2 hover:bg-white/5 rounded-full transition-colors">
-                  <X className="w-6 h-6 text-white/40" />
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
-                {filteredMessages.allMessages.length > 0 ? (
-                  filteredMessages.allMessages.map((m, i) => (
-                    <motion.div
-                      key={m.id || i} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }}
-                      className={cn(
-                        "p-5 rounded-2xl border backdrop-blur-md",
-                        m.type === "athlete"
-                          ? "bg-indigo-500/5 border-indigo-500/20"
-                          : (m.targetRoles?.length > 0 || m.targetZones?.length > 0)
-                            ? "bg-blue-500/5 border-blue-500/20"
-                            : "bg-emerald-500/5 border-emerald-500/20"
-                      )}
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <span className={cn(
-                          "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded",
-                          m.type === "athlete"
-                            ? "bg-indigo-500/20 text-indigo-300"
-                            : (m.targetRoles?.length > 0 || m.targetZones?.length > 0)
-                              ? "bg-blue-500/20 text-blue-300"
-                              : "bg-emerald-500/20 text-emerald-300"
-                        )}>
-                          {m.type === "athlete" ? "Personal" : (m.targetRoles?.length > 0 || m.targetZones?.length > 0 ? "Targeted" : "General")}
-                        </span>
-                        {m.createdAt && <span className="text-[10px] text-white/30 font-bold">{new Date(m.createdAt).toLocaleString()}</span>}
-                      </div>
-                      <p className="text-white/80 font-medium leading-relaxed whitespace-pre-wrap">{m.message}</p>
-                    </motion.div>
-                  ))
-                ) : (
-                  <div className="h-40 flex flex-col items-center justify-center opacity-20"><MessageSquare className="w-12 h-12 mb-2" /><p className="font-bold uppercase tracking-widest text-xs">No active messages</p></div>
-                )}
-              </div>
-              <button
-                onClick={() => setShowMessagesModal(false)}
-                className="w-full mt-6 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white font-black uppercase tracking-widest text-xs transition-all"
-              >
-                Close Panel
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-cyan-500/10 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px]" />
-      </div>
-
-      <motion.div
-        variants={containerVariants} initial="hidden" animate="visible"
-        className="relative z-10 w-full max-w-4xl mx-auto px-4 py-4 md:py-6 flex flex-col items-center shadow-inner"
-      >
-        {eventSettings["banner_url"] && (
-          <motion.div variants={itemVariants} className="w-full mb-3 rounded-2xl overflow-hidden shadow-2xl shadow-cyan-950/20 border border-white/5">
-            <img src={eventSettings["banner_url"]} alt="Event banner" className="w-full h-auto object-contain bg-gray-900" />
-          </motion.div>
-        )}
-
-        {/* Header with Status Toggle (Updated for SS2 fidelity) */}
-        {data.status === 'rejected' ? (
-          <motion.div
-            variants={itemVariants}
-            className="w-full mb-6 flex items-center gap-5 px-8 py-7 rounded-[2rem] bg-indigo-950/30 shadow-2xl backdrop-blur-md border border-red-500/40"
-          >
-            <div className="flex-shrink-0">
-              <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center">
-                <div className="w-10 h-10 rounded-full border-[3px] border-red-500 flex items-center justify-center">
-                  <X className="w-6 h-6 text-red-500 stroke-[3.5px]" />
-                </div>
-              </div>
-            </div>
-            <div className="flex-1 min-w-0">
-              <h1 className="font-black text-3xl leading-none text-[#ff6b6b] uppercase tracking-tighter mb-2">
-                Rejected
-              </h1>
-              <p className="text-white/40 text-[10px] font-black uppercase tracking-widest leading-tight">
-                {data.events?.name}
-              </p>
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div
-            variants={itemVariants}
-            className="w-full mb-4 px-4 py-4 rounded-[1.5rem] bg-white shadow-xl shadow-black/20"
-          >
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                  <CheckCircle className="w-6 h-6 text-emerald-500" />
-                </div>
-                <div className="flex flex-col">
-                  <h3 className="font-black text-sm uppercase tracking-widest text-[#10b981] leading-tight">Valid Accreditation</h3>
-                  <p className="text-[10px] font-black text-slate-900 uppercase leading-tight truncate max-w-[200px]">{data.events?.name}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button onClick={markAllAsRead} className="relative p-2.5 bg-slate-50 border border-slate-100 rounded-xl transition-all">
-                  <Bell className={`w-5 h-5 ${unreadTotal > 0 ? "text-blue-500" : "text-slate-400"}`} />
-                  {unreadTotal > 0 && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[8px] font-black flex items-center justify-center rounded-full border border-white">{unreadTotal}</span>
+                <div className={cn(
+                  "w-24 h-24 rounded-full mx-auto mb-6 flex items-center justify-center shadow-lg",
+                  scannerResult.status === "granted" ? "bg-emerald-500 shadow-emerald-500/40" : "bg-red-500 shadow-red-500/40"
+                )}>
+                  {scannerResult.status === "granted" ? (
+                    <CheckCircle className="w-14 h-14 text-white" />
+                  ) : (
+                    <XCircle className="w-14 h-14 text-white" />
                   )}
+                </div>
+
+                <h2 className={cn(
+                  "text-4xl font-black uppercase tracking-tighter mb-4",
+                  scannerResult.status === "granted" ? "text-emerald-400" : "text-red-400"
+                )}>
+                  {scannerResult.status === "granted" ? "Access Granted" : "Access Denied"}
+                </h2>
+
+                <div className="bg-white/5 rounded-2xl py-3 px-6 mb-8 border border-white/10">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-1">Current Sector</p>
+                  <p className="text-xl font-bold text-white uppercase">{scannerResult.zoneName}</p>
+                </div>
+
+                <button
+                  onClick={() => setScannerResult(null)}
+                  className="w-full py-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-black uppercase tracking-widest text-xs transition-all border border-white/10"
+                >
+                  Continue to Profile
                 </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Rejection Remarks */}
-        {data.status === 'rejected' && (data.remarks || data.rejection_remarks) && (
-          <motion.div
-            variants={itemVariants}
-            className="w-full mb-8 p-6 bg-red-950/20 border-t border-b sm:border border-[#ff6b6b]/20 sm:rounded-3xl backdrop-blur-sm shadow-xl"
-          >
-            <div className="flex items-center gap-2.5 mb-4">
-              <MessageSquare className="w-5 h-5 text-[#ff6b6b]" />
-              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-[#ff6b6b]">
-                Rejection Remarks
-              </h4>
-            </div>
-            <p className="text-2xl font-black text-white tracking-tight leading-relaxed">
-              "{data.remarks || data.rejection_remarks}"
-            </p>
-          </motion.div>
-        )}
-
-        {/* Identity Badge */}
-        {data.status !== 'rejected' && showForQR("events") && (
-          <motion.div
-            variants={itemVariants}
-            className="w-full relative"
-          >
-            <div className="bg-white rounded-[1.5rem] shadow-xl p-5 border border-slate-100 relative z-10">
-              <div className="flex flex-col gap-4">
-                <div className="flex items-start gap-4">
-                  <div className="relative shrink-0">
-                    <div className="w-20 h-24 border-2 border-slate-100 rounded-2xl overflow-hidden shadow-sm bg-slate-50">
-                      {data.photo_url ? (
-                        <img src={data.photo_url} alt="Profile" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <User className="w-8 h-8 text-slate-300" />
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {/* Messages Modal */}
+        <AnimatePresence>
+          {showMessagesModal && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center"
+              onClick={() => setShowMessagesModal(false)}
+            >
+              <motion.div
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="bg-[#0a1120] w-full max-w-lg rounded-t-[2.5rem] sm:rounded-3xl border border-white/10 shadow-2xl p-6 sm:p-8 max-h-[85vh] overflow-hidden flex flex-col"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/5">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-cyan-500/10 rounded-xl"><Bell className="w-5 h-5 text-cyan-400" /></div>
+                    <h2 className="text-xl font-black text-white uppercase tracking-tighter">Event Messages</h2>
+                  </div>
+                  <button onClick={() => setShowMessagesModal(false)} className="p-2 hover:bg-white/5 rounded-full transition-colors">
+                    <X className="w-6 h-6 text-white/40" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
+                  {filteredMessages.allMessages.length > 0 ? (
+                    filteredMessages.allMessages.map((m, i) => (
+                      <motion.div
+                        key={m.id || i} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }}
+                        className={cn(
+                          "p-5 rounded-2xl border backdrop-blur-md",
+                          m.type === "athlete"
+                            ? "bg-indigo-500/5 border-indigo-500/20"
+                            : (m.targetRoles?.length > 0 || m.targetZones?.length > 0)
+                              ? "bg-blue-500/5 border-blue-500/20"
+                              : "bg-emerald-500/5 border-emerald-500/20"
+                        )}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <span className={cn(
+                            "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded",
+                            m.type === "athlete"
+                              ? "bg-indigo-500/20 text-indigo-300"
+                              : (m.targetRoles?.length > 0 || m.targetZones?.length > 0)
+                                ? "bg-blue-500/20 text-blue-300"
+                                : "bg-emerald-500/20 text-emerald-300"
+                          )}>
+                            {m.type === "athlete" ? "Personal" : (m.targetRoles?.length > 0 || m.targetZones?.length > 0 ? "Targeted" : "General")}
+                          </span>
+                          {m.createdAt && <span className="text-[10px] text-white/30 font-bold">{new Date(m.createdAt).toLocaleString()}</span>}
                         </div>
-                      )}
+                        <p className="text-white/80 font-medium leading-relaxed whitespace-pre-wrap">{m.message}</p>
+                      </motion.div>
+                    ))
+                  ) : (
+                    <div className="h-40 flex flex-col items-center justify-center opacity-20"><MessageSquare className="w-12 h-12 mb-2" /><p className="font-bold uppercase tracking-widest text-xs">No active messages</p></div>
+                  )}
+                </div>
+                <button
+                  onClick={() => setShowMessagesModal(false)}
+                  className="w-full mt-6 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white font-black uppercase tracking-widest text-xs transition-all"
+                >
+                  Close Panel
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-cyan-500/10 rounded-full blur-[120px]" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px]" />
+        </div>
+
+        <motion.div
+          variants={containerVariants} initial="hidden" animate="visible"
+          className="relative z-10 w-full max-w-4xl mx-auto px-4 py-4 md:py-6 flex flex-col items-center shadow-inner"
+        >
+          {eventSettings["banner_url"] && (
+            <motion.div variants={itemVariants} className="w-full mb-3 rounded-2xl overflow-hidden shadow-2xl shadow-cyan-950/20 border border-white/5">
+              <img src={eventSettings["banner_url"]} alt="Event banner" className="w-full h-auto object-contain bg-gray-900" />
+            </motion.div>
+          )}
+
+          {/* Header with Status Toggle */}
+          {data.status === 'rejected' ? (
+            <motion.div
+              variants={itemVariants}
+              className="w-full mb-6 flex items-center gap-5 px-8 py-7 rounded-[2rem] bg-indigo-950/30 shadow-2xl backdrop-blur-md border border-red-500/40"
+            >
+              <div className="flex-shrink-0">
+                <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full border-[3px] border-red-500 flex items-center justify-center">
+                    <X className="w-6 h-6 text-red-500 stroke-[3.5px]" />
+                  </div>
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h1 className="font-black text-3xl leading-none text-[#ff6b6b] uppercase tracking-tighter mb-2">
+                  Rejected
+                </h1>
+                <p className="text-white/40 text-[10px] font-black uppercase tracking-widest leading-tight">
+                  {data.events?.name}
+                </p>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              variants={itemVariants}
+              className="w-full mb-4 px-4 py-4 rounded-[1.5rem] bg-white shadow-xl shadow-black/20"
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                    <CheckCircle className="w-6 h-6 text-emerald-500" />
+                  </div>
+                  <div className="flex flex-col">
+                    <h3 className="font-black text-sm uppercase tracking-widest text-[#10b981] leading-tight">Valid Accreditation</h3>
+                    <p className="text-[10px] font-black text-slate-900 uppercase leading-tight truncate max-w-[200px]">{data.events?.name}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => loadData()}
+                    className="p-2.5 bg-blue-50 border border-blue-100 rounded-xl transition-all hover:bg-blue-100 active:scale-95"
+                    title="Refresh Schedule"
+                  >
+                    <RotateCcw className="w-5 h-5 text-blue-600" />
+                  </button>
+                  <button onClick={markAllAsRead} className="relative p-2.5 bg-slate-50 border border-slate-100 rounded-xl transition-all">
+                    <Bell className={`w-5 h-5 ${unreadTotal > 0 ? "text-blue-500" : "text-slate-400"}`} />
+                    {unreadTotal > 0 && (
+                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[8px] font-black flex items-center justify-center rounded-full border border-white">{unreadTotal}</span>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Identity Badge */}
+          {data.status !== 'rejected' && showForQR("events") && (
+            <motion.div
+              variants={itemVariants}
+              className="w-full relative mb-6"
+            >
+              <div className="bg-white rounded-[1.5rem] shadow-xl p-5 border border-slate-100 relative z-10">
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className="relative shrink-0">
+                      <div className="w-20 h-24 border-2 border-slate-100 rounded-2xl overflow-hidden shadow-sm bg-slate-50">
+                        {data.photo_url ? (
+                          <img src={data.photo_url} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <User className="w-8 h-8 text-slate-300" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0 pt-1">
+                      <div className="flex flex-col lg:flex-row justify-between items-start gap-y-4 gap-x-6">
+                        <div className="min-w-0">
+                          <h2 className="font-extrabold text-xl text-[#2D4A9E] leading-tight mb-0.5 uppercase tracking-tighter">{data.first_name} {data.last_name}</h2>
+                          <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wide mb-2">{data.club || "Individual Participant"}</p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="px-2 py-0.5 bg-blue-50 text-[9px] font-bold text-blue-600 rounded-md uppercase">{data.role}</span>
+                            <span className="px-2 py-0.5 bg-blue-50 text-[9px] font-bold text-blue-600 rounded-md uppercase">{data.gender}</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex-1 min-w-0 pt-1">
-                    <div className="flex flex-col lg:flex-row justify-between items-start gap-y-4 gap-x-6">
-                      <div className="min-w-0">
-                        <h2 className="font-extrabold text-xl text-[#2D4A9E] leading-tight mb-0.5">{data.first_name} {data.last_name}</h2>
-                        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wide mb-2">{data.club || "Individual Participant"}</p>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="px-2 py-0.5 bg-blue-50 text-[9px] font-bold text-blue-600 rounded-md uppercase">{data.role}</span>
-                          <span className="px-2 py-0.5 bg-blue-50 text-[9px] font-bold text-blue-600 rounded-md uppercase">{data.gender}</span>
-                          {data.date_of_birth && (
-                            <span className="text-[10px] font-black text-slate-900 uppercase">Age: {calculateAge(data.date_of_birth, new Date().getFullYear())}</span>
-                          )}
-                        </div>
-                      </div>
-                      {/* APX-Fix: Auto-adjusting Allocated Sports (Merged and De-duplicated) */}
-                      <div className="flex flex-col items-start lg:items-end gap-2 shrink-0 max-w-full lg:max-w-[60%]">
-                        {(() => {
-                          const hiddenZones = allZones.filter(z => z.settings?.isHidden);
-                          const completedHidden = hiddenZones.filter(zone => {
-                            const zName = String(zone.name || "").trim().toLowerCase();
-                            const zCode = String(zone.code || "").trim().toLowerCase();
-                            const isMatch = (text, target) => {
-                              if (!text || !target) return false;
-                              const t = String(target).toLowerCase().trim();
-                              const txt = String(text).toLowerCase().trim();
-                              if (txt === t) return true;
-                              const escapedT = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                              const regex = new RegExp(`(^|[^a-z0-9])${escapedT}([^a-z0-9]|$)`, "i");
-                              return regex.test(txt);
-                            };
 
-                            const hasAttendance = athleteScans.some(scan => {
-                              const loc = scan.scanner_location;
-                              if (!loc) return false;
-                              const locs = String(loc).split('|').map(l => l.trim().toLowerCase());
-                              const validLocs = locs.filter(l => !l.includes("self-scan"));
-                              if (validLocs.length === 0) return false;
-                              const codeMatch = zCode && validLocs.some(l => isMatch(l, zCode));
-                              return codeMatch;
-                            });
-                            if (hasAttendance) return true;
-
-                            const hasLog = athleteLogs.some(log => {
-                              const dev = log.device_label;
-                              if (!dev) return false;
-                              const devs = String(dev).split('|').map(d => d.trim().toLowerCase());
-                              const validDevs = devs.filter(d => !d.includes("self-scan"));
-                              if (validDevs.length === 0) return false;
-                              const codeMatch = zCode && validDevs.some(d => isMatch(d, zCode));
-                              return codeMatch;
-                            });
-                            return hasLog;
-                          });
-
-                          if (completedHidden.length === 0) return null;
-
-                          return (
-                            <div className="flex flex-wrap gap-1.5 lg:justify-end mb-1">
-                              {completedHidden.map((zone, i) => (
-                                <div key={i} className="px-2 py-1 bg-emerald-500 border border-emerald-400 rounded-lg flex items-center gap-1.5 shadow-sm">
-                                  <CheckCircle className="w-3.5 h-3.5 text-white" />
-                                  <span className="text-[10px] font-black uppercase text-white tracking-wider">
-                                    {zone.code} DONE
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          );
-                        })()}
-
-                        {allocatedSports.length > 0 && (
-                          <div className="flex flex-wrap justify-start lg:justify-end gap-1.5">
-                            {allocatedSports.map((sport, idx) => (
-                              <div
-                                key={idx}
-                                className="px-2.5 py-1 bg-gradient-to-br from-[#2D4A9E]/5 to-blue-500/5 border border-[#2D4A9E]/10 rounded-lg shadow-sm flex items-center group transition-all hover:border-[#2D4A9E]/20"
-                              >
-                                <span className="text-[10px] font-black text-[#2D4A9E] uppercase tracking-tight whitespace-nowrap">{sport}</span>
-                              </div>
-                            ))}
+                  <div className="flex items-center justify-between py-3 border-t border-slate-50">
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-black text-slate-900 uppercase">ID: {data.accreditation_id?.split("-")?.pop() || data.id?.slice(0, 8)}</span>
+                      <span className="text-[9px] font-black text-slate-900 uppercase">Badge: {data.badge_number}</span>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <div className="flex items-center gap-3">
+                        {data.nationality && (
+                          <div className="flex items-center gap-1.5">
+                            {getCountryFlag(data.nationality) && <img src={getCountryFlag(data.nationality)} alt="flag" className="w-6 shadow-sm rounded-sm" />}
+                            <span className="text-[10px] font-black text-slate-900 uppercase">{getCountryCode3(data.nationality)}</span>
                           </div>
                         )}
                       </div>
@@ -865,117 +909,101 @@ export default function VerifyAccreditation() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between py-3 border-t border-slate-50">
-                  <div className="flex flex-col">
-                    <span className="text-[9px] font-black text-slate-900 uppercase">ID: {data.accreditation_id?.split("-")?.pop() || data.id?.slice(0, 8)}</span>
-                    <span className="text-[9px] font-black text-slate-900 uppercase">Badge: {data.badge_number}</span>
+                {/* Competition Records */}
+                {data.status !== 'rejected' && mergedEvents.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-slate-100">
+                    <div className="space-y-3">
+                      {mergedEvents.map((ev, idx) => {
+                        const displayName = ev.event_name || `Event ${ev.event_code}`;
+                        const seedTime = ev.seed_time || ev.seedTime;
+                        const diff = formatTimeDiff(ev.result_time, seedTime);
 
-                    {/* Dynamic Custom Fields */}
-                    <div className="mt-2 flex flex-col gap-1 items-start">
-                      {customFieldConfigs
-                        ?.filter(cfg => cfg.showOnBadge === true)
-                        ?.map((cfg, idx) => {
-                          const value = parsedCustomFields[cfg.id];
-                          if (!value) return null;
-                          return (
-                            <div key={idx} className="px-2 py-1 bg-white border border-slate-200 rounded text-slate-800 shadow-sm flex flex-col items-start min-w-[80px]">
-                              <span className="text-[7px] text-slate-500 font-bold uppercase leading-none mb-0.5">{cfg.label}</span>
-                              <span className="text-[9px] font-black uppercase leading-none">{value}</span>
+                        return (
+                          <div key={idx} className="bg-slate-50 border border-slate-100 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
+                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500" />
+                            
+                            <div className="flex justify-between items-start gap-4">
+                              <div className="flex gap-3 min-w-0">
+                                <div className="flex flex-col items-center justify-center bg-white border border-slate-200 rounded-lg w-10 h-10 shrink-0 shadow-sm">
+                                  <span className="text-[10px] font-black text-slate-400 uppercase leading-none mb-0.5">Ev</span>
+                                  <span className="text-sm font-black text-slate-900 leading-none">{ev.event_code || ev.event_number}</span>
+                                </div>
+                                <div className="flex flex-col min-w-0 pt-0.5">
+                                  <span className="text-[11px] font-black text-slate-900 leading-tight inline-block uppercase tracking-tight truncate">{displayName}</span>
+                                  <div className="flex flex-wrap items-center gap-x-2 mt-0.5">
+                                    {ev.session_name && (
+                                      <div className="flex items-center gap-1">
+                                        <Globe className="w-2.5 h-2.5 text-slate-400" />
+                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{ev.session_name}</span>
+                                      </div>
+                                    )}
+                                    {(ev.team_name || ev.teamName) && (
+                                      <div className="flex items-center gap-1">
+                                        <div className="w-1 h-1 bg-slate-300 rounded-full" />
+                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter truncate max-w-[120px]">{ev.team_name || ev.teamName}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-col items-end shrink-0 gap-1.5">
+                                <div className="px-3 py-1 bg-slate-900 text-[9px] font-black text-white rounded-full uppercase tracking-widest whitespace-nowrap shadow-sm">
+                                  H{ev.heat} • L{ev.lane}
+                                </div>
+                                
+                                <div className="flex flex-col items-end gap-1">
+                                  {(ev.call_room_time || ev.race_time) && (
+                                    <div className="flex flex-col gap-1">
+                                      {ev.call_room_time && (
+                                        <div className="flex items-center justify-end gap-1 px-2 py-0.5 bg-amber-50 border border-amber-100 rounded-md text-amber-600">
+                                          <Clock className="w-2.5 h-2.5" />
+                                          <div className="flex items-center gap-1.5 leading-none">
+                                            <span className="text-[7px] font-black uppercase opacity-60">Call</span>
+                                            <span className="text-[9px] font-black uppercase whitespace-nowrap">{ev.call_room_time}</span>
+                                          </div>
+                                        </div>
+                                      )}
+                                      {ev.race_time && (
+                                        <div className="flex items-center justify-end gap-1 px-2 py-0.5 bg-blue-50 border border-blue-100 rounded-md text-blue-600">
+                                          <Timer className="w-2.5 h-2.5" />
+                                          <div className="flex items-center gap-1.5 leading-none">
+                                            <span className="text-[7px] font-black uppercase opacity-60">Race</span>
+                                            <span className="text-[9px] font-black uppercase whitespace-nowrap">{ev.race_time}</span>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                          );
-                        })}
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <div className="flex items-center gap-3">
-                      {data.nationality && (
-                        <div className="flex items-center gap-1.5">
-                          {getCountryFlag(data.nationality) && <img src={getCountryFlag(data.nationality)} alt="flag" className="w-6 shadow-sm rounded-sm" />}
-                          <span className="text-[10px] font-black text-slate-900 uppercase">{data.nationality}</span>
-                        </div>
-                      )}
-                      <div className="flex gap-1">
-                        {[...new Set((data.zone_code || "").split(",").map(z => z.trim()).filter(Boolean))]
-                          .filter(code => {
-                            const zone = allZones.find(z => String(z.code).toUpperCase() === String(code).toUpperCase());
-                            // Only show if the zone exists AND is not hidden
-                            return zone && !zone?.settings?.isHidden;
-                          })
-                          .map((code, i) => (
-                            <span key={i} className="w-5 h-5 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-[9px] font-black text-slate-600 shadow-sm">{code.toUpperCase()}</span>
-                          ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
 
-              {/* Restoration: Competition Records (SS2 Style) */}
-              {data.status !== 'rejected' && mergedEvents.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-slate-100">
-                  <div className="space-y-3">
-                    {mergedEvents.map((ev, i) => {
-                      let displayName = ev.event_name || "";
-                      let eventRecords = null;
-                      if (displayName.includes("|||RECORD_DATA|||")) {
-                        const parts = displayName.split("|||RECORD_DATA|||");
-                        displayName = parts[0].trim();
-                        try { eventRecords = JSON.parse(parts[1].trim()); } catch (e) { }
-                      }
-
-                      const resTime = ev.result_time || "";
-                      const seedTime = ev.seed_time || "";
-                      const diff = formatTimeDiff(resTime, seedTime);
-
-                      return (
-                        <div key={i} className="relative py-2.5 border-b border-slate-50 last:border-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex gap-3 min-w-0">
-                              <span className="text-[10px] font-black text-slate-900 shrink-0 mt-0.5">{ev.event_code}</span>
-                              <div className="flex flex-col min-w-0">
-                                <span className="text-[10px] font-bold text-slate-700 leading-tight inline-block">{displayName}</span>
-                                {eventRecords && eventRecords[0] && (
-                                  <div className="mt-1 inline-flex items-center px-2 py-0.5 bg-indigo-50 rounded text-[8px] font-black text-indigo-600 uppercase border border-indigo-100">
-                                    {eventRecords[0].acronym} RECORD: {eventRecords[0].time}
+                            <div className="mt-3 pt-3 border-t border-slate-100 flex justify-between items-center">
+                              <div className="flex items-center gap-2">
+                                {seedTime && (
+                                  <div className="flex items-center gap-1.5">
+                                    <Target className="w-3 h-3 text-slate-400" />
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Seed: <span className="text-slate-600">{seedTime}</span></span>
+                                  </div>
+                                )}
+                                {ev.result_time && (
+                                  <div className="flex items-center gap-1.5 ml-3">
+                                    <Trophy className="w-3 h-3 text-emerald-500" />
+                                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Final: {ev.result_time}</span>
                                   </div>
                                 )}
                               </div>
                             </div>
-
-                            <div className="flex flex-col items-end shrink-0 gap-1">
-                              <div className="px-2 py-0.5 bg-blue-500 text-[8px] font-black text-white rounded uppercase whitespace-nowrap">
-                                HEAT {ev.heat} • LANE {ev.lane}
-                              </div>
-                              {diff && (
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-[9px] font-bold text-slate-400">PB: {seedTime || "NT"}</span>
-                                  <span className={cn(
-                                    "px-1.5 py-0.5 rounded text-[8px] font-black",
-                                    diff.isFaster ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
-                                  )}>
-                                    {diff.text}
-                                  </span>
-                                </div>
-                              )}
-                              {!diff && !ev.result_time && (
-                                <span className="text-[10px] font-black text-slate-800 uppercase bg-slate-100 px-1 rounded shadow-sm">NT</span>
-                              )}
-                              {ev.result_time && !diff && (
-                                <span className="text-[9px] font-black text-emerald-600">{ev.result_time}</span>
-                              )}
-                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-
-        {/* SECURE VISIBILITY: Hide all deeper features for rejected accreditations */}
+                )}
+              </div>
+            </motion.div>
+          )}
         {data.status !== 'rejected' && (
           <div className="w-full space-y-4">
             <div className="mt-4">
@@ -1253,6 +1281,7 @@ export default function VerifyAccreditation() {
         )}
       </AnimatePresence>
     </div>
+  </ErrorBoundary>
   );
 }
 
@@ -1357,8 +1386,23 @@ function DownloadButton({ url, visible, label, color }) {
   return (<a href={url} target="_blank" rel="noopener noreferrer" className={`group flex items-center justify-between gap-4 bg-gradient-to-br ${colors[color]} p-4 pl-6 rounded-2xl text-white font-bold shadow-lg`}><div className="flex flex-col"><span className="text-[10px] text-white/40 uppercase font-black">Download</span><span className="text-sm">{label}</span></div><div className="p-3 bg-black/20 rounded-xl"><Download className="w-4 h-4" /></div></a>);
 }
 
-function ScanSkeleton() {
-  return (<div className="min-h-screen bg-[#050b18] flex items-center justify-center"><div className="flex flex-col items-center gap-6"><div className="w-16 h-16 rounded-full border-t-2 border-cyan-500 animate-spin" /><p className="text-cyan-500 font-black text-xs uppercase tracking-[0.4em] animate-pulse">Authenticating</p></div></div>);
+function ScanSkeleton({ id, phase }) {
+  return (
+    <div className="min-h-screen bg-[#050b18] flex items-center justify-center p-6">
+      <div className="flex flex-col items-center gap-8">
+        <div className="relative">
+          <div className="w-20 h-20 rounded-full border-t-2 border-cyan-500 animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-cyan-500/10 animate-pulse" />
+          </div>
+        </div>
+        <div className="text-center">
+          <p className="text-cyan-500 font-black text-xs uppercase tracking-[0.4em] animate-pulse mb-2">{phase || "Loading Profile"}</p>
+          <p className="text-white/20 text-[10px] font-mono tracking-widest uppercase">ID: {id || "Resolving..."}</p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ScanError({ error }) {

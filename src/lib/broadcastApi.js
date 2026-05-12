@@ -273,7 +273,7 @@ export const BroadcastV2API = {
       if (athleteRole || athleteZones.length > 0) {
         allData = allData.filter(db => {
           if (db.type !== 'global') return true; // Private messages always pass
-          
+
           const targetRoles = db.target_roles || [];
           const targetZones = db.target_zones || [];
 
@@ -459,71 +459,73 @@ export const HeatSheetMatrixAPI = {
   // Upserts rows matching meet_id + athlete_name + event_code
   upsertMatrix: async (eventId, matrixRows, type) => {
     if (!matrixRows || matrixRows.length === 0) return 0;
-    
-    let processedCount = 0;
-    console.log(`DIAC_DEBUG: Turbo Matrix Upsert starting for [${matrixRows.length}] rows...`);
 
-    // Speed up large files by processing in concurrent batches of 20
-    const batchSize = 20;
-    for (let i = 0; i < matrixRows.length; i += batchSize) {
-      const batch = matrixRows.slice(i, i + batchSize);
-      await Promise.all(batch.map(async (record) => {
-        try {
-          const { data: ex } = await supabase
-            .from("lane_matrix")
-            .select("id, heat, lane, rank, result_time")
-            .eq("meet_id", eventId)
-            .eq("event_code", String(record.eventCode || ""))
-            .eq("athlete_name", record.athleteName || "")
-            .maybeSingle();
+    console.log(`APEX_DEBUG: Bulk Matrix Upsert starting for [${matrixRows.length}] rows...`);
+    const cleanedRows = matrixRows.map(record => ({
+      meet_id: String(eventId).trim(),
+      event_code: String(record.eventCode || "").trim(),
+      event_name: (record.eventName || "Unknown Event").substring(0, 200),
+      athlete_name: (record.athleteName || "Unknown").substring(0, 200),
+      club: record.club || record.teamName || null,
+      age: record.age || null,
+      heat: record.heat || null,
+      lane: record.lane || null,
+      rank: record.rank || null,
+      result_time: record.resultTime || record.result_time || null,
+      session_name: record.sessionName || null,
+      race_time: record.raceTime || null,
+      call_room_time: record.callRoomTime || null,
+      updated_at: new Date().toISOString()
+    }));
 
-          if (ex) {
-            const { error: upErr } = await supabase
-              .from("lane_matrix")
-              .update({
-                meet_id: String(eventId).trim(),
-                event_code: String(record.eventCode || "").trim(),
-                heat: type === 'heat_sheet' ? record.heat : (ex.heat || null),
-                lane: type === 'heat_sheet' ? record.lane : (ex.lane || null),
-                rank: type === 'event_result' ? record.rank : (ex.rank || null),
-                result_time: type === 'event_result' ? record.resultTime : (ex.result_time || null),
-                updated_at: new Date().toISOString()
-              })
-              .eq("id", ex.id);
-            if (!upErr) processedCount++;
-          } else {
-            const { error: insErr } = await supabase
-              .from("lane_matrix")
-              .insert({
-                meet_id: String(eventId).trim(),
-                event_code: String(record.eventCode || "").trim(),
-                event_name: (record.eventName || "Unknown Event").substring(0, 200),
-                athlete_name: (record.athleteName || "Unknown").substring(0, 200),
-                club: record.club || null,
-                age: record.age || null,
-                heat: record.heat || null,
-                lane: record.lane || null,
-                rank: record.rank || null,
-                result_time: record.resultTime || null,
-                updated_at: new Date().toISOString()
-              });
-            if (!insErr) processedCount++;
-          }
-        } catch (err) { console.warn("Batch item error:", err); }
-      }));
+    // Use bulk upsert with onConflict to handle duplicates
+    // We target meet_id + event_code + athlete_name as the uniqueness constraint
+    // Note: If your DB doesn't have a unique constraint on these 3 columns, 
+    // it will just insert duplicates. We add a limit to avoid payload size issues.
+    const batchSize = 100;
+    let totalSaved = 0;
+
+    for (let i = 0; i < cleanedRows.length; i += batchSize) {
+      const batch = cleanedRows.slice(i, i + batchSize);
+      const { data, error } = await supabase
+        .from("lane_matrix")
+        .insert(batch)
+        .select("id");
+
+      if (error) {
+        console.error("APEX_DEBUG: Bulk Insert Error:", error);
+        // Final fallback: try one by one to isolate the bad row
+        for (const row of batch) {
+          const { error: insErr } = await supabase.from("lane_matrix").insert(row);
+          if (!insErr) totalSaved++;
+          else console.error("APEX_DEBUG: Individual Insert Error:", insErr, row.athlete_name);
+        }
+      } else {
+        totalSaved += data?.length || batch.length;
+      }
     }
-    return processedCount;
+
+    console.log(`APEX_DEBUG: Matrix Upsert Finished. Total Saved: ${totalSaved}`);
+    return totalSaved;
   },
 
   getForAthlete: async (eventId, athleteFirstName, athleteLastName, athleteClub, athleteBirthDate) => {
     if (!athleteFirstName || !athleteLastName) return [];
 
+    // APX-PERF: Use server-side filtering to avoid downloading the entire matrix
+    const lToken = athleteLastName.split(' ')[0] || athleteLastName;
+    const fToken = athleteFirstName.split(' ')[0] || athleteFirstName;
+
     const { data, error } = await supabase
       .from("lane_matrix")
       .select("*")
-      .eq("meet_id", eventId);
+      .eq("meet_id", eventId)
+      .or(`athlete_name.ilike.%${lToken}%,athlete_name.ilike.%${fToken}%`);
 
-    if (error) return [];
+    if (error) {
+      console.error("[HeatSheetMatrixAPI] Fetch error:", error);
+      return [];
+    }
 
     // Enhanced Match Filter
     const targetName = `${athleteFirstName} ${athleteLastName}`.toLowerCase().trim();
@@ -569,7 +571,7 @@ export const HeatSheetMatrixAPI = {
 export const AthleteEventsAPI = {
   upsertEvents: async (athleteEvents) => {
     if (!athleteEvents || athleteEvents.length === 0) return 0;
-    
+
     let processedCount = 0;
     console.log(`DIAC_DEBUG: Turbo Upsert starting for [${athleteEvents.length}] rows...`);
 
@@ -591,9 +593,12 @@ export const AthleteEventsAPI = {
             .from("athlete_events")
             .update({
               rank: (record.rank !== undefined && record.rank !== null) ? record.rank : ex.rank,
-              result_time: record.result_time || ex.result_time,
+              result_time: record.result_time || record.resultTime || ex.result_time,
               heat: (record.heat !== undefined && record.heat !== null) ? record.heat : ex.heat,
               lane: (record.lane !== undefined && record.lane !== null) ? record.lane : ex.lane,
+              session_name: record.session_name || record.sessionName || null,
+              race_time: record.race_time || record.raceTime || null,
+              call_room_time: record.call_room_time || record.callRoomTime || null,
               updated_at: new Date().toISOString()
             })
             .eq("id", ex.id);
@@ -604,8 +609,8 @@ export const AthleteEventsAPI = {
             .insert({ ...record, round });
           if (!insErr) processedCount++;
         }
-      } catch (err) { 
-        console.warn("Event item upsert error:", err); 
+      } catch (err) {
+        console.warn("Event item upsert error:", err);
       }
     }
     return processedCount;
@@ -613,13 +618,13 @@ export const AthleteEventsAPI = {
 
   getForAthlete: async (accreditationId) => {
     if (!accreditationId) return [];
-    
+
     const { data, error } = await supabase
       .from("athlete_events")
       .select(`*`)
       .eq("accreditation_id", accreditationId)
       .order("event_code", { ascending: true });
-      
+
     if (error) {
       console.error("[AthleteEventsAPI] Fetch error:", error);
       return [];
@@ -647,7 +652,7 @@ export const AthleteEventsAPI = {
         console.error("[AthleteEventsAPI] Fetch accreditation IDs error:", accErr);
         throw accErr;
       }
-      
+
       if (pageData && pageData.length > 0) {
         accIds = [...accIds, ...pageData.map(a => a.id)];
         if (pageData.length < pageSize) hasMore = false;

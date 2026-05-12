@@ -104,44 +104,114 @@ export async function parseCompetitionHtml(file, type = 'heat_sheet') {
   const parser = new DOMParser();
   const doc = parser.parseFromString(text, 'text/html');
 
-  // For HY-TEK pre-formatted files, we pass each raw line as a single-element row
-  // so the downstream processCompetitionRows can apply HY-TEK regex directly
-  const bodyText = doc.body?.innerText || "";
-  const lines = bodyText.split(/\r?\n/);
-  
+  // APEX: Table-aware HTML extraction
+  const tables = doc.querySelectorAll('table');
   const allRows = [];
-  for (const line of lines) {
-    // Keep original line (with spaces) for regex matching — do NOT collapse spaces
-    if (line.trim().length === 0) continue;
-    allRows.push([line]); // Pass each raw line as a single-element array
+
+  if (tables.length > 0) {
+    console.log(`APEX_DEBUG: Found ${tables.length} tables. Extracting...`);
+    tables.forEach(table => {
+      Array.from(table.rows).forEach(tr => {
+        const rowData = Array.from(tr.cells).map(td => td.innerText.trim());
+        if (rowData.length > 0) allRows.push(rowData);
+      });
+    });
+  }
+
+  // Fallback to text lines if no tables or few rows found
+  if (allRows.length < 10) {
+    const bodyText = doc.body?.innerText || doc.body?.textContent || "";
+    const lines = bodyText.split(/\r?\n/);
+    for (const line of lines) {
+      if (line.trim().length === 0) continue;
+      allRows.push([line]); 
+    }
   }
 
   if (allRows.length === 0) return [];
   return processCompetitionRows(allRows, type);
 }
 
+function calculateCallRoomTime(startTime) {
+  if (!startTime) return null;
+  try {
+    const match = startTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?/i);
+    if (!match) return null;
+    
+    let hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const ampm = match[3] ? match[3].toUpperCase() : null;
+    
+    if (ampm === 'PM' && hours < 12) hours += 12;
+    if (ampm === 'AM' && hours === 12) hours = 0;
+    
+    let totalMinutes = hours * 60 + minutes - 20;
+    if (totalMinutes < 0) totalMinutes += 24 * 60;
+    
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    const finalAMPM = h < 12 ? 'AM' : 'PM';
+    const displayH = h % 12 === 0 ? 12 : h % 12;
+    const displayM = String(m).padStart(2, '0');
+    
+    return ampm ? `${displayH}:${displayM} ${finalAMPM}` : `${String(h).padStart(2, '0')}:${displayM}`;
+  } catch (e) {
+    return null;
+  }
+}
+
 function processCompetitionRows(allRows, type = 'heat_sheet') {
-  console.log(`DIAC_DEBUG: Starting Multi-Line row processing for [${allRows.length}] lines...`);
+  console.log(`APEX_DEBUG: Starting Multi-Line row processing for [${allRows.length}] lines...`);
   const results = [];
   let currentEventCode = null;
   let currentEventName = null;
   let currentHeat = null;
   let currentGender = 'Mixed';
+  let currentSession = null;
+  let currentRaceTime = null;
+  let currentCallRoomTime = null;
   
   let pendingPool = "";
   const eventRegex = /event\s*(\d+)\s*(.+)/i;
+  // Session line can look like: "Session 1", "Session: 1", "Session 1 - Morning", "Session 1  9:00 AM"
+  const sessionRegex = /^\s*session\s*[:\.]?\s*(\d+)/i;
 
   for (let i = 0; i < allRows.length; i++) {
     const row = allRows[i];
     const fullRowText = row.join(" ").trim();
     const cleanLower = fullRowText.toLowerCase();
 
-    // Reset gender on event headers
+    // Session detection
+    const sessionRegex = /session\s*[:\.]?\s*(\d+)?\s*(.*)/i;
+    const sMatch = fullRowText.match(sessionRegex);
+    if (sMatch) {
+      const sNum = sMatch[1] || '';
+      const sName = sMatch[2] || '';
+      currentSession = (sNum + ' ' + sName).trim();
+      console.log("APEX_DEBUG: Detected Session:", currentSession);
+      const sessionTimeMatch = fullRowText.match(/(\d{1,2}:\d{2}\s*(?:AM|PM)?)/i);
+      if (sessionTimeMatch) {
+        currentRaceTime = sessionTimeMatch[1].trim();
+        currentCallRoomTime = calculateCallRoomTime(currentRaceTime);
+      }
+      continue;
+    }
+
+    // Reset gender and calculate Session on event headers
     const eventMatch = fullRowText.match(eventRegex);
     if (eventMatch) {
       currentEventCode = eventMatch[1];
       currentEventName = eventMatch[2].trim();
       currentGender = parseGenderFromEvent(currentEventName);
+      
+      // APX-Fix: Calculate session from first digit of event code (e.g., 307 -> Session 3)
+      if (currentEventCode && currentEventCode.length > 0) {
+        const firstDigit = currentEventCode.charAt(0);
+        if (!isNaN(firstDigit)) {
+          currentSession = `Session ${firstDigit}`;
+        }
+      }
+      
       pendingPool = ""; 
       continue;
     }
@@ -149,11 +219,15 @@ function processCompetitionRows(allRows, type = 'heat_sheet') {
     if (cleanLower.includes('heat')) {
        const hm = fullRowText.match(/heat\s+(\d+)/i);
        if (hm) currentHeat = parseInt(hm[1], 10);
+       const heatTimeMatch = fullRowText.match(/(\d{1,2}:\d{2}\s*(?:AM|PM)?)/i);
+       if (heatTimeMatch) {
+         currentRaceTime = heatTimeMatch[1].trim();
+         currentCallRoomTime = calculateCallRoomTime(currentRaceTime);
+       }
        continue;
     }
 
     if (currentEventCode && cleanLower.length > 1) {
-      // Flush pool on HY-TEK separator lines (=====) and column headers (Name/Age/Team)
       const isSeparator = /^[=\-*\s]+$/.test(fullRowText);
       const isColumnHeader = /\b(name|age|team|time|seed|finals|prelim)\b/i.test(fullRowText);
       if (isSeparator || isColumnHeader) {
@@ -161,7 +235,6 @@ function processCompetitionRows(allRows, type = 'heat_sheet') {
         continue;
       }
 
-      // Empty lane: only a bare digit (e.g. "1" or "2") – flush and skip
       const isEmptyLane = /^\d+\s*$/.test(fullRowText);
       if (isEmptyLane) {
         pendingPool = "";
@@ -169,33 +242,89 @@ function processCompetitionRows(allRows, type = 'heat_sheet') {
       }
 
       pendingPool = (pendingPool + " " + fullRowText).trim();
+      const cleanPool = pendingPool.replace(/\|/g, '').replace(/\s+/g, ' ');
       
-      // HY-TEK Matcher
-      const hytekHeatMatch = pendingPool.match(/^(\d+)\s+([A-Za-z\s,.\'-]+?)\s+(\d{1,2})\s+([A-Za-z\s.]+?)\s+(\d+:?\d*\.\d+|NT|NS|SCR|DQ)/i);
+      const eventOrderMatch = cleanPool.match(/^([A-Za-z\s,.\'\-]+?)\s+(\d{1,2})\s+(\d+:?\d*\.\d+|NT|NS|SCR|DQ|--)\s+H(\d+)\s*\/\s*L(\d+)\s+(\d{1,2}:\d{2}\s*(?:AM|PM)?)\s+(\d{1,2}:\d{2}\s*(?:AM|PM)?)/i);
       
+      if (eventOrderMatch) {
+         results.push({
+           eventCode: currentEventCode,
+           eventName: currentEventName,
+           athleteName: eventOrderMatch[1].trim(),
+           gender: currentGender,
+           age: parseInt(eventOrderMatch[2], 10),
+           rank: null,
+           lane: parseInt(eventOrderMatch[5], 10),
+           resultTime: null,
+           seedTime: eventOrderMatch[3].trim(),
+           teamName: "", 
+           heat: parseInt(eventOrderMatch[4], 10),
+           sessionName: currentSession,
+           raceTime: eventOrderMatch[7].trim(),
+           callRoomTime: eventOrderMatch[6].trim()
+         });
+         pendingPool = "";
+         continue;
+      }
+
+      // HY-TEK Standard Heat Sheet Line - ULTIMATE RESILIENCE VERSION
+      // Group 1: Lane, Group 2: Name, Group 3: Age, Group 4: Team, Group 5: Time, Group 6: Session Time
+      const hytekHeatMatch = cleanPool.match(/^(\d+)\s+(.+?)\s+(\d{1,3})\s+(.+?)\s+(\d+:?\d*\.\d+|NT|NS|SCR|DQ|--)(?:\s+(\d{1,2}:\d{2}\s*[AP]M))?/i);
+      
+      let finalRow = null;
+
       if (hytekHeatMatch) {
-        const athleteName = hytekHeatMatch[2].trim();
-        console.log(`DIAC_DEBUG: Parsed Row | Event: ${currentEventCode} | Athlete: ${athleteName} | Gender: ${currentGender} | Age: ${hytekHeatMatch[3]}`);
-        
+        finalRow = {
+          athleteName: hytekHeatMatch[2].trim(),
+          age: parseInt(hytekHeatMatch[3], 10),
+          teamName: hytekHeatMatch[4].trim(),
+          lane: parseInt(hytekHeatMatch[1], 10),
+          seedTime: hytekHeatMatch[5].trim(),
+          inlineTime: hytekHeatMatch[6] ? hytekHeatMatch[6].trim() : null
+        };
+      } else {
+        // FALLBACK: Best-guess line parsing for non-standard HY-TEK layouts
+        const parts = cleanPool.split(/\s{2,}/); // Split by 2 or more spaces
+        if (parts.length >= 4) {
+          const lane = parseInt(parts[0], 10);
+          if (!isNaN(lane)) {
+             finalRow = {
+               athleteName: parts[1].trim(),
+               age: parseInt(parts[2], 10) || 0,
+               teamName: parts[3].trim(),
+               lane: lane,
+               seedTime: parts[4] || "NT",
+               inlineTime: null
+             };
+          }
+        }
+      }
+
+      if (finalRow) {
+        const raceTime = finalRow.inlineTime || currentRaceTime;
+        const callRoom = finalRow.inlineTime ? calculateCallRoomTime(finalRow.inlineTime) : currentCallRoomTime;
+
         results.push({
           eventCode: currentEventCode,
           eventName: currentEventName,
-          athleteName: athleteName,
+          athleteName: finalRow.athleteName,
           gender: currentGender,
-          age: parseInt(hytekHeatMatch[3], 10),
+          age: finalRow.age,
           rank: null,
-          lane: parseInt(hytekHeatMatch[1], 10),
+          lane: finalRow.lane,
           resultTime: null,
-          seedTime: hytekHeatMatch[5].trim(),
-          teamName: hytekHeatMatch[4].trim(),
-          heat: currentHeat || 1
+          seedTime: finalRow.seedTime,
+          teamName: finalRow.teamName,
+          heat: currentHeat || 1,
+          sessionName: currentSession,
+          raceTime: raceTime,
+          callRoomTime: callRoom
         });
         pendingPool = "";
         continue;
       }
 
-      // Result Matcher
-      const universalMatch = pendingPool.match(/([^\d\n\r]{2,})\s+(\d{1,2})([\d-]*)\s*([^\d\n\r]{3,})\s+(\d+:?\d*\.\d+[qQ]?|NT|NS|SCR|DQ)/i);
+      const universalMatch = cleanPool.match(/([^\d\n\r]{2,})\s+(\d{1,2})([\d-]*)\s*([^\d\n\r]{3,})\s+(\d+:?\d*\.\d+[qQ]?|NT|NS|SCR|DQ)/i);
       if (universalMatch) {
           const isResult = (type === 'event_result');
           results.push({
@@ -209,7 +338,10 @@ function processCompetitionRows(allRows, type = 'heat_sheet') {
             resultTime: isResult ? universalMatch[5].trim() : null,
             seedTime: isResult ? null : universalMatch[5].trim(),
             teamName: universalMatch[1].trim(),
-            heat: currentHeat || 1
+            heat: currentHeat || 1,
+            sessionName: currentSession,
+            raceTime: currentRaceTime,
+            callRoomTime: currentCallRoomTime
           });
           pendingPool = ""; 
           continue;
@@ -263,27 +395,23 @@ export async function matchAthleteEvents(parsedRows, accreditationRecords) {
     let highestScore = 0;
 
     for (const acc of accreditationRecords) {
-      // 1. Gender Filter (STRICT) - Both normalized to 'Male'/'Female'
       const rowGen = (row.gender || '').toLowerCase();
       const dbGen = (acc.gender || '').toLowerCase();
       
       if (rowGen !== 'mixed' && rowGen !== dbGen) {
-         // Some databases use abbreviated genders (e.g. M/F)
          if (!(rowGen.startsWith(dbGen.charAt(0)) || dbGen.startsWith(rowGen.charAt(0)))) {
             continue;
          }
       }
 
-      // 2. Name Cleaning and Tokenization
       const cleanPdfName = pdfName.toLowerCase().replace(/[,.-]/g, ' ');
       const cleanDbName = (acc.name || '').toLowerCase().replace(/[,.-]/g, ' ');
       
-      const pdfTokens = cleanPdfName.split(/\s+/).filter(t => t.length > 2);
-      const dbTokens = cleanDbName.split(/\s+/).filter(t => t.length > 2);
+      const pdfTokens = cleanPdfName.split(/\s+/).filter(t => t.length >= 2);
+      const dbTokens = cleanDbName.split(/\s+/).filter(t => t.length >= 2);
       
       if (pdfTokens.length === 0 || dbTokens.length === 0) continue;
 
-      // 3. Token Set Intersect (Resilient to concatenation)
       let matchCount = 0;
       pdfTokens.forEach(pt => {
         if (dbTokens.some(dt => dt.includes(pt) || pt.includes(dt))) {
@@ -291,18 +419,16 @@ export async function matchAthleteEvents(parsedRows, accreditationRecords) {
         }
       });
       
-      // Temporary debug for "0 verified matches" issue on live site
-      if (pdfName.length > 3 && cleanDbName.includes(pdfTokens[0])) {
-        console.log(`DIAC_DEBUG: Matching Candidate - PDF: [${pdfTokens.join()}] | DB: [${dbTokens.join()}] -> MatchCount: ${matchCount}`);
+      if (pdfName.length >= 2 && cleanDbName.includes(pdfTokens[0])) {
+        console.log(`APEX_DEBUG: Matching Candidate - PDF: [${pdfTokens.join()}] | DB: [${dbTokens.join()}] -> MatchCount: ${matchCount}`);
       }
       
       const avgRatio = matchCount / Math.max(pdfTokens.length, dbTokens.length);
-      const minRatio = pdfTokens.length === 1 ? 0.9 : 0.45;
+      const minRatio = 0.2; // APEX: Turbo loose matching
 
       if (avgRatio >= minRatio && matchCount >= 1) { 
          let score = avgRatio * 20;
          
-         // 4. Club Match Bonus
          const pdfTeam = (row.teamName || row.team || '').toLowerCase();
          const dbClub = (acc.club_name || '').toLowerCase();
          if (pdfTeam && dbClub) {
@@ -311,15 +437,14 @@ export async function matchAthleteEvents(parsedRows, accreditationRecords) {
             }
          }
 
-         // 5. Age Match 
          const dbAge = acc.age;
          if (row.age && dbAge) {
             const ageDiff = Math.abs(parseInt(row.age, 10) - parseInt(dbAge, 10));
             if (ageDiff === 0) score += 5;
-            else if (ageDiff > 1) score -= 15; // Soft penalty instead of nuclear wipe
+            else if (ageDiff > 1) score -= 15;
          }
          
-         const minScoreThreshold = 12; 
+         const minScoreThreshold = 5; // APEX: Turbo loose matching
          if (score > highestScore && score >= minScoreThreshold) {
             highestScore = score;
             bestDBMatch = acc;
@@ -334,14 +459,20 @@ export async function matchAthleteEvents(parsedRows, accreditationRecords) {
       if (!seenMatchKeys.has(key)) {
         bestMatches.push({
           accreditation_id: bestDBMatch.id,
-          event_code: row.eventCode,
-          event_name: row.eventName,
+          event_id: row.eventCode,
+          athlete_name: row.athleteName, // Fixed: Use athleteName instead of swimmerName
+          gender: row.gender,
           heat: row.heat,
           lane: row.lane,
-          rank: row.rank,
-          result_time: row.resultTime,
           round: roundStr,
+          event_code: row.eventCode,
+          event_number: row.eventCode,
+          event_name: row.eventName,
           seed_time: row.seedTime,
+          team_name: row.teamName,
+          session_name: row.sessionName,
+          race_time: row.raceTime,
+          call_room_time: row.callRoomTime,
           matched: true
         });
         seenMatchKeys.add(key);

@@ -15,11 +15,22 @@ export default function QRSystem() {
   const { canAccessEvent } = useAuth();
 
   useEffect(() => {
-    EventsAPI.getAll().then(evs => {
+    EventsAPI.getAllMinimal().then(evs => {
       const filtered = evs.filter(e => canAccessEvent(e.id));
+      console.log("APEX_DEBUG: Loaded Minimal Events:", filtered.length);
       setEvents(filtered);
-      if (filtered.length > 0) setSelectedEvent(filtered[0].id);
-    }).catch(console.error);
+      if (filtered.length > 0 && !selectedEvent) setSelectedEvent(filtered[0].id);
+    }).catch(err => {
+      console.error("APEX_DEBUG: Failed to load events:", err);
+      toast.error("Network slow: Failed to load event list. Retrying...");
+      // Auto-retry once after 3s
+      setTimeout(() => {
+        EventsAPI.getAllMinimal().then(evs => {
+          const f = evs.filter(e => canAccessEvent(e.id));
+          setEvents(f);
+        });
+      }, 3000);
+    });
   }, []);
 
   const handleToast = (msg, type = "success") => {

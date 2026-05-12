@@ -31,7 +31,7 @@ import { AttendanceAPI } from "../../lib/attendanceApi";
 import { EventSettingsAPI, FormFieldSettingsAPI, BroadcastV2API, AthleteEventsAPI, GlobalSettingsAPI, HeatSheetMatrixAPI } from "../../lib/broadcastApi";
 import { computeExpiryStatus, formatEventDateTime } from "../../lib/expiryUtils";
 import { toast } from "sonner";
-import { getCountryFlag, calculateAge } from "../../lib/utils";
+import { getCountryFlag, getCountryCode3, calculateAge } from "../../lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { audioService } from "../../lib/audio";
 
@@ -1367,7 +1367,7 @@ function ResultView({ config, result, onResume, onRedeem, isPublic, zoneConfig }
                     {athlete.nationality && (
                       <>
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">•</span>
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{athlete.nationality}</span>
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{getCountryCode3(athlete.nationality)}</span>
                       </>
                     )}
                   </div>
@@ -1494,7 +1494,7 @@ function ResultView({ config, result, onResume, onRedeem, isPublic, zoneConfig }
                    {athlete.nationality && (
                       <div className="px-5 py-2 bg-white/10 rounded-xl border border-white/10 flex items-center gap-2">
                         {getCountryFlag(athlete.nationality) && <img src={getCountryFlag(athlete.nationality)} className="w-6 h-4 rounded-sm" />}
-                        <span className="text-xs font-black text-white uppercase tracking-widest">{athlete.nationality}</span>
+                        <span className="text-xs font-black text-white uppercase tracking-widest">{getCountryCode3(athlete.nationality)}</span>
                       </div>
                    )}
                 </div>
