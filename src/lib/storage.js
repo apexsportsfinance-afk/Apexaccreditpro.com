@@ -684,7 +684,7 @@ export const AccreditationsAPI = {
   },
 
   approve: async (id, zoneCode, badgeNumber, role = null) => {
-    const accreditationId = `ACC-2025-${id.substring(0, 8).toUpperCase()}`;
+    const accreditationId = `ACC-${new Date().getFullYear()}-${id.substring(0, 8).toUpperCase()}`;
     const updateData = {
       status: "approved",
       zone_code: zoneCode,

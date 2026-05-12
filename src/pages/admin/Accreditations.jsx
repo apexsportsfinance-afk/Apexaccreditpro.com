@@ -1296,7 +1296,7 @@ export default function Accreditations() {
                   
                   const newBadgeNumber = `${prefix}-${String((existingCount || 0) + 1).padStart(3, "0")}`;
                   updatePayload.badgeNumber = newBadgeNumber;
-                  updatePayload.accreditationId = `ACC-2025-${accId.substring(0, 8).toUpperCase()}`;
+                  updatePayload.accreditationId = `ACC-${new Date().getFullYear()}-${accId.substring(0, 8).toUpperCase()}`;
                   
                   await AccreditationsAPI.adminEdit(accId, updatePayload, adminUserId);
                   toast.success(`Accreditation repaired! Assigned ID and badge: ${newBadgeNumber}`);
