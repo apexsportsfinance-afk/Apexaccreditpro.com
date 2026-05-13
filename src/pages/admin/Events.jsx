@@ -2468,7 +2468,8 @@ function TemplateView({ event, onClose, onSave }) {
     const toastId = toast.loading ? toast.loading("Uploading image...") : null;
     
     try {
-      const { url } = await uploadToStorage(file, "event_templates", `${event.id}_${field}_${Date.now()}`);
+      const fileExt = file.name.split('.').pop();
+      const { url } = await uploadToStorage(file, "event_templates", `${event.id}_${field}_${Date.now()}.${fileExt}`);
       setTemplateData(prev => ({ ...prev, [field]: url }));
       if (toastId && toast.dismiss) toast.dismiss(toastId);
       toast.success("Image uploaded successfully");
@@ -2655,7 +2656,8 @@ function TemplateView({ event, onClose, onSave }) {
                         if (file) {
                           const toastId = toast.loading ? toast.loading("Uploading sponsor logo...") : null;
                           try {
-                            const { url } = await uploadToStorage(file, "event_templates", `${event.id}_sponsor_${Date.now()}`);
+                            const fileExt = file.name.split('.').pop();
+                            const { url } = await uploadToStorage(file, "event_templates", `${event.id}_sponsor_${Date.now()}.${fileExt}`);
                             setTemplateData(prev => ({ ...prev, sponsorLogos: [...prev.sponsorLogos, url] }));
                             if (toastId && toast.dismiss) toast.dismiss(toastId);
                             toast.success("Sponsor logo uploaded");
