@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 
 import { extractTextFromPdf as parsePDFText } from "../../lib/pdfParser";
+import { uploadToStorage } from "../../lib/uploadToStorage";
 import Button from "../../components/ui/Button";
 import Card, { CardHeader, CardContent } from "../../components/ui/Card";
 import MultiSearchableSelect from "../../components/ui/MultiSearchableSelect";
@@ -2462,12 +2463,22 @@ function TemplateView({ event, onClose, onSave }) {
   const handleFileUpload = async (e, field) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    
+    // Create a temporary loading toast
+    const toastId = toast.loading ? toast.loading("Uploading image...") : null;
+    
     try {
-      const base64 = await fileToBase64(file);
-      setTemplateData(prev => ({ ...prev, [field]: base64 }));
-      toast.success("Image uploaded");
-    } catch {
-      toast.error("Upload failed");
+      const { url } = await uploadToStorage(file, "event_templates", `${event.id}_${field}_${Date.now()}`);
+      setTemplateData(prev => ({ ...prev, [field]: url }));
+      if (toastId && toast.dismiss) toast.dismiss(toastId);
+      toast.success("Image uploaded successfully");
+    } catch (err) {
+      console.error(err);
+      if (toastId && toast.dismiss) toast.dismiss(toastId);
+      toast.error("Upload failed: " + (err.message || "Unknown error"));
+    } finally {
+      // Reset the file input so the same file can be selected again if needed
+      e.target.value = "";
     }
   };
 
@@ -2642,8 +2653,19 @@ function TemplateView({ event, onClose, onSave }) {
                       <input type="file" accept="image/*" onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          const base64 = await fileToBase64(file);
-                          setTemplateData(prev => ({ ...prev, sponsorLogos: [...prev.sponsorLogos, base64] }));
+                          const toastId = toast.loading ? toast.loading("Uploading sponsor logo...") : null;
+                          try {
+                            const { url } = await uploadToStorage(file, "event_templates", `${event.id}_sponsor_${Date.now()}`);
+                            setTemplateData(prev => ({ ...prev, sponsorLogos: [...prev.sponsorLogos, url] }));
+                            if (toastId && toast.dismiss) toast.dismiss(toastId);
+                            toast.success("Sponsor logo uploaded");
+                          } catch (err) {
+                            console.error(err);
+                            if (toastId && toast.dismiss) toast.dismiss(toastId);
+                            toast.error("Failed to upload sponsor logo");
+                          } finally {
+                            e.target.value = "";
+                          }
                         }
                       }} className="hidden" />
                     </label>
