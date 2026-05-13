@@ -28,6 +28,7 @@ import MultiSearchableSelect from "../../components/ui/MultiSearchableSelect";
 import Modal from "../../components/ui/Modal";
 import ThemeToggle from "../../components/ui/ThemeToggle";
 import SwimmingBackground from "../../components/ui/SwimmingBackground";
+import MedicalBookingSelector from "../../components/ui/MedicalBookingSelector";
 import { useTheme } from "../../contexts/ThemeContext";
 import { EventsAPI, AccreditationsAPI, EventCategoriesAPI, CategoriesAPI } from "../../lib/storage";
 import { COUNTRIES, ROLES, validateFile, fileToBase64 } from "../../lib/utils";
@@ -1260,6 +1261,14 @@ export default function Register() {
                                 label: typeof opt === 'string' ? opt : (opt.label || opt.value || opt)
                               }));
                             })()}
+                          />
+                        ) : field.type === 'medical_booking' ? (
+                          <MedicalBookingSelector
+                            field={field}
+                            value={formData.customFields[field.id]}
+                            onChange={handleInputChange}
+                            eventId={event.id}
+                            language={language}
                           />
                         ) : (
                           <Input

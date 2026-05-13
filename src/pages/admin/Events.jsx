@@ -115,6 +115,7 @@ export default function Events() {
   const [availableCategories, setAvailableCategories] = useState([]);
   const [duplicateError, setDuplicateError] = useState(null);
   const [customFieldsConfig, setCustomFieldsConfig] = useState([]);
+  const [bookingConfigModal, setBookingConfigModal] = useState({ open: false, fieldId: null, data: null });
   const [visibilityConfig, setVisibilityConfig] = useState({ affiliation: true, contact: true, documents: true, phone: "optional" });
   const [showLabelOverrides, setShowLabelOverrides] = useState(false);
   const [showCustomFields, setShowCustomFields] = useState(false);
@@ -1693,6 +1694,7 @@ export default function Events() {
                           >
                             <option value="text">Single Line Text</option>
                             <option value="select">Dropdown Menu</option>
+                            <option value="medical_booking">Medical Test Calendar Booking</option>
                           </select>
                         </div>
                         <div className="flex items-center gap-6 h-full pt-6">
@@ -1731,6 +1733,28 @@ export default function Events() {
                             placeholder="Dubai, Abu Dhabi, Sharjah..."
                             className="w-full px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-600 focus:ring-1 focus:ring-primary-500 outline-none transition-all"
                           />
+                        </div>
+                      )}
+                      
+                      {field.type === 'medical_booking' && (
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Booking Slots Configuration</label>
+                          <div className="flex items-center gap-3">
+                            <Button 
+                              type="button" 
+                              variant="secondary"
+                              onClick={() => {
+                                let parsed = { tests: [], duration: 15, capacity: 5, dateRanges: [] };
+                                try { if (field.options) parsed = JSON.parse(field.options); } catch(e) {}
+                                setBookingConfigModal({ open: true, fieldId: field.id, data: parsed });
+                              }}
+                            >
+                              Configure Dates & Slots
+                            </Button>
+                            {field.options && field.options.length > 5 && (
+                              <span className="text-xs font-bold text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-md">Configured</span>
+                            )}
+                          </div>
                         </div>
                       )}
                       
@@ -1773,6 +1797,140 @@ export default function Events() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Medical Booking Configuration Modal */}
+      <Modal
+        isOpen={bookingConfigModal.open}
+        onClose={() => setBookingConfigModal({ open: false, fieldId: null, data: null })}
+        title="Configure Medical Booking Calendar"
+      >
+        {bookingConfigModal.data && (
+          <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+            <div className="space-y-4">
+              <h4 className="text-sm font-bold text-primary-400 uppercase tracking-widest">Medical Tests Offered</h4>
+              <p className="text-xs text-slate-400">Comma separated tests (e.g. Eye Test, Physical Assessment, ECG)</p>
+              <input
+                type="text"
+                value={(bookingConfigModal.data.tests || []).join(', ')}
+                onChange={(e) => {
+                  const tests = e.target.value.split(',').map(t => t.trim()).filter(Boolean);
+                  setBookingConfigModal(prev => ({...prev, data: {...prev.data, tests}}));
+                }}
+                className="w-full px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white outline-none focus:ring-1 focus:ring-primary-500"
+                placeholder="Eye Test, Physical Assessment, Blood Test"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-400 uppercase">Slot Duration (Minutes)</label>
+                <input
+                  type="number"
+                  value={bookingConfigModal.data.duration || 15}
+                  onChange={(e) => setBookingConfigModal(prev => ({...prev, data: {...prev.data, duration: parseInt(e.target.value) || 15}}))}
+                  className="w-full px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white"
+                  min="5" max="120"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-400 uppercase">Capacity (Athletes per slot)</label>
+                <input
+                  type="number"
+                  value={bookingConfigModal.data.capacity || 5}
+                  onChange={(e) => setBookingConfigModal(prev => ({...prev, data: {...prev.data, capacity: parseInt(e.target.value) || 1}}))}
+                  className="w-full px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white"
+                  min="1" max="1000"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h4 className="text-sm font-bold text-primary-400 uppercase tracking-widest">Available Days & Times</h4>
+                <Button 
+                  size="sm" 
+                  onClick={() => setBookingConfigModal(prev => ({
+                    ...prev, 
+                    data: {
+                      ...prev.data, 
+                      dateRanges: [...(prev.data.dateRanges || []), { date: '', startTime: '09:00', endTime: '17:00' }]
+                    }
+                  }))}
+                >
+                  Add Day
+                </Button>
+              </div>
+              
+              <div className="space-y-3">
+                {(bookingConfigModal.data.dateRanges || []).map((range, idx) => (
+                  <div key={idx} className="flex gap-2 items-center bg-slate-800/50 p-3 rounded-lg border border-slate-700">
+                    <input
+                      type="date"
+                      value={range.date}
+                      onChange={(e) => {
+                        const newRanges = [...bookingConfigModal.data.dateRanges];
+                        newRanges[idx].date = e.target.value;
+                        setBookingConfigModal(prev => ({...prev, data: {...prev.data, dateRanges: newRanges}}));
+                      }}
+                      className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-white w-full"
+                    />
+                    <span className="text-slate-500">From</span>
+                    <input
+                      type="time"
+                      value={range.startTime}
+                      onChange={(e) => {
+                        const newRanges = [...bookingConfigModal.data.dateRanges];
+                        newRanges[idx].startTime = e.target.value;
+                        setBookingConfigModal(prev => ({...prev, data: {...prev.data, dateRanges: newRanges}}));
+                      }}
+                      className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-white"
+                    />
+                    <span className="text-slate-500">To</span>
+                    <input
+                      type="time"
+                      value={range.endTime}
+                      onChange={(e) => {
+                        const newRanges = [...bookingConfigModal.data.dateRanges];
+                        newRanges[idx].endTime = e.target.value;
+                        setBookingConfigModal(prev => ({...prev, data: {...prev.data, dateRanges: newRanges}}));
+                      }}
+                      className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-white"
+                    />
+                    <button 
+                      onClick={() => {
+                        const newRanges = [...bookingConfigModal.data.dateRanges];
+                        newRanges.splice(idx, 1);
+                        setBookingConfigModal(prev => ({...prev, data: {...prev.data, dateRanges: newRanges}}));
+                      }}
+                      className="p-1.5 text-red-400 hover:bg-red-500/20 rounded"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+                {(!bookingConfigModal.data.dateRanges || bookingConfigModal.data.dateRanges.length === 0) && (
+                  <p className="text-xs text-amber-500">No days configured. Add a day to allow bookings.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-4 border-t border-slate-700">
+              <Button variant="secondary" onClick={() => setBookingConfigModal({ open: false, fieldId: null, data: null })} className="flex-1">
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => {
+                  updateCustomField(bookingConfigModal.fieldId, 'options', JSON.stringify(bookingConfigModal.data));
+                  setBookingConfigModal({ open: false, fieldId: null, data: null });
+                }} 
+                className="flex-1"
+              >
+                Save Configuration
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
 
 
