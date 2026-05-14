@@ -1,0 +1,1265 @@
+import React, { useState, useEffect, useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import {
+  CheckCircle, XCircle, Download, Calendar,
+  MessageSquare, Globe, AlertTriangle, ChevronDown, ChevronUp, ShieldCheck,
+  User, Hash, MapPin, Building, Cake, ExternalLink, Bell, X, Paperclip, FileText,
+  Files, FileSpreadsheet, FileBox, ShieldAlert, ChevronRight, Trophy, Search, Medal as MedalIcon, Target,
+  Heart, Clock, Timer, RotateCcw
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from "../../lib/supabase";
+import { EventSettingsAPI, FormFieldSettingsAPI, BroadcastV2API, AthleteEventsAPI, GlobalSettingsAPI, HeatSheetMatrixAPI } from "../../lib/broadcastApi";
+import { AttendanceAPI } from "../../lib/attendanceApi";
+import { ConfigAPI, ZonesAPI } from "../../lib/storage";
+import { computeExpiryStatus, formatEventDateTime } from "../../lib/expiryUtils";
+import { getCountryFlag, getCountryCode3, COUNTRIES, calculateAge, cn } from "../../lib/utils";
+import { toast } from "sonner";
+import { createPortal } from "react-dom";
+
+// Helper function to calculate exact split time between PB and Record
+const parseTimeSeconds = (timeStr) => {
+  if (!timeStr || typeof timeStr !== "string" || timeStr === "NT" || timeStr === "NP") return null;
+  let clean = timeStr.trim().replace(/[A-Za-z]/g, '');
+  if (!clean) return null;
+  if (clean.includes(':')) {
+    const parts = clean.split(':');
+    if (parts.length >= 2) {
+      return (parseInt(parts[0], 10) * 60) + parseFloat(parts[1]);
+    }
+  }
+  return parseFloat(clean);
+};
+
+const formatTimeDiff = (resultStr, seedStr) => {
+  const resSec = parseTimeSeconds(resultStr);
+  const seedSec = parseTimeSeconds(seedStr);
+  if (resSec === null || seedSec === null || isNaN(resSec) || isNaN(seedSec)) return null;
+
+  const diff = resSec - seedSec;
+  const isFaster = diff < -0.001;
+  const isSlower = diff > 0.001;
+  const absDiff = Math.abs(diff).toFixed(2);
+
+  return {
+    text: isFaster ? `-${absDiff}` : (isSlower ? `+${absDiff}` : "0.00"),
+    isFaster: !isSlower // Consider neutral (0.00) as green for effort
+  };
+};
+
+const formatDocName = (name) => {
+  if (!name || typeof name !== "string") return "";
+  // 1. Remove .pdf extension case-insensitively
+  let clean = name.replace(/\.pdf\s*$/i, '');
+  // 2. Replace separators with spaces
+  clean = clean.replace(/[_-]/g, ' ');
+  // 3. Convert to Title Case
+  return clean.split(' ').map(word => {
+    if (!word) return "";
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }).join(' ');
+};
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-[#050b18] flex items-center justify-center p-6 text-center">
+          <div className="max-w-md">
+            <div className="inline-flex p-5 bg-red-500/10 border border-red-500/20 rounded-full mb-8">
+              <AlertTriangle className="w-12 h-12 text-red-500" />
+            </div>
+            <h2 className="text-2xl font-black text-white uppercase mb-4">Profile Error</h2>
+            <p className="text-white/40 mb-8 text-sm font-mono">
+              {this.state.error?.message || "Internal Rendering Crash"}
+            </p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="px-8 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-bold text-xs uppercase"
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export default function VerifyAccreditation() {
+  const { id: rawId } = useParams();
+  const id = (rawId || "").replace(/^\/+/, "").trim();
+  const navigate = useNavigate();
+  const [data, setData] = useState(null);
+  const [eventSettings, setEventSettings] = useState({});
+  const [fieldSettings, setFieldSettings] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [athleteMatrix, setAthleteMatrix] = useState([]);
+  const [legacyMatrix, setLegacyMatrix] = useState([]);
+  const [phase, setPhase] = useState("Initializing");
+
+  const [messages, setMessages] = useState([]);
+  const [showMessagesModal, setShowMessagesModal] = useState(false);
+  const [unreadTotal, setUnreadTotal] = useState(0);
+  const [globSettings, setGlobSettings] = useState({});
+  const [liveMedals, setLiveMedals] = useState([]);
+  const [showMedalsModal, setShowMedalsModal] = useState(false);
+  const [selectedAgeCategory, setSelectedAgeCategory] = useState(null);
+  const [selectedGender, setSelectedGender] = useState(null);
+  const [medalsLoading, setMedalsLoading] = useState(false);
+  const [feedbackConfig, setFeedbackConfig] = useState(null);
+  const [allZones, setAllZones] = useState([]);
+  const [athleteScans, setAthleteScans] = useState([]);
+  const [athleteLogs, setAthleteLogs] = useState([]);
+  const [scannerResult, setScannerResult] = useState(null); // { status: "granted" | "denied", zoneName: string }
+
+  // Get zone from URL
+  const queryParams = new URLSearchParams(window.location.search);
+  const targetZone = queryParams.get("zone");
+
+  // Partition messages into three distinct categories
+  const filteredMessages = React.useMemo(() => {
+    const generalMessages = messages
+      .filter(m => m.type === "global" && (!m.targetRoles || m.targetRoles.length === 0) && (!m.targetZones || m.targetZones.length === 0))
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    const targetedMessages = messages
+      .filter(m => m.type === "global" && ((m.targetRoles && m.targetRoles.length > 0) || (m.targetZones && m.targetZones.length > 0)))
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    const personalMessages = messages
+      .filter(m => m.type === "athlete")
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    const allMessages = [...generalMessages, ...targetedMessages, ...personalMessages]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    // Legacy fallback
+    const fallbackMessage = generalMessages.length === 0 ? eventSettings["broadcast_message"] : null;
+
+    return {
+      generalMessages,
+      targetedMessages,
+      personalMessages,
+      allMessages,
+      fallbackMessage
+    };
+  }, [messages, eventSettings]);
+
+  useEffect(() => {
+    if (id) loadData();
+  }, [id]);
+
+  useEffect(() => {
+    if (data?.event_id && data?.role) {
+      loadMessages();
+    }
+  }, [data]);
+
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    setPhase("Fetching Profile");
+    try {
+      console.log("APEX_DEBUG: Starting loadData for ID:", id);
+
+      const fetchAccreditation = async () => {
+        const cleanId = id.includes("ACC-") ? id.split("-").pop() : id;
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || 
+                       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
+
+        // 1. Primary Lookup (Fastest: UUID or Direct ID)
+        if (isUUID) {
+          const uuid = id.length === 36 ? id : cleanId;
+          const { data } = await supabase.from("accreditations").select("*, events:event_id(id, name, slug, start_date, logo_url)").eq("id", uuid).maybeSingle();
+          if (data) return { data, error: null };
+        }
+
+        // 2. Secondary Lookup (Accreditation ID or Badge Number)
+        const filters = [`accreditation_id.eq.${id}`, `badge_number.eq.${id}`];
+        if (id !== cleanId) {
+          filters.push(`accreditation_id.eq.${cleanId}`, `badge_number.eq.${cleanId}`);
+        }
+
+        return supabase
+          .from("accreditations")
+          .select("*, events:event_id(id, name, slug, start_date, logo_url)")
+          .or(filters.join(","))
+          .maybeSingle();
+      };
+
+      const timeoutPromise = (ms, label) => new Promise((_, reject) => 
+        setTimeout(() => reject(new Error(`Timeout: ${label} after ${ms}ms`)), ms)
+      );
+
+      const { data: fetchedData, error: fetchedError } = await Promise.race([
+        fetchAccreditation(),
+        timeoutPromise(45000, "Main Fetch")
+      ]);
+
+      let accData = fetchedData;
+      let accErr = fetchedError;
+
+      if (accErr) throw accErr;
+      if (!accData) throw new Error("Accreditation not found");
+
+      console.log("APEX_DEBUG: Main data loaded:", accData.id);
+      setPhase("Loading Event Details");
+
+      const nameParts = (accData?.name || "").trim().split(/\s+/);
+      const fname = nameParts[0] || "";
+      const lname = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+
+      const [eSettings, fieldSets, matrix, legMatrix, gSettings, fConfig, feedbackIsActiveRaw, zonesResult, scansResult, logsResult] = await Promise.race([
+        Promise.all([
+          (async () => { console.log("APEX_SYNC: EventSettings..."); const r = await (accData?.event_id ? EventSettingsAPI.getAll(accData.event_id) : Promise.resolve({})); console.log("APEX_SYNC: EventSettings DONE"); return r; })(),
+          (async () => { console.log("APEX_SYNC: FieldSettings..."); const r = await (accData?.event_id ? FormFieldSettingsAPI.getByEventId(accData.event_id) : Promise.resolve({})); console.log("APEX_SYNC: FieldSettings DONE"); return r; })(),
+          (async () => { console.log("APEX_SYNC: AthleteEvents..."); const r = await (accData?.id && accData?.role?.toLowerCase() === "athlete" ? AthleteEventsAPI.getForAthlete(accData.id) : Promise.resolve([])); console.log("APEX_SYNC: AthleteEvents DONE"); return r; })(),
+          (async () => { console.log("APEX_SYNC: LegacyMatrix..."); const r = await (accData?.event_id && accData?.role?.toLowerCase() === "athlete" ? HeatSheetMatrixAPI.getForAthlete(accData.event_id, fname, lname) : Promise.resolve([])); console.log("APEX_SYNC: LegacyMatrix DONE"); return r; })(),
+          (async () => { console.log("APEX_SYNC: GlobalSettings..."); const r = await GlobalSettingsAPI.getAll(); console.log("APEX_SYNC: GlobalSettings DONE"); return r; })(),
+          (async () => { console.log("APEX_SYNC: FeedbackConfig..."); const r = await (accData?.event_id ? ConfigAPI.getFeedback(accData.event_id) : Promise.resolve(null)); console.log("APEX_SYNC: FeedbackConfig DONE"); return r; })(),
+          (async () => { console.log("APEX_SYNC: FeedbackStatus..."); const r = await (accData?.event_id ? GlobalSettingsAPI.get(`event_${accData.event_id}_feedback_is_active`) : Promise.resolve(null)); console.log("APEX_SYNC: FeedbackStatus DONE"); return r; })(),
+          (async () => { console.log("APEX_SYNC: Zones..."); const r = await (accData?.event_id ? ZonesAPI.getByEventId(accData.event_id) : Promise.resolve([])); console.log("APEX_SYNC: Zones DONE"); return r; })(),
+          (async () => { console.log("APEX_SYNC: Attendance..."); const r = await (accData?.event_id && accData?.id ? AttendanceAPI.getAthleteAttendance(accData.event_id, accData.id) : Promise.resolve([])); console.log("APEX_SYNC: Attendance DONE"); return r; })(),
+          (async () => { console.log("APEX_SYNC: Logs..."); const r = await (accData?.event_id && accData?.id ? AttendanceAPI.getAthleteLogs(accData.event_id, accData.id) : Promise.resolve([])); console.log("APEX_SYNC: Logs DONE"); return r; })(),
+        ]),
+        timeoutPromise(45000, "Metadata Sync")
+      ]);
+
+      console.log("APEX_DEBUG: All metadata synced");
+      console.log("APEX_DEBUG: Finalizing data states...");
+      setPhase("Applying Data");
+      
+      setData(accData);
+      setEventSettings(eSettings);
+      setFieldSettings(fieldSets || {});
+      setAthleteMatrix(matrix || []);
+      setLegacyMatrix(legMatrix || []);
+      
+      // APEX-DEEP: If no events found, perform a deep fuzzy search fallback
+      if ((!matrix || matrix.length === 0) && (!legMatrix || legMatrix.length === 0) && accData?.role?.toLowerCase() === "athlete") {
+        console.log("APEX_DEBUG: Triggering Deep Search Fallback...");
+        const deepSearch = await HeatSheetMatrixAPI.getForAthlete(accData.event_id, fname.substring(0, 4), lname.substring(0, 4));
+        if (deepSearch && deepSearch.length > 0) {
+           console.log(`APEX_DEBUG: Deep Search found ${deepSearch.length} potential matches.`);
+           setLegacyMatrix(deepSearch);
+        }
+      }
+
+      setGlobSettings(gSettings || {});
+      setAllZones(zonesResult || []);
+      setAthleteScans(scansResult || []);
+      setAthleteLogs(logsResult || []);
+
+      // APX-DEBUG: Log raw data for zone sync diagnosis
+      console.group("APX-ZONE-SYNC-DEBUG");
+      console.log("Athlete ID used for scan query:", accData?.id);
+      console.log("Event ID used for scan query:", accData?.event_id);
+      console.log("athleteScans count:", (scansResult || []).length);
+      console.log("athleteScans raw:", scansResult);
+      console.log("allZones count:", (zonesResult || []).length);
+      console.log("allZones raw (settings):", (zonesResult || []).map(z => ({ name: z.name, code: z.code, settings: z.settings })));
+      console.groupEnd();
+      
+      const feedbackIsActive = feedbackIsActiveRaw === 'true' || feedbackIsActiveRaw === true;
+      setFeedbackConfig(fConfig ? { ...fConfig, is_active: feedbackIsActive } : null);
+
+      console.log("APEX_DEBUG: State updates dispatched");
+
+
+      // APX-P0: Transparent Self-Scan Logging
+      if (accData?.event_id) {
+        const scannerLocation = targetZone ?
+          (zonesResult.find(z => z.code === targetZone)?.name || `Zone ${targetZone}`) :
+          "Mobile-Self-Scan";
+
+        // Zone Validation Logic
+        if (targetZone) {
+          const athleteZones = (accData.zone_code || "").split(",").map(z => z.trim());
+          const hasAccess = athleteZones.includes("∞") || athleteZones.includes(targetZone);
+
+          setScannerResult({
+            status: hasAccess ? "granted" : "denied",
+            zoneName: scannerLocation
+          });
+
+          // Log zone-specific attendance if granted
+          if (hasAccess) {
+            const zoneConfig = (zonesResult || []).find(z => z.code === targetZone);
+            AttendanceAPI.recordScan({
+              eventId: accData.event_id,
+              athleteId: accData.id,
+              clubName: accData.club,
+              scannerLocation: scannerLocation,
+              zoneOnly: true,
+              scanMode: zoneConfig?.settings?.scanMode || "daily"
+            }).catch(e => console.warn("Zone attendance record failed:", e));
+          }
+        }
+
+        AttendanceAPI.logScanEvent({
+          eventId: accData.event_id,
+          athleteId: accData.id,
+          scanMode: targetZone ? "zone_access" : "athlete_verify",
+          deviceLabel: targetZone ? `Guard-Zone-${targetZone}` : "Mobile-Self-Scan"
+        }).catch(e => console.warn("Self-scan log failed:", e));
+
+        if (!targetZone) { // Only log main entrance if not in zone mode
+          AttendanceAPI.recordScan({
+            eventId: accData.event_id,
+            athleteId: accData.id,
+            clubName: accData.club,
+            scannerLocation: "Mobile-Self-Scan"
+          }).catch(e => console.warn("Self-attendance record failed:", e));
+        }
+      }
+
+      if (accData?.events?.name) {
+        setMedalsLoading(true);
+        try {
+          const compName = accData.events.name.trim().toLowerCase();
+          const { data: mData } = await Promise.race([
+            supabase.from("medal_results").select("*").ilike("competition", compName),
+            timeoutPromise(5000, "Medal Sync")
+          ]);
+
+          if (mData && mData.length > 0) {
+            const processed = mData.map(r => {
+              const ageMatch = r.age_group.match(/^(\d+\s*&\s*Over|\d+\s*-\s*\d+|\d+\s*Year\s*Olds)/i);
+              const ageCategory = ageMatch ? ageMatch[1] : r.age_group;
+              return { ...r, ageCategory };
+            });
+            setLiveMedals(processed);
+          }
+        } catch (e) {
+          console.warn("Medal sync bypassed:", e.message);
+        } finally {
+          setMedalsLoading(false);
+        }
+      }
+    } catch (err) {
+      console.error("Error loading accreditation data:", err);
+      setError(err.message || "Accreditation not found");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMessages = async () => {
+    try {
+      if (!data?.event_id || !data?.id) return;
+      // Pass role and zone codes so targeted broadcasts are correctly filtered
+      const athleteRole = data?.role || null;
+      const athleteZones = data?.zone_code
+        ? data.zone_code.split(",").map(z => z.trim()).filter(Boolean)
+        : [];
+      const msgs = await BroadcastV2API.getForAthlete(data.event_id, data.id, athleteRole, athleteZones);
+      setMessages(msgs || []);
+      const readIds = JSON.parse(localStorage.getItem('qr_read_msgs') || "[]");
+      const unread = msgs?.filter(m => m.id && !readIds.includes(m.id)).length || 0;
+      setUnreadTotal(unread);
+    } catch (err) {
+      console.error("Failed to load messages:", err);
+      setMessages([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const recalculateUnread = () => {
+    try {
+      const readIds = JSON.parse(localStorage.getItem('qr_read_msgs') || "[]");
+      const unread = messages.filter(m => m.id && !readIds.includes(m.id)).length;
+      setUnreadTotal(unread);
+    } catch (e) {
+      setUnreadTotal(0);
+    }
+  };
+
+  useEffect(() => {
+    if (!loading && data) {
+      recalculateUnread();
+    }
+  }, [filteredMessages.allMessages, loading, data]);
+
+  const mergedEvents = React.useMemo(() => {
+    try {
+      if (!data) return [];
+      console.log("APEX_DEBUG: Merging Events Flow", {
+        athleteMatrixCount: athleteMatrix?.length,
+        legacyMatrixCount: legacyMatrix?.length,
+        accreditationId: data.id
+      });
+
+      const allModern = [...(athleteMatrix || [])];
+      (legacyMatrix || []).forEach(leg => {
+        if (!leg) return;
+        // APX-Fix: Match by event_code more aggressively to ensure times are synced
+        const existing = allModern.find(m => String(m.event_code) === String(leg.event_code));
+        
+        if (existing) {
+          // Sync missing metadata from legacy matrix
+          if (!existing.heat || existing.heat === 0) existing.heat = leg.heat;
+          if (!existing.lane || existing.lane === 0) existing.lane = leg.lane;
+          if (!existing.race_time && leg.race_time) existing.race_time = leg.race_time;
+          if (!existing.call_room_time && leg.call_room_time) existing.call_room_time = leg.call_room_time;
+          if (!existing.session_name && leg.session_name) existing.session_name = leg.session_name || leg.session_time;
+          if (!existing.seed_time && leg.seed_time) existing.seed_time = leg.seed_time || leg.seedTime;
+          if (!existing.team_name && leg.team) existing.team_name = leg.team;
+        } else {
+          // If not in modern table, add as new legacy record
+          allModern.push({
+            ...leg,
+            round: leg.round || 'Finals',
+            event_name: leg.event_name || `Event ${leg.event_code}`,
+            seed_time: leg.seed_time || leg.seedTime,
+            team_name: leg.team
+          });
+        }
+      });
+
+      const matrixRows = [...allModern];
+      const grouped = {};
+
+      matrixRows.forEach(row => {
+        if (!row) return;
+        const code = row.event_code;
+        if (!grouped[code]) grouped[code] = [];
+        grouped[code].push(row);
+      });
+
+      const finalResults = [];
+      Object.keys(grouped).forEach(code => {
+        const rounds = grouped[code];
+        const finalsWithResult = rounds.find(r => r.round === 'Finals' && (r.result_time || r.rank));
+        const prelimsWithResult = rounds.find(r => r.round === 'Prelims' && (r.result_time || r.rank));
+        const finalsNoResult = rounds.find(r => r.round === 'Finals');
+        const prelimsNoResult = rounds.find(r => r.round === 'Prelims');
+
+        let selected = finalsWithResult || prelimsWithResult || finalsNoResult || prelimsNoResult || rounds[0];
+        const hasMultipleRounds = rounds.length > 1;
+        const time = (selected.result_time || "").toLowerCase();
+        const isQualified = time.includes('q');
+
+        finalResults.push({
+          ...selected,
+          showRoundBadge: hasMultipleRounds,
+          hideRank: selected.round === 'Prelims' && isQualified
+        });
+      });
+
+      const sorted = finalResults.sort((a, b) => {
+        const numA = parseInt(a.event_code, 10);
+        const numB = parseInt(b.event_code, 10);
+        if (isNaN(numA) && isNaN(numB)) return String(a.event_code).localeCompare(String(b.event_code));
+        if (isNaN(numA)) return 1;
+        if (isNaN(numB)) return -1;
+        return numA - numB;
+      });
+
+      console.log("APEX_DEBUG: Final Merged Events", sorted);
+      return sorted;
+    } catch (e) {
+      console.error("CRITICAL: MergedEvents Error:", e);
+      return athleteMatrix || []; // Fallback to modern only
+    }
+  }, [athleteMatrix, legacyMatrix, data]);
+
+  const markAllAsRead = () => {
+    try {
+      const readIds = JSON.parse(localStorage.getItem('qr_read_msgs') || "[]");
+      let updated = false;
+      messages.forEach(m => {
+        if (m.id && !readIds.includes(m.id)) {
+          readIds.push(m.id);
+          updated = true;
+        }
+      });
+      if (updated) localStorage.setItem('qr_read_msgs', JSON.stringify(readIds));
+      setUnreadTotal(0);
+      setShowMessagesModal(true);
+    } catch (e) { }
+  };
+
+  const expiry = computeExpiryStatus(data);
+
+  const statusConfig = React.useMemo(() => {
+    if (data?.status === 'rejected') {
+      return {
+        label: 'Rejected',
+        type: 'error',
+        color: 'text-red-400',
+        bgColor: 'bg-red-500/10',
+        borderColor: 'border-red-500/40',
+        shadowColor: 'shadow-red-950/20',
+        iconBg: 'bg-red-500/20',
+        icon: <XCircle className="w-7 h-7 text-red-500" />
+      };
+    }
+    if (data?.status === 'pending') {
+      return {
+        label: 'Pending',
+        type: 'warning',
+        color: 'text-amber-400',
+        bgColor: 'bg-amber-500/10',
+        borderColor: 'border-amber-500/40',
+        shadowColor: 'shadow-amber-950/20',
+        iconBg: 'bg-amber-500/20',
+        icon: <AlertTriangle className="w-7 h-7 text-amber-500" />
+      };
+    }
+    if (expiry.isExpired) {
+      return {
+        label: 'Expired',
+        type: 'error',
+        color: 'text-red-400',
+        bgColor: 'bg-red-500/10',
+        borderColor: 'border-red-500/40',
+        shadowColor: 'shadow-red-950/20',
+        iconBg: 'bg-red-500/20',
+        icon: <XCircle className="w-7 h-7 text-red-500" />
+      };
+    }
+    return {
+      label: 'Valid',
+      type: 'success',
+      color: 'text-emerald-400',
+      bgColor: 'bg-[#10b981]/10',
+      borderColor: 'border-[#10b981]/40',
+      shadowColor: 'shadow-[#10b981]/20',
+      iconBg: 'bg-[#10b981]/20',
+      icon: <CheckCircle className="w-7 h-7 text-[#10b981]" />
+    };
+  }, [data?.status, expiry.isExpired]);
+
+  const officialDocs = useMemo(() => {
+    const eid = data?.event_id;
+    if (!eid || !globSettings) return [];
+    try {
+      const json = globSettings[`event_${eid}_official_docs`];
+      return json ? JSON.parse(json) : [];
+    } catch (e) { return []; }
+  }, [globSettings, data?.event_id]);
+
+  const technicalDocs = useMemo(() => {
+    const eid = data?.event_id;
+    if (!eid || !globSettings) return [];
+    try {
+      const json = globSettings[`event_${eid}_technical_docs`];
+      return json ? JSON.parse(json) : [];
+    } catch (e) { return []; }
+  }, [globSettings, data?.event_id]);
+
+  const safetyDocs = useMemo(() => {
+    const eid = data?.event_id;
+    if (!eid || !globSettings) return [];
+    try {
+      const json = globSettings[`event_${eid}_safety_docs`];
+      return json ? JSON.parse(json) : [];
+    } catch (e) { return []; }
+  }, [globSettings, data?.event_id]);
+
+  const customFieldConfigs = useMemo(() => {
+    const eid = data?.event_id;
+    if (!eid || !globSettings) return [];
+    try {
+      const json = globSettings[`event_${eid}_custom_fields`];
+      return json ? JSON.parse(json) : [];
+    } catch (e) { return []; }
+  }, [globSettings, data?.event_id]);
+
+  const parsedCustomFields = useMemo(() => {
+    if (!data?.custom_message) return {};
+    try {
+      return typeof data.custom_message === "string"
+        ? JSON.parse(data.custom_message)
+        : data.custom_message;
+    } catch (e) {
+      return {};
+    }
+  }, [data?.custom_message]);
+
+  const showForQR = (key) => {
+    const loc = fieldSettings[key] || "both";
+    return loc === "both" || loc === "qr";
+  };
+
+  // APX-Fix: Unified Allocated Sports Logic for Filtering and Display
+  const allocatedSports = useMemo(() => {
+    if (!data) return [];
+
+    let selectedSports = [];
+    if (Array.isArray(data.selected_sports)) selectedSports = data.selected_sports;
+    else if (Array.isArray(data.selectedSports)) selectedSports = data.selectedSports;
+    else if (typeof data.selected_sports === 'string' && data.selected_sports.startsWith('[')) {
+       try { selectedSports = JSON.parse(data.selected_sports); } catch(e) {}
+    }
+
+    // Fallback: If no explicit sports selected, pull from assigned events
+    const matrixSports = athleteMatrix?.map(e => e.event_name || e.event_code) || [];
+    
+    const combined = [...selectedSports, ...matrixSports];
+    const unique = [];
+    const seen = new Set();
+    combined.forEach(s => {
+      if (!s) return;
+      const normalized = String(s).trim().toUpperCase();
+      if (!seen.has(normalized)) {
+        seen.add(normalized);
+        unique.push(String(s).trim());
+      }
+    });
+    return unique;
+  }, [data, athleteMatrix]);
+
+  const hasZoneScan = (zone) => {
+    if (!athleteScans || athleteScans.length === 0) return false;
+    
+    const zName = (zone.name || "").toUpperCase().trim();
+    const zCode = String(zone.code || "").toUpperCase().trim();
+    
+    return athleteScans.some(s => {
+      const locString = (s.scanner_location || "").toUpperCase().trim();
+      const locations = locString.split(",").map(l => l.trim());
+      
+      return locations.some(loc => {
+        return loc === zName || 
+               loc === zCode || 
+               loc === `ZONE-${zCode}` ||
+               loc.startsWith(zName) ||
+               loc.includes(`[${zCode}]`) ||
+               (zCode.length > 1 && loc.includes(zCode));
+      });
+    });
+  };
+
+  const visibleClearances = useMemo(() => {
+    if (!allZones) return [];
+    return allZones.filter(z => {
+      const settings = z.settings || {};
+      const isPermanent = settings.scanMode === 'permanent' || settings.scan_mode === 'permanent';
+      const isHidden = settings.isHidden === true || settings.isHidden === 'true';
+      
+      const isKnownClearance = ["X2", "Z3", "M4", "A1"].includes(String(z.code).toUpperCase().trim());
+      
+      if (isHidden || isKnownClearance) return hasZoneScan(z);
+      return isPermanent;
+    });
+  }, [allZones, athleteScans]);
+
+  const visibleTechnicalDocs = useMemo(() => {
+    if (!technicalDocs) return [];
+    return technicalDocs.filter(doc => {
+      if (!doc.sport || doc.sport === "General") return true;
+      const normalizedDocSport = doc.sport.trim().toUpperCase();
+      return allocatedSports.some(s => s.trim().toUpperCase() === normalizedDocSport);
+    });
+  }, [technicalDocs, allocatedSports]);
+
+  const visibleOfficialDocs = useMemo(() => {
+    if (!officialDocs) return [];
+    return officialDocs.filter(doc => {
+      if (!doc.sport || doc.sport === "General") return true;
+      const normalizedDocSport = doc.sport.trim().toUpperCase();
+      return allocatedSports.some(s => s.trim().toUpperCase() === normalizedDocSport);
+    });
+  }, [officialDocs, allocatedSports]);
+
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 10 },
+    visible: { opacity: 1, y: 0 }
+  };
+
+  if (loading) return <ScanSkeleton id={id} phase={phase} />;
+  if (error || !data) return <ScanError error={error} />;
+
+  return (
+    <ErrorBoundary>
+      <div id="verify-accreditation-page" className="min-h-screen bg-[#050b18] text-slate-200 font-inter selection:bg-cyan-500/30">
+        <AnimatePresence>
+          {scannerResult && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/90 backdrop-blur-xl"
+            >
+              <motion.div
+                initial={{ scale: 0.8, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                className={cn(
+                  "w-full max-w-sm rounded-[3rem] p-10 text-center border-4 shadow-2xl overflow-hidden relative",
+                  scannerResult.status === "granted"
+                    ? "bg-emerald-500/10 border-emerald-500/50 shadow-emerald-500/20"
+                    : "bg-red-500/10 border-red-500/50 shadow-red-500/20"
+                )}
+              >
+                <div className="absolute top-0 left-0 w-full h-2 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: "100%" }}
+                    animate={{ width: "0%" }}
+                    transition={{ duration: 3, ease: "linear" }}
+                    className={scannerResult.status === "granted" ? "bg-emerald-500" : "bg-red-500"}
+                    onAnimationComplete={() => setScannerResult(null)}
+                  />
+                </div>
+
+                <div className={cn(
+                  "w-24 h-24 rounded-full mx-auto mb-6 flex items-center justify-center shadow-lg",
+                  scannerResult.status === "granted" ? "bg-emerald-500 shadow-emerald-500/40" : "bg-red-500 shadow-red-500/40"
+                )}>
+                  {scannerResult.status === "granted" ? (
+                    <CheckCircle className="w-14 h-14 text-white" />
+                  ) : (
+                    <XCircle className="w-14 h-14 text-white" />
+                  )}
+                </div>
+
+                <h2 className={cn(
+                  "text-4xl font-black uppercase tracking-tighter mb-4",
+                  scannerResult.status === "granted" ? "text-emerald-400" : "text-red-400"
+                )}>
+                  {scannerResult.status === "granted" ? "Access Granted" : "Access Denied"}
+                </h2>
+
+                <div className="bg-white/5 rounded-2xl py-3 px-6 mb-8 border border-white/10">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-1">Current Sector</p>
+                  <p className="text-xl font-bold text-white uppercase">{scannerResult.zoneName}</p>
+                </div>
+
+                <button
+                  onClick={() => setScannerResult(null)}
+                  className="w-full py-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-black uppercase tracking-widest text-xs transition-all border border-white/10"
+                >
+                  Continue to Profile
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {showMessagesModal && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center"
+              onClick={() => setShowMessagesModal(false)}
+            >
+              <motion.div
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="bg-[#0a1120] w-full max-w-lg rounded-t-[2.5rem] sm:rounded-3xl border border-white/10 shadow-2xl p-6 sm:p-8 max-h-[85vh] overflow-hidden flex flex-col"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/5">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-cyan-500/10 rounded-xl"><Bell className="w-5 h-5 text-cyan-400" /></div>
+                    <h2 className="text-xl font-black text-white uppercase tracking-tighter">Event Messages</h2>
+                  </div>
+                  <button onClick={() => setShowMessagesModal(false)} className="p-2 hover:bg-white/5 rounded-full transition-colors">
+                    <X className="w-6 h-6 text-white/40" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
+                  {filteredMessages.allMessages.length > 0 ? (
+                    filteredMessages.allMessages.map((m, i) => (
+                      <motion.div
+                        key={m.id || i} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }}
+                        className={cn(
+                          "p-5 rounded-2xl border backdrop-blur-md",
+                          m.type === "athlete"
+                            ? "bg-indigo-500/5 border-indigo-500/20"
+                            : (m.targetRoles?.length > 0 || m.targetZones?.length > 0)
+                              ? "bg-blue-500/5 border-blue-500/20"
+                              : "bg-emerald-500/5 border-emerald-500/20"
+                        )}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <span className={cn(
+                            "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded",
+                            m.type === "athlete"
+                              ? "bg-indigo-500/20 text-indigo-300"
+                              : (m.targetRoles?.length > 0 || m.targetZones?.length > 0)
+                                ? "bg-blue-500/20 text-blue-300"
+                                : "bg-emerald-500/20 text-emerald-300"
+                          )}>
+                            {m.type === "athlete" ? "Personal" : (m.targetRoles?.length > 0 || m.targetZones?.length > 0 ? "Targeted" : "General")}
+                          </span>
+                          {m.createdAt && <span className="text-[10px] text-white/30 font-bold">{new Date(m.createdAt).toLocaleString()}</span>}
+                        </div>
+                        <p className="text-white/80 font-medium leading-relaxed whitespace-pre-wrap">{m.message}</p>
+                      </motion.div>
+                    ))
+                  ) : (
+                    <div className="h-40 flex flex-col items-center justify-center opacity-20"><MessageSquare className="w-12 h-12 mb-2" /><p className="font-bold uppercase tracking-widest text-xs">No active messages</p></div>
+                  )}
+                </div>
+                <button
+                  onClick={() => setShowMessagesModal(false)}
+                  className="w-full mt-6 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white font-black uppercase tracking-widest text-xs transition-all"
+                >
+                  Close Panel
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-cyan-500/10 rounded-full blur-[120px]" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px]" />
+        </div>
+
+        <motion.div
+          variants={containerVariants} initial="hidden" animate="visible"
+          className="relative z-10 w-full max-w-4xl mx-auto px-4 py-4 md:py-6 flex flex-col items-center shadow-inner"
+        >
+          {eventSettings["banner_url"] && (
+            <motion.div variants={itemVariants} className="w-full mb-3 rounded-2xl overflow-hidden shadow-2xl shadow-cyan-950/20 border border-white/5">
+              <img src={eventSettings["banner_url"]} alt="Event banner" className="w-full h-auto object-contain bg-gray-900" />
+            </motion.div>
+          )}
+
+          {data.status === 'rejected' ? (
+            <motion.div
+              variants={itemVariants}
+              className="w-full mb-6 flex items-center gap-5 px-8 py-7 rounded-[2rem] bg-indigo-950/30 shadow-2xl backdrop-blur-md border border-red-500/40"
+            >
+              <div className="flex-shrink-0">
+                <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full border-[3px] border-red-500 flex items-center justify-center">
+                    <X className="w-6 h-6 text-red-500 stroke-[3.5px]" />
+                  </div>
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h1 className="font-black text-3xl leading-none text-[#ff6b6b] uppercase tracking-tighter mb-2">
+                  Rejected
+                </h1>
+                <p className="text-white/40 text-[10px] font-black uppercase tracking-widest leading-tight">
+                  {data.events?.name}
+                </p>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              variants={itemVariants}
+              className="w-full mb-4 px-4 py-4 rounded-[1.5rem] bg-white shadow-xl shadow-black/20"
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                    <CheckCircle className="w-6 h-6 text-emerald-500" />
+                  </div>
+                  <div className="flex flex-col">
+                    <h3 className="font-black text-sm uppercase tracking-widest text-[#10b981] leading-tight">Valid Accreditation</h3>
+                    <p className="text-[10px] font-black text-slate-900 uppercase leading-tight truncate max-w-[200px]">{data.events?.name}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => loadData()}
+                    className="p-2.5 bg-blue-50 border border-blue-100 rounded-xl transition-all hover:bg-blue-100 active:scale-95"
+                    title="Refresh Schedule"
+                  >
+                    <RotateCcw className="w-5 h-5 text-blue-600" />
+                  </button>
+                  <button onClick={markAllAsRead} className="relative p-2.5 bg-slate-50 border border-slate-100 rounded-xl transition-all">
+                    <Bell className={`w-5 h-5 ${unreadTotal > 0 ? "text-blue-500" : "text-slate-400"}`} />
+                    {unreadTotal > 0 && (
+                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[8px] font-black flex items-center justify-center rounded-full border border-white">{unreadTotal}</span>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {data.status !== 'rejected' && showForQR("events") && (
+            <motion.div
+              variants={itemVariants}
+              className="w-full relative mb-6"
+            >
+              <div className="bg-white rounded-[1.5rem] shadow-xl p-5 border border-slate-100 relative z-10">
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className="relative shrink-0">
+                      <div className="w-20 h-24 border-2 border-slate-100 rounded-2xl overflow-hidden shadow-sm bg-slate-50">
+                        {data.photo_url ? (
+                          <img src={data.photo_url} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <User className="w-8 h-8 text-slate-300" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0 pt-1">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                          <h1 className="text-xl md:text-2xl font-black text-[#2D4A9E] uppercase tracking-tight flex items-center gap-3">
+                            {data.first_name} {data.last_name}
+                            {visibleClearances.length > 0 && (
+                              <div className="hidden md:flex items-center gap-2 ml-4">
+                                {visibleClearances.map(z => (
+                                  <div 
+                                    key={z.id}
+                                    className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500 text-white text-[10px] font-bold shadow-sm"
+                                  >
+                                    <CheckCircle className="w-3 h-3" />
+                                    {z.code} DONE
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </h1>
+                          <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wide mb-2">{data.club || "Individual Participant"}</p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="px-2 py-0.5 bg-blue-50 text-[9px] font-bold text-blue-600 rounded-md uppercase">{data.role}</span>
+                            <span className="px-2 py-0.5 bg-blue-50 text-[9px] font-bold text-blue-600 rounded-md uppercase">{data.gender}</span>
+                            {allocatedSports.map((sport, idx) => (
+                              <span key={`sport-${idx}`} className="px-2.5 py-0.5 bg-cyan-50 border border-cyan-100 text-[9px] font-black text-cyan-600 rounded-md uppercase shadow-sm whitespace-nowrap">
+                                {sport}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        {visibleClearances.length > 0 && (
+                          <div className="flex md:hidden flex-wrap gap-2">
+                            {visibleClearances.map(z => (
+                              <div 
+                                key={z.id}
+                                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500 text-white text-[10px] font-bold shadow-sm"
+                              >
+                                <CheckCircle className="w-3 h-3" />
+                                {z.code} DONE
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between py-3 border-t border-slate-50">
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-black text-slate-900 uppercase">ID: {data.accreditation_id?.split("-")?.pop() || data.id?.slice(0, 8)}</span>
+                      <span className="text-[9px] font-black text-slate-900 uppercase">Badge: {data.badge_number}</span>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <div className="flex items-center gap-3">
+                        {data.nationality && (
+                          <div className="flex items-center gap-1.5">
+                            {getCountryFlag(data.nationality) && <img src={getCountryFlag(data.nationality)} alt="flag" className="w-6 shadow-sm rounded-sm" />}
+                            <span className="text-[10px] font-black text-slate-900 uppercase">{getCountryCode3(data.nationality)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {data.status !== 'rejected' && mergedEvents.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-slate-100">
+                    <div className="space-y-3">
+                      {mergedEvents.map((ev, idx) => {
+                        const displayName = ev.event_name || `Event ${ev.event_code}`;
+                        const seedTime = ev.seed_time || ev.seedTime;
+                        return (
+                          <div key={idx} className="bg-slate-50 border border-slate-100 rounded-2xl p-4 shadow-sm relative overflow-hidden group">
+                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500" />
+                            <div className="flex justify-between items-start gap-4">
+                              <div className="flex gap-3 min-w-0">
+                                <div className="flex flex-col items-center justify-center bg-white border border-slate-200 rounded-lg w-10 h-10 shrink-0 shadow-sm">
+                                  <span className="text-[10px] font-black text-slate-400 uppercase leading-none mb-0.5">Ev</span>
+                                  <span className="text-sm font-black text-slate-900 leading-none">{ev.event_code || ev.event_number}</span>
+                                </div>
+                                <div className="flex flex-col min-w-0 pt-0.5">
+                                  <span className="text-[11px] font-black text-slate-900 leading-tight inline-block uppercase tracking-tight truncate">{displayName}</span>
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-end shrink-0 gap-1.5">
+                                <div className="px-3 py-1 bg-slate-900 text-[9px] font-black text-white rounded-full uppercase tracking-widest whitespace-nowrap shadow-sm">
+                                  H{ev.heat} • L{ev.lane}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+        {data.status !== 'rejected' && (
+          <div className="w-full space-y-4">
+            <div className="mt-4">
+              <AnimatePresence>
+                <div className="space-y-4">
+                  {(filteredMessages.generalMessages.length > 0 || filteredMessages.fallbackMessage) && (
+                    <ExpandableMessageGroup
+                      title="General Broadcast"
+                      messages={filteredMessages.generalMessages.length > 0 ? filteredMessages.generalMessages : (filteredMessages.fallbackMessage ? [{ message: filteredMessages.fallbackMessage, type: "global", createdAt: eventSettings["message_updated_at"] }] : [])}
+                      icon={<Globe className="w-5 h-5" />}
+                      isGeneral
+                      onRead={recalculateUnread}
+                    />
+                  )}
+
+                  {filteredMessages.targetedMessages.length > 0 && (
+                    <ExpandableMessageGroup
+                      title="Targeted Update"
+                      messages={filteredMessages.targetedMessages}
+                      icon={<Search className="w-5 h-5" />}
+                      isTargeted
+                      onRead={recalculateUnread}
+                    />
+                  )}
+
+                  {filteredMessages.personalMessages.length > 0 && (
+                    <ExpandableMessageGroup
+                      title="Personal Notification"
+                      messages={filteredMessages.personalMessages}
+                      icon={<MessageSquare className="w-5 h-5" />}
+                      isPersonal
+                      onRead={recalculateUnread}
+                    />
+                  )}
+                </div>
+              </AnimatePresence>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <DownloadButton url={data.heat_sheet_url} visible={showForQR("heat_sheet_pdf")} label="Heat Sheet" color="blue" />
+              <DownloadButton url={data.event_result_url} visible={showForQR("event_result_pdf")} label="Athlete Result" color="emerald" />
+            </div>
+          </div>
+        )}
+
+        <motion.p variants={itemVariants} className="mt-12 text-white/20 text-[10px] uppercase font-black tracking-[0.5em] text-center">Apex Sports Accreditation System</motion.p>
+      </motion.div>
+
+      <AnimatePresence>
+        {showMedalsModal && (
+          <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-slate-950/80 backdrop-blur-md px-0 sm:px-4">
+            <motion.div initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }} className="bg-white w-full sm:max-w-xl rounded-t-[2.5rem] sm:rounded-[2.5rem] overflow-hidden flex flex-col shadow-2xl border border-white/10" style={{ maxHeight: "92vh" }}>
+              <div className="px-6 py-6 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-20">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center shadow-lg"><Trophy className="w-6 h-6 text-white" /></div>
+                  <div><h3 className="text-lg font-black text-slate-900 uppercase tracking-tighter">Live Results Center</h3><p className="text-[9px] text-amber-600 font-black uppercase tracking-widest leading-none">{data?.events?.name}</p></div>
+                </div>
+                <button onClick={() => setShowMedalsModal(false)} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all"><X className="w-6 h-6 text-slate-400" /></button>
+              </div>
+
+              <div className="px-5 py-4 bg-slate-50 border-b border-slate-100">
+                <div className="grid grid-cols-2 gap-3">
+                  <select value={selectedAgeCategory || ""} onChange={(e) => setSelectedAgeCategory(e.target.value || null)} className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-tight text-slate-900 outline-none">
+                    <option value="">All Ages</option>
+                    {[...new Set(liveMedals.map(m => m.ageCategory))].sort().map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                  </select>
+                  <select value={selectedGender || ""} onChange={(e) => setSelectedGender(e.target.value || null)} className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-tight text-slate-900 outline-none">
+                    <option value="">All Genders</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                {(() => {
+                  const swimmers = {};
+                  liveMedals.filter(r => {
+                    if (selectedAgeCategory && r.ageCategory !== selectedAgeCategory) return false;
+                    if (selectedGender) {
+                      const g = r.gender ? r.gender.toLowerCase() : r.event_name.toLowerCase();
+                      if (selectedGender === 'Male' && !g.includes('boy') && !g.includes('men') && !g.includes('male')) return false;
+                      if (selectedGender === 'Female' && !g.includes('girl') && !g.includes('women') && !g.includes('female')) return false;
+                    }
+                    return true;
+                  }).forEach(r => {
+                    const k = `${r.swimmer_name}-${r.team}`;
+                    if (!swimmers[k]) swimmers[k] = { name: r.swimmer_name, team: r.team, gold: 0, silver: 0, bronze: 0 };
+                    if (Number(r.place) === 1) swimmers[k].gold++;
+                    else if (Number(r.place) === 2) swimmers[k].silver++;
+                    else if (Number(r.place) === 3) swimmers[k].bronze++;
+                  });
+                  const ranked = Object.values(swimmers).sort((a, b) => (b.gold - a.gold) || (b.silver - a.silver) || (b.bronze - a.bronze)).slice(0, 20);
+                  if (ranked.length === 0) return (<div className="py-20 text-center opacity-20 font-black uppercase text-xs">No Data Found</div>);
+                  return (
+                    <div className="space-y-2">
+                      {ranked.map((r, i) => (
+                        <div key={i} className="bg-white border border-slate-100 rounded-2xl p-3 flex items-center justify-between group shadow-sm">
+                          <div className="flex items-center gap-3">
+                            <div className={cn("w-6 h-6 rounded flex items-center justify-center text-[10px] font-black", i < 3 ? "bg-slate-900 text-white" : "text-slate-300")}>{i + 1}</div>
+                            <div className="flex flex-col"><span className="text-[11px] font-black text-slate-900 uppercase truncate max-w-[140px]">{r.name}</span><span className="text-[8px] text-slate-400 font-black uppercase truncate max-w-[120px]">{r.team}</span></div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1 bg-amber-50 px-1.5 py-1 rounded-lg"><span className="text-[10px] font-black text-amber-600">{r.gold}</span></div>
+                            <div className="flex items-center gap-1 bg-slate-50 px-1.5 py-1 rounded-lg"><span className="text-[10px] font-black text-slate-400">{r.silver}</span></div>
+                            <div className="flex items-center gap-1 bg-orange-50 px-1.5 py-1 rounded-lg"><span className="text-[10px] font-black text-orange-900">{r.bronze}</span></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  </ErrorBoundary>
+  );
+}
+
+function ExpandableMessageGroup({ title, messages, icon, isPersonal, isTargeted, isGeneral, onRead }) {
+  const [hasUnread, setHasUnread] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const latestMessage = messages && messages.length > 0 ? messages[0] : null;
+
+  useEffect(() => {
+    if (!latestMessage) return;
+    const readIds = JSON.parse(localStorage.getItem('qr_read_msgs') || "[]");
+    setHasUnread(latestMessage.id && !readIds.includes(latestMessage.id));
+  }, [latestMessage]);
+
+  const toggleExpand = () => {
+    setIsExpanded(!isExpanded);
+    if (!isExpanded && hasUnread && latestMessage?.id) {
+      markRead();
+    }
+  };
+
+  const markRead = () => {
+    if (hasUnread && latestMessage?.id) {
+      const readIds = JSON.parse(localStorage.getItem('qr_read_msgs') || "[]");
+      if (!readIds.includes(latestMessage.id)) {
+        readIds.push(latestMessage.id);
+        localStorage.setItem('qr_read_msgs', JSON.stringify(readIds));
+        setHasUnread(false);
+        if (onRead) onRead();
+      }
+    }
+  };
+
+  const theme = isPersonal
+    ? { border: "border-indigo-500/20", text: "text-indigo-300", bg: "bg-indigo-500/5" }
+    : isTargeted
+      ? { border: "border-blue-500/20", text: "text-blue-300", bg: "bg-blue-500/5" }
+      : { border: "border-emerald-500/20", text: "text-emerald-300", bg: "bg-emerald-500/5" };
+
+  if (!latestMessage) return null;
+
+  return (
+    <motion.div
+      className={cn("w-full bg-white/[0.03] border rounded-[2rem] overflow-hidden transition-all", theme.border)}
+    >
+      <button
+        onClick={toggleExpand}
+        className="w-full flex items-center justify-between p-5 border-b border-white/5 bg-white/[0.01] hover:bg-white/[0.03] transition-colors text-left outline-none group"
+      >
+        <div className="flex items-center gap-4">
+          <div className="relative p-3 rounded-2xl bg-white/5 group-hover:bg-white/10 transition-colors">
+            {React.cloneElement(icon, { className: cn("w-5 h-5", theme.text) })}
+            {hasUnread && <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 border-2 border-[#050b18] rounded-full" />}
+          </div>
+          <div>
+            <h3 className={cn("text-[11px] font-black uppercase tracking-[0.2em]", theme.text)}>{title}</h3>
+            <p className="text-[10px] text-white/40 font-bold uppercase mt-0.5">LATEST UPDATE</p>
+          </div>
+        </div>
+        <div className={cn("p-2 rounded-xl bg-white/5 transition-transform duration-300", isExpanded ? "rotate-180" : "")}>
+          <ChevronDown className="w-4 h-4 text-white/40" />
+        </div>
+      </button>
+
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div className="p-6 pt-2 space-y-4">
+              <div className={cn("p-6 rounded-3xl border border-white/10", theme.bg)}>
+                <div className="flex justify-between mb-4 border-b border-white/5 pb-3">
+                  <div>
+                    <span className="text-[9px] text-white/30 font-black uppercase block mb-1">Timestamp</span>
+                    <span className="text-[10px] text-white/60 font-black">{latestMessage.createdAt ? new Date(latestMessage.createdAt).toLocaleString() : 'Recent'}</span>
+                  </div>
+                  {latestMessage.attachmentUrl && (
+                    <a href={latestMessage.attachmentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-1 bg-white/10 rounded-lg text-white hover:bg-white/20 transition-all">
+                      <Paperclip className="w-3 h-3" />
+                      <span className="text-[9px] font-black uppercase">View File</span>
+                    </a>
+                  )}
+                </div>
+                <p className="text-white font-medium leading-relaxed whitespace-pre-wrap">{latestMessage.message}</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+
+function DownloadButton({ url, visible, label, color }) {
+  if (!url || !visible) return null;
+  const colors = { blue: "from-blue-600 to-blue-700", emerald: "from-emerald-600 to-emerald-700" };
+  return (<a href={url} target="_blank" rel="noopener noreferrer" className={`group flex items-center justify-between gap-4 bg-gradient-to-br ${colors[color]} p-4 pl-6 rounded-2xl text-white font-bold shadow-lg`}><div className="flex flex-col"><span className="text-[10px] text-white/40 uppercase font-black">Download</span><span className="text-sm">{label}</span></div><div className="p-3 bg-black/20 rounded-xl"><Download className="w-4 h-4" /></div></a>);
+}
+
+function ScanSkeleton({ id, phase }) {
+  return (
+    <div className="min-h-screen bg-[#050b18] flex items-center justify-center p-6">
+      <div className="flex flex-col items-center gap-8">
+        <div className="relative">
+          <div className="w-20 h-20 rounded-full border-t-2 border-cyan-500 animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-cyan-500/10 animate-pulse" />
+          </div>
+        </div>
+        <div className="text-center">
+          <p className="text-cyan-500 font-black text-xs uppercase tracking-[0.4em] animate-pulse mb-2">{phase || "Loading Profile"}</p>
+          <p className="text-white/20 text-[10px] font-mono tracking-widest uppercase">ID: {id || "Resolving..."}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ScanError({ error }) {
+  return (<div className="min-h-screen bg-[#050b18] flex items-center justify-center p-6 text-center"><div className="max-w-md"><div className="inline-flex p-5 bg-red-500/10 border border-red-500/20 rounded-[2rem] mb-8"><AlertTriangle className="w-12 h-12 text-red-500" /></div><h2 className="text-3xl font-black text-white uppercase tracking-tight mb-4">Verification Failed</h2><p className="text-white/40 font-medium mb-12">{error || "The scanned accreditation code is invalid."}</p><button onClick={() => window.location.reload()} className="px-8 py-4 bg-white/5 border border-white/10 rounded-2xl text-white font-black uppercase text-xs">Retry Scan</button></div></div>);
+}
+
+
