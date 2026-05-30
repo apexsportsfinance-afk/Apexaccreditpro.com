@@ -107,6 +107,14 @@ export default function AuditLogView({ event }) {
     return Array.from(dates).sort((a, b) => b.localeCompare(a));
   }, [logs]);
 
+  const VALID_ENTRY_MODES = [
+    "attendance", 
+    "zone_access", 
+    "zone_attendance", 
+    "zone_check_in", 
+    "zone_check_out"
+  ];
+
   const areaSummary = useMemo(() => {
     const summary = {};
     const getCanonicalName = (z) => `${z.name} (${z.code})`;
@@ -119,6 +127,10 @@ export default function AuditLogView({ event }) {
     logs.forEach(log => {
       const logDate = new Date(log.created_at).toISOString().split('T')[0];
       if (dateFilter !== "all" && logDate !== dateFilter) return;
+      
+      // ONLY count valid, successful entry scans for zone occupancy metrics
+      if (!VALID_ENTRY_MODES.includes(log.scan_mode)) return;
+
       let areaName = log.device_label || 'Other';
       if (!summary[areaName]) {
         const matchingZone = zones.find(z => areaName === z.name || areaName === `${z.name} (${z.code})` || (z.code && areaName.includes(`(${z.code})`)));
@@ -233,6 +245,10 @@ export default function AuditLogView({ event }) {
     logs.forEach(log => {
       const logDate = new Date(log.created_at).toISOString().split('T')[0];
       if (dateFilter !== "all" && logDate !== dateFilter) return;
+      
+      // ONLY COUNT SUCCESSFUL MAIN GATE ENTRIES
+      if (log.scan_mode !== 'attendance') return;
+
       if (log.athlete_id) unique.add(log.athlete_id);
     });
     return unique.size;
