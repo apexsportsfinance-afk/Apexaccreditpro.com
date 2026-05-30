@@ -1,0 +1,913 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,100..900;1,100..900&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Outfit:wght@100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-heading: 'Plus Jakarta Sans', 'Outfit', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  
+  /* Luxury Gold & Light Ivory Palette (Light Mode) */
+  --primary: #af8f5c;
+  --primary-light: #c5a880;
+  --primary-dark: #8c6e3f;
+  --base: #fcfcfc;
+  --base-alt: #f4f4f5;
+  --main: #18181b;
+  --muted: #71717a;
+  --glass: rgba(252, 252, 252, 0.8);
+  --border: rgba(175, 143, 92, 0.15);
+}
+
+.dark {
+  /* Premium Gold & Velvet Black Palette (Dark Mode) */
+  --primary: #B68B3A;
+  --primary-light: #E0C27B;
+  --primary-dark: #8c6e3f;
+  --base: #07080a;
+  --base-alt: #0d1016;
+  --main: #ededed;
+  --muted: #8a8d9a;
+  --glass: rgba(13, 16, 22, 0.85);
+  --border: rgba(224, 194, 123, 0.16);
+}
+
+.light-form {
+  --base: #ffffff;
+  --base-alt: #f4f4f5;
+  --main: #18181b;
+  --muted: #71717a;
+  --border: rgba(175, 143, 92, 0.25);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--base);
+  color: var(--text-main);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* Premium Typography System Headers & Spacing */
+h1, h2, h3, h4, h5, h6,
+.font-h1, .font-h2,
+.font-black,
+.font-bold {
+  font-family: var(--font-heading) !important;
+  letter-spacing: -0.015em !important;
+}
+
+h1, .font-h1 {
+  font-weight: 900;
+  font-size: 24px;
+  line-height: 1.2;
+  letter-spacing: 0.02em !important;
+  text-transform: uppercase;
+}
+
+h2, .font-h2 {
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.2;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase;
+}
+
+.text-meta {
+  font-family: var(--font-heading) !important;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.25em !important;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+/* Base Component Foundations */
+button,
+.card,
+a,
+input,
+select {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.apex-glass {
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+}
+
+.apex-gradient {
+  background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
+}
+
+.text-gradient {
+  background: linear-gradient(to right, var(--primary-light), var(--primary-dark));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.layout-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  .no-print,
+  nav,
+  header,
+  aside,
+  #admin_sidebar {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .qr-print-preview {
+    border: 1px dashed #ccc !important;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+    background: white !important;
+    padding: 10px;
+  }
+
+  /* Optional dashed line for cutting */
+  .cut-here-line {
+    border-top: 1px dashed #000;
+    margin: 20px 0;
+    text-align: center;
+    position: relative;
+  }
+
+  .cut-here-line::after {
+    content: "✂ Cut here";
+    position: absolute;
+    top: -10px;
+    background: white;
+    padding: 0 10px;
+    font-size: 10px;
+    color: #000;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--base);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 3px;
+  opacity: 0.5;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+/* Focus styles */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Selection */
+::selection {
+  background: rgba(224, 194, 123, 0.25);
+  color: white;
+}
+
+/* ==========================================
+   ELITE OBSIDIAN & BRUSHED CHAMPAGNE GOLD SYSTEM OVERRIDES
+   ========================================== */
+
+/* 1. Master Canvas, Spacing & Depth Layouts */
+html.dark:not(#verify-accreditation-page *):not(.qr-print-preview *),
+.dark body:not(#verify-accreditation-page *):not(.qr-print-preview *),
+.dark #root:not(#verify-accreditation-page *):not(.qr-print-preview *),
+.dark main:not(#verify-accreditation-page *):not(.qr-print-preview *),
+.dark .bg-base:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark .bg-slate-950:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark div[class*="bg-slate-950"]:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark div[class*="bg-gray-950"]:not(#verify-accreditation-page *):not(.qr-print-preview *) {
+  background-color: #050608 !important;
+  background-image: radial-gradient(circle at 50% 0%, #141926 0%, #050608 80%) !important;
+  background-attachment: fixed !important;
+  color: #ededed !important;
+  font-family: var(--font-body) !important;
+  letter-spacing: -0.01em !important;
+  -webkit-font-smoothing: antialiased !important;
+}
+
+/* Page Spacing & Layout Breathing Room */
+.dark .p-lg:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark .lg\:p-xl:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark .p-4:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark .p-6:not(#verify-accreditation-page *):not(.qr-print-preview *) {
+  padding: 38px !important;
+}
+
+.dark .mx-auto:not(#verify-accreditation-page *):not(.qr-print-preview *) {
+  margin-top: 15px !important;
+  margin-bottom: 45px !important;
+}
+
+/* F1/Tesla-grade Brushed Metallic Executive Headings */
+.dark h1:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark h2:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark h3:not(#verify-accreditation-page *):not(.qr-print-preview *),
+.dark .font-h1:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark .font-h2:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark .font-h3:not(#verify-accreditation-page *):not(.qr-print-preview *),
+.dark h1[class*="text-"]:not(#verify-accreditation-page *):not(.qr-print-preview *),
+.dark h2[class*="text-"]:not(#verify-accreditation-page *):not(.qr-print-preview *),
+.dark h3[class*="text-"]:not(#verify-accreditation-page *):not(.qr-print-preview *) {
+  background: linear-gradient(135deg, #ffffff 0%, #dcdcdc 55%, #dfc58b 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  font-family: var(--font-heading) !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.5)) !important;
+}
+
+.dark h1:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark .font-h1:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark h1[class*="text-"]:not(#verify-accreditation-page *):not(.qr-print-preview *) {
+  font-size: 28px !important;
+  letter-spacing: 0.15em !important;
+}
+
+.dark h2:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark .font-h2:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark h2[class*="text-"]:not(#verify-accreditation-page *):not(.qr-print-preview *) {
+  font-size: 20px !important;
+  letter-spacing: 0.12em !important;
+}
+
+.dark h3:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark .font-h3:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark h3[class*="text-"]:not(#verify-accreditation-page *):not(.qr-print-preview *) {
+  font-size: 16px !important;
+  letter-spacing: 0.1em !important;
+}
+
+.dark .text-muted:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark p[class*="text-slate-400"]:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark span[class*="text-slate-400"]:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark .text-meta:not(#verify-accreditation-page *):not(.qr-print-preview *) {
+  color: #8a8d9a !important;
+  font-size: 13px !important;
+  letter-spacing: 0.02em !important;
+}
+
+/* Layered Charcoal Surfaces & Premium Glassmorphic Cards */
+.dark .card:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark .bg-base-alt:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark div[class*="bg-base-alt"]:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark div[class*="bg-slate-900"]:not(#verify-accreditation-page *):not(.qr-print-preview *),
+.dark div[class*="bg-gray-900"]:not(#verify-accreditation-page *):not(.qr-print-preview *),
+.dark div[class*="bg-slate-800/50"]:not(#verify-accreditation-page *):not(.qr-print-preview *),
+.dark .apex-glass:not(#verify-accreditation-page *):not(.qr-print-preview *),
+.dark .panel:not(#verify-accreditation-page *):not(.qr-print-preview *) {
+  background: rgba(13, 16, 22, 0.85) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(224, 194, 123, 0.15) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.75) !important;
+  transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+/* 2. Structured Command / Top Status Strip Banner */
+.dark div[id^="global-network-banner"], 
+.dark #app_pageloader + div {
+  background: rgba(5, 6, 8, 0.98) !important;
+  border-bottom: 2px solid rgba(224, 194, 123, 0.3) !important;
+  box-shadow: 0 4px 25px rgba(184, 146, 70, 0.15) !important;
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+  font-family: var(--font-heading) !important;
+  font-size: 11px !important;
+  letter-spacing: 0.22em !important;
+  text-transform: uppercase !important;
+  color: #dfc58b !important;
+  text-shadow: 0 0 10px rgba(224, 194, 123, 0.3) !important;
+}
+
+/* 3. Deep Structured Premium Sidebar */
+.dark #admin_sidebar {
+  background: linear-gradient(180deg, #050608 0%, #090c12 100%) !important;
+  border-right: 1.5px solid rgba(224, 194, 123, 0.12) !important;
+  box-shadow: 10px 0 45px rgba(0, 0, 0, 0.9) !important;
+}
+
+/* Logo Spacing */
+.dark #admin_sidebar div[class*="min-h-"] {
+  padding-top: 36px !important;
+  padding-bottom: 36px !important;
+}
+
+/* Active Nav Gold Brushed State */
+.dark #admin_sidebar .active {
+  background: linear-gradient(to right, rgba(224, 194, 123, 0.1) 0%, rgba(224, 194, 123, 0.01) 100%) !important;
+  color: #dfc58b !important;
+  border-left: 3.5px solid #dfc58b !important;
+  border-top-left-radius: 0px !important;
+  border-bottom-left-radius: 0px !important;
+  box-shadow: inset 5px 0 15px rgba(184, 146, 70, 0.12), 0 0 20px rgba(224, 194, 123, 0.05) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.04em !important;
+}
+
+.dark #admin_sidebar .active svg {
+  color: #dfc58b !important;
+  filter: drop-shadow(0 0 6px rgba(224, 194, 123, 0.45)) !important;
+}
+
+.dark #admin_sidebar a {
+  transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1) !important;
+  border-left: 3.5px solid transparent !important;
+}
+
+.dark #admin_sidebar a:not(.active):hover {
+  background-color: rgba(224, 194, 123, 0.04) !important;
+  color: #ffffff !important;
+}
+
+/* Profile Section Divider */
+.dark #admin_sidebar div[class*="border-t"] {
+  background-color: #030405 !important;
+  border-top: 1.5px solid rgba(224, 194, 123, 0.12) !important;
+  padding: 26px 30px !important;
+}
+
+/* 4. Luxury Control Panel Filters */
+.dark .filters-container, 
+.dark form[class*="bg-base-alt"] {
+  background: rgba(13, 16, 22, 0.82) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border: 1.5px solid rgba(224, 194, 123, 0.15) !important;
+  border-radius: 18px !important;
+  padding: 32px !important;
+  box-shadow: 0 12px 45px rgba(0, 0, 0, 0.65) !important;
+}
+
+/* Luxury Black Fields & Outlines */
+.dark select:not(.light-form *), 
+.dark input:not(.light-form *), 
+.dark textarea:not(.light-form *),
+.dark input[type="text"]:not(.light-form *),
+.dark input[type="search"]:not(.light-form *),
+.dark input[type="password"]:not(.light-form *),
+.dark input[type="email"]:not(.light-form *),
+.dark select[class*="bg-"]:not(.light-form *),
+.dark input[class*="bg-"]:not(.light-form *) {
+  background-color: #030405 !important;
+  border: 1px solid rgba(224, 194, 123, 0.15) !important;
+  color: #ededed !important;
+  border-radius: 8px !important;
+  padding: 12px 18px !important;
+  font-size: 13px !important;
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.85) !important;
+  transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+.dark select:focus:not(.light-form *), 
+.dark input:focus:not(.light-form *), 
+.dark textarea:focus:not(.light-form *),
+.dark input[type="text"]:focus:not(.light-form *),
+.dark input[type="search"]:focus:not(.light-form *),
+.dark input[type="password"]:focus:not(.light-form *),
+.dark input[type="email"]:focus:not(.light-form *) {
+  border-color: #dfc58b !important;
+  outline: none !important;
+  box-shadow: 0 0 14px rgba(224, 194, 123, 0.35), inset 0 2px 10px rgba(0, 0, 0, 0.85) !important;
+}
+
+.dark .filters-container input:not(.light-form *)::placeholder,
+.dark input:not(.light-form *)::placeholder {
+  color: #5a5d6a !important;
+  font-weight: 500 !important;
+}
+
+/* Dropdown labels */
+.dark label, 
+.dark .text-xs.font-semibold, 
+.dark .text-meta {
+  color: #dfc58b !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase !important;
+}
+
+/* 5. Master-class Floating Table & Cards Redesign */
+.dark table {
+  border-collapse: separate !important;
+  border-spacing: 0 8px !important; /* Space between row cards */
+  width: 100% !important;
+  background-color: transparent !important;
+}
+
+.dark table thead tr {
+  background-color: transparent !important;
+  border-bottom: none !important;
+}
+
+.dark table thead th {
+  color: #dfc58b !important;
+  font-weight: 850 !important;
+  font-size: 11px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.14em !important;
+  padding: 14px 20px !important;
+  border-bottom: 2px solid rgba(224, 194, 123, 0.25) !important;
+}
+
+/* Floating card-row visual structure with hardware accelerated animations */
+.dark table tbody tr {
+  background: linear-gradient(135deg, rgba(20, 24, 33, 0.9) 0%, rgba(13, 16, 22, 0.9) 100%) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.55) !important;
+  border: 1.2px solid rgba(224, 194, 123, 0.06) !important;
+  height: 68px !important;
+  will-change: transform, box-shadow, border-color !important;
+  transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), 
+              background-color 0.4s cubic-bezier(0.25, 1, 0.5, 1), 
+              box-shadow 0.4s cubic-bezier(0.25, 1, 0.5, 1), 
+              border-color 0.4s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+/* Table Row Border Radii collapse workaround */
+.dark table tbody tr td:first-child {
+  border-top-left-radius: 14px !important;
+  border-bottom-left-radius: 14px !important;
+  padding-left: 24px !important;
+}
+
+.dark table tbody tr td:last-child {
+  border-top-right-radius: 14px !important;
+  border-bottom-right-radius: 14px !important;
+  padding-right: 24px !important;
+}
+
+/* Elevate Floating Card on Hover */
+.dark table tbody tr:hover {
+  transform: translateY(-3.5px) !important;
+  background: linear-gradient(135deg, rgba(26, 31, 43, 0.96) 0%, rgba(20, 24, 33, 0.96) 100%) !important;
+  box-shadow: 0 12px 30px rgba(184, 146, 70, 0.12), 0 6px 20px rgba(0, 0, 0, 0.6) !important;
+  border-color: rgba(224, 194, 123, 0.3) !important;
+}
+
+/* Subtle Gold left highlight reveal indicator */
+.dark table tbody tr td {
+  border-top: 1px solid rgba(224, 194, 123, 0.06) !important;
+  border-bottom: 1px solid rgba(224, 194, 123, 0.06) !important;
+  position: relative !important;
+}
+
+.dark table tbody tr td:first-child {
+  border-left: 1.5px solid rgba(224, 194, 123, 0.06) !important;
+}
+
+.dark table tbody tr td:last-child {
+  border-right: 1.5px solid rgba(224, 194, 123, 0.06) !important;
+}
+
+.dark table tbody tr:hover td:first-child {
+  border-left: 3.5px solid #dfc58b !important;
+}
+
+/* Avatar Border Alignments */
+.dark table td img {
+  border: 1.5px solid rgba(224, 194, 123, 0.35) !important;
+  border-radius: 50% !important;
+  padding: 1.5px !important;
+}
+
+/* Micro Action Capsules */
+.dark table td button {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  border-radius: 6px !important;
+  padding: 4px !important;
+  margin-right: 0px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+.dark table td button svg {
+  color: #ededed !important;
+  opacity: 0.85 !important;
+  transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+.dark table td button:hover {
+  background-color: rgba(224, 194, 123, 0.08) !important;
+  border-color: rgba(224, 194, 123, 0.35) !important;
+  box-shadow: 0 0 12px rgba(224, 194, 123, 0.25) !important;
+  transform: scale(1.08) !important;
+}
+
+.dark table td button:hover svg {
+  color: #dfc58b !important;
+  opacity: 1 !important;
+  filter: drop-shadow(0 0 8px rgba(224, 194, 123, 0.75)) !important;
+}
+
+/* Expiry never / Expiration badges */
+.dark span[class*="bg-slate-800"], 
+.dark span[class*="bg-gray-800"], 
+.dark .badge-secondary {
+  background-color: #12141a !important;
+  color: #a1a1aa !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  font-weight: 700 !important;
+  border-radius: 6px !important;
+  padding: 4px 12px !important;
+}
+
+/* 6. Primary Shiny Brushed Gold Buttons (e.g. "+ Add Accreditation") */
+.dark button.bg-primary-500, 
+.dark button.bg-primary, 
+.dark .btn-primary, 
+.dark .bg-primary-600 {
+  background: linear-gradient(135deg, #101524 0%, #0d111d 100%) !important;
+  color: #dfc58b !important;
+  font-weight: 850 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  border: 1.5px solid rgba(224, 194, 123, 0.45) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 6px 20px rgba(16, 21, 36, 0.6), inset 0 1px 0 rgba(224, 194, 123, 0.15) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6) !important;
+  transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1) !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.dark button.bg-primary-500::after, 
+.dark button.bg-primary::after, 
+.dark .btn-primary::after, 
+.dark .bg-primary-600::after {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: -50% !important;
+  width: 200% !important;
+  height: 100% !important;
+  background: linear-gradient(to right, transparent, rgba(224, 194, 123, 0.08), transparent) !important;
+  transform: skewX(-25deg) !important;
+  transition: 0.75s ease !important;
+}
+
+.dark button.bg-primary-500:hover::after, 
+.dark button.bg-primary:hover::after, 
+.dark .btn-primary:hover::after, 
+.dark .bg-primary-600:hover::after {
+  left: 125% !important;
+}
+
+.dark button.bg-primary-500:hover, 
+.dark button.bg-primary:hover, 
+.dark .btn-primary:hover, 
+.dark .bg-primary-600:hover {
+  box-shadow: 0 0 25px rgba(224, 194, 123, 0.25), inset 0 1px 0 rgba(224, 194, 123, 0.25) !important;
+  border-color: #dfc58b !important;
+  background: linear-gradient(135deg, #161d30 0%, #101524 100%) !important;
+  transform: translateY(-1.5px) !important;
+}
+
+/* Hollow Champagne Gold Outlined Export Buttons */
+.dark button.border-border, 
+.dark button[class*="border-primary/20"],
+.dark .btn-secondary {
+  background-color: transparent !important;
+  border: 1.5px solid rgba(224, 194, 123, 0.45) !important;
+  color: #dfc58b !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  border-radius: 8px !important;
+  transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+.dark button.border-border:hover, 
+.dark button[class*="border-primary/20"]:hover,
+.dark .btn-secondary:hover {
+  background-color: rgba(224, 194, 123, 0.08) !important;
+  border-color: #dfc58b !important;
+  box-shadow: 0 0 14px rgba(224, 194, 123, 0.25) !important;
+}
+
+/* 7. Luxury Gold Role Badges & Approved status */
+.dark span[class*="bg-sky-500"]:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark span[class*="bg-blue-"]:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark span[class*="bg-sky-"]:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark span[class*="bg-indigo-"]:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark span[class*="bg-cyan-"]:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark span[class*="bg-teal-"]:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark span[class*="bg-slate-700"]:not(#verify-accreditation-page *):not(.qr-print-preview *), 
+.dark .badge-role:not(#verify-accreditation-page *):not(.qr-print-preview *) {
+  background: linear-gradient(135deg, #dfc58b 0%, #b89246 100%) !important;
+  color: #000000 !important;
+  font-weight: 900 !important;
+  font-size: 10px !important;
+  letter-spacing: 0.08em !important;
+  border-radius: 6px !important;
+  padding: 4px 14px !important;
+  text-transform: uppercase !important;
+  box-shadow: 0 3px 10px rgba(184, 146, 70, 0.3) !important;
+  border: 1px solid rgba(224, 194, 123, 0.5) !important;
+}
+
+/* Emerald green for approved statuses for high visibility */
+.dark span[class*="bg-emerald-500\/10"], 
+.dark span.text-emerald-500,
+.dark span.text-emerald-400,
+.dark span[class*="bg-emerald-500"] {
+  border: 1.5px solid rgba(16, 185, 129, 0.5) !important;
+  color: #10b981 !important;
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  font-weight: 800 !important;
+  font-size: 10px !important;
+  letter-spacing: 0.06em !important;
+  border-radius: 6px !important;
+  padding: 4px 14px !important;
+}
+
+/* Clear icon and select highlights */
+.dark .text-primary-500, 
+.dark .text-primary {
+  color: #dfc58b !important;
+}
+
+/* 8. Modals & Popups Glassmorphic Backdrop */
+.dark div[class*="fixed inset-0 z-50"],
+.dark div[class*="fixed inset-0 z-40"],
+.dark div[class*="bg-slate-900/80"],
+.dark .modal-backdrop {
+  backdrop-filter: blur(12px) !important;
+  background-color: rgba(5, 6, 8, 0.8) !important;
+}
+
+.dark div[role="dialog"],
+.dark .modal-content,
+.dark .modal-dialog {
+  background: rgba(13, 16, 22, 0.95) !important;
+  backdrop-filter: blur(28px) !important;
+  -webkit-backdrop-filter: blur(28px) !important;
+  border: 1.5px solid rgba(224, 194, 123, 0.25) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.9) !important;
+  transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+/* 9. Elite Gold-Dusted Custom Scrollbars */
+.dark::-webkit-scrollbar,
+.dark *::-webkit-scrollbar {
+  width: 8px !important;
+  height: 8px !important;
+}
+
+.dark::-webkit-scrollbar-track,
+.dark *::-webkit-scrollbar-track {
+  background: #050608 !important;
+}
+
+.dark::-webkit-scrollbar-thumb,
+.dark *::-webkit-scrollbar-thumb {
+  background: rgba(224, 194, 123, 0.15) !important;
+  border-radius: 9999px !important;
+  border: 2px solid #050608 !important;
+}
+
+.dark::-webkit-scrollbar-thumb:hover,
+.dark *::-webkit-scrollbar-thumb:hover {
+  background: rgba(224, 194, 123, 0.35) !important;
+}
+
+/* ==========================================
+   RESTORE ORIGINAL LIGHT REGISTRATION FORM STYLES & FIX ICON PADDINGS
+   ========================================== */
+
+/* Fix input & select padding overrides for fields with left icons globally */
+html body #root input.pl-14,
+html body #root select.pl-14,
+.dark input.pl-14,
+.dark select.pl-14 {
+  padding-left: 3.5rem !important;
+}
+
+html body #root input.pl-11,
+html body #root select.pl-11,
+.dark input.pl-11,
+.dark select.pl-11 {
+  padding-left: 2.75rem !important;
+}
+
+html body #root input.pl-12,
+html body #root select.pl-12,
+.dark input.pl-12,
+.dark select.pl-12 {
+  padding-left: 3.0rem !important;
+}
+
+html body #root input.pr-12,
+html body #root select.pr-12,
+.dark input.pr-12,
+.dark select.pr-12 {
+  padding-right: 3rem !important;
+}
+
+.light-form, 
+.light-form * {
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: initial !important;
+  background-clip: unset !important;
+  text-fill-color: initial !important;
+  filter: none !important;
+}
+
+.light-form {
+  --base: #ffffff !important;
+  --base-alt: #f8fafc !important;
+  --main: #1e293b !important;
+  --muted: #64748b !important;
+  --border: #e2e8f0 !important;
+}
+
+#root .light-form h1,
+#root .light-form h2,
+#root .light-form h3,
+#root .light-form h1[class*="text-"],
+#root .light-form h2[class*="text-"],
+#root .light-form h3[class*="text-"],
+#root .light-form .text-cyan-700 {
+  color: #0e7490 !important; /* cyan-700 */
+  font-family: inherit !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  background: none !important;
+  -webkit-text-fill-color: #0e7490 !important;
+  filter: none !important;
+  text-shadow: none !important;
+}
+
+#root .light-form label,
+#root .light-form .text-slate-700,
+#root .light-form label.block.text-lg {
+  color: #334155 !important; /* slate-700 */
+  font-weight: 600 !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+}
+
+#root .light-form input,
+#root .light-form input[type="text"],
+#root .light-form input[type="email"],
+#root .light-form input[type="tel"],
+#root .light-form input[type="date"],
+#root .light-form input[type="password"],
+#root .light-form input[type="search"],
+#root .light-form input[class*="bg-"],
+#root .light-form select,
+#root .light-form select[class*="bg-"],
+#root .light-form textarea,
+#root .light-form select.bg-base,
+#root .light-form input.bg-base,
+#root .light-form button.bg-base,
+#root .light-form div.bg-base {
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border: 2px solid #e2e8f0 !important; /* slate-200 */
+  color: #1e293b !important; /* slate-800 */
+  box-shadow: none !important;
+  border-radius: 12px !important;
+  padding-top: 0.625rem !important;
+  padding-bottom: 0.625rem !important;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+}
+
+/* Fix for inputs with icons (pl-11 class) */
+#root .light-form input.pl-11,
+#root .light-form input[type="text"].pl-11,
+#root .light-form input[type="email"].pl-11,
+#root .light-form input[type="tel"].pl-11,
+#root .light-form input[class*="bg-"].pl-11 {
+  padding-left: 2.75rem !important;
+}
+
+/* Fix for inputs with icons (pl-12 and pr-12 class) globally */
+html body #root input.pl-12,
+html body #root input[type="text"].pl-12,
+html body #root input[type="email"].pl-12,
+html body #root input[type="tel"].pl-12,
+html body #root input[type="password"].pl-12,
+html body #root input[class*="bg-"].pl-12 {
+  padding-left: 3.25rem !important;
+}
+
+html body #root input.pr-12,
+html body #root input[type="text"].pr-12,
+html body #root input[type="email"].pr-12,
+html body #root input[type="tel"].pr-12,
+html body #root input[type="password"].pr-12,
+html body #root input[class*="bg-"].pr-12 {
+  padding-right: 3.25rem !important;
+}
+
+#root .light-form input:focus,
+#root .light-form select:focus,
+#root .light-form textarea:focus,
+#root .light-form select.bg-base:focus,
+#root .light-form input.bg-base:focus {
+  border-color: #06b6d4 !important; /* cyan-500 */
+  box-shadow: 0 0 0 4px rgba(6, 180, 212, 0.1) !important;
+  outline: none !important;
+}
+
+#root .light-form input::placeholder {
+  color: #94a3b8 !important; /* slate-400 */
+}
+
+/* Maintain light background card aesthetics */
+#root .light-form.bg-white {
+  background-color: #ffffff !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Ensure the email icon inside light form renders in cyan */
+#root .light-form .text-primary-500,
+#root .light-form .text-primary,
+#root .light-form svg.text-primary-500 {
+  color: #06b6d4 !important; /* cyan-500 */
+}
+
+/* Protect Register Page Top Headers from Dark Mode Gradients */
+#root #register_page > div > div > h1,
+#root #register_page > div > div > h2,
+#root #register_page h1[class*="text-"],
+#root #register_page h2[class*="text-"] {
+  background: none !important;
+  -webkit-text-fill-color: initial !important;
+  text-shadow: none !important;
+  filter: none !important;
+}
+
+/* Fix dropdown options and text within the light-form */
+#root .light-form .text-main {
+  color: #1e293b !important; /* slate-800 */
+}
+
+#root .light-form .text-muted {
+  color: #64748b !important; /* slate-500 */
+}
+
+#root .light-form .border-border {
+  border-color: #e2e8f0 !important; /* slate-200 */
+}
+
+#root .light-form .bg-base-alt\/50,
+#root .light-form .bg-base-alt {
+  background-color: #f8fafc !important; /* slate-50 */
+}
+
+#root .light-form button.hover\:bg-base-alt:hover {
+  background-color: #f1f5f9 !important; /* slate-100 */
+}
+
+#root .light-form .divide-border > :not([hidden]) ~ :not([hidden]) {
+  border-color: #e2e8f0 !important; /* slate-200 */
+}
