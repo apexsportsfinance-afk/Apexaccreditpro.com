@@ -69,7 +69,7 @@ export default function Users() {
     try {
       const [userData, eventData, mappingData, moduleData] = await Promise.all([
         UsersAPI.getAll(),
-        EventsAPI.getAll(),
+        EventsAPI.getAllMinimal(),
         UsersAPI.getAccessMappings(),
         UsersAPI.getModuleAccessMappings()
       ]);

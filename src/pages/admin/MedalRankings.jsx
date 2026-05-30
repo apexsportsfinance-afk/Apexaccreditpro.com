@@ -77,7 +77,7 @@ export default function MedalRankings() {
   const fetchLiveEvents = async () => {
     setEventsLoading(true);
     try {
-      const events = await EventsAPI.getAll();
+      const events = await EventsAPI.getAllMinimal();
       const filtered = events.filter(e => canAccessEvent(e.id));
       setLiveEvents(filtered || []);
     } catch (err) {
@@ -106,7 +106,7 @@ export default function MedalRankings() {
            // Better to filter in a separate effect or useMemo if possible, 
            // but setResults is direct.
            // Let's ensure we have accessible event names.
-           const allEvents = await EventsAPI.getAll();
+           const allEvents = await EventsAPI.getAllMinimal();
            const myEvents = allEvents.filter(e => canAccessEvent(e.id));
            const myNames = myEvents.map(e => e.name);
            setResults(data.filter(r => myNames.includes(r.competition)));

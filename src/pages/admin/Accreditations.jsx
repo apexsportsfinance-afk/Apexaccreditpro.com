@@ -173,7 +173,7 @@ export default function Accreditations() {
     const initializeData = async () => {
       setLoading(true);
       try {
-        const allEventsData = await EventsAPI.getAll();
+        const allEventsData = await EventsAPI.getAllMinimal();
         const filteredEvents = allEventsData.filter(e => canAccessEvent(e.id));
         setEvents(filteredEvents);
 

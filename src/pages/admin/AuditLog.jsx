@@ -66,7 +66,7 @@ export default function AuditLog() {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const data = await EventsAPI.getAll();
+        const data = await EventsAPI.getAllMinimal();
         setEvents(data || []);
       } catch (err) {
         console.error("Failed to fetch events:", err);

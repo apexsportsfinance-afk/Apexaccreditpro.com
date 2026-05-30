@@ -207,7 +207,7 @@ export default function SpectatorPortal() {
       // FALLBACK Logic: If slug is missing or event not found, get the latest active event
       // This prevents 'Scan to Book' QR codes from bouncing back to Home Page
       if (!eventData) {
-        const all = await EventsAPI.getAll();
+        const all = await EventsAPI.getAllMinimal();
         eventData = all.find(e => e.registrationOpen) || all[0];
         if (eventData) {
           // Auto-fix URL silently for consistency

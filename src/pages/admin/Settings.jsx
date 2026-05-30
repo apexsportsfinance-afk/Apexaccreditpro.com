@@ -76,7 +76,7 @@ export default function Settings() {
 
   const loadEvents = async () => {
     try {
-      const data = await EventsAPI.getAll();
+      const data = await EventsAPI.getAllMinimal();
       setEvents(data || []);
     } catch (err) {
       console.error("Failed to load events:", err);

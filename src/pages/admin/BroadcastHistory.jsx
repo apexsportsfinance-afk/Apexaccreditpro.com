@@ -34,7 +34,7 @@ export default function BroadcastHistory() {
     try {
       const [allBroadcasts, allEvents] = await Promise.all([
         BroadcastV2API.getAll(),
-        EventsAPI.getAll()
+        EventsAPI.getAllMinimal()
       ]);
       
       // Client-side join for event names

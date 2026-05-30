@@ -183,7 +183,7 @@ export default function Events() {
   const loadEvents = async () => {
     try {
       setFetchingEvents(true);
-      const data = await EventsAPI.getAll();
+      const data = await EventsAPI.getAllMinimal();
       const filteredData = data.filter(e => canAccessEvent(e.id));
       setEvents(filteredData);
       
@@ -235,6 +235,9 @@ export default function Events() {
 
   const handleOpenModal = async (event = null) => {
     if (event) {
+      const fullEvent = await EventsAPI.getById(event.id);
+      event = fullEvent || event;
+
       // 1. Initialize variables with defaults
       let extSport = ["Swimming"];
       let customFields = [];

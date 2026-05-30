@@ -94,7 +94,7 @@ export default function Ticketing() {
 
   const loadEvents = async () => {
     try {
-      const data = await EventsAPI.getAll();
+      const data = await EventsAPI.getAllMinimal();
       const filtered = data.filter(e => canAccessEvent(e.id));
       setEvents(filtered);
       if (filtered.length > 0) {

@@ -41,7 +41,7 @@ export default function Feedback() {
   useEffect(() => {
     async function init() {
       try {
-        const evs = await EventsAPI.getAll();
+        const evs = await EventsAPI.getAllMinimal();
         const filtered = evs.filter(e => canAccessEvent(e.id));
         setEvents(filtered);
         if (filtered.length > 0) setSelectedEventId(filtered[0].id);

@@ -76,7 +76,7 @@ export default function Zones() {
   }, [sourceEventId, copyModalOpen]);
 
   const loadEvents = async () => {
-    const allEvents = await EventsAPI.getAll();
+    const allEvents = await EventsAPI.getAllMinimal();
     const filtered = allEvents.filter(e => canAccessEvent(e.id));
     setEvents(filtered);
     if (filtered.length > 0) {
