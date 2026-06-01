@@ -879,7 +879,13 @@ html body #root input[class*="bg-"].pr-12 {
 #root #register_page > div > div > h1,
 #root #register_page > div > div > h2,
 #root #register_page h1[class*="text-"],
-#root #register_page h2[class*="text-"] {
+#root #register_page h2[class*="text-"],
+#root #register_closed h1,
+#root #register_closed h2,
+#root #register_not-found h1,
+#root #register_not-found h2,
+#root #register_success h1,
+#root #register_success h2 {
   background: none !important;
   -webkit-text-fill-color: initial !important;
   text-shadow: none !important;
