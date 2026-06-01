@@ -262,7 +262,7 @@ export default function BroadcastHistory() {
                       </span>
                     )}
                   </div>
-                  <p className="text-white text-sm font-medium leading-snug line-clamp-1">
+                  <p dir="auto" style={{ textAlign: 'start' }} className="text-white text-sm font-medium leading-snug line-clamp-1">
                     {editingId === b.id ? "Editing message..." : b.message}
                   </p>
                   <p className="text-gray-500 text-[10px] font-bold uppercase tracking-wider mt-1">
@@ -329,6 +329,8 @@ export default function BroadcastHistory() {
                     <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest mb-2">Full Message</p>
                     {editingId === b.id ? (
                       <textarea
+                        dir="auto"
+                        style={{ textAlign: 'start' }}
                         value={editMessage}
                         onChange={(e) => setEditMessage(e.target.value)}
                         className={`w-full p-4 rounded-xl border text-sm text-white/90 leading-relaxed font-medium focus:outline-none focus:ring-1 focus:ring-blue-500/50 resize-y min-h-[100px] ${
@@ -339,7 +341,7 @@ export default function BroadcastHistory() {
                         placeholder="Update broadcast message..."
                       />
                     ) : (
-                      <div className={`p-4 rounded-xl border text-sm text-white/90 leading-relaxed font-medium whitespace-pre-wrap ${
+                      <div dir="auto" style={{ textAlign: 'start' }} className={`p-4 rounded-xl border text-sm text-white/90 leading-relaxed font-medium whitespace-pre-wrap ${
                         b.type === "global"
                           ? "bg-emerald-500/5 border-emerald-500/10"
                           : "bg-orange-500/5 border-orange-500/10"

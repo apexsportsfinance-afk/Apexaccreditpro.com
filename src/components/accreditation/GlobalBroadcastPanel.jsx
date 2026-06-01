@@ -227,7 +227,7 @@ function GeneralBroadcastPage({ eventId, onToast, draft, setDraft, disabled }) {
           )}
         </div>
       </div>
-      <textarea value={message} onChange={e => setMessage(e.target.value)} rows={5} placeholder={disabled ? "View only" : "Message for everyone..."} disabled={disabled} className={cn("w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none transition-all resize-none", disabled && "opacity-50 cursor-not-allowed")} />
+      <textarea dir="auto" style={{ textAlign: 'start' }} value={message} onChange={e => setMessage(e.target.value)} rows={5} placeholder={disabled ? "View only" : "Message for everyone..."} disabled={disabled} className={cn("w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none transition-all resize-none", disabled && "opacity-50 cursor-not-allowed")} />
       <div className="flex items-center gap-3">
         <label className={cn("flex items-center gap-2 px-4 py-2 bg-gray-900 border border-gray-700 rounded-xl text-sm text-gray-300 transition-all", disabled ? "opacity-30 cursor-not-allowed" : "cursor-pointer")}>
           <Paperclip className="w-4 h-4 text-emerald-400" />
@@ -309,7 +309,7 @@ function TargetedBroadcastPage({ eventId, onToast, draft, setDraft, disabled }) 
           ))}</div>
         </div>
       </div>
-      <textarea value={message} onChange={e => setMessage(e.target.value)} rows={4} placeholder={disabled ? "View only" : "Message for targeted groups..."} disabled={disabled} className={cn("w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none transition-all resize-none", disabled && "opacity-50 cursor-not-allowed")} />
+      <textarea dir="auto" style={{ textAlign: 'start' }} value={message} onChange={e => setMessage(e.target.value)} rows={4} placeholder={disabled ? "View only" : "Message for targeted groups..."} disabled={disabled} className={cn("w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none transition-all resize-none", disabled && "opacity-50 cursor-not-allowed")} />
       <div className="flex items-center gap-3">
         <label className={cn("flex items-center gap-2 px-4 py-2 bg-gray-900 border border-gray-700 rounded-xl text-sm text-gray-300 transition-all", disabled ? "opacity-30 cursor-not-allowed" : "cursor-pointer")}>
           <Paperclip className="w-4 h-4 text-blue-400" />
@@ -843,6 +843,8 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft, disabled })
           <div>
             <label className="block text-gray-400 text-xs font-bold uppercase tracking-widest mb-3">Athlete Broadcast Message</label>
             <textarea
+              dir="auto"
+              style={{ textAlign: 'start' }}
               value={message}
               onChange={e => setMessage(e.target.value)}
               maxLength={1000}

@@ -132,6 +132,30 @@ export default function VerifyAccreditation() {
   const [expandedMeetings, setExpandedMeetings] = useState([]);
   const [expandedDates, setExpandedDates] = useState({});
 
+  // PWA Install State
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setIsInstallable(true);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setIsInstallable(false);
+    }
+    setDeferredPrompt(null);
+  };
+
   const toggleMeeting = (groupName) => {
     setExpandedMeetings(prev => 
       prev.includes(groupName) ? prev.filter(m => m !== groupName) : [...prev, groupName]
@@ -917,7 +941,7 @@ export default function VerifyAccreditation() {
                           </span>
                           {m.createdAt && <span className="text-[10px] text-white/30 font-bold">{new Date(m.createdAt).toLocaleString()}</span>}
                         </div>
-                        <p className="text-white/80 font-medium leading-relaxed whitespace-pre-wrap">{m.message}</p>
+                        <p dir="auto" style={{ textAlign: 'start' }} className="text-white/80 font-medium leading-relaxed whitespace-pre-wrap">{m.message}</p>
                       </motion.div>
                     ))
                   ) : (
@@ -944,6 +968,36 @@ export default function VerifyAccreditation() {
           variants={containerVariants} initial="hidden" animate="visible"
           className="relative z-10 w-full max-w-4xl mx-auto px-4 py-4 md:py-6 flex flex-col items-center shadow-inner"
         >
+          {/* PWA Install Prompt */}
+          <AnimatePresence>
+            {isInstallable && (
+              <motion.div
+                initial={{ opacity: 0, y: -20, height: 0 }}
+                animate={{ opacity: 1, y: 0, height: 'auto' }}
+                exit={{ opacity: 0, y: -20, height: 0 }}
+                className="w-full mb-6 overflow-hidden"
+              >
+                <div className="bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between shadow-2xl border border-white/20 gap-4">
+                  <div className="flex items-center gap-4 text-left w-full sm:w-auto">
+                    <div className="p-3 bg-white/20 rounded-xl shrink-0">
+                      <Download className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-white font-black uppercase tracking-wider text-sm sm:text-base">Install Event App</h3>
+                      <p className="text-white/80 text-xs sm:text-sm font-medium">Add to your home screen for quick access</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleInstallClick}
+                    className="w-full sm:w-auto px-6 py-3 bg-white text-blue-600 hover:bg-slate-50 font-black uppercase tracking-widest text-xs rounded-xl shadow-lg transition-transform active:scale-95 whitespace-nowrap"
+                  >
+                    Install Now
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {eventSettings["banner_url"] && (
             <motion.div variants={itemVariants} className="w-full mb-3 rounded-2xl overflow-hidden shadow-2xl shadow-cyan-950/20 border border-white/5">
               <img src={eventSettings["banner_url"]} alt="Event banner" className="w-full h-auto object-contain bg-gray-900" />
@@ -1553,7 +1607,7 @@ function ExpandableMessageGroup({ title, messages, icon, isPersonal, isTargeted,
                     </a>
                   )}
                 </div>
-                <p className="text-white font-medium leading-relaxed whitespace-pre-wrap">{latestMessage.message}</p>
+                <p dir="auto" style={{ textAlign: 'start' }} className="text-white font-medium leading-relaxed whitespace-pre-wrap">{latestMessage.message}</p>
               </div>
             </div>
           </motion.div>
