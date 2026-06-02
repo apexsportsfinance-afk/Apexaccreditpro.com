@@ -191,7 +191,7 @@ export const BackgroundProvider = ({ children }) => {
             console.warn("[BackgroundQueue] Skipping email dispatch: No email address found.");
           } else {
             try {
-              await sendApprovalEmail({
+              const emailResult = await sendApprovalEmail({
                 to: finalDelivered.email,
                 name: `${finalDelivered.firstName} ${finalDelivered.lastName}`,
                 eventName: eventData?.name || "Event",
@@ -206,9 +206,16 @@ export const BackgroundProvider = ({ children }) => {
                 pdfBase64: pdfBase64 || null,
                 pdfFileName: pdfName || null
               });
-              console.log("[BackgroundQueue] Email notification dispatched successfully.");
+              
+              if (emailResult && !emailResult.success) {
+                console.warn("[BackgroundQueue] Email dispatch blocked/failed:", emailResult.error);
+                toast.error(`Accreditation approved, but email failed: ${emailResult.error}`);
+              } else {
+                console.log("[BackgroundQueue] Email notification dispatched successfully.");
+              }
             } catch (emailErr) {
-              console.error("[BackgroundQueue] Email delivery failed:", emailErr);
+              console.error("[BackgroundQueue] Email delivery threw error:", emailErr);
+              toast.error("Email delivery failed to execute.");
             }
           }
         }
