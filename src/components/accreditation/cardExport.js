@@ -475,6 +475,21 @@ export const downloadAsImages = async (accreditation, event, zones, baseName, sc
   }
 };
 
+const buildPDFWithRetry = async (acc, event, zones, scale, sizeKey, maxRetries = 2) => {
+  let lastErr;
+  for (let r = 0; r < maxRetries; r++) {
+    try {
+      return await buildPDF(acc, event, zones, scale, sizeKey);
+    } catch (err) {
+      lastErr = err;
+      console.warn(`Retry ${r + 1} for ${acc?.firstName} failed:`, err);
+      // Wait before retrying to let the DOM/memory recover
+      await new Promise(res => setTimeout(res, 1000));
+    }
+  }
+  throw lastErr;
+};
+
 export const bulkDownloadPDFs = async (
   accreditations,
   event,
@@ -503,7 +518,7 @@ export const bulkDownloadPDFs = async (
       }
       
       try {
-        const pdf = await buildPDF(acc, event, zones, scale, sizeKey);
+        const pdf = await buildPDFWithRetry(acc, event, zones, scale, sizeKey);
         const pdfBlob = pdf.output("blob");
         // Use sequential index to guarantee unique, ordered filenames in the zip
         const paddedIndex = String(i + 1).padStart(3, "0");

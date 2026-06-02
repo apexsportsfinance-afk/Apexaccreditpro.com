@@ -91,6 +91,10 @@ const useRoleBannerPng = (role, bgColor, textColor = "#000000", fontSize = "14px
       currentX += charWidths[i] + letterSpacing;
     });
     setUrl(canvas.toDataURL("image/png"));
+    
+    // Explicitly free canvas memory
+    canvas.width = 0;
+    canvas.height = 0;
   }, [role, bgColor, textColor, fontSize, fontWeight, width, height]);
   return url;
 };
@@ -115,6 +119,10 @@ const useCountryNamePng = (name, fontSize = 11) => {
     ctx.textAlign = "left";
     ctx.fillText(name, 0, height / 2);
     setUrl(canvas.toDataURL("image/png"));
+    
+    // Explicitly free canvas memory
+    canvas.width = 0;
+    canvas.height = 0;
   }, [name, fontSize]);
   return url;
 };
@@ -148,6 +156,10 @@ const useZoneBadgePngs = (codes, zones = []) => {
       ctx.textBaseline = "middle";
       ctx.fillText(code, DISPLAY / 2, DISPLAY / 2 + 0.5);
       result[code] = canvas.toDataURL("image/png");
+      
+      // Explicitly free canvas memory
+      canvas.width = 0;
+      canvas.height = 0;
     });
     setBadges(result);
   }, [codesKey, zonesKey]);
@@ -199,12 +211,17 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
   });
   const categoryStyle = categoryMatch?.category || categoryMatch || {};
 
-  const zoneCodes = accreditation?.zoneCode?.split(",").map(z => z.trim()).filter(code => {
-    if (!code) return false;
-    const zoneInfo = zones.find(z => String(z.code).toUpperCase() === String(code).toUpperCase());
-    // STRICT FILTER: If the zone is marked as hidden, it MUST NOT appear on the printed card
-    return zoneInfo && !zoneInfo?.settings?.isHidden;
-  }) || [];
+  let rawZoneCode = accreditation?.zoneCode;
+  if (Array.isArray(rawZoneCode)) rawZoneCode = rawZoneCode.join(",");
+  const zoneCodes = (typeof rawZoneCode === "string" ? rawZoneCode : "")
+    .split(",")
+    .map(z => z.trim())
+    .filter(code => {
+      if (!code) return false;
+      const zoneInfo = zones.find(z => String(z.code).toUpperCase() === String(code).toUpperCase());
+      // STRICT FILTER: If the zone is marked as hidden, it MUST NOT appear on the printed card
+      return zoneInfo && !zoneInfo?.settings?.isHidden;
+    });
   const countryData = COUNTRIES.find(c => 
     c.code?.toUpperCase() === accreditation?.nationality?.toUpperCase() || 
     c.name?.toLowerCase() === accreditation?.nationality?.toLowerCase()
@@ -226,7 +243,10 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
   );
   const countryNameUrl = useCountryNamePng(countryName, countryFontSize);
   const expired = typeof isExpired === "function" ? isExpired(accreditation?.expiresAt) : false;
-  const idNumber = accreditation?.accreditationId?.split("-")?.pop() || "---";
+  
+  const idStr = String(accreditation?.accreditationId || "");
+  const idNumber = idStr.includes("-") ? idStr.split("-").pop() : (idStr || "---");
+  
   const nameFontSize = getNameFontSize(accreditation?.firstName, accreditation?.lastName);
   const fullName = `${accreditation?.firstName || "FIRST"} ${accreditation?.lastName || "LAST"}`;
 
