@@ -69,19 +69,24 @@ export const BackgroundProvider = ({ children }) => {
         
         if (pdfResult?.pdfBlob) {
           // Upload to storage
-          const { url } = await uploadToStorage(
-            new File([pdfResult.pdfBlob], pdfResult.pdfFileName, { type: "application/pdf" }),
-            "accreditations/pdfs"
-          );
-          
-          // Update database with URL
-          const updated = await AccreditationsAPI.update(id, {
-            documents: {
-              ...(currentAcc.documents || {}),
-              accreditation_pdf: url
-            }
-          });
-          if (onSuccess) onSuccess(updated);
+          try {
+            const { url } = await uploadToStorage(
+              new File([pdfResult.pdfBlob], pdfResult.pdfFileName, { type: "application/pdf" }),
+              "accreditations/pdfs"
+            );
+            
+            // Update database with URL
+            const updated = await AccreditationsAPI.update(id, {
+              documents: {
+                ...(currentAcc.documents || {}),
+                accreditation_pdf: url
+              }
+            });
+            if (onSuccess) onSuccess(updated);
+          } catch (uploadErr) {
+            console.error("[BackgroundQueue] PDF upload to storage failed:", uploadErr);
+            if (onSuccess) onSuccess(currentAcc); // Fallback success
+          }
         } else if (onSuccess) {
           onSuccess(pdfResult);
         }
@@ -154,19 +159,23 @@ export const BackgroundProvider = ({ children }) => {
         let finalPdfUrl = null;
         if (pdfBlob) {
           console.log(`[BackgroundQueue] PDF generated successfully. Uploading to storage...`);
-          const { url } = await uploadToStorage(
-            new File([pdfBlob], pdfName, { type: "application/pdf" }),
-            "accreditations/pdfs"
-          );
-          finalPdfUrl = url;
-          
-          // Update database with URL
-          await AccreditationsAPI.update(id, {
-            documents: {
-              ...(fullyUpdatedAcc.documents || {}),
-              accreditation_pdf: url
-            }
-          });
+          try {
+            const { url } = await uploadToStorage(
+              new File([pdfBlob], pdfName, { type: "application/pdf" }),
+              "accreditations/pdfs"
+            );
+            finalPdfUrl = url;
+            
+            // Update database with URL
+            await AccreditationsAPI.update(id, {
+              documents: {
+                ...(fullyUpdatedAcc.documents || {}),
+                accreditation_pdf: url
+              }
+            });
+          } catch (uploadErr) {
+            console.error("[BackgroundQueue] PDF upload failed, skipping cloud save:", uploadErr);
+          }
         } else {
           console.warn("[BackgroundQueue] PDF generation failed or returned null.");
         }
