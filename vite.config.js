@@ -2,12 +2,46 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import { fileURLToPath } from "url";
+import { VitePWA } from 'vite-plugin-pwa';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['icon.png', 'apex-logo.png'],
+      manifest: {
+        name: 'Apex Unified Scanner',
+        short_name: 'Apex Scanner',
+        description: 'Professional high-speed hardware scanner interface.',
+        theme_color: '#020617',
+        background_color: '#020617',
+        display: 'standalone',
+        start_url: '/',
+        icons: [
+          {
+            src: '/icon.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: '/icon.png',
+            sizes: '512x512',
+            type: 'image/png'
+          }
+        ]
+      },
+      workbox: {
+        // Only cache static assets for offline shell in Phase 1
+        globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
+        // Exclude API routes from offline cache
+        navigateFallbackDenylist: [/^\/api/]
+      }
+    })
+  ],
   server: {
     host: true,
     port: 5180,

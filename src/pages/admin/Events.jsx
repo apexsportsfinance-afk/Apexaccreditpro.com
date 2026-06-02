@@ -115,6 +115,7 @@ export default function Events() {
   const [copiedSlug, setCopiedSlug] = useState(null);
   const [copiedScannerEventId, setCopiedScannerEventId] = useState(null);
   const [copiedAthleteInfoEventId, setCopiedAthleteInfoEventId] = useState(null);
+  const [copiedServiceCheckinSlug, setCopiedServiceCheckinSlug] = useState(null);
   const [shareModal, setShareModal] = useState({ open: false, slug: "" });
   const [deleteModal, setDeleteModal] = useState({ open: false, event: null });
   const [deleting, setDeleting] = useState(false);
@@ -512,6 +513,10 @@ export default function Events() {
     return `${window.location.origin}/scanner?event_id=${eventId}&mode=info&public=true${pin ? `&pin=${pin}` : ''}`;
   };
 
+  const getServiceCheckinLink = (slug) => {
+    return `${window.location.origin}/service-checkin/${slug}`;
+  };
+
   const copyRegistrationLink = async (slug) => {
     const link = getRegistrationLink(slug);
     try {
@@ -588,6 +593,22 @@ export default function Events() {
         setCopiedAthleteInfoEventId(eventId);
         toast.success("Athlete Info Hub link copied");
         setTimeout(() => setCopiedAthleteInfoEventId(null), 2000);
+      } else {
+        toast.info("Please copy manually");
+      }
+    } catch {
+      toast.error("Failed to copy");
+    }
+  };
+
+  const copyServiceCheckinLink = async (slug) => {
+    const link = getServiceCheckinLink(slug);
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(link);
+        setCopiedServiceCheckinSlug(slug);
+        toast.success("Service Check-in link copied");
+        setTimeout(() => setCopiedServiceCheckinSlug(null), 2000);
       } else {
         toast.info("Please copy manually");
       }
@@ -1264,7 +1285,28 @@ export default function Events() {
                           </a>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5 mt-4">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-muted">Service Check-in (Staff)</label>
+                        </div>
+                        <div className="flex items-center gap-2 bg-base-alt border border-border rounded-xl px-3 py-2 group shadow-sm">
+                          <LinkIcon className="w-4 h-4 text-orange-500 flex-shrink-0" />
+                          <code className="text-orange-600 dark:text-orange-400 flex-1 truncate text-xs font-bold">{getServiceCheckinLink(event.slug)}</code>
+                          <button
+                            onClick={() => copyServiceCheckinLink(event.slug)}
+                            className="p-1.5 hover:bg-base rounded-lg text-muted hover:text-main transition-colors"
+                            title="Copy link"
+                          >
+                            {copiedServiceCheckinSlug === event.slug ? <Check className="w-4 h-4 text-orange-500" /> : <Copy className="w-4 h-4" />}
+                          </button>
+                          <a href={getServiceCheckinLink(event.slug)} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-base rounded-lg text-muted hover:text-main transition-colors">
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-3 mt-4">
                         <div className="flex items-center gap-1.5 text-main bg-base-alt px-2.5 py-1.5 rounded-lg border border-border">
                           <FileText className="w-3.5 h-3.5 text-primary-500" />
                           <span className="text-xs font-medium">Docs: {getDocumentLabel(event.requiredDocuments)}</span>

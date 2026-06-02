@@ -8,6 +8,7 @@ import {
   ClipboardList,
   Map,
   QrCode,
+  Smartphone,
   Waves,
   ChevronLeft,
   ChevronRight,
@@ -27,6 +28,7 @@ import { cn } from "../../lib/utils";
 
 export const navItems = [
   { to: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/staff", icon: Smartphone, label: "Staff App (Mobile)" },
   { to: "/admin/events", icon: Calendar, label: "Events" },
   { to: "/admin/ticketing", icon: Ticket, label: "Spectator Portal" },
   { to: "/admin/accreditations", icon: ClipboardList, label: "Accreditations" },

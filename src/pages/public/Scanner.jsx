@@ -133,7 +133,8 @@ export default function ScannerPage() {
     mode: "attendance", // attendance | spectator | info | verify
     eventId: "",
     deviceLabel: "Main-Scanner",
-    zone: ""
+    zone: "",
+    source: ""
   });
 
   const [lastScanResult, setLastScanResult] = useState(null);
@@ -164,7 +165,8 @@ export default function ScannerPage() {
       mode: modeParam,
       eventId: eventParam,
       deviceLabel: deviceParam,
-      zone: params.get("zone") || ""
+      zone: params.get("zone") || "",
+      source: params.get("source") || ""
     });
 
     // APX-SEC: Validate Auth Token safely without storing plaintext PIN
@@ -322,6 +324,8 @@ export default function ScannerPage() {
     // Trigger SUCCESS FLASH
     setFlash(true);
     setTimeout(() => setFlash(false), 500);
+    // Add Haptic Feedback
+    if (navigator.vibrate) navigator.vibrate(200);
 
     // [NEW] Generic Pass Handling (Bulletproof: Case-Insensitive & Resilient Delimiters)
     const normalizedToken = (token || "").trim().toUpperCase();
@@ -878,6 +882,8 @@ export default function ScannerPage() {
   useHardwareScanner(authorized, onScanSuccess);
 
   const showScanError = (title, message) => {
+    // Add Haptic Feedback for Error
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
     setLastScanResult({ status: "error", title, message });
     // Play access denied sound (multiple beeps)
     audioService.playAccessDenied();
@@ -959,6 +965,15 @@ export default function ScannerPage() {
 
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-all duration-300 relative overflow-hidden ${flash ? 'bg-emerald-500/50' : 'bg-[#020617]'}`}>
+      {config.source === "staff" && !scanning && !lastScanResult && (
+        <a 
+          href="/staff/dashboard"
+          className="absolute top-6 left-6 z-50 flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/10 rounded-full text-white font-bold uppercase tracking-wider text-xs transition-colors backdrop-blur-md shadow-lg"
+        >
+          <ChevronRight className="w-4 h-4 rotate-180" />
+          Back to Staff App
+        </a>
+      )}
 
       {/* Premium Water Background Layer */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden opacity-50">
@@ -1059,16 +1074,7 @@ export default function ScannerPage() {
                       {isPublic ? "Scan Badge" : "SCAN ME"}
                     </h2>
                   </div>
-                  {/* Corner Camera Trigger */}
-                  <div className="absolute top-6 right-6 z-50">
-                    <button
-                      onClick={() => startScanner(true)}
-                      className="p-4 bg-blue-600/20 hover:bg-blue-600 border border-blue-500/30 rounded-2xl text-blue-400 hover:text-white transition-all shadow-xl backdrop-blur-md group"
-                      title="Activate Mobile Camera"
-                    >
-                      <Camera className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                    </button>
-                  </div>
+                  {/* Camera trigger moved to fixed bottom */}
 
                   {/* Hardware Scanner Hint */}
                   <div className="w-full pb-8">
@@ -1169,6 +1175,20 @@ export default function ScannerPage() {
                 </motion.div>
               </motion.div>
             </div>
+
+            {/* Bottom Center Camera Trigger (One-Hand Mode) - Fixed to viewport */}
+            {!scanning && (
+              <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[100]">
+                <button
+                  onClick={() => startScanner(true)}
+                  className="flex items-center justify-center gap-3 px-8 py-5 bg-blue-600 hover:bg-blue-500 border border-blue-400/50 rounded-full text-white transition-all shadow-[0_0_40px_rgba(37,99,235,0.6)] backdrop-blur-md group w-64"
+                  title="Activate Mobile Camera"
+                >
+                  <Camera className="w-8 h-8 group-hover:scale-110 transition-transform" />
+                  <span className="font-black uppercase tracking-widest text-lg">Scan Now</span>
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <ResultView 
@@ -1243,8 +1263,11 @@ function ResultView({ config, result, onResume, onRedeem, isPublic, zoneConfig }
             </div>
           </div>
 
-          <p className="mt-12 text-white/40 font-black uppercase tracking-[0.5em] text-lg animate-pulse italic">
-            Scanning resuming in 8s...
+          <button onClick={onResume} className="mt-12 w-full max-w-sm py-5 bg-white/10 hover:bg-white/20 active:bg-white/30 text-white font-black uppercase tracking-[0.3em] rounded-3xl transition-all border border-white/20 text-lg shadow-xl">
+            Scan Next
+          </button>
+          <p className="mt-6 text-white/40 font-black uppercase tracking-[0.5em] text-xs animate-pulse italic">
+            Auto-resume in 8s...
           </p>
         </div>
       </div>
@@ -1373,9 +1396,12 @@ function ResultView({ config, result, onResume, onRedeem, isPublic, zoneConfig }
           )}
 
           {/* Resume Footer (Floating Style) */}
-          <div className="mt-auto pt-8 pb-4 text-center">
+          <div className="mt-auto pt-8 pb-4 text-center w-full px-6">
+             <button onClick={onResume} className="w-full py-5 bg-white/10 hover:bg-white/20 active:bg-white/30 text-white font-black uppercase tracking-[0.3em] rounded-3xl transition-all border border-white/20 text-lg shadow-xl mb-4">
+               Scan Next
+             </button>
              <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.5em] animate-pulse">
-               Terminal Ready in 8s
+               Auto-resume in 8s
              </p>
           </div>
         </div>

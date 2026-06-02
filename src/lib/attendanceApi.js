@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { OfflineDB } from "./offlineDb";
 
 export const AttendanceAPI = {
   /**
@@ -13,7 +14,28 @@ export const AttendanceAPI = {
    * @param {boolean} data.ignoreDuplicates - If true, do not increment scan count for same-day duplicates
    * @returns {Object} result indicating success, duplicate, or error
    */
-  recordScan: async ({ eventId, athleteId, clubName, scannerLocation, date, sessionId, zoneOnly, scanMode, ignoreDuplicates }) => {
+  recordScan: async (scanData) => {
+    const { eventId, athleteId, clubName, scannerLocation, date, sessionId, zoneOnly, scanMode, ignoreDuplicates } = scanData;
+    
+    // [NEW] Offline Mode: Save to Pending Queue
+    if (!navigator.onLine) {
+      console.log("[Offline Mode] Saving scan to local pending queue:", scanData);
+      try {
+        await OfflineDB.savePendingScan(scanData);
+        return { 
+          status: "success", 
+          message: "Saved Offline", 
+          scanCount: 1, 
+          isNew: true, 
+          isNewLocation: true,
+          offline: true 
+        };
+      } catch (err) {
+        console.error("[Offline Mode] Failed to save pending scan:", err);
+        return { status: "error", message: "Failed to save offline scan." };
+      }
+    }
+
     try {
       const now = new Date();
       const checkInDate = date || now.toISOString().split("T")[0];
@@ -301,6 +323,7 @@ export const AttendanceAPI = {
    * Logs a scan event to the unified_scan_logs table for auditing
    */
   logScanEvent: async ({ eventId, athleteId, spectatorId, scanMode, deviceLabel, sessionId }) => {
+    if (!navigator.onLine) return false;
     try {
       const { error } = await supabase
         .from("unified_scan_logs")

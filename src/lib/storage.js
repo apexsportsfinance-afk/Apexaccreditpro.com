@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { OfflineDB } from "./offlineDb";
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
 
@@ -674,6 +675,23 @@ export const AccreditationsAPI = {
   },
 
   validateToken: async (token) => {
+    // 1. Offline Mode Check
+    if (!navigator.onLine) {
+      try {
+        console.log("[Offline Mode] Searching local cache for:", token);
+        const cachedData = await OfflineDB.getAccreditation(token);
+        if (cachedData) {
+          return mapAccreditationFromDB(cachedData);
+        }
+        console.warn("[Offline Mode] Token not found in local cache.");
+        return null;
+      } catch (err) {
+        console.error("[Offline Mode] Error searching local cache:", err);
+        return null;
+      }
+    }
+
+    // 2. Online Mode (Supabase)
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token);
     let attempts = 0;
     const maxAttempts = 3;

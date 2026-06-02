@@ -100,6 +100,7 @@ export default function Accreditations() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [zones, setZones] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [fullEventDetails, setFullEventDetails] = useState(null);
   const [eventCategories, setEventCategories] = useState([]);
   const [filters, setFilters] = useState({ status: "", role: "", nationality: "", club: "" });
   const [searchTerm, setSearchTerm] = useState("");
@@ -223,10 +224,17 @@ export default function Accreditations() {
           GlobalSettingsAPI.get(`event_${selectedEvent}_category_documents`),
           GlobalSettingsAPI.get(`event_${selectedEvent}_custom_fields`),
           GlobalSettingsAPI.get(`event_${selectedEvent}_only_front_page`),
-          GlobalSettingsAPI.get(`event_${selectedEvent}_sport`)
+          GlobalSettingsAPI.get(`event_${selectedEvent}_sport`),
+          EventsAPI.getById(selectedEvent)
         ]);
 
-        const [accResult, zoneResult, ecResult, clubResult, bgResult, catDocsResult, customFieldsResult, onlyFrontResult, sportResult] = results;
+        const [accResult, zoneResult, ecResult, clubResult, bgResult, catDocsResult, customFieldsResult, onlyFrontResult, sportResult, fullEventResult] = results;
+
+        if (fullEventResult.status === "fulfilled" && fullEventResult.value) {
+          setFullEventDetails(fullEventResult.value);
+        } else {
+          setFullEventDetails(null);
+        }
 
         if (accResult.status === "fulfilled") {
           const { data: accData, count } = accResult.value;
@@ -363,7 +371,7 @@ export default function Accreditations() {
     return ids;
   }, [accreditations]);
 
-  const currentEvent = events.find((e) => e.id === selectedEvent);
+  const currentEvent = fullEventDetails || events.find((e) => e.id === selectedEvent);
 
   const handleOpenView = useCallback(async (accreditation) => {
     try {

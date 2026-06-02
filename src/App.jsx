@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from "react";
+import React, { Suspense, lazy, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { ToastProvider } from "./components/ui/Toast";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -35,7 +35,12 @@ const Feedback = lazy(() => import("./pages/admin/Feedback"));
 const Partners = lazy(() => import("./pages/admin/Partners"));
 const APIDocs = lazy(() => import("./pages/admin/APIDocs"));
 
-
+const StaffLayout = lazy(() => import("./components/layout/StaffLayout"));
+const StaffDashboard = lazy(() => import("./pages/staff/StaffDashboard"));
+const StaffSearch = lazy(() => import("./pages/staff/StaffSearch"));
+const StaffSettings = lazy(() => import("./pages/staff/StaffSettings"));
+const ServiceCheckin = lazy(() => import("./pages/staff/ServiceCheckin"));
+import { ErrorBoundary } from "./components/layout/ErrorBoundary";
 const PageLoader = () => (
   <div id="app_pageloader" className="flex items-center justify-center min-h-screen bg-base relative overflow-hidden">
     {/* Modern high-end golden ambient blur behind loader */}
@@ -48,8 +53,15 @@ const PageLoader = () => (
 );
 
 import GlobalNetworkBanner from "./components/ui/GlobalNetworkBanner";
+import { syncService } from "./lib/syncService";
 
 export default function App() {
+  useEffect(() => {
+    // Start background sync service
+    syncService.start();
+    return () => syncService.stop();
+  }, []);
+
   return (
     <Router>
       <GlobalNetworkBanner />
@@ -68,6 +80,7 @@ export default function App() {
               <Route path="/verify/:id" element={<VerifyAccreditation />} />
               <Route path="/accreditation/:id" element={<VerifyAccreditation />} />
               <Route path="/scanner" element={<ScannerPage />} />
+              <Route path="/service-checkin/:eventSlug" element={<ServiceCheckin />} />
               <Route path="/tickets" element={<SpectatorPortal />} />
               <Route path="/tickets/:slug" element={<SpectatorPortal />} />
               <Route path="/view-ticket/:id" element={<SpectatorTicket />} />
@@ -92,7 +105,12 @@ export default function App() {
                 <Route path="api-docs" element={<APIDocs />} />
               </Route>
 
-
+              <Route path="/staff" element={<ErrorBoundary><StaffLayout /></ErrorBoundary>}>
+                <Route index element={<Navigate to="/staff/dashboard" replace />} />
+                <Route path="dashboard" element={<StaffDashboard />} />
+                <Route path="search" element={<StaffSearch />} />
+                <Route path="settings" element={<StaffSettings />} />
+              </Route>
 
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

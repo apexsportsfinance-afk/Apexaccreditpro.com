@@ -42,28 +42,34 @@ export const IMAGE_SIZES = {
   dpi300: { scale: 3.125, label: "300 DPI" },
 };
 
-const urlToBase64 = (url) =>
-  new Promise((resolve) => {
-    if (!url) return resolve(null);
-    if (url.startsWith("data:")) return resolve(url);
-    if (url.startsWith("blob:")) return resolve(url);
+const base64Cache = new Map();
 
-    fetch(url, { mode: "cors", cache: "force-cache", credentials: "omit" })
-      .then((r) => (r.ok ? r.blob() : Promise.reject()))
-      .then(
-        (blob) =>
-          new Promise((res) => {
-            const reader = new FileReader();
-            reader.onloadend = () => res(reader.result);
-            reader.onerror = () => res(null);
-            reader.readAsDataURL(blob);
-          })
-      )
-      .then((b64) => {
-        if (b64) return resolve(b64);
-        throw new Error();
-      })
-      .catch(() => {
+const urlToBase64 = (url) => {
+  if (!url) return Promise.resolve(null);
+  if (url.startsWith("data:")) return Promise.resolve(url);
+  if (url.startsWith("blob:")) return Promise.resolve(url);
+
+  if (base64Cache.has(url)) {
+    return base64Cache.get(url);
+  }
+
+  const promise = fetch(url, { mode: "cors", cache: "force-cache", credentials: "omit" })
+    .then((r) => (r.ok ? r.blob() : Promise.reject()))
+    .then(
+      (blob) =>
+        new Promise((res) => {
+          const reader = new FileReader();
+          reader.onloadend = () => res(reader.result);
+          reader.onerror = () => res(null);
+          reader.readAsDataURL(blob);
+        })
+    )
+    .then((b64) => {
+      if (b64) return b64;
+      throw new Error();
+    })
+    .catch(() => {
+      return new Promise((resolve) => {
         const img = new Image();
         img.crossOrigin = "anonymous";
         const t = setTimeout(() => {
@@ -88,7 +94,11 @@ const urlToBase64 = (url) =>
         };
         img.src = url + (url.includes("?") ? "&" : "?") + "_cb=" + Date.now();
       });
-  });
+    });
+
+  base64Cache.set(url, promise);
+  return promise;
+};
 
 const inlineAllImages = async (container) => {
   const imgs = Array.from(container.querySelectorAll("img"));
@@ -99,9 +109,9 @@ const inlineAllImages = async (container) => {
       const b64 = await urlToBase64(src);
       if (b64) {
         img.setAttribute("src", b64);
-      } else {
-        img.style.visibility = "hidden";
       }
+      // Removed the 'else' block that sets visibility to hidden.
+      // If fetching fails, we leave the original src and let html2canvas try to capture it.
     })
   );
   await Promise.all(
@@ -109,9 +119,17 @@ const inlineAllImages = async (container) => {
       (img) =>
         new Promise((res) => {
           if (img.complete && img.naturalWidth > 0) return res();
-          img.onload = res;
-          img.onerror = res;
-          setTimeout(res, 3000);
+          let isDone = false;
+          const done = () => {
+            if (isDone) return;
+            isDone = true;
+            clearTimeout(timer);
+            res();
+          };
+          // Increased timeout to 8 seconds to give images a fair chance to load
+          const timer = setTimeout(done, 8000);
+          img.onload = done;
+          img.onerror = done;
         })
     )
   );
