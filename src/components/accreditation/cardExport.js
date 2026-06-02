@@ -295,23 +295,29 @@ export const buildPDF = async (accreditation, event, zones, scale, sizeKey) => {
   try {
     const frontCanvas = await captureEl(frontEl, scale);
     pdf.addImage(
-      frontCanvas.toDataURL("image/jpeg", 1.0),
+      frontCanvas.toDataURL("image/jpeg", 0.9),
       "JPEG",
       0, 0, size.width, size.height,
       undefined,
       "FAST"
     );
+    // Explicitly free canvas memory
+    frontCanvas.width = 0;
+    frontCanvas.height = 0;
 
     if (backEl) {
       pdf.addPage([size.width, size.height], isLandscape ? "landscape" : "portrait");
       const backCanvas = await captureEl(backEl, scale);
       pdf.addImage(
-        backCanvas.toDataURL("image/jpeg", 1.0),
+        backCanvas.toDataURL("image/jpeg", 0.9),
         "JPEG",
         0, 0, size.width, size.height,
         undefined,
         "FAST"
       );
+      // Explicitly free canvas memory
+      backCanvas.width = 0;
+      backCanvas.height = 0;
     }
   } finally {
     cleanup();
@@ -490,6 +496,12 @@ export const bulkDownloadPDFs = async (
     // (concurrent renders write to the same off-screen container and corrupt each other's output)
     for (let i = 0; i < accreditations.length; i++) {
       const acc = accreditations[i];
+      
+      // Allow browser UI and Garbage Collector to run between massive 600DPI renders
+      if (i > 0) {
+        await new Promise(r => setTimeout(r, 250));
+      }
+      
       try {
         const pdf = await buildPDF(acc, event, zones, scale, sizeKey);
         const pdfBlob = pdf.output("blob");
@@ -507,7 +519,9 @@ export const bulkDownloadPDFs = async (
       }
     }
 
-    const zipBlob = await zip.generateAsync({ type: "blob" });
+    // Use STORE compression. PDFs are already highly compressed.
+    // Deflating them wastes massive CPU and memory and crashes the browser.
+    const zipBlob = await zip.generateAsync({ type: "blob", compression: "STORE" });
     const url = URL.createObjectURL(zipBlob);
     const a = document.createElement("a");
     a.href = url;
