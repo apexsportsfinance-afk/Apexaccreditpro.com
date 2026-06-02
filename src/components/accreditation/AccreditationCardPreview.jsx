@@ -56,9 +56,15 @@ const getCountryFontSize = (countryName) => {
   return 11;
 };
 
+const roleBannerCache = new Map();
 const useRoleBannerPng = (role, bgColor, textColor = "#000000", fontSize = "14px", fontWeight = "bold", width = 320, height = 40) => {
   const [url, setUrl] = React.useState(null);
   React.useEffect(() => {
+    const key = `${role}_${bgColor}_${textColor}_${fontSize}_${fontWeight}_${width}_${height}`;
+    if (roleBannerCache.has(key)) {
+      setUrl(roleBannerCache.get(key));
+      return;
+    }
     const scale = 16; // Increased to support 12x global scale
     const canvas = document.createElement("canvas");
     canvas.width = width * scale;
@@ -90,7 +96,9 @@ const useRoleBannerPng = (role, bgColor, textColor = "#000000", fontSize = "14px
       ctx.fillText(char, currentX, height / 2);
       currentX += charWidths[i] + letterSpacing;
     });
-    setUrl(canvas.toDataURL("image/png"));
+    const dataUrl = canvas.toDataURL("image/png");
+    roleBannerCache.set(key, dataUrl);
+    setUrl(dataUrl);
     
     // Explicitly free canvas memory
     canvas.width = 0;
@@ -99,10 +107,16 @@ const useRoleBannerPng = (role, bgColor, textColor = "#000000", fontSize = "14px
   return url;
 };
 
+const countryNameCache = new Map();
 const useCountryNamePng = (name, fontSize = 11) => {
   const [url, setUrl] = React.useState(null);
   React.useEffect(() => {
     if (!name) return;
+    const key = `${name}_${fontSize}`;
+    if (countryNameCache.has(key)) {
+      setUrl(countryNameCache.get(key));
+      return;
+    }
     const height = 22;
     const scale = 16; // Increased to support 12x global scale
     const canvas = document.createElement("canvas");
@@ -118,7 +132,9 @@ const useCountryNamePng = (name, fontSize = 11) => {
     ctx.textBaseline = "middle";
     ctx.textAlign = "left";
     ctx.fillText(name, 0, height / 2);
-    setUrl(canvas.toDataURL("image/png"));
+    const dataUrl = canvas.toDataURL("image/png");
+    countryNameCache.set(key, dataUrl);
+    setUrl(dataUrl);
     
     // Explicitly free canvas memory
     canvas.width = 0;
@@ -127,6 +143,7 @@ const useCountryNamePng = (name, fontSize = 11) => {
   return url;
 };
 
+const zoneBadgeCache = new Map();
 const useZoneBadgePngs = (codes, zones = []) => {
   const [badges, setBadges] = React.useState({});
   const codesKey = codes.join(",");
@@ -139,13 +156,18 @@ const useZoneBadgePngs = (codes, zones = []) => {
     const BADGE_SIZE = DISPLAY * 2;
     const FONT_SIZE = count <= 4 ? 15 : count <= 6 ? 13 : 11;
     codes.forEach((code) => {
+      const zoneInfo = zones.find(z => z.code === code);
+      const bgColor = (zoneInfo && zoneInfo.color) ? zoneInfo.color : "#0f172a";
+      const key = `${code}_${bgColor}_${DISPLAY}_${FONT_SIZE}`;
+      if (zoneBadgeCache.has(key)) {
+        result[code] = zoneBadgeCache.get(key);
+        return;
+      }
       const canvas = document.createElement("canvas");
       canvas.width = BADGE_SIZE * 8; // Multiplied by 8 for high-res (scale 16)
       canvas.height = BADGE_SIZE * 8;
       const ctx = canvas.getContext("2d");
       ctx.scale(16, 16); // Increased to support 12x global scale
-      const zoneInfo = zones.find(z => z.code === code);
-      const bgColor = (zoneInfo && zoneInfo.color) ? zoneInfo.color : "#0f172a";
       ctx.fillStyle = bgColor;
       ctx.beginPath();
       ctx.roundRect(0, 0, DISPLAY, DISPLAY, 3);
@@ -155,7 +177,9 @@ const useZoneBadgePngs = (codes, zones = []) => {
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(code, DISPLAY / 2, DISPLAY / 2 + 0.5);
-      result[code] = canvas.toDataURL("image/png");
+      const dataUrl = canvas.toDataURL("image/png");
+      zoneBadgeCache.set(key, dataUrl);
+      result[code] = dataUrl;
       
       // Explicitly free canvas memory
       canvas.width = 0;

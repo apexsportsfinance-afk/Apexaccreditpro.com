@@ -2,6 +2,7 @@ import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import React from "react";
 import { createRoot } from "react-dom/client";
+import { toast } from "sonner";
 import { CardInner } from "./AccreditationCardPreview";
 
 const CARD_W_PX = 320;
@@ -261,7 +262,7 @@ const captureEl = async (el, scale) => {
     canvas: customCanvas,
     scale,
     useCORS: true,
-    allowTaint: true,
+    allowTaint: false,
     backgroundColor: "#ffffff",
     logging: false,
     imageTimeout: 30000,
@@ -499,22 +500,23 @@ export const bulkDownloadPDFs = async (
 ) => {
   if (!accreditations || accreditations.length === 0) return;
 
-  const scale = 6.25; // 600 DPI for professional print
+  const scale = 6.25; // Restored 600 DPI for professional print (memory optimized)
 
   try {
     const JSZip = (await import("jszip")).default;
     const zip = new JSZip();
     let completed = 0;
     let failed = 0;
+    const errorLogs = [];
 
     // Process ONE at a time to prevent DOM rendering race conditions
     // (concurrent renders write to the same off-screen container and corrupt each other's output)
     for (let i = 0; i < accreditations.length; i++) {
       const acc = accreditations[i];
       
-      // Allow browser UI and Garbage Collector to run between massive 600DPI renders
+      // Allow browser UI and Garbage Collector to run between massive renders
       if (i > 0) {
-        await new Promise(r => setTimeout(r, 250));
+        await new Promise(r => setTimeout(r, 500));
       }
       
       try {
@@ -528,7 +530,10 @@ export const bulkDownloadPDFs = async (
         completed++;
         onProgress?.(completed, accreditations.length, failed);
       } catch (err) {
+        const errMsg = err?.message || err?.toString() || "Unknown error";
         console.warn(`Failed PDF for ${acc.firstName} ${acc.lastName}:`, err);
+        toast.error(`Failed to generate PDF for ${acc.firstName}: ${errMsg}`);
+        errorLogs.push(`Failed [${acc.firstName} ${acc.lastName}] (ID: ${acc.id}): ${errMsg}`);
         failed++;
         onProgress?.(completed, accreditations.length, failed);
       }
@@ -536,6 +541,9 @@ export const bulkDownloadPDFs = async (
 
     // Use STORE compression. PDFs are already highly compressed.
     // Deflating them wastes massive CPU and memory and crashes the browser.
+    if (errorLogs.length > 0) {
+      zip.file("generation_errors.txt", "Some cards failed to generate:\n\n" + errorLogs.join("\n"));
+    }
     const zipBlob = await zip.generateAsync({ type: "blob", compression: "STORE" });
     const url = URL.createObjectURL(zipBlob);
     const a = document.createElement("a");
@@ -572,7 +580,7 @@ export const downloadMultiTicketPDF = async (elementIds, fileName) => {
     const canvas = await html2canvas(el, {
       scale: 6.25, // 600 DPI for professional print
       useCORS: true,
-      allowTaint: true,
+      allowTaint: false,
       backgroundColor: "#ffffff",
       width: TICKET_W_PX,
       height: TICKET_H_PX,
