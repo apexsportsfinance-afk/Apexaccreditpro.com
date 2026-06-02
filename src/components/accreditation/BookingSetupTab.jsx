@@ -262,6 +262,16 @@ export default function BookingSetupTab({ eventId, onToast, disabled }) {
     return counts;
   }, [bookings]);
 
+  // Calculate unique individuals
+  const uniqueParticipantsCount = useMemo(() => {
+    const pIds = new Set();
+    bookings.forEach(b => {
+      const pId = b.participant_id || b.accreditations?.id || b.accreditations?.badge_number;
+      if (pId) pIds.add(pId);
+    });
+    return pIds.size;
+  }, [bookings]);
+
   // Group slots by group_name and date
   const groupedSlots = useMemo(() => {
     const groups = {};
@@ -449,7 +459,7 @@ export default function BookingSetupTab({ eventId, onToast, disabled }) {
               onClick={downloadBookings}
               className="w-full md:w-auto border-white/10"
             >
-              Export Bookings ({bookings.length})
+              Export Bookings ({uniqueParticipantsCount})
             </Button>
             <Button 
               variant="primary" 
