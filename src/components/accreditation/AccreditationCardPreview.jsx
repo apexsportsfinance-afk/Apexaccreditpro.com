@@ -56,7 +56,7 @@ const getCountryFontSize = (countryName) => {
   return 11;
 };
 
-const useRoleBannerPng = (role, bgColor, textColor = "#000000", width = 320, height = 40) => {
+const useRoleBannerPng = (role, bgColor, textColor = "#000000", fontSize = "14px", fontWeight = "bold", width = 320, height = 40) => {
   const [url, setUrl] = React.useState(null);
   React.useEffect(() => {
     const scale = 16; // Increased to support 12x global scale
@@ -72,7 +72,12 @@ const useRoleBannerPng = (role, bgColor, textColor = "#000000", width = 320, hei
     ctx.shadowOffsetY = 1;
     ctx.shadowBlur = 2;
     ctx.fillStyle = textColor || "#000000";
-    ctx.font = `bold 14px ${CARD_FONT}`;
+    
+    // Parse font size and weight
+    const parsedFontSize = fontSize ? fontSize.toString().replace("px", "") + "px" : "14px";
+    const parsedFontWeight = fontWeight || "bold";
+    ctx.font = `${parsedFontWeight} ${parsedFontSize} ${CARD_FONT}`;
+    
     ctx.textBaseline = "middle";
     const text = (role || "PARTICIPANT").toUpperCase();
     const letterSpacing = 2.8;
@@ -86,7 +91,7 @@ const useRoleBannerPng = (role, bgColor, textColor = "#000000", width = 320, hei
       currentX += charWidths[i] + letterSpacing;
     });
     setUrl(canvas.toDataURL("image/png"));
-  }, [role, bgColor, textColor, width, height]);
+  }, [role, bgColor, textColor, fontSize, fontWeight, width, height]);
   return url;
 };
 
@@ -212,7 +217,13 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
   const countryFontSize = getCountryFontSize(countryName);
 
   const zoneBadgePngs = useZoneBadgePngs(zoneCodes, zones);
-  const roleBannerUrl = useRoleBannerPng(accreditation?.role, finalColor, categoryStyle.textColor || "#000000");
+  const roleBannerUrl = useRoleBannerPng(
+    accreditation?.role, 
+    finalColor, 
+    categoryStyle.textColor || "#000000",
+    categoryStyle.fontSize,
+    categoryStyle.fontWeight
+  );
   const countryNameUrl = useCountryNamePng(countryName, countryFontSize);
   const expired = typeof isExpired === "function" ? isExpired(accreditation?.expiresAt) : false;
   const idNumber = accreditation?.accreditationId?.split("-")?.pop() || "---";
