@@ -5,13 +5,13 @@ import {
   MessageSquare, Globe, AlertTriangle, ChevronDown, ChevronUp, ShieldCheck,
   User, Hash, MapPin, Building, Cake, ExternalLink, Bell, X, Paperclip, FileText,
   Files, FileSpreadsheet, FileBox, ShieldAlert, ChevronRight, Trophy, Search, Medal as MedalIcon, Target,
-  Heart, Clock, Timer, RotateCcw, CheckCircle2, Trash2
+  Heart, Clock, Timer, RotateCcw, CheckCircle2, Trash2, Activity
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase";
 import { EventSettingsAPI, FormFieldSettingsAPI, BroadcastV2API, AthleteEventsAPI, GlobalSettingsAPI, HeatSheetMatrixAPI } from "../../lib/broadcastApi";
 import { AttendanceAPI } from "../../lib/attendanceApi";
-import { ConfigAPI, ZonesAPI, BookingsAPI } from "../../lib/storage";
+import { ConfigAPI, ZonesAPI, BookingsAPI, LiveScoresAPI } from "../../lib/storage";
 import { computeExpiryStatus, formatEventDateTime } from "../../lib/expiryUtils";
 import { getCountryFlag, getCountryCode3, COUNTRIES, calculateAge, cn } from "../../lib/utils";
 import { toast } from "sonner";
@@ -129,6 +129,39 @@ export default function VerifyAccreditation() {
   const [isBooking, setIsBooking] = useState(false);
   const [editingMeetings, setEditingMeetings] = useState([]);
   const [isBookingExpanded, setIsBookingExpanded] = useState(true);
+
+  // Live Scores State
+  const [liveScoreSettings, setLiveScoreSettings] = useState(null);
+  const [liveSports, setLiveSports] = useState([]);
+  const [liveMatches, setLiveMatches] = useState([]);
+  const [collapsedSports, setCollapsedSports] = useState({});
+
+  useEffect(() => {
+    if (!data?.event_id) return;
+    let intervalId;
+
+    const fetchLiveScores = async () => {
+      try {
+        const [settings, sports, matches] = await Promise.all([
+          LiveScoresAPI.getSettings(data.event_id),
+          LiveScoresAPI.getSports(data.event_id),
+          LiveScoresAPI.getMatches(data.event_id)
+        ]);
+        setLiveScoreSettings(settings);
+        if (settings?.live_scores_enabled) {
+          setLiveSports(sports || []);
+          setLiveMatches(matches || []);
+        }
+      } catch (err) {
+        console.error("Live Scores Fetch Error:", err);
+      }
+    };
+
+    fetchLiveScores(); // Initial fetch
+    intervalId = setInterval(fetchLiveScores, 15000); // 15s safe auto-refresh
+
+    return () => clearInterval(intervalId);
+  }, [data?.event_id]);
   const [expandedMeetings, setExpandedMeetings] = useState([]);
   const [expandedDates, setExpandedDates] = useState({});
 
@@ -140,7 +173,7 @@ export default function VerifyAccreditation() {
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setIsInstallable(true);
+      // setIsInstallable(true); // DISABLED: Do not show automatic app install prompt
     };
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -1404,6 +1437,99 @@ export default function VerifyAccreditation() {
           </AnimatePresence>
         </div>
             )}
+            {liveScoreSettings?.live_scores_enabled && (
+              <div className="w-full mb-6">
+                <div className="bg-white rounded-[2rem] p-6 sm:p-8 shadow-xl">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="p-4 bg-emerald-50 rounded-2xl">
+                      <Activity className="w-8 h-8 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">Live Scores</h2>
+                      <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span> Auto-Updating
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    {liveSports.map(sport => {
+                      const sportMatches = liveMatches.filter(m => m.sport_id === sport.id);
+                      if (sportMatches.length === 0) return null;
+                      
+                      const isCollapsed = collapsedSports[sport.id];
+                      
+                      return (
+                        <div key={sport.id} className="space-y-3">
+                          <button 
+                            onClick={() => setCollapsedSports(prev => ({...prev, [sport.id]: !prev[sport.id]}))}
+                            className="w-full flex items-center justify-between border-b border-slate-100 pb-2 group"
+                          >
+                            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest group-hover:text-emerald-600 transition-colors">{sport.sport_name}</h3>
+                            <div className="p-1 rounded-md bg-slate-50 group-hover:bg-emerald-50 transition-colors">
+                              {isCollapsed ? <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-emerald-500" /> : <ChevronUp className="w-4 h-4 text-slate-400 group-hover:text-emerald-500" />}
+                            </div>
+                          </button>
+                          
+                          <AnimatePresence>
+                            {!isCollapsed && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.3 }}
+                                className="overflow-hidden"
+                              >
+                                <div className="space-y-3 pt-1">
+                                  {sportMatches.map(match => (
+                                    <div key={match.id} className="bg-slate-50 border border-slate-100 rounded-xl p-3 flex flex-col gap-2">
+                                      <div className="flex justify-between items-center">
+                                        <span className={cn(
+                                          "px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider",
+                                          match.status === "Live" ? "bg-red-500 text-white animate-pulse" :
+                                          match.status === "Finished" ? "bg-slate-200 text-slate-500" :
+                                          match.status === "Cancelled" ? "bg-red-100 text-red-600" :
+                                          "bg-blue-100 text-blue-600"
+                                        )}>
+                                          {match.status}
+                                        </span>
+                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{match.match_title}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between gap-2">
+                                        <div className="flex-1 text-right">
+                                          <p className="text-xs font-bold text-slate-800 truncate">{match.team_a_name || 'TBA'}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-lg border border-slate-200 shadow-sm shrink-0">
+                                          <span className="text-sm font-black text-emerald-600">{match.team_a_score}</span>
+                                          <span className="text-[10px] text-slate-300">-</span>
+                                          <span className="text-sm font-black text-emerald-600">{match.team_b_score}</span>
+                                        </div>
+                                        <div className="flex-1 text-left">
+                                          <p className="text-xs font-bold text-slate-800 truncate">{match.team_b_name || 'TBA'}</p>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {match.match_date}</span>
+                                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {match.match_time}</span>
+                                        <span>{match.venue}</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      );
+                    })}
+                    {liveMatches.length === 0 && (
+                      <p className="text-xs text-slate-400 font-bold text-center py-4">No live scores available at the moment. Please check again later.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* -------------------------------------- */}
 
             <div className="grid grid-cols-2 gap-4 mt-6">

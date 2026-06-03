@@ -1632,6 +1632,57 @@ function mapFeedbackFromDB(db) {
   return { id: db.id, eventId: db.event_id, role: db.role, overallRating: db.overall_rating, competitionRating: db.competition_rating, venueRating: db.venue_rating, communicationRating: db.communication_rating };
 }
 
+// --- LIVE SCORES API ---
+export const LiveScoresAPI = {
+  getSettings: async (eventId) => {
+    const data = await handleResponse(() => supabase.from("live_score_settings").select("*").eq("event_id", eventId).maybeSingle());
+    return data || { event_id: eventId, live_scores_enabled: false };
+  },
+  saveSettings: async (settings) => {
+    const existing = await handleResponse(() => supabase.from("live_score_settings").select("event_id").eq("event_id", settings.event_id).maybeSingle());
+    if (existing) {
+      return handleResponse(() => supabase.from("live_score_settings").update({ ...settings, updated_at: new Date().toISOString() }).eq("event_id", settings.event_id).select().single());
+    } else {
+      return handleResponse(() => supabase.from("live_score_settings").insert([{ ...settings, created_at: new Date().toISOString() }]).select().single());
+    }
+  },
+  getSports: async (eventId) => {
+    const data = await handleResponse(() => supabase.from("live_score_sports").select("*").eq("event_id", eventId).order("display_order", { ascending: true }));
+    return data || [];
+  },
+  saveSport: async (sport) => {
+    if (sport.id) {
+      return handleResponse(() => supabase.from("live_score_sports").update(sport).eq("id", sport.id).select().single());
+    } else {
+      return handleResponse(() => supabase.from("live_score_sports").insert([sport]).select().single());
+    }
+  },
+  deleteSport: async (id) => {
+    return handleResponse(() => supabase.from("live_score_sports").delete().eq("id", id).select());
+  },
+  getMatches: async (eventId) => {
+    const data = await handleResponse(() => supabase.from("live_score_matches").select("*").eq("event_id", eventId).order("match_date", { ascending: true }).order("match_time", { ascending: true }));
+    return data || [];
+  },
+  saveMatch: async (match) => {
+    const dbMatch = { ...match };
+    if (!dbMatch.id) {
+      delete dbMatch.id;
+      dbMatch.created_at = new Date().toISOString();
+    } else {
+      dbMatch.updated_at = new Date().toISOString();
+    }
+    if (match.id) {
+      return handleResponse(() => supabase.from("live_score_matches").update(dbMatch).eq("id", match.id).select().single());
+    } else {
+      return handleResponse(() => supabase.from("live_score_matches").insert([dbMatch]).select().single());
+    }
+  },
+  deleteMatch: async (id) => {
+    return handleResponse(() => supabase.from("live_score_matches").delete().eq("id", id).select());
+  }
+};
+
 export const initializeDefaultData = async () => {};
 // --- PARTNERS & API KEYS API ---
 export const PartnersAPI = {
