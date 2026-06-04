@@ -1438,13 +1438,18 @@ function mapEventFromDB(db) {
 }
 
 function mapZoneToDB(z) {
+  // Backward compatibility: Embed settings into the description to avoid SQL schema cache errors 
+  // if the 'settings' column hasn't been added to the Supabase database yet.
+  const settingsString = z.settings && Object.keys(z.settings).length > 0 
+    ? ` | [SETTINGS]:${JSON.stringify(z.settings)}` 
+    : "";
+    
   return { 
     event_id: z.eventId, 
     code: z.code, 
     name: z.name, 
     color: z.color, 
-    description: z.description || "", 
-    settings: z.settings || {},
+    description: (z.description || "") + settingsString, 
     allowed_roles: z.allowedRoles 
   };
 }
