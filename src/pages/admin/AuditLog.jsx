@@ -58,6 +58,7 @@ export default function AuditLog() {
   const [selectedEventId, setSelectedEventId] = useState("");
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
   const [pageOffset, setPageOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -79,7 +80,7 @@ export default function AuditLog() {
     // Reset pagination when filters change
     setPageOffset(0);
     setHasMore(true);
-  }, [activeTab, selectedEventId]);
+  }, [activeTab, selectedEventId, selectedCategory]);
 
   useEffect(() => {
     if (activeTab === "system") loadLogs(pageOffset);
@@ -150,10 +151,14 @@ export default function AuditLog() {
         (isSpectator ? 'Spectator' : 'System');
 
       if (!summaryMap.has(id)) {
+        const sports = isAthlete ? (log.accreditations.selected_sports || log.accreditations.selectedSports) : null;
+        const associatedSports = Array.isArray(sports) && sports.length > 0 ? sports.join(', ') : 'N/A';
+        
         summaryMap.set(id, {
           "Name": name,
           "Club/Team": club,
           "Role": role,
+          "Associated Sports": associatedSports,
           "Scan Count": 0,
           "Last Scan": log.created_at
         });
@@ -181,6 +186,15 @@ export default function AuditLog() {
   };
 
   const filteredLogs = (activeTab === "system" ? logs : scannerLogs).filter((log) => {
+    if (activeTab === "scanner" && selectedCategory) {
+      const isAthlete = !!log.accreditations;
+      const isSpectator = !!log.spectator_orders;
+      const role = isAthlete ? (log.accreditations.role || 'Athlete') : (isSpectator ? 'Spectator' : 'System');
+      if (role.toLowerCase() !== selectedCategory.toLowerCase()) {
+        return false;
+      }
+    }
+
     if (!search) return true;
     const q = search.toLowerCase();
 
@@ -203,6 +217,18 @@ export default function AuditLog() {
       );
     }
   });
+
+  const predefinedCategories = ["Athlete", "Coach", "Team Manager", "Official", "VIP", "Media", "Organizer", "Spectator", "System"];
+  const uniqueCategories = activeTab === "scanner" 
+    ? Array.from(new Set([
+        ...predefinedCategories,
+        ...scannerLogs.map(log => {
+          const isAthlete = !!log.accreditations;
+          const isSpectator = !!log.spectator_orders;
+          return isAthlete ? (log.accreditations.role || 'Athlete') : (isSpectator ? 'Spectator' : 'System');
+        })
+      ])).filter(Boolean).sort()
+    : [];
 
   return (
     <div id="auditlog_page" className="space-y-6">
@@ -278,7 +304,7 @@ export default function AuditLog() {
       </div>
 
       {activeTab === 'scanner' && (
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 bg-base-alt/40 p-4 rounded-2xl border border-border/50">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 bg-base-alt/40 p-4 rounded-2xl border border-border/50 flex-wrap">
           <div className="flex items-center gap-3 text-muted">
             <Calendar className="w-4 h-4" />
             <span className="text-[10px] font-black uppercase tracking-widest">Filter By Event</span>
@@ -298,9 +324,34 @@ export default function AuditLog() {
           {selectedEventId && (
             <button 
               onClick={() => setSelectedEventId("")}
+              className="text-[9px] font-black uppercase tracking-widest text-primary hover:text-primary-400 transition-colors mr-4"
+            >
+              Clear Event
+            </button>
+          )}
+
+          <div className="flex items-center gap-3 text-muted md:ml-4">
+            <User className="w-4 h-4" />
+            <span className="text-[10px] font-black uppercase tracking-widest">Filter By Category</span>
+          </div>
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="bg-base border border-border rounded-xl px-4 py-2 text-xs font-bold text-main outline-none focus:ring-1 focus:ring-primary/40 min-w-[200px] appearance-none cursor-pointer hover:border-primary/20 transition-all"
+          >
+            <option value="">All Categories</option>
+            {uniqueCategories.map((category, idx) => (
+              <option key={idx} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+          {selectedCategory && (
+            <button 
+              onClick={() => setSelectedCategory("")}
               className="text-[9px] font-black uppercase tracking-widest text-primary hover:text-primary-400 transition-colors"
             >
-              Clear Filter
+              Clear Category
             </button>
           )}
         </div>

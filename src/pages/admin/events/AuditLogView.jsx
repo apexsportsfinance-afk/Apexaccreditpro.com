@@ -9,7 +9,8 @@ import {
   Clock,
   Radio,
   Zap,
-  Layout
+  Layout,
+  User
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AttendanceAPI } from "../../../lib/attendanceApi";
@@ -25,6 +26,7 @@ export default function AuditLogView({ event }) {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedArea, setSelectedArea] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const [dateFilter, setDateFilter] = useState(() => new Date().toISOString().split('T')[0]);
   const [viewMode, setViewMode] = useState("ledger"); 
   const [lastUpdated, setLastUpdated] = useState(new Date());
@@ -144,8 +146,6 @@ export default function AuditLogView({ event }) {
     return summary;
   }, [logs, zones, accreditations, dateFilter]);
 
-  const GATE_SCAN_MODES = ["zone_check_in", "zone_check_out"];
-
   const presenceSummary = useMemo(() => {
     const summaryMap = {};
     
@@ -154,7 +154,6 @@ export default function AuditLogView({ event }) {
     const activeDate = dateFilter === "all" ? availableDates[0] : dateFilter;
 
     const gateLogs = logs
-      .filter(log => GATE_SCAN_MODES.includes(log.scan_mode))
       .filter(log => {
         if (!activeDate) return true;
         const logDate = new Date(log.created_at).toISOString().split('T')[0];
@@ -172,13 +171,14 @@ export default function AuditLogView({ event }) {
       const currentZone = summaryMap[athleteId].zones[zoneName] || { 
         status: "Never Entered", lastIn: null, lastOut: null, totalEntries: 0
       };
-      if (log.scan_mode === "zone_check_in") {
+      
+      if (log.scan_mode === "zone_check_out") {
+        currentZone.status = "Outside";
+        currentZone.lastOut = log.created_at;
+      } else {
         currentZone.status = "Inside";
         currentZone.lastIn = log.created_at;
         currentZone.totalEntries++;
-      } else if (log.scan_mode === "zone_check_out") {
-        currentZone.status = "Outside";
-        currentZone.lastOut = log.created_at;
       }
       summaryMap[athleteId].zones[zoneName] = currentZone;
     });
@@ -209,11 +209,15 @@ export default function AuditLogView({ event }) {
     return presenceSummary.filter(item => {
       const name = `${item.athlete?.first_name || ''} ${item.athlete?.last_name || ''}`.toLowerCase();
       const badge = (item.athlete?.badge_number || "").toLowerCase();
+      const role = (item.athlete?.role || "").toLowerCase();
+
       const matchesSearch = name.includes(searchTerm.toLowerCase()) || badge.includes(searchTerm.toLowerCase());
       const matchesArea = selectedArea === "all" || item.zone.includes(selectedArea) || item.zone === selectedArea;
-      return matchesSearch && matchesArea;
+      const matchesCategory = selectedCategory === "all" || role === selectedCategory.toLowerCase();
+
+      return matchesSearch && matchesArea && matchesCategory;
     });
-  }, [presenceSummary, searchTerm, selectedArea]);
+  }, [presenceSummary, searchTerm, selectedArea, selectedCategory]);
 
   const filteredLogs = useMemo(() => {
     const filtered = logs.filter(log => {
@@ -233,12 +237,20 @@ export default function AuditLogView({ event }) {
                            nationality.includes(searchTerm.toLowerCase()) ||
                            customMsg.includes(searchTerm.toLowerCase());
       const matchesArea = selectedArea === "all" || (log.resolved_area === selectedArea);
-      return matchesSearch && matchesArea;
+      const matchesCategory = selectedCategory === "all" || role === selectedCategory.toLowerCase();
+
+      return matchesSearch && matchesArea && matchesCategory;
     });
     
     // Sort by created_at descending (New scanning on top)
     return filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  }, [logs, searchTerm, selectedArea, dateFilter]);
+  }, [logs, searchTerm, selectedArea, dateFilter, selectedCategory]);
+
+  const uniqueCategories = useMemo(() => {
+    const predefinedCategories = ["Athlete", "Coach", "Team Manager", "Official", "VIP", "Media", "Organizer", "Spectator", "System"];
+    const extracted = logs.map(log => log.accreditations?.role).filter(Boolean);
+    return Array.from(new Set([...predefinedCategories, ...extracted])).sort();
+  }, [logs]);
 
   const totalUniqueScanned = useMemo(() => {
     const unique = new Set();
@@ -263,6 +275,10 @@ export default function AuditLogView({ event }) {
         'Badge #': log.accreditations?.badge_number || 'N/A',
         'Role': log.accreditations?.role || 'N/A',
         'Club / Org': log.accreditations?.club || 'N/A',
+        'Associated Sports': (() => {
+          const sports = log.accreditations?.selected_sports || log.accreditations?.selectedSports;
+          return Array.isArray(sports) && sports.length > 0 ? sports.join(', ') : 'N/A';
+        })(),
         'Nationality': log.accreditations?.nationality || 'N/A',
         'Gender': log.accreditations?.gender || 'N/A',
         'Mode': log.scan_mode?.replace('zone_', '').toUpperCase() || 'SCAN',
@@ -523,6 +539,14 @@ export default function AuditLogView({ event }) {
               {availableDates.map(d => (
                 <option key={d} value={d}>{new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}</option>
               ))}
+            </select>
+            <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-700 pointer-events-none" />
+          </div>
+          <div className="relative min-w-[200px] group">
+            <User className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-primary-500/40 group-focus-within:text-primary-400 transition-colors" />
+            <select className="bg-black/20 border border-white/10 text-slate-400 rounded-2xl pl-14 pr-12 py-4 text-[10px] font-black uppercase tracking-[0.2em] w-full focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 outline-none appearance-none cursor-pointer hover:bg-black/40 transition-all" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
+              <option value="all">ALL CATEGORIES</option>
+              {uniqueCategories.map(c => (<option key={c} value={c}>{c.toUpperCase()}</option>))}
             </select>
             <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-700 pointer-events-none" />
           </div>
