@@ -182,12 +182,28 @@ export const AuthProvider = ({ children }) => {
     if (user.role === "super_admin" || user.role === "admin") return true;
     if (!user.allowedModules) return false;
     
-    // Exact match, parent match, or child match (e.g. /admin/qr-system/booking gives access to /admin/qr-system)
-    return user.allowedModules.some(modulePath => 
-      path === modulePath || 
-      path.startsWith(modulePath + "/") || 
-      modulePath.startsWith(path + "/")
-    );
+    // Exact match, parent match, or child match
+    return user.allowedModules.some(modulePath => {
+      if (path === modulePath || path.startsWith(modulePath + "/") || modulePath.startsWith(path + "/")) {
+        return true;
+      }
+
+      // Special case for dynamic event routes like /admin/events/:id
+      if (modulePath.startsWith("/admin/events/") && path.startsWith("/admin/events/")) {
+        const pathParts = path.split("/"); // e.g. ["", "admin", "events", "uuid", "subpage?"]
+        const modParts = modulePath.split("/"); // e.g. ["", "admin", "events", "audit-log"]
+        
+        // Allow access to the event detail wrapper
+        if (pathParts.length === 4) return true;
+        
+        // Allow access to the specific granular subpage
+        if (pathParts.length === 5 && pathParts[4] === modParts[3]) {
+          return true;
+        }
+      }
+      
+      return false;
+    });
   };
 
   const hasExactModuleAccess = (path) => {

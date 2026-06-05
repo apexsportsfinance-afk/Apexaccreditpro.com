@@ -106,8 +106,10 @@ const OVERRIDABLE_FIELDS = [
 export default function Events() {
   const { id, subpage } = useParams();
   const navigate = useNavigate();
-  const { canAccessEvent, user } = useAuth();
+  const { canAccessEvent, user, hasExactModuleAccess } = useAuth();
   const isSuperAdminOnly = user?.role === "super_admin";
+  const hasFullEventAccess = hasExactModuleAccess("/admin/events");
+  const hasAuditLogAccess = hasExactModuleAccess("/admin/events/audit-log");
   const [events, setEvents] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [eventCounts, setEventCounts] = useState({});
@@ -935,7 +937,7 @@ export default function Events() {
             </motion.div>
           ))}
         </div>
-      ) : subpage === "categories" ? (
+      ) : subpage === "categories" && hasFullEventAccess ? (
         /* --- CATEGORIES SUB-PAGE --- */
         (() => {
           const event = events.find(e => e.id === id);
@@ -959,7 +961,7 @@ export default function Events() {
             </div>
           );
         })()
-      ) : subpage === "template" ? (
+      ) : subpage === "template" && hasFullEventAccess ? (
         /* --- TEMPLATE SUB-PAGE --- */
         (() => {
           const event = events.find(e => e.id === id);
@@ -983,7 +985,7 @@ export default function Events() {
             </div>
           );
         })()
-      ) : subpage === "clubs" ? (
+      ) : subpage === "clubs" && hasFullEventAccess ? (
         /* --- CLUBS SUB-PAGE --- */
         (() => {
           const event = events.find(e => e.id === id);
@@ -1007,7 +1009,7 @@ export default function Events() {
             </div>
           );
         })()
-      ) : subpage === "attendance" ? (
+      ) : subpage === "attendance" && hasFullEventAccess ? (
         /* --- ATTENDANCE SUB-PAGE --- */
         (() => {
           const event = events.find(e => e.id === id);
@@ -1027,7 +1029,7 @@ export default function Events() {
             </div>
           );
         })()
-      ) : subpage === "invite-links" ? (
+      ) : subpage === "invite-links" && hasFullEventAccess ? (
         /* --- INVITE LINKS SUB-PAGE --- */
         (() => {
           const event = events.find(e => e.id === id);
@@ -1047,7 +1049,7 @@ export default function Events() {
             </div>
           );
         })()
-      ) : subpage === "terms" ? (
+      ) : subpage === "terms" && hasFullEventAccess ? (
         /* --- TERMS SUB-PAGE --- */
         (() => {
           const event = events.find(e => e.id === id);
@@ -1067,7 +1069,7 @@ export default function Events() {
             </div>
           );
         })()
-      ) : subpage === "audit-log" ? (
+      ) : subpage === "audit-log" && hasAuditLogAccess ? (
         /* --- AUDIT LOG SUB-PAGE --- */
         (() => {
           const event = events.find(e => e.id === id);
@@ -1120,8 +1122,9 @@ export default function Events() {
                       <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-3">
                           <h2 className="text-xl font-bold text-main">{event.name}</h2>
-                          <div className="ms-4 flex items-center gap-3">
-                            <button 
+                          {hasFullEventAccess && (
+                            <div className="ms-4 flex items-center gap-3">
+                              <button 
                               onClick={async () => {
                                 try {
                                   await EventsAPI.update(event.id, { registrationOpen: !event.registrationOpen });
@@ -1144,9 +1147,10 @@ export default function Events() {
                               </span>
                             </button>
                           </div>
+                          )}
                         </div>
 
-                        {!event.registrationOpen && (
+                        {!event.registrationOpen && hasFullEventAccess && (
                           <motion.div
                             initial={{ opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}
@@ -1246,9 +1250,11 @@ export default function Events() {
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
                           <label className="text-[10px] font-bold uppercase tracking-widest text-muted block">QR Scanner Link</label>
-                          <button onClick={() => openMainGateSettings(event.id)} className="flex items-center gap-1 text-[10px] font-bold text-primary-400 hover:text-primary-300">
-                            <Edit className="w-3 h-3" /> Configure Gate
-                          </button>
+                          {hasFullEventAccess && (
+                            <button onClick={() => openMainGateSettings(event.id)} className="flex items-center gap-1 text-[10px] font-bold text-primary-400 hover:text-primary-300">
+                              <Edit className="w-3 h-3" /> Configure Gate
+                            </button>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 bg-base-alt border border-border rounded-xl px-3 py-2 group shadow-sm">
                           <Activity className="w-4 h-4 text-cyan-500 flex-shrink-0" />
@@ -1342,55 +1348,61 @@ export default function Events() {
 
               {/* Action Sections */}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <DetailActionCard 
-                  title="Categories" 
-                  description="Manage roles, registration fees, and badge colors for this event"
-                  icon={Tags}
-                  color="from-primary-600 to-blue-500"
-                  onClick={() => navigate(`/admin/events/${id}/categories`)}
-                />
-                <DetailActionCard 
-                  title="Accreditation Template" 
-                  description="Configure card headers, sponsor logos, and back-side access zones"
-                  icon={FileImage}
-                  color="from-emerald-600 to-teal-500"
-                  onClick={() => navigate(`/admin/events/${id}/template`)}
-                />
-                <DetailActionCard 
-                  title="Event Clubs List" 
-                  description="Upload and manage the list of registered clubs for searchable selection"
-                  icon={Upload}
-                  color="from-purple-600 to-indigo-500"
-                  onClick={() => navigate(`/admin/events/${id}/clubs`)}
-                />
-                <DetailActionCard 
-                  title="Attendance Module" 
-                  description="View live event scanner check-ins and download attendance reports"
-                  icon={Activity}
-                  color="from-cyan-600 to-sky-500"
-                  onClick={() => navigate(`/admin/events/${id}/attendance`)}
-                />
-                <DetailActionCard 
-                  title="Private Invite Links" 
-                  description="Generate secret registration links for late submissions without opening main registration"
-                  icon={Lock}
-                  color="from-violet-600 to-purple-500"
-                  onClick={() => navigate(`/admin/events/${id}/invite-links`)}
-                />
-                <DetailActionCard 
-                  title="Terms & Conditions" 
-                  description="Customize the legal terms and health waivers displayed during registration"
-                  icon={Shield}
-                  color="from-blue-600 to-cyan-500"
-                  onClick={() => navigate(`/admin/events/${id}/terms`)}
-                />
-                <DetailActionCard 
-                  title="Scanner Audit Log" 
-                  description="View all scan attempts, download CSV/Excel logs, and view sport summaries"
-                  icon={ShieldAlert}
-                  color="from-amber-600 to-orange-500"
-                  onClick={() => navigate(`/admin/events/${id}/audit-log`)}
-                />
+                {hasFullEventAccess && (
+                  <>
+                    <DetailActionCard 
+                      title="Categories" 
+                      description="Manage roles, registration fees, and badge colors for this event"
+                      icon={Tags}
+                      color="from-primary-600 to-blue-500"
+                      onClick={() => navigate(`/admin/events/${id}/categories`)}
+                    />
+                    <DetailActionCard 
+                      title="Accreditation Template" 
+                      description="Configure card headers, sponsor logos, and back-side access zones"
+                      icon={FileImage}
+                      color="from-emerald-600 to-teal-500"
+                      onClick={() => navigate(`/admin/events/${id}/template`)}
+                    />
+                    <DetailActionCard 
+                      title="Event Clubs List" 
+                      description="Upload and manage the list of registered clubs for searchable selection"
+                      icon={Upload}
+                      color="from-purple-600 to-indigo-500"
+                      onClick={() => navigate(`/admin/events/${id}/clubs`)}
+                    />
+                    <DetailActionCard 
+                      title="Attendance Module" 
+                      description="View live event scanner check-ins and download attendance reports"
+                      icon={Activity}
+                      color="from-cyan-600 to-sky-500"
+                      onClick={() => navigate(`/admin/events/${id}/attendance`)}
+                    />
+                    <DetailActionCard 
+                      title="Private Invite Links" 
+                      description="Generate secret registration links for late submissions without opening main registration"
+                      icon={Lock}
+                      color="from-violet-600 to-purple-500"
+                      onClick={() => navigate(`/admin/events/${id}/invite-links`)}
+                    />
+                    <DetailActionCard 
+                      title="Terms & Conditions" 
+                      description="Customize the legal terms and health waivers displayed during registration"
+                      icon={Shield}
+                      color="from-blue-600 to-cyan-500"
+                      onClick={() => navigate(`/admin/events/${id}/terms`)}
+                    />
+                  </>
+                )}
+                {hasAuditLogAccess && (
+                  <DetailActionCard 
+                    title="Scanner Audit Log" 
+                    description="View all scan attempts, download CSV/Excel logs, and view sport summaries"
+                    icon={ShieldAlert}
+                    color="from-amber-600 to-orange-500"
+                    onClick={() => navigate(`/admin/events/${id}/audit-log`)}
+                  />
+                )}
               </div>
             </motion.div>
           );
