@@ -311,6 +311,7 @@ export default function BookingSetupTab({ eventId, onToast, disabled }) {
     meetings.forEach(m => {
       headers.push(`${m} Date`, `${m} Time`);
     });
+    headers.push("Booking Created At");
 
     // Group bookings by participant
     const participants = {};
@@ -324,8 +325,11 @@ export default function BookingSetupTab({ eventId, onToast, disabled }) {
           badge: b.accreditations?.badge_number || 'N/A',
           club: b.accreditations?.club || 'N/A',
           role: b.accreditations?.role || 'N/A',
-          meetings: {}
+          meetings: {},
+          booking_created_at: b.created_at || b.createdAt || ""
         };
+      } else if (!participants[pId].booking_created_at && (b.created_at || b.createdAt)) {
+        participants[pId].booking_created_at = b.created_at || b.createdAt;
       }
 
       const slot = config.slots.find(s => s.id === b.slot_id);
@@ -338,8 +342,18 @@ export default function BookingSetupTab({ eventId, onToast, disabled }) {
       }
     });
 
+    // Convert to array and sort by booking time ascending (oldest first)
+    const participantsArray = Object.values(participants).sort((a, b) => {
+      const timeA = new Date(a.booking_created_at || 0).getTime();
+      const timeB = new Date(b.booking_created_at || 0).getTime();
+      if (timeA === timeB) {
+        return String(a.badge).localeCompare(String(b.badge));
+      }
+      return timeA - timeB;
+    });
+
     // Build CSV rows
-    const rows = Object.values(participants).map(p => {
+    const rows = participantsArray.map(p => {
       const row = [
         `"${p.name}"`, 
         `"${p.badge}"`, 
@@ -351,6 +365,11 @@ export default function BookingSetupTab({ eventId, onToast, disabled }) {
         const mData = p.meetings[m];
         row.push(`"${mData ? mData.date : ''}"`, `"${mData ? mData.time : ''}"`);
       });
+      
+      const formattedTime = p.booking_created_at 
+        ? new Date(p.booking_created_at).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })
+        : "";
+      row.push(`"${formattedTime}"`);
       
       return row.join(",");
     });

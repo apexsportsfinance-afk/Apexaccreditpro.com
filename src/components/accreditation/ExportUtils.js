@@ -79,7 +79,30 @@ export const exportToExcel = async (data, filename = "export", event = null, pas
     }
   });
 
-  const exportData = data.map((row) => {
+  // Ensure fixed column order
+  const orderedCustomFieldKeys = Array.from(allCustomFieldKeys).sort((a, b) => {
+    const getIndex = (key) => customFieldConfigs?.findIndex(cf => cf && cf.id === key) ?? -1;
+    const indexA = getIndex(a);
+    const indexB = getIndex(b);
+    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+    if (indexA !== -1) return -1;
+    if (indexB !== -1) return 1;
+    return String(a).localeCompare(String(b));
+  });
+
+  // Ensure consistent row order (oldest first, appending to bottom)
+  const sortedData = [...data].sort((a, b) => {
+    const timeA = new Date(a.createdAt || a.created_at || 0).getTime();
+    const timeB = new Date(b.createdAt || b.created_at || 0).getTime();
+    if (timeA === timeB) {
+      const idA = a.id || a.accreditationId || "";
+      const idB = b.id || b.accreditationId || "";
+      return String(idA).localeCompare(String(idB));
+    }
+    return timeA - timeB; // Ascending
+  });
+
+  const exportData = sortedData.map((row) => {
     const rowData = {
       "Accreditation ID": row.accreditationId || "",
       "Badge Number": row.badgeNumber || "",
@@ -93,7 +116,7 @@ export const exportToExcel = async (data, filename = "export", event = null, pas
       "Role": row.role || "",
     };
 
-    allCustomFieldKeys.forEach(key => {
+    orderedCustomFieldKeys.forEach(key => {
       const header = getFriendlyName(key);
       rowData[header] = row._computedFields?.[key] || row.customFields?.[key] || row.custom_fields?.[key] || "";
     });
@@ -101,7 +124,12 @@ export const exportToExcel = async (data, filename = "export", event = null, pas
     rowData["Email"] = row.email || "";
     rowData["Status"] = row.status || "";
     rowData["Zone Access"] = row.zoneCode || "";
-    rowData["Created At"] = row.createdAt || "";
+    
+    // Add explicitly formatted Booking Time
+    const rawTime = row.createdAt || row.created_at;
+    rowData["Booking Date & Time"] = rawTime ? new Date(rawTime).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : "";
+
+    rowData["Created At Raw"] = row.createdAt || "";
 
     return rowData;
   });
@@ -141,9 +169,21 @@ export const exportTableToPDF = async (data, columns, title = "Export") => {
   doc.setTextColor(100, 116, 139);
   doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
 
+  // Ensure consistent row order (oldest first)
+  const sortedData = [...data].sort((a, b) => {
+    const timeA = new Date(a.createdAt || a.created_at || 0).getTime();
+    const timeB = new Date(b.createdAt || b.created_at || 0).getTime();
+    if (timeA === timeB) {
+      const idA = a.id || a.accreditationId || "";
+      const idB = b.id || b.accreditationId || "";
+      return String(idA).localeCompare(String(idB));
+    }
+    return timeA - timeB; // Ascending
+  });
+
   // Prepare table data
   const headers = columns.map((col) => col.header);
-  const rows = data.map((row) =>
+  const rows = sortedData.map((row) =>
     columns.map((col) => {
       let value = row[col.key];
       if (col.key === "nationality") value = getCountryCode3(value);

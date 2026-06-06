@@ -30,6 +30,18 @@ async function fetchClubData(eventId, clubFull) {
   const clubTerm = String(clubFull).trim().toLowerCase();
   const clubMembers = allAccs.filter(a => String(a.club || "").trim().toLowerCase() === clubTerm);
 
+  // Fix row order to ensure consistent export (oldest first)
+  clubMembers.sort((a, b) => {
+    const timeA = new Date(a.createdAt || a.created_at || 0).getTime();
+    const timeB = new Date(b.createdAt || b.created_at || 0).getTime();
+    if (timeA === timeB) {
+      const idA = a.id || a.accreditationId || "";
+      const idB = b.id || b.accreditationId || "";
+      return String(idA).localeCompare(String(idB));
+    }
+    return timeA - timeB; // Ascending
+  });
+
   // Map into the exact requested output format
   const formattedData = clubMembers.map((member, index) => {
     // Determine attendance string
