@@ -1330,7 +1330,7 @@ export const BookingsAPI = {
       .from("bookings")
       .select(`
         *,
-        accreditations (id, first_name, last_name, club, role, badge_number)
+        accreditations (id, accreditation_id, first_name, last_name, club, role, badge_number)
       `)
       .eq("event_id", eventId)
       .order("created_at", { ascending: false })

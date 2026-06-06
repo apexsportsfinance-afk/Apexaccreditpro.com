@@ -307,7 +307,7 @@ export default function BookingSetupTab({ eventId, onToast, disabled }) {
     const meetings = [...new Set((config.slots || []).map(s => s.group_name || "General Meeting"))].sort();
 
     // Setup headers
-    const headers = ["Name", "Badge Number", "Club", "Role"];
+    const headers = ["Name", "ID Number", "Badge Number", "Club", "Role"];
     meetings.forEach(m => {
       headers.push(`${m} Date`, `${m} Time`);
     });
@@ -322,6 +322,7 @@ export default function BookingSetupTab({ eventId, onToast, disabled }) {
       if (!participants[pId]) {
         participants[pId] = {
           name: b.accreditations ? `${b.accreditations.first_name || ''} ${b.accreditations.last_name || ''}`.trim() : 'Unknown',
+          id_number: b.accreditations?.accreditation_id || b.accreditations?.id || 'N/A',
           badge: b.accreditations?.badge_number || 'N/A',
           club: b.accreditations?.club || 'N/A',
           role: b.accreditations?.role || 'N/A',
@@ -356,6 +357,7 @@ export default function BookingSetupTab({ eventId, onToast, disabled }) {
     const rows = participantsArray.map(p => {
       const row = [
         `"${p.name}"`, 
+        `"${p.id_number}"`,
         `"${p.badge}"`, 
         `"${p.club}"`, 
         `"${p.role}"`
