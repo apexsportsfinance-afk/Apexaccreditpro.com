@@ -48,7 +48,7 @@ export default function AuditLogView({ event }) {
     setIsSyncing(true);
     try {
       const [logsData, accsData] = await Promise.all([
-        AttendanceAPI.getScanLogsByEvent(event.id, 2000),
+        AttendanceAPI.getScanLogsByEvent(event.id, 10000),
         AccreditationsAPI.getByEventId(event.id, { status: "approved" })
       ]);
       setLogs(logsData || []);
@@ -72,7 +72,7 @@ export default function AuditLogView({ event }) {
     setLoading(true);
     try {
       const [logsData, accsData] = await Promise.all([
-        AttendanceAPI.getScanLogsByEvent(event.id, 2000),
+        AttendanceAPI.getScanLogsByEvent(event.id, 10000),
         AccreditationsAPI.getByEventId(event.id, { status: "approved" })
       ]);
       setLogs(logsData || []);
@@ -258,8 +258,8 @@ export default function AuditLogView({ event }) {
       const logDate = new Date(log.created_at).toISOString().split('T')[0];
       if (dateFilter !== "all" && logDate !== dateFilter) return;
       
-      // ONLY COUNT SUCCESSFUL MAIN GATE ENTRIES
-      if (log.scan_mode !== 'attendance') return;
+      // Count any successful scan as someone who has entered the event
+      if (!VALID_ENTRY_MODES.includes(log.scan_mode)) return;
 
       if (log.athlete_id) unique.add(log.athlete_id);
     });

@@ -137,10 +137,14 @@ export default function BookingSetupTab({ eventId, onToast, disabled }) {
     const hideKey = `${groupName}_${dateStr}`;
     setConfig(prev => {
       const hidden = prev.hidden_dates || [];
-      if (hidden.includes(hideKey)) {
-        return { ...prev, hidden_dates: hidden.filter(k => k !== hideKey) };
-      } else {
+      const isNowHidden = !hidden.includes(hideKey);
+      
+      if (isNowHidden) {
+        toast.success(`Date hidden from QR profile. Don't forget to save!`, { duration: 3000 });
         return { ...prev, hidden_dates: [...hidden, hideKey] };
+      } else {
+        toast.success(`Date is visible again. Don't forget to save!`, { duration: 3000 });
+        return { ...prev, hidden_dates: hidden.filter(k => k !== hideKey) };
       }
     });
   };

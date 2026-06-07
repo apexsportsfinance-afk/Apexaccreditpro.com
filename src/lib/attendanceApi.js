@@ -393,23 +393,42 @@ export const AttendanceAPI = {
    */
   getScanLogsByEvent: async (eventId, limit = 500, offset = 0) => {
     try {
-      let q = supabase
-        .from("unified_scan_logs")
-        .select(`
-          *,
-          accreditations:athlete_id (id, first_name, last_name, club, badge_number, role, selected_sports, gender, nationality, custom_message, expires_at),
-          spectator_orders:spectator_id (id, customer_name, qr_code_id)
-        `)
-        .order("created_at", { ascending: false })
-        .range(offset, offset + limit - 1);
+      const fetchSize = 1000;
+      const numRequests = Math.ceil(limit / fetchSize);
+      
+      const promises = [];
+      for (let i = 0; i < numRequests; i++) {
+        const currentOffset = offset + (i * fetchSize);
+        const currentLimit = Math.min(fetchSize, limit - (i * fetchSize));
 
-      if (eventId && eventId !== "null") {
-        q = q.eq("event_id", eventId);
+        let q = supabase
+          .from("unified_scan_logs")
+          .select(`
+            *,
+            accreditations:athlete_id (id, first_name, last_name, club, badge_number, role, selected_sports, gender, nationality, custom_message, expires_at),
+            spectator_orders:spectator_id (id, customer_name, qr_code_id)
+          `)
+          .order("created_at", { ascending: false })
+          .range(currentOffset, currentOffset + currentLimit - 1);
+
+        if (eventId && eventId !== "null") {
+          q = q.eq("event_id", eventId);
+        }
+
+        promises.push(q);
       }
 
-      const { data, error } = await q;
-      if (error) throw error;
-      return data || [];
+      const results = await Promise.all(promises);
+      
+      let allData = [];
+      for (const { data, error } of results) {
+        if (error) throw error;
+        if (data && data.length > 0) {
+          allData = allData.concat(data);
+        }
+      }
+      
+      return allData.slice(0, limit);
     } catch (err) {
       console.error("[AttendanceAPI] getScanLogsByEvent error:", err);
       return [];
