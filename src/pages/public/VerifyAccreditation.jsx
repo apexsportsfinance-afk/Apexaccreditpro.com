@@ -1287,7 +1287,13 @@ export default function VerifyAccreditation() {
                     )}
                     
                     {Object.entries(groupedSlots).map(([groupName, dates]) => {
+                      const hiddenDates = bookingConfig.hidden_dates || [];
+                      const visibleDates = Object.entries(dates).filter(([dateStr]) => !hiddenDates.includes(`${groupName}_${dateStr}`));
                       const currentBooking = participantBookings.find(b => b.group_name === groupName);
+                      
+                      // Skip rendering this group if it has no visible dates and the user has no booking for it
+                      if (visibleDates.length === 0 && !currentBooking) return null;
+                      
                       const isEditing = editingMeetings.includes(groupName);
                       
                       const isMeetingExpanded = expandedMeetings.includes(groupName);
@@ -1359,7 +1365,7 @@ export default function VerifyAccreditation() {
                                 className="overflow-hidden"
                               >
                                 <div className="p-4 space-y-3">
-                                  {Object.entries(dates).map(([dateStr, slots]) => {
+                                  {visibleDates.map(([dateStr, slots]) => {
                                     const isDateExpanded = (expandedDates[groupName] || []).includes(dateStr);
                                     return (
                                       <div key={dateStr} className="space-y-2 border border-blue-50/50 rounded-xl overflow-hidden">

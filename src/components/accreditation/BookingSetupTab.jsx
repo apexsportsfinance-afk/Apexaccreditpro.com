@@ -11,7 +11,9 @@ import {
   AlertTriangle,
   Edit2,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { BookingsAPI } from "../../lib/storage";
 import { toast } from "sonner";
@@ -29,7 +31,8 @@ export default function BookingSetupTab({ eventId, onToast, disabled }) {
     description: "Please select your preferred time slot from the available options below.",
     is_active: false,
     allowed_categories: ["Athlete", "Coach"],
-    slots: []
+    slots: [],
+    hidden_dates: []
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -85,7 +88,8 @@ export default function BookingSetupTab({ eventId, onToast, disabled }) {
           setConfig({
             ...configData,
             allowed_categories: configData.allowed_categories || [],
-            slots: configData.slots || []
+            slots: configData.slots || [],
+            hidden_dates: configData.hidden_dates || []
           });
         }
         setBookings(bookingsData || []);
@@ -124,6 +128,19 @@ export default function BookingSetupTab({ eventId, onToast, disabled }) {
         return { ...prev, allowed_categories: current.filter(c => c !== cat) };
       } else {
         return { ...prev, allowed_categories: [...current, cat] };
+      }
+    });
+  };
+
+  const toggleHideDate = (groupName, dateStr) => {
+    if (disabled) return;
+    const hideKey = `${groupName}_${dateStr}`;
+    setConfig(prev => {
+      const hidden = prev.hidden_dates || [];
+      if (hidden.includes(hideKey)) {
+        return { ...prev, hidden_dates: hidden.filter(k => k !== hideKey) };
+      } else {
+        return { ...prev, hidden_dates: [...hidden, hideKey] };
       }
     });
   };
@@ -647,15 +664,35 @@ export default function BookingSetupTab({ eventId, onToast, disabled }) {
                           const isDateExpanded = (expandedDates[groupName] || []).includes(dateStr);
                           return (
                             <div key={dateStr} className="space-y-3 border border-blue-500/10 rounded-xl overflow-hidden bg-slate-900/30">
-                              <button 
-                                onClick={() => toggleDate(groupName, dateStr)}
-                                className="w-full flex items-center gap-2 p-4 bg-blue-500/5 hover:bg-blue-500/10 transition-colors"
-                              >
-                                {isDateExpanded ? <ChevronDown className="w-4 h-4 text-blue-400" /> : <ChevronRight className="w-4 h-4 text-blue-400" />}
-                                <h4 className="text-sm font-bold text-blue-400 uppercase flex items-center gap-2">
-                                  <Calendar className="w-4 h-4" /> {dateStr}
-                                </h4>
-                              </button>
+                              <div className="w-full flex items-center justify-between p-4 bg-blue-500/5 hover:bg-blue-500/10 transition-colors cursor-pointer group" onClick={() => toggleDate(groupName, dateStr)}>
+                                <div className="flex items-center gap-2 flex-1">
+                                  {isDateExpanded ? <ChevronDown className="w-4 h-4 text-blue-400" /> : <ChevronRight className="w-4 h-4 text-blue-400" />}
+                                  <h4 className="text-sm font-bold text-blue-400 uppercase flex items-center gap-2">
+                                    <Calendar className="w-4 h-4" /> {dateStr}
+                                  </h4>
+                                </div>
+                                {!disabled && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleHideDate(groupName, dateStr);
+                                    }}
+                                    className={cn(
+                                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border",
+                                      (config.hidden_dates || []).includes(`${groupName}_${dateStr}`)
+                                        ? "bg-slate-800 text-slate-400 border-white/10 hover:bg-slate-700"
+                                        : "bg-blue-500/20 text-blue-400 border-blue-500/30 hover:bg-blue-500/30"
+                                    )}
+                                    title={(config.hidden_dates || []).includes(`${groupName}_${dateStr}`) ? "Date is hidden in QR profile" : "Date is visible in QR profile"}
+                                  >
+                                    {(config.hidden_dates || []).includes(`${groupName}_${dateStr}`) ? (
+                                      <><EyeOff className="w-3.5 h-3.5" /> Hidden</>
+                                    ) : (
+                                      <><Eye className="w-3.5 h-3.5" /> Visible</>
+                                    )}
+                                  </button>
+                                )}
+                              </div>
                               
                               <AnimatePresence>
                                 {isDateExpanded && (
