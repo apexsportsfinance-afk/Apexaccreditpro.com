@@ -124,7 +124,7 @@ export default function AuditLogView({ event }) {
       const allocatedCount = accreditations.filter(acc => 
         acc.zoneCode === z.code || (acc.zoneCode && acc.zoneCode.includes(z.code))
       ).length;
-      summary[getCanonicalName(z)] = { scanned: new Set(), allocated: allocatedCount, code: z.code };
+      summary[getCanonicalName(z)] = { scanned: new Set(), totalScans: 0, allocated: allocatedCount, code: z.code };
     });
     logs.forEach(log => {
       const logDate = new Date(log.created_at).toISOString().split('T')[0];
@@ -140,8 +140,13 @@ export default function AuditLogView({ event }) {
       }
       log.resolved_area = areaName;
       const isSystemDefault = areaName.toLowerCase().includes("self-scan") || areaName.toLowerCase() === "main entrance" || areaName.toLowerCase() === "unknown";
-      if (!summary[areaName] && isSystemDefault) summary[areaName] = { scanned: new Set(), allocated: 0, code: null };
-      if (summary[areaName] && log.athlete_id) summary[areaName].scanned.add(log.athlete_id);
+      if (!summary[areaName] && isSystemDefault) summary[areaName] = { scanned: new Set(), totalScans: 0, allocated: 0, code: null };
+      
+      if (summary[areaName]) {
+        const personId = log.athlete_id || log.spectator_id || log.qr_code_data || log.id;
+        summary[areaName].scanned.add(personId);
+        summary[areaName].totalScans++;
+      }
     });
     return summary;
   }, [logs, zones, accreditations, dateFilter]);
@@ -261,7 +266,8 @@ export default function AuditLogView({ event }) {
       // Count any successful scan as someone who has entered the event
       if (!VALID_ENTRY_MODES.includes(log.scan_mode)) return;
 
-      if (log.athlete_id) unique.add(log.athlete_id);
+      const personId = log.athlete_id || log.spectator_id || log.qr_code_data || log.id;
+      unique.add(personId);
     });
     return unique.size;
   }, [logs, dateFilter]);
@@ -490,10 +496,18 @@ export default function AuditLogView({ event }) {
 
                 <div className="min-w-0">
                   <p className={`text-xs font-black uppercase tracking-wider ${textDimClass} mb-2.5 truncate`}>{area.split(' (')[0]}</p>
-                  <div className="flex items-baseline gap-1.5 mb-4">
+                  <div className={`flex items-baseline gap-1.5 ${data.totalScans > data.scanned.size ? 'mb-1' : 'mb-4'}`}>
                     <div className={`text-2xl font-black ${textDimClass} tracking-tighter`}>{data.scanned.size}</div>
                     <span className={`text-[10px] font-bold ${metricsDimClass}`}>/ {data.allocated}</span>
                   </div>
+                  {data.totalScans > data.scanned.size && (
+                    <div className="mb-3 flex items-center gap-1.5">
+                       <Activity className={`w-3 h-3 ${pulseClass} ${statusColorClass.replace('bg-', 'text-')}`} />
+                       <span className={`text-[9px] font-black uppercase tracking-widest ${metricsDimClass}`}>
+                         {data.totalScans} Total Scans
+                       </span>
+                    </div>
+                  )}
                 </div>
                 <div className="mt-auto">
                   <div className="flex justify-between items-center mb-2">
