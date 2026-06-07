@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AttendanceAPI } from "../../../lib/attendanceApi";
-import { AccreditationsAPI } from "../../../lib/storage";
+import { AccreditationsAPI, ZonesAPI } from "../../../lib/storage";
 import { useToast } from "../../../components/ui/Toast";
 import Button from "../../../components/ui/Button";
 import { supabase } from "../../../lib/supabase";
@@ -55,12 +55,8 @@ export default function AuditLogView({ event }) {
       setAccreditations(accsData || []);
       setLastUpdated(new Date());
       
-      const { data } = await supabase
-        .from("zones")
-        .select("code, name")
-        .eq("event_id", event.id)
-        .order("code");
-      if (data) setZones(data);
+      const zonesData = await ZonesAPI.getByEventId(event.id);
+      if (zonesData) setZones(zonesData);
     } catch (err) {
       console.error("Silent refresh error:", err);
     } finally {
@@ -88,12 +84,7 @@ export default function AuditLogView({ event }) {
 
   const loadZones = async () => {
     try {
-      const { data, error } = await supabase
-        .from("zones")
-        .select("code, name")
-        .eq("event_id", event.id)
-        .order("code");
-      if (error) throw error;
+      const data = await ZonesAPI.getByEventId(event.id);
       setZones(data || []);
     } catch (err) {
       console.error("Error loading zones:", err);
@@ -124,8 +115,44 @@ export default function AuditLogView({ event }) {
       const allocatedCount = accreditations.filter(acc => 
         acc.zoneCode === z.code || (acc.zoneCode && acc.zoneCode.includes(z.code))
       ).length;
-      summary[getCanonicalName(z)] = { scanned: new Set(), totalScans: 0, allocated: allocatedCount, code: z.code };
+      
+      if (z.settings?.accessMode === "time_restricted" && z.settings?.timeSlots?.length > 0) {
+        z.settings.timeSlots.forEach((slot, index) => {
+          const slotName = `${getCanonicalName(z)} - Slot ${index + 1}`;
+          
+          // Format 23:30 to 11:30 PM
+          const formatTime12h = (time24) => {
+            if (!time24) return '';
+            const [h, m] = time24.split(':');
+            let hours = parseInt(h, 10);
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            return `${hours.toString().padStart(2, '0')}:${m} ${ampm}`;
+          };
+          
+          summary[slotName] = { 
+            scanned: new Set(), 
+            totalScans: 0, 
+            allocated: allocatedCount, 
+            code: z.code, 
+            timeLabel: `${formatTime12h(slot.start)} TO ${formatTime12h(slot.end)}` 
+          };
+        });
+      } else {
+        summary[getCanonicalName(z)] = { scanned: new Set(), totalScans: 0, allocated: allocatedCount, code: z.code };
+      }
     });
+
+    const isTimeInSlot = (time, start, end) => {
+      if (!start || !end) return false;
+      if (start <= end) {
+        return time >= start && time <= end;
+      } else {
+        return time >= start || time <= end;
+      }
+    };
+
     logs.forEach(log => {
       const logDate = new Date(log.created_at).toISOString().split('T')[0];
       if (dateFilter !== "all" && logDate !== dateFilter) return;
@@ -134,13 +161,39 @@ export default function AuditLogView({ event }) {
       if (!VALID_ENTRY_MODES.includes(log.scan_mode)) return;
 
       let areaName = log.device_label || 'Other';
-      if (!summary[areaName]) {
-        const matchingZone = zones.find(z => areaName === z.name || areaName === `${z.name} (${z.code})` || (z.code && areaName.includes(`(${z.code})`)));
-        if (matchingZone) areaName = getCanonicalName(matchingZone);
+      const matchingZone = zones.find(z => areaName === z.name || areaName === `${z.name} (${z.code})` || (z.code && areaName.includes(`(${z.code})`)));
+      
+      if (matchingZone) {
+        if (matchingZone.settings?.accessMode === "time_restricted" && matchingZone.settings?.timeSlots?.length > 0) {
+          const logTime = new Date(log.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+          let matchedSlotIndex = -1;
+          
+          matchingZone.settings.timeSlots.forEach((slot, idx) => {
+            if (isTimeInSlot(logTime, slot.start, slot.end)) {
+              matchedSlotIndex = idx;
+            }
+          });
+          
+          if (matchedSlotIndex !== -1) {
+            areaName = `${getCanonicalName(matchingZone)} - Slot ${matchedSlotIndex + 1}`;
+          } else {
+            areaName = `${getCanonicalName(matchingZone)} - Out of Hours`;
+            if (!summary[areaName]) {
+               const allocatedCount = accreditations.filter(acc => acc.zoneCode === matchingZone.code || (acc.zoneCode && acc.zoneCode.includes(matchingZone.code))).length;
+               summary[areaName] = { scanned: new Set(), totalScans: 0, allocated: allocatedCount, code: matchingZone.code, timeLabel: "Out of Hours" };
+            }
+          }
+        } else {
+          areaName = getCanonicalName(matchingZone);
+        }
+      } else if (!summary[areaName]) {
+        const isSystemDefault = areaName.toLowerCase().includes("self-scan") || areaName.toLowerCase() === "main entrance" || areaName.toLowerCase() === "unknown";
+        if (isSystemDefault) {
+          summary[areaName] = { scanned: new Set(), totalScans: 0, allocated: 0, code: null };
+        }
       }
+      
       log.resolved_area = areaName;
-      const isSystemDefault = areaName.toLowerCase().includes("self-scan") || areaName.toLowerCase() === "main entrance" || areaName.toLowerCase() === "unknown";
-      if (!summary[areaName] && isSystemDefault) summary[areaName] = { scanned: new Set(), totalScans: 0, allocated: 0, code: null };
       
       if (summary[areaName]) {
         const personId = log.athlete_id || log.spectator_id || log.qr_code_data || log.id;
@@ -495,7 +548,12 @@ export default function AuditLogView({ event }) {
                 <div className={`absolute top-0 inset-x-0 h-1 ${topBarClass}`} />
 
                 <div className="min-w-0">
-                  <p className={`text-xs font-black uppercase tracking-wider ${textDimClass} mb-2.5 truncate`}>{area.split(' (')[0]}</p>
+                  <p className={`text-xs font-black uppercase tracking-wider ${textDimClass} mb-1 truncate`}>
+                    {area.includes(' - Slot') ? `${area.split(' (')[0]} - Slot${area.split(' - Slot')[1]}` : area.includes(' - Out of Hours') ? `${area.split(' (')[0]} - Out of Hours` : area.split(' (')[0]}
+                  </p>
+                  {data.timeLabel && (
+                    <p className={`text-[9px] font-bold uppercase tracking-widest ${metricsDimClass} mb-3`}>{data.timeLabel}</p>
+                  )}
                   <div className={`flex items-baseline gap-1.5 ${data.totalScans > data.scanned.size ? 'mb-1' : 'mb-4'}`}>
                     <div className={`text-2xl font-black ${textDimClass} tracking-tighter`}>{data.scanned.size}</div>
                     <span className={`text-[10px] font-bold ${metricsDimClass}`}>/ {data.allocated}</span>
