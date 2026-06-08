@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 
 import { extractTextFromPdf as parsePDFText } from "../../lib/pdfParser";
+import { OUTPUT_TYPES } from "../../lib/constants";
 import { uploadToStorage } from "../../lib/uploadToStorage";
 import Button from "../../components/ui/Button";
 import Card, { CardHeader, CardContent } from "../../components/ui/Card";
@@ -131,6 +132,7 @@ export default function Events() {
   const [mainGateConfig, setMainGateConfig] = useState(null);
   const [showCustomFields, setShowCustomFields] = useState(false);
   const [formData, setFormData] = useState({
+    outputType: OUTPUT_TYPES.ACCREDITATION,
     name: "",
     slug: "",
     sportList: [],
@@ -209,6 +211,7 @@ export default function Events() {
 
   const resetForm = () => {
     setFormData({
+      outputType: OUTPUT_TYPES.ACCREDITATION,
       name: "",
       slug: "",
       sportList: ["Swimming"],
@@ -316,6 +319,7 @@ export default function Events() {
       // 3. Set editing state and form data
       setEditingEvent(event);
       setFormData({
+        outputType: event.outputType || OUTPUT_TYPES.ACCREDITATION,
         name: event.name,
         slug: event.slug,
         sportList: extSport,
@@ -1417,6 +1421,22 @@ export default function Events() {
         size="lg"
       >
         <form onSubmit={handleSubmit} noValidate className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+              Output Type
+            </label>
+            <select
+              value={formData.outputType}
+              onChange={(e) => setFormData(prev => ({ ...prev, outputType: e.target.value }))}
+              className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-700 rounded-lg text-white outline-none focus:ring-1 focus:ring-primary-500 transition-all"
+              required
+            >
+              {Object.values(OUTPUT_TYPES).map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+          </div>
+
           <Input
             label="Event Name"
             value={formData.name}

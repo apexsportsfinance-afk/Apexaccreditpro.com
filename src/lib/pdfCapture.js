@@ -24,6 +24,7 @@ export const PDF_SIZES = {
   a6:     { width: 105, height: 148, label: "A6 (105x148 mm)", dpi: 72 },
   pvc140: { width: 100, height: 140, label: "PVC 140 (100x140 mm)", dpi: 72 },
   card:   { width: 320, height: 454, label: "Exact Card Size", dpi: 96 },
+  cr80:   { width: 85.6, height: 54, label: "CR80 (85.6x54 mm)", dpi: 96 },
 };
 
 export const IMAGE_SIZES = {

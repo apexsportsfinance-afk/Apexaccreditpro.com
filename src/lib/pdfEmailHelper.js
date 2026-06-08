@@ -3,6 +3,8 @@ import html2canvas from "html2canvas";
 import * as ReactModule from "react";
 import { createRoot } from "react-dom/client";
 import { CardInner } from "../components/accreditation/AccreditationCardPreview";
+import { MembershipCardInner } from "../components/accreditation/MembershipCardPreview";
+import { OUTPUT_TYPES } from "./constants";
 
 /**
  * Shared PDF generation utilities for email attachments.
@@ -18,10 +20,16 @@ const imageCache = new Map();
 export const generatePdfForAccreditation = async (accreditation, event, zones, pdfSize = "a6") => {
   // Get dimensions from pdfCapture or fallback to A6
   const { PDF_SIZES } = await import("./pdfCapture");
-  const size = PDF_SIZES[pdfSize?.toLowerCase()] || PDF_SIZES.a6;
+  const isMembership = event?.outputType === OUTPUT_TYPES.MEMBERSHIP;
+  let size = PDF_SIZES[pdfSize?.toLowerCase()] || PDF_SIZES.a6;
+  if (isMembership) {
+    size = PDF_SIZES.cr80 || { width: 85.6, height: 54, label: "CR80", dpi: 96 };
+  }
   const unit = pdfSize === "card" ? "pt" : "mm";
   const pdfW = size.width;
   const pdfH = size.height;
+  const wPx = isMembership ? 324 : 320;
+  const hPx = isMembership ? 204 : 454;
 
   let frontBackgroundUrl = "";
   let customFieldConfigs = [];
@@ -58,8 +66,9 @@ export const generatePdfForAccreditation = async (accreditation, event, zones, p
   document.body.appendChild(container);
 
   const root = createRoot(container);
+  const InnerComponent = isMembership ? MembershipCardInner : CardInner;
   root.render(
-    ReactModule.createElement(CardInner, {
+    ReactModule.createElement(InnerComponent, {
       accreditation,
       event,
       zones,
@@ -135,16 +144,16 @@ export const generatePdfForAccreditation = async (accreditation, event, zones, p
     allowTaint: true,
     backgroundColor: "#ffffff",
     logging: false,
-    width: 320,
-    height: 454,
-    windowWidth: 320,
-    windowHeight: 454,
+    width: wPx,
+    height: hPx,
+    windowWidth: wPx,
+    windowHeight: hPx,
   };
 
   const createCustomCanvas = () => {
     const c = document.createElement("canvas");
-    c.width = 320 * captureOpts.scale;
-    c.height = 454 * captureOpts.scale;
+    c.width = wPx * captureOpts.scale;
+    c.height = hPx * captureOpts.scale;
     const ctx = c.getContext("2d");
     if (ctx) {
       ctx.imageSmoothingEnabled = true;
@@ -200,6 +209,9 @@ export const blobToRawBase64 = (blob) => {
  * Generate image blobs for an accreditation card (offscreen render + capture)
  */
 export const generateImagesForAccreditation = async (accreditation, event, zones, scale = 4) => {
+  const isMembership = event?.outputType === OUTPUT_TYPES.MEMBERSHIP;
+  const wPx = isMembership ? 324 : 320;
+  const hPx = isMembership ? 204 : 454;
   
   let frontBackgroundUrl = "";
   let customFieldConfigs = [];
@@ -236,8 +248,9 @@ export const generateImagesForAccreditation = async (accreditation, event, zones
   document.body.appendChild(container);
 
   const root = createRoot(container);
+  const InnerComponent = isMembership ? MembershipCardInner : CardInner;
   root.render(
-    ReactModule.createElement(CardInner, {
+    ReactModule.createElement(InnerComponent, {
       accreditation,
       event,
       zones,
@@ -297,10 +310,10 @@ export const generateImagesForAccreditation = async (accreditation, event, zones
     allowTaint: true,
     backgroundColor: "#ffffff",
     logging: false,
-    width: 320,
-    height: 454,
-    windowWidth: 320,
-    windowHeight: 454,
+    width: wPx,
+    height: hPx,
+    windowWidth: wPx,
+    windowHeight: hPx,
   };
 
   const frontCanvas = await html2canvas(frontEl, captureOpts);
@@ -334,3 +347,4 @@ export const generatePdfAttachment = async (accreditation, event, zones, pdfSize
     return null;
   }
 };
+

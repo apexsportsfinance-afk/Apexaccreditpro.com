@@ -39,6 +39,8 @@ import EmptyState from "../../components/ui/EmptyState";
 import { useToast } from "../../components/ui/Toast";
 import { useAuth } from "../../contexts/AuthContext";
 import AccreditationCardPreview from "../../components/accreditation/AccreditationCardPreview";
+import MembershipCardPreview from "../../components/accreditation/MembershipCardPreview";
+import { OUTPUT_TYPES } from "../../lib/constants";
 import BadgeGenerator from "../../components/accreditation/BadgeGenerator";
 import {
   EventsAPI,
@@ -1559,15 +1561,27 @@ export default function Accreditations() {
               <>
                 <div className="bg-slate-800/50 rounded-xl p-6 border border-primary-800/30">
                   <h4 className="text-lg font-semibold text-white mb-4 text-center">Card Preview (Front and Back)</h4>
-                  <AccreditationCardPreview
-                    accreditation={pdfPreviewModal.accreditation}
-                    event={events.find(e => e.id === pdfPreviewModal.accreditation.eventId)}
-                    zones={zones}
-                    eventCategories={eventCategories}
-                    frontBackgroundUrl={frontBackgroundUrl}
-                    customFieldConfigs={customFields}
-                    onlyFrontPage={onlyFrontPage}
-                  />
+                  {events.find(e => e.id === pdfPreviewModal.accreditation.eventId)?.outputType === OUTPUT_TYPES.MEMBERSHIP ? (
+                    <MembershipCardPreview
+                      accreditation={pdfPreviewModal.accreditation}
+                      event={events.find(e => e.id === pdfPreviewModal.accreditation.eventId)}
+                      zones={zones}
+                      eventCategories={eventCategories}
+                      frontBackgroundUrl={frontBackgroundUrl}
+                      customFieldConfigs={customFields}
+                      onlyFrontPage={onlyFrontPage}
+                    />
+                  ) : (
+                    <AccreditationCardPreview
+                      accreditation={pdfPreviewModal.accreditation}
+                      event={events.find(e => e.id === pdfPreviewModal.accreditation.eventId)}
+                      zones={zones}
+                      eventCategories={eventCategories}
+                      frontBackgroundUrl={frontBackgroundUrl}
+                      customFieldConfigs={customFields}
+                      onlyFrontPage={onlyFrontPage}
+                    />
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-800/30 rounded-lg p-4 border border-primary-800/30">

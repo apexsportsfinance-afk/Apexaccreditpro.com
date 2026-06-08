@@ -1,6 +1,8 @@
 import React, { useState, useCallback } from "react";
 import html2canvas from "html2canvas";
 import AccreditationCardPreview, { CardInner } from "./AccreditationCardPreview";
+import MembershipCardPreview, { MembershipCardInner } from "./MembershipCardPreview";
+import { OUTPUT_TYPES } from "../../lib/constants";
 import { useToast } from "../ui/Toast";
 
 const AccreditationCard = ({ accreditation, event, zones = [] }) => {
@@ -11,14 +13,18 @@ const AccreditationCard = ({ accreditation, event, zones = [] }) => {
     const element = document.getElementById(elementId);
     if (!element) throw new Error(`Element #${elementId} not found`);
 
+    const isMembership = event?.outputType === OUTPUT_TYPES.MEMBERSHIP;
+    const wPx = isMembership ? 324 : 320;
+    const hPx = isMembership ? 204 : 454;
+
     return await html2canvas(element, {
       scale: scale,
       useCORS: true,
       allowTaint: true,
       backgroundColor: "#ffffff",
       logging: false,
-      width: 320,
-      height: 454
+      width: wPx,
+      height: hPx
     });
   };
 
@@ -63,9 +69,12 @@ const AccreditationCard = ({ accreditation, event, zones = [] }) => {
     );
   }
 
+  const isMembership = event?.outputType === OUTPUT_TYPES.MEMBERSHIP;
+  const PreviewComponent = isMembership ? MembershipCardPreview : AccreditationCardPreview;
+
   return (
     <div id="accreditation-card-wrapper" className="inline-block">
-      <AccreditationCardPreview
+      <PreviewComponent
         accreditation={accreditation}
         event={event}
         zones={zones}

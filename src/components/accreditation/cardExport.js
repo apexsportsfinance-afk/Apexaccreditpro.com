@@ -4,6 +4,8 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { toast } from "sonner";
 import { CardInner } from "./AccreditationCardPreview";
+import { MembershipCardInner } from "./MembershipCardPreview";
+import { OUTPUT_TYPES } from "../../lib/constants";
 
 const CARD_W_PX = 320;
 const CARD_H_PX = 454;
@@ -206,8 +208,13 @@ const renderOffscreenCard = (accreditation, event, zones) =>
       try { if (container.parentNode) document.body.removeChild(container); } catch (_) { }
     };
 
+    const isMembership = event?.outputType === OUTPUT_TYPES.MEMBERSHIP;
+    const InnerComponent = isMembership ? MembershipCardInner : CardInner;
+    const wPx = isMembership ? 324 : CARD_W_PX;
+    const hPx = isMembership ? 204 : CARD_H_PX;
+
     root.render(
-      React.createElement(CardInner, {
+      React.createElement(InnerComponent, {
         accreditation,
         event,
         zones,
@@ -242,16 +249,16 @@ const renderOffscreenCard = (accreditation, event, zones) =>
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       await new Promise((r) => setTimeout(r, 300));
 
-      resolve({ frontEl, backEl, cleanup });
+      resolve({ frontEl, backEl, cleanup, wPx, hPx });
     };
 
     setTimeout(poll, 100);
   });
 
-const captureEl = async (el, scale) => {
+const captureEl = async (el, scale, wPx = CARD_W_PX, hPx = CARD_H_PX) => {
   const customCanvas = document.createElement("canvas");
-  customCanvas.width = CARD_W_PX * scale;
-  customCanvas.height = CARD_H_PX * scale;
+  customCanvas.width = wPx * scale;
+  customCanvas.height = hPx * scale;
   const ctx = customCanvas.getContext("2d");
   if (ctx) {
     ctx.imageSmoothingEnabled = true;
@@ -267,10 +274,10 @@ const captureEl = async (el, scale) => {
     logging: false,
     imageTimeout: 30000,
     removeContainer: true,
-    width: CARD_W_PX,
-    height: CARD_H_PX,
-    windowWidth: CARD_W_PX,
-    windowHeight: CARD_H_PX,
+    width: wPx,
+    height: hPx,
+    windowWidth: wPx,
+    windowHeight: hPx,
   });
 
   if (!canvas || canvas.width === 0 || canvas.height === 0) {
@@ -281,10 +288,11 @@ const captureEl = async (el, scale) => {
 };
 
 export const buildPDF = async (accreditation, event, zones, scale, sizeKey) => {
-  const size = PDF_SIZES[sizeKey] || PDF_SIZES.a6;
+  const { frontEl, backEl, cleanup, wPx, hPx } = await renderOffscreenCard(accreditation, event, zones);
+  
+  const isMembership = event?.outputType === OUTPUT_TYPES.MEMBERSHIP;
+  const size = isMembership ? PDF_SIZES.cr80 || { width: 85.6, height: 54 } : (PDF_SIZES[sizeKey] || PDF_SIZES.a6);
   const isLandscape = size.width > size.height;
-
-  const { frontEl, backEl, cleanup } = await renderOffscreenCard(accreditation, event, zones);
 
   const pdf = new jsPDF({
     orientation: isLandscape ? "landscape" : "portrait",
@@ -294,7 +302,7 @@ export const buildPDF = async (accreditation, event, zones, scale, sizeKey) => {
   });
 
   try {
-    const frontCanvas = await captureEl(frontEl, scale);
+    const frontCanvas = await captureEl(frontEl, scale, wPx, hPx);
     pdf.addImage(
       frontCanvas.toDataURL("image/jpeg", 0.9),
       "JPEG",
@@ -308,7 +316,7 @@ export const buildPDF = async (accreditation, event, zones, scale, sizeKey) => {
 
     if (backEl) {
       pdf.addPage([size.width, size.height], isLandscape ? "landscape" : "portrait");
-      const backCanvas = await captureEl(backEl, scale);
+      const backCanvas = await captureEl(backEl, scale, wPx, hPx);
       pdf.addImage(
         backCanvas.toDataURL("image/jpeg", 0.9),
         "JPEG",
@@ -328,17 +336,17 @@ export const buildPDF = async (accreditation, event, zones, scale, sizeKey) => {
 };
 
 const captureCardDataUrls = async (accreditation, event, zones, scale) => {
-  const { frontEl, backEl, cleanup } = await renderOffscreenCard(accreditation, event, zones);
+  const { frontEl, backEl, cleanup, wPx, hPx } = await renderOffscreenCard(accreditation, event, zones);
 
   let frontDataUrl = null;
   let backDataUrl = null;
 
   try {
-    const frontCanvas = await captureEl(frontEl, scale);
+    const frontCanvas = await captureEl(frontEl, scale, wPx, hPx);
     frontDataUrl = frontCanvas.toDataURL("image/png", 1.0);
 
     if (backEl) {
-      const backCanvas = await captureEl(backEl, scale);
+      const backCanvas = await captureEl(backEl, scale, wPx, hPx);
       backDataUrl = backCanvas.toDataURL("image/png", 1.0);
     }
   } finally {
@@ -388,8 +396,14 @@ export const printCard = async (
 ) => {
   const { frontDataUrl, backDataUrl } = await captureCardDataUrls(accreditation, event, zones, scale);
 
-  const PAGE_W_MM = 85.6;
-  const PAGE_H_MM = parseFloat(((CARD_H_PX / CARD_W_PX) * PAGE_W_MM).toFixed(2));
+  const isMembership = event?.outputType === OUTPUT_TYPES.MEMBERSHIP;
+  let PAGE_W_MM = 85.6;
+  let PAGE_H_MM = parseFloat(((CARD_H_PX / CARD_W_PX) * PAGE_W_MM).toFixed(2));
+  
+  if (isMembership) {
+    PAGE_W_MM = 85.6;
+    PAGE_H_MM = 54;
+  }
 
   const backPageHtml = backDataUrl
     ? `<div class="page"><img src="${backDataUrl}"></div>`
