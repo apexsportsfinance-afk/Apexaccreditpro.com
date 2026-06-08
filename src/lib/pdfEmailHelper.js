@@ -20,7 +20,7 @@ const imageCache = new Map();
 export const generatePdfForAccreditation = async (accreditation, event, zones, pdfSize = "a6") => {
   // Get dimensions from pdfCapture or fallback to A6
   const { PDF_SIZES } = await import("./pdfCapture");
-  const isMembership = event?.outputType === OUTPUT_TYPES.MEMBERSHIP;
+  const isMembership = event?.outputType === OUTPUT_TYPES.MEMBERSHIP_CARD;
   let size = PDF_SIZES[pdfSize?.toLowerCase()] || PDF_SIZES.a6;
   if (isMembership) {
     size = PDF_SIZES.cr80 || { width: 85.6, height: 54, label: "CR80", dpi: 96 };
@@ -209,7 +209,7 @@ export const blobToRawBase64 = (blob) => {
  * Generate image blobs for an accreditation card (offscreen render + capture)
  */
 export const generateImagesForAccreditation = async (accreditation, event, zones, scale = 4) => {
-  const isMembership = event?.outputType === OUTPUT_TYPES.MEMBERSHIP;
+  const isMembership = event?.outputType === OUTPUT_TYPES.MEMBERSHIP_CARD;
   const wPx = isMembership ? 324 : 320;
   const hPx = isMembership ? 204 : 454;
   

@@ -208,7 +208,7 @@ const renderOffscreenCard = (accreditation, event, zones) =>
       try { if (container.parentNode) document.body.removeChild(container); } catch (_) { }
     };
 
-    const isMembership = event?.outputType === OUTPUT_TYPES.MEMBERSHIP;
+    const isMembership = event?.outputType === OUTPUT_TYPES.MEMBERSHIP_CARD;
     const InnerComponent = isMembership ? MembershipCardInner : CardInner;
     const wPx = isMembership ? 324 : CARD_W_PX;
     const hPx = isMembership ? 204 : CARD_H_PX;
@@ -290,7 +290,7 @@ const captureEl = async (el, scale, wPx = CARD_W_PX, hPx = CARD_H_PX) => {
 export const buildPDF = async (accreditation, event, zones, scale, sizeKey) => {
   const { frontEl, backEl, cleanup, wPx, hPx } = await renderOffscreenCard(accreditation, event, zones);
   
-  const isMembership = event?.outputType === OUTPUT_TYPES.MEMBERSHIP;
+  const isMembership = event?.outputType === OUTPUT_TYPES.MEMBERSHIP_CARD;
   const size = isMembership ? PDF_SIZES.cr80 || { width: 85.6, height: 54 } : (PDF_SIZES[sizeKey] || PDF_SIZES.a6);
   const isLandscape = size.width > size.height;
 
@@ -396,7 +396,7 @@ export const printCard = async (
 ) => {
   const { frontDataUrl, backDataUrl } = await captureCardDataUrls(accreditation, event, zones, scale);
 
-  const isMembership = event?.outputType === OUTPUT_TYPES.MEMBERSHIP;
+  const isMembership = event?.outputType === OUTPUT_TYPES.MEMBERSHIP_CARD;
   let PAGE_W_MM = 85.6;
   let PAGE_H_MM = parseFloat(((CARD_H_PX / CARD_W_PX) * PAGE_W_MM).toFixed(2));
   

@@ -13,7 +13,7 @@ const AccreditationCard = ({ accreditation, event, zones = [] }) => {
     const element = document.getElementById(elementId);
     if (!element) throw new Error(`Element #${elementId} not found`);
 
-    const isMembership = event?.outputType === OUTPUT_TYPES.MEMBERSHIP;
+    const isMembership = event?.outputType === OUTPUT_TYPES.MEMBERSHIP_CARD;
     const wPx = isMembership ? 324 : 320;
     const hPx = isMembership ? 204 : 454;
 
@@ -69,7 +69,7 @@ const AccreditationCard = ({ accreditation, event, zones = [] }) => {
     );
   }
 
-  const isMembership = event?.outputType === OUTPUT_TYPES.MEMBERSHIP;
+  const isMembership = event?.outputType === OUTPUT_TYPES.MEMBERSHIP_CARD;
   const PreviewComponent = isMembership ? MembershipCardPreview : AccreditationCardPreview;
 
   return (

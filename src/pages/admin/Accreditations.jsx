@@ -1561,7 +1561,7 @@ export default function Accreditations() {
               <>
                 <div className="bg-slate-800/50 rounded-xl p-6 border border-primary-800/30">
                   <h4 className="text-lg font-semibold text-white mb-4 text-center">Card Preview (Front and Back)</h4>
-                  {events.find(e => e.id === pdfPreviewModal.accreditation.eventId)?.outputType === OUTPUT_TYPES.MEMBERSHIP ? (
+                  {events.find(e => e.id === pdfPreviewModal.accreditation.eventId)?.outputType === OUTPUT_TYPES.MEMBERSHIP_CARD ? (
                     <MembershipCardPreview
                       accreditation={pdfPreviewModal.accreditation}
                       event={events.find(e => e.id === pdfPreviewModal.accreditation.eventId)}

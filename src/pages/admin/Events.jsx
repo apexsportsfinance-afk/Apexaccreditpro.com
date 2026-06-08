@@ -132,7 +132,7 @@ export default function Events() {
   const [mainGateConfig, setMainGateConfig] = useState(null);
   const [showCustomFields, setShowCustomFields] = useState(false);
   const [formData, setFormData] = useState({
-    outputType: OUTPUT_TYPES.ACCREDITATION,
+    outputType: OUTPUT_TYPES.ACCREDITATION_PASS,
     name: "",
     slug: "",
     sportList: [],
@@ -211,7 +211,7 @@ export default function Events() {
 
   const resetForm = () => {
     setFormData({
-      outputType: OUTPUT_TYPES.ACCREDITATION,
+      outputType: OUTPUT_TYPES.ACCREDITATION_PASS,
       name: "",
       slug: "",
       sportList: ["Swimming"],
@@ -319,7 +319,7 @@ export default function Events() {
       // 3. Set editing state and form data
       setEditingEvent(event);
       setFormData({
-        outputType: event.outputType || OUTPUT_TYPES.ACCREDITATION,
+        outputType: event.outputType || OUTPUT_TYPES.ACCREDITATION_PASS,
         name: event.name,
         slug: event.slug,
         sportList: extSport,
