@@ -101,7 +101,7 @@ export const EventsAPI = {
   },
   getAllMinimal: async () => {
     const data = await handleResponse(
-      () => supabase.from("events").select("id, name, slug, start_date, end_date, location, age_calculation_year, registration_open, header_arabic, header_subtitle, timezone, output_type").order("created_at", { ascending: false })
+      () => supabase.from("events").select("id, name, slug, description, start_date, end_date, location, age_calculation_year, registration_open, header_arabic, header_subtitle, timezone").order("created_at", { ascending: false })
     );
     return (data || []).map(mapEventFromDB);
   },
@@ -1405,7 +1405,7 @@ export const AuditAPI = {
 function mapEventToDB(event) {
   const map = {};
   const fields = {
-    name: 'name', slug: 'slug', description: 'description', 
+    name: 'name', slug: 'slug',
     startDate: 'start_date', endDate: 'end_date', location: 'location',
     ageCalculationYear: 'age_calculation_year', registrationOpen: 'registration_open',
     reportingTimes: 'reporting_times', headerArabic: 'header_arabic',
@@ -1414,17 +1414,32 @@ function mapEventToDB(event) {
     requiredDocuments: 'required_documents', timezone: 'timezone',
     termsAndConditions: 'terms_and_conditions',
     sportList: 'sport_list',
-    registrationClosedMessage: 'athlete_qr_broadcast_message',
-    outputType: 'output_type'
+    registrationClosedMessage: 'athlete_qr_broadcast_message'
   };
   Object.keys(fields).forEach(key => { if (event[key] !== undefined) map[fields[key]] = event[key]; });
+
+  // Embed outputType inside description since we cannot run a database migration
+  const baseDesc = event.description || "";
+  const ot = event.outputType || "Accreditation Pass";
+  map.description = `${baseDesc}|||OT:${ot}`;
+
   return map;
 }
 
 function mapEventFromDB(db) {
   if (!db) return null;
+
+  // Extract outputType from description payload
+  let desc = db.description || "";
+  let ot = "Accreditation Pass";
+  if (desc.includes("|||OT:")) {
+    const parts = desc.split("|||OT:");
+    desc = parts[0];
+    ot = parts[1];
+  }
+
   return {
-    id: db.id, name: db.name, slug: db.slug, description: db.description,
+    id: db.id, name: db.name, slug: db.slug, description: desc,
     startDate: db.start_date, endDate: db.end_date, location: db.location,
     ageCalculationYear: db.age_calculation_year, registrationOpen: db.registration_open,
     reportingTimes: db.reporting_times, headerArabic: db.header_arabic,
@@ -1435,7 +1450,7 @@ function mapEventFromDB(db) {
     timezone: db.timezone || "UTC",
     sportList: db.sport_list || [],
     registrationClosedMessage: db.athlete_qr_broadcast_message || "",
-    outputType: db.output_type
+    outputType: ot
   };
 }
 
