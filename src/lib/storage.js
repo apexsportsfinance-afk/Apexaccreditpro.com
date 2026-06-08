@@ -101,7 +101,7 @@ export const EventsAPI = {
   },
   getAllMinimal: async () => {
     const data = await handleResponse(
-      () => supabase.from("events").select("id, name, slug, start_date, end_date, location, age_calculation_year, registration_open, header_arabic, header_subtitle, timezone").order("created_at", { ascending: false })
+      () => supabase.from("events").select("id, name, slug, start_date, end_date, location, age_calculation_year, registration_open, header_arabic, header_subtitle, timezone, output_type").order("created_at", { ascending: false })
     );
     return (data || []).map(mapEventFromDB);
   },
@@ -1414,7 +1414,8 @@ function mapEventToDB(event) {
     requiredDocuments: 'required_documents', timezone: 'timezone',
     termsAndConditions: 'terms_and_conditions',
     sportList: 'sport_list',
-    registrationClosedMessage: 'athlete_qr_broadcast_message'
+    registrationClosedMessage: 'athlete_qr_broadcast_message',
+    outputType: 'output_type'
   };
   Object.keys(fields).forEach(key => { if (event[key] !== undefined) map[fields[key]] = event[key]; });
   return map;
@@ -1433,7 +1434,8 @@ function mapEventFromDB(db) {
     termsAndConditions: db.terms_and_conditions || "",
     timezone: db.timezone || "UTC",
     sportList: db.sport_list || [],
-    registrationClosedMessage: db.athlete_qr_broadcast_message || ""
+    registrationClosedMessage: db.athlete_qr_broadcast_message || "",
+    outputType: db.output_type
   };
 }
 
