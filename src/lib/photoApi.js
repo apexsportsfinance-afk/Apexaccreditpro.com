@@ -5,35 +5,33 @@
 import { supabase } from "./supabase";
 
 export const PhotoAPI = {
-  /**
-   * Upload multiple photos to the local Express server.
-   * Expected format of files: Array of JS File/Blob objects.
-   * Returns an array of uploaded file data: { url, filename, originalName }
-   */
   uploadPhotosToLocal: async (files) => {
-    const formData = new FormData();
-    files.forEach(file => {
-      formData.append('photos', file);
-    });
-
-    // Determine the upload endpoint based on environment (Vite proxy vs direct)
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+    const uploadedFiles = [];
     
-    // Check if we're calling via proxy (i.e. browser current origin)
-    const isProxy = window.location.port !== "3002" && window.location.hostname !== "127.0.0.1";
-    const uploadUrl = isProxy ? '/api/upload/photos' : `${baseUrl}/api/upload/photos`;
+    for (const file of files) {
+      const fileExt = file.name.split('.').pop() || 'jpg';
+      const fileName = `events/${Date.now()}-${Math.round(Math.random() * 1E9)}.${fileExt}`;
+      
+      const { data, error } = await supabase.storage
+        .from('accreditation-files')
+        .upload(fileName, file, { upsert: false });
 
-    const res = await fetch(uploadUrl, {
-      method: 'POST',
-      body: formData,
-    });
+      if (error) {
+        throw new Error(`Upload failed: ${error.message}`);
+      }
 
-    if (!res.ok) {
-      throw new Error(`Upload failed: ${res.statusText}`);
+      const { data: urlData } = supabase.storage
+        .from('accreditation-files')
+        .getPublicUrl(fileName);
+
+      uploadedFiles.push({
+        url: urlData.publicUrl,
+        filename: fileName,
+        originalName: file.name
+      });
     }
 
-    const data = await res.json();
-    return data.files;
+    return uploadedFiles;
   },
 
   /**
