@@ -16,6 +16,7 @@ import { computeExpiryStatus, formatEventDateTime } from "../../lib/expiryUtils"
 import { getCountryFlag, getCountryCode3, COUNTRIES, calculateAge, cn } from "../../lib/utils";
 import { toast } from "sonner";
 import { createPortal } from "react-dom";
+import QRProfileGallery from "../../components/public/QRProfileGallery";
 
 // Helper function to calculate exact split time between PB and Record
 const parseTimeSeconds = (timeStr) => {
@@ -1443,6 +1444,9 @@ export default function VerifyAccreditation() {
           </AnimatePresence>
         </div>
             )}
+            
+            <QRProfileGallery eventId={data.event_id} />
+
             {liveScoreSettings?.live_scores_enabled && (
               <div className="w-full mb-6">
                 <div className="bg-white rounded-[2rem] p-6 sm:p-8 shadow-xl">

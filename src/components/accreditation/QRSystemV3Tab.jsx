@@ -11,7 +11,8 @@ import FeedbackSetupTab from "./FeedbackSetupTab";
 import BookingSetupTab from "./BookingSetupTab";
 import ZoneScannerTab from "./ZoneScannerTab";
 import LiveScoresTab from "./LiveScoresTab";
-import { Activity } from "lucide-react";
+import EventPhotosTab from "./EventPhotosTab";
+import { Activity, Image as ImageIcon } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
 const TABS = [
@@ -25,6 +26,7 @@ const TABS = [
   { id: "feedback", label: "Feedback Form", icon: MessageSquare },
   { id: "booking", label: "Booking Form", icon: Calendar },
   { id: "pdf_fields", label: "Field Visibility", icon: Settings },
+  { id: "photos", label: "Event Photos", icon: ImageIcon },
   { id: "scanner_control", label: "Scanner Control", icon: ShieldAlert }
 ];
 
@@ -42,6 +44,7 @@ export default function QRSystemV3Tab({ eventId, onToast }) {
     // Check specific sub-module permissions
     if (tab.id === "booking" && hasExactModuleAccess("/admin/qr-system/booking")) return true;
     if (tab.id === "live_scores" && hasExactModuleAccess("/admin/qr-system/live-scores")) return true;
+    if (tab.id === "photos" && (isSuperAdmin || hasExactModuleAccess("/admin/events"))) return true;
     
     return false;
   });
@@ -106,6 +109,9 @@ export default function QRSystemV3Tab({ eventId, onToast }) {
         )}
         {activeTab === "booking" && (
           <BookingSetupTab eventId={eventId} onToast={onToast} disabled={isViewer} />
+        )}
+        {activeTab === "photos" && (
+          <EventPhotosTab eventId={eventId} onToast={onToast} disabled={isViewer} />
         )}
         {activeTab === "scanner_control" && isSuperAdmin && (
           <ZoneScannerTab eventId={eventId} onToast={onToast} disabled={isViewer} />

@@ -28,6 +28,12 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+// Event Photos Upload Dir
+const eventsUploadDir = path.join(__dirname, 'server', 'uploads', 'events');
+if (!fs.existsSync(eventsUploadDir)) {
+  fs.mkdirSync(eventsUploadDir, { recursive: true });
+}
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, uploadDir);
@@ -40,11 +46,35 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage, limits: { fileSize: 20 * 1024 * 1024 } });
 
+// Storage for Event Photos
+const eventPhotosStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, eventsUploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'photo-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const uploadPhotos = multer({ storage: eventPhotosStorage, limits: { fileSize: 5 * 1024 * 1024 } });
+
 // Upload Endpoint (open for public registrations)
 app.post('/api/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   const localUrl = `/api/images/${req.file.filename}`;
   res.json({ url: localUrl, filename: req.file.filename });
+});
+
+// Event Photos Upload Endpoint (supports multiple files)
+app.post('/api/upload/photos', uploadPhotos.array('photos', 50), (req, res) => {
+  if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'No files uploaded' });
+  const urls = req.files.map(file => ({
+    url: `/api/images/events/${file.filename}`,
+    filename: file.filename,
+    originalName: file.originalname
+  }));
+  res.json({ success: true, files: urls });
 });
 
 // Bridge Results Proxy (Proxy to Python Medal Engine)
@@ -177,6 +207,23 @@ app.get('/api/images/:filename', (req, res) => {
   // Path traversal protection
   const safeFilename = path.basename(filename);
   const filePath = path.join(uploadDir, safeFilename);
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).send('Image not found');
+  }
+
+  // Cache for 1 hour
+  res.setHeader('Cache-Control', 'private, max-age=3600');
+  res.sendFile(filePath);
+});
+
+// Event Photos Serving Endpoint
+app.get('/api/images/events/:filename', (req, res) => {
+  const { filename } = req.params;
+
+  // Path traversal protection
+  const safeFilename = path.basename(filename);
+  const filePath = path.join(eventsUploadDir, safeFilename);
 
   if (!fs.existsSync(filePath)) {
     return res.status(404).send('Image not found');
