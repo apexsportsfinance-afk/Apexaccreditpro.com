@@ -1319,10 +1319,14 @@ export const BookingsAPI = {
   },
   saveConfig: async (config) => {
     const existing = await handleResponse(() => supabase.from("booking_configs").select("id").eq("event_id", config.event_id).maybeSingle());
+    const payload = { ...config, updated_at: new Date().toISOString() };
+    delete payload.id;
+    delete payload.created_at;
+
     if (existing) {
-      return handleResponse(() => supabase.from("booking_configs").update({ ...config, updated_at: new Date().toISOString() }).eq("id", existing.id).select().single());
+      return handleResponse(() => supabase.from("booking_configs").update(payload).eq("id", existing.id).select().single());
     } else {
-      return handleResponse(() => supabase.from("booking_configs").insert([{ ...config, created_at: new Date().toISOString() }]).select().single());
+      return handleResponse(() => supabase.from("booking_configs").insert([{ ...payload, created_at: new Date().toISOString() }]).select().single());
     }
   },
   getBookings: async (eventId) => {
