@@ -1322,6 +1322,7 @@ export const BookingsAPI = {
     const payload = { ...config, updated_at: new Date().toISOString() };
     delete payload.id;
     delete payload.created_at;
+    delete payload.hidden_dates; // <--- FIX: Column does not exist in DB schema, causes Save to fail
 
     if (existing) {
       return handleResponse(() => supabase.from("booking_configs").update(payload).eq("id", existing.id).select().single());
