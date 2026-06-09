@@ -101,7 +101,7 @@ export const EventsAPI = {
   },
   getAllMinimal: async () => {
     const data = await handleResponse(
-      () => supabase.from("events").select("id, name, slug, description, start_date, end_date, location, age_calculation_year, registration_open, header_arabic, header_subtitle, timezone").order("created_at", { ascending: false })
+      () => supabase.from("events").select("id, name, slug, description, start_date, end_date, location, age_calculation_year, registration_open, header_arabic, header_subtitle, timezone, logo_url, back_template_url, sponsor_logos").order("created_at", { ascending: false })
     );
     return (data || []).map(mapEventFromDB);
   },
@@ -1424,9 +1424,11 @@ function mapEventToDB(event) {
   Object.keys(fields).forEach(key => { if (event[key] !== undefined) map[fields[key]] = event[key]; });
 
   // Embed outputType inside description since we cannot run a database migration
-  const baseDesc = event.description || "";
-  const ot = event.outputType || "Accreditation Pass";
-  map.description = `${baseDesc}|||OT:${ot}`;
+  if (event.description !== undefined || event.outputType !== undefined) {
+    const baseDesc = event.description || "";
+    const ot = event.outputType || "Accreditation Pass";
+    map.description = `${baseDesc}|||OT:${ot}`;
+  }
 
   return map;
 }
