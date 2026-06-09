@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Image as ImageIcon, X, ChevronDown, ChevronUp, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Image as ImageIcon, X, ChevronDown, ChevronUp, Loader2, ChevronLeft, ChevronRight, ScanFace } from 'lucide-react';
 import { PhotoAPI } from '../../lib/photoApi';
 import { cn } from '../../lib/utils';
 
-export default function QRProfileGallery({ eventId }) {
+export default function QRProfileGallery({ eventId, matchedPhotoIds = [] }) {
   const [photos, setPhotos] = useState([]);
   const [albums, setAlbums] = useState([]);
   const [activeAlbum, setActiveAlbum] = useState('All');
@@ -15,7 +15,9 @@ export default function QRProfileGallery({ eventId }) {
 
   const filteredPhotos = activeAlbum === 'All' 
     ? photos 
-    : photos.filter(p => p.album_name === activeAlbum);
+    : activeAlbum === 'My Photos'
+      ? photos.filter(p => matchedPhotoIds.includes(p.id))
+      : photos.filter(p => p.album_name === activeAlbum);
 
   const currentPhotoIndex = selectedPhoto ? filteredPhotos.findIndex(p => p.id === selectedPhoto.id) : -1;
 
@@ -69,7 +71,19 @@ export default function QRProfileGallery({ eventId }) {
       
       if (data && data.length > 0) {
         const uniqueAlbums = [...new Set(data.map(p => p.album_name).filter(Boolean))];
-        setAlbums(['All', ...uniqueAlbums]);
+        
+        // Add My Photos tab if matches exist
+        const defaultAlbums = ['All'];
+        if (matchedPhotoIds && matchedPhotoIds.length > 0) {
+          defaultAlbums.push('My Photos');
+        }
+        
+        setAlbums([...defaultAlbums, ...uniqueAlbums]);
+        
+        // Auto-select My Photos if it exists
+        if (matchedPhotoIds && matchedPhotoIds.length > 0) {
+          setActiveAlbum('My Photos');
+        }
       }
     } catch (err) {
       console.error("Failed to load public photos:", err);
@@ -140,30 +154,39 @@ export default function QRProfileGallery({ eventId }) {
                     )}
 
                     {/* Masonry-style Grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                      <AnimatePresence mode="popLayout">
-                        {filteredPhotos.map((photo) => (
-                          <motion.div
-                            key={photo.id}
-                            layout
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.8 }}
-                            transition={{ duration: 0.2 }}
-                            onClick={() => setSelectedPhoto(photo)}
-                            className="aspect-square rounded-xl overflow-hidden cursor-pointer relative group bg-slate-100"
-                          >
-                            <img
-                              src={photo.thumbnail_url || photo.url}
-                              alt={photo.title}
-                              loading="lazy"
-                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                            />
-                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-                          </motion.div>
-                        ))}
-                      </AnimatePresence>
-                    </div>
+                    {activeAlbum === 'My Photos' && filteredPhotos.length === 0 ? (
+                      <div className="text-center py-12 px-4 bg-purple-50/50 rounded-2xl border border-purple-100">
+                         <ScanFace className="w-12 h-12 text-purple-300 mx-auto mb-3" />
+                         <p className="text-slate-600 font-medium">No matched photos found yet.</p>
+                         <p className="text-slate-400 text-sm mt-1">Please check the full event gallery.</p>
+                         <button onClick={() => setActiveAlbum('All')} className="mt-4 px-6 py-2 bg-purple-600 text-white rounded-full text-xs font-bold uppercase tracking-widest hover:bg-purple-700">View All Photos</button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        <AnimatePresence mode="popLayout">
+                          {filteredPhotos.map((photo) => (
+                            <motion.div
+                              key={photo.id}
+                              layout
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.8 }}
+                              transition={{ duration: 0.2 }}
+                              onClick={() => setSelectedPhoto(photo)}
+                              className="aspect-square rounded-xl overflow-hidden cursor-pointer relative group bg-slate-100"
+                            >
+                              <img
+                                src={photo.thumbnail_url || photo.url}
+                                alt={photo.title}
+                                loading="lazy"
+                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                              />
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                            </motion.div>
+                          ))}
+                        </AnimatePresence>
+                      </div>
+                    )}
                   </>
                 )}
               </div>

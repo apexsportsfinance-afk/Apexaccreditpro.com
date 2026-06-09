@@ -1445,7 +1445,10 @@ export default function VerifyAccreditation() {
         </div>
             )}
             
-            <QRProfileGallery eventId={data.event_id} />
+            <QRProfileGallery 
+              eventId={data.event_id} 
+              matchedPhotoIds={data.documents?.matched_photos || []}
+            />
 
             {liveScoreSettings?.live_scores_enabled && (
               <div className="w-full mb-6">

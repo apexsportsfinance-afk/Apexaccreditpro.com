@@ -9,6 +9,7 @@ import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Badge from '../ui/Badge';
+import FaceMatchingManager from './FaceMatchingManager';
 
 export default function EventPhotosTab({ eventId, onToast, disabled }) {
   const { user } = useAuth();
@@ -198,6 +199,15 @@ export default function EventPhotosTab({ eventId, onToast, disabled }) {
             </div>
           </div>
         </div>
+
+        {/* Face Matching Manager */}
+        {photos.length > 0 && !disabled && (
+          <FaceMatchingManager 
+            eventId={eventId} 
+            galleryPhotos={photos.filter(p => p.is_public)} 
+            onToast={onToast} 
+          />
+        )}
 
         {/* Gallery Section */}
         <div>
