@@ -13,6 +13,10 @@ export default function QRProfileGallery({ eventId }) {
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [touchStart, setTouchStart] = useState(null);
 
+  const filteredPhotos = activeAlbum === 'All' 
+    ? photos 
+    : photos.filter(p => p.album_name === activeAlbum);
+
   const currentPhotoIndex = selectedPhoto ? filteredPhotos.findIndex(p => p.id === selectedPhoto.id) : -1;
 
   const handleNext = (e) => {
@@ -73,10 +77,6 @@ export default function QRProfileGallery({ eventId }) {
       setLoading(false);
     }
   };
-
-  const filteredPhotos = activeAlbum === 'All' 
-    ? photos 
-    : photos.filter(p => p.album_name === activeAlbum);
 
   if (!loading && photos.length === 0) {
     return null; // Don't show the gallery section at all if there are no public photos
