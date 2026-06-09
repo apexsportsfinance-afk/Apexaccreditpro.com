@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Image as ImageIcon, X, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { Image as ImageIcon, X, ChevronDown, ChevronUp, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { PhotoAPI } from '../../lib/photoApi';
 import { cn } from '../../lib/utils';
 
@@ -11,6 +11,44 @@ export default function QRProfileGallery({ eventId }) {
   const [loading, setLoading] = useState(true);
   const [isExpanded, setIsExpanded] = useState(true);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [touchStart, setTouchStart] = useState(null);
+
+  const currentPhotoIndex = selectedPhoto ? filteredPhotos.findIndex(p => p.id === selectedPhoto.id) : -1;
+
+  const handleNext = (e) => {
+    e?.stopPropagation();
+    if (currentPhotoIndex !== -1 && currentPhotoIndex < filteredPhotos.length - 1) {
+      setSelectedPhoto(filteredPhotos[currentPhotoIndex + 1]);
+    }
+  };
+
+  const handlePrev = (e) => {
+    e?.stopPropagation();
+    if (currentPhotoIndex > 0) {
+      setSelectedPhoto(filteredPhotos[currentPhotoIndex - 1]);
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!selectedPhoto) return;
+      if (e.key === 'ArrowRight') handleNext();
+      if (e.key === 'ArrowLeft') handlePrev();
+      if (e.key === 'Escape') setSelectedPhoto(null);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedPhoto, filteredPhotos]);
+
+  const handleTouchStart = (e) => setTouchStart(e.targetTouches[0].clientX);
+  const handleTouchEnd = (e) => {
+    if (touchStart === null) return;
+    const touchEnd = e.changedTouches[0].clientX;
+    const diff = touchStart - touchEnd;
+    if (diff > 50) handleNext();
+    if (diff < -50) handlePrev();
+    setTouchStart(null);
+  };
 
   useEffect(() => {
     if (eventId) {
@@ -141,30 +179,60 @@ export default function QRProfileGallery({ eventId }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-4 md:p-12"
+            className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-4 md:p-12 select-none"
             onClick={() => setSelectedPhoto(null)}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
           >
             <button 
-              className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors text-white backdrop-blur-md"
+              className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors text-white backdrop-blur-md z-50"
               onClick={() => setSelectedPhoto(null)}
             >
               <X className="w-6 h-6" />
             </button>
+
+            {/* Navigation Arrows */}
+            {currentPhotoIndex > 0 && (
+              <button 
+                className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors text-white backdrop-blur-md z-50 hidden sm:block"
+                onClick={handlePrev}
+              >
+                <ChevronLeft className="w-8 h-8" />
+              </button>
+            )}
+
+            {currentPhotoIndex !== -1 && currentPhotoIndex < filteredPhotos.length - 1 && (
+              <button 
+                className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors text-white backdrop-blur-md z-50 hidden sm:block"
+                onClick={handleNext}
+              >
+                <ChevronRight className="w-8 h-8" />
+              </button>
+            )}
             
-            <motion.img
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              src={selectedPhoto.url}
-              alt={selectedPhoto.title}
-              className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl"
+            <motion.div
+              key={selectedPhoto.id}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+              className="flex flex-col items-center justify-center w-full h-full max-h-[85vh]"
               onClick={(e) => e.stopPropagation()}
-            />
-            
-            <div className="mt-6 text-center" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-white font-bold text-lg mb-1">{selectedPhoto.title}</h3>
-              <p className="text-white/60 text-xs font-bold uppercase tracking-widest">{selectedPhoto.album_name}</p>
-            </div>
+            >
+              <img
+                src={selectedPhoto.url}
+                alt={selectedPhoto.title}
+                className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+              />
+              
+              <div className="mt-6 text-center shrink-0">
+                <h3 className="text-white font-bold text-lg mb-1">{selectedPhoto.title}</h3>
+                <p className="text-white/60 text-xs font-bold uppercase tracking-widest">{selectedPhoto.album_name}</p>
+                <p className="text-white/30 text-[10px] font-bold mt-2">
+                  {currentPhotoIndex + 1} OF {filteredPhotos.length}
+                </p>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
