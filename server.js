@@ -44,7 +44,37 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ storage: storage, limits: { fileSize: 20 * 1024 * 1024 } });
+// Filter for General Uploads (Images + PDF)
+const combinedFileFilter = (req, file, cb) => {
+  const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+  const ext = path.extname(file.originalname).toLowerCase();
+  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
+
+  if (allowedMimeTypes.includes(file.mimetype) && allowedExtensions.includes(ext)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Unsupported file type. Please upload JPG, PNG, WEBP, or PDF only.'));
+  }
+};
+
+// Filter for Gallery Photos (Images ONLY)
+const photoFileFilter = (req, file, cb) => {
+  const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
+  const ext = path.extname(file.originalname).toLowerCase();
+  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+
+  if (allowedMimeTypes.includes(file.mimetype) && allowedExtensions.includes(ext)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Unsupported photo type. Please upload JPG, PNG, or WEBP only.'));
+  }
+};
+
+const upload = multer({ 
+  storage: storage, 
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: combinedFileFilter
+});
 
 // Storage for Event Photos
 const eventPhotosStorage = multer.diskStorage({
@@ -57,24 +87,40 @@ const eventPhotosStorage = multer.diskStorage({
   }
 });
 
-const uploadPhotos = multer({ storage: eventPhotosStorage, limits: { fileSize: 5 * 1024 * 1024 } });
+const uploadPhotos = multer({ 
+  storage: eventPhotosStorage, 
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: photoFileFilter
+});
 
 // Upload Endpoint (open for public registrations)
-app.post('/api/upload', upload.single('file'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-  const localUrl = `/api/images/${req.file.filename}`;
-  res.json({ url: localUrl, filename: req.file.filename });
+app.post('/api/upload', (req, res) => {
+  const uploadSingle = upload.single('file');
+  uploadSingle(req, res, function (err) {
+    if (err) {
+      return res.status(400).json({ error: err.message || err.field });
+    }
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const localUrl = `/api/images/${req.file.filename}`;
+    res.json({ url: localUrl, filename: req.file.filename });
+  });
 });
 
 // Event Photos Upload Endpoint (supports multiple files)
-app.post('/api/upload/photos', uploadPhotos.array('photos', 50), (req, res) => {
-  if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'No files uploaded' });
-  const urls = req.files.map(file => ({
-    url: `/api/images/events/${file.filename}`,
-    filename: file.filename,
-    originalName: file.originalname
-  }));
-  res.json({ success: true, files: urls });
+app.post('/api/upload/photos', (req, res) => {
+  const uploadArray = uploadPhotos.array('photos', 50);
+  uploadArray(req, res, function (err) {
+    if (err) {
+      return res.status(400).json({ error: err.message || err.field });
+    }
+    if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'No files uploaded' });
+    const urls = req.files.map(file => ({
+      url: `/api/images/events/${file.filename}`,
+      filename: file.filename,
+      originalName: file.originalname
+    }));
+    res.json({ success: true, files: urls });
+  });
 });
 
 // Bridge Results Proxy (Proxy to Python Medal Engine)
