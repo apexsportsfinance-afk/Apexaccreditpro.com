@@ -129,40 +129,72 @@ export default function VerifyAccreditation() {
   const [participantBookings, setParticipantBookings] = useState([]);
   const [isBooking, setIsBooking] = useState(false);
   const [editingMeetings, setEditingMeetings] = useState([]);
-  const [isBookingExpanded, setIsBookingExpanded] = useState(true);
+  const [isBookingExpanded, setIsBookingExpanded] = useState(false);
+  const [isBookingsLoaded, setIsBookingsLoaded] = useState(false);
+  const [isFetchingBookings, setIsFetchingBookings] = useState(false);
+
+  // Lazy load states for other tabs
+  const [isFeedbackLoaded, setIsFeedbackLoaded] = useState(false);
+  const [isDocsExpanded, setIsDocsExpanded] = useState(false);
+  const [isDocsLoaded, setIsDocsLoaded] = useState(false);
+
+  // Lazy load Bookings
+  const fetchBookings = async () => {
+    if (!data?.event_id || !data?.id) return;
+    setIsFetchingBookings(true);
+    try {
+      const [aBookings, pBooking] = await Promise.all([
+        BookingsAPI.getBookings(data.event_id),
+        BookingsAPI.getParticipantBooking(data.event_id, data.id)
+      ]);
+      setAllBookings(aBookings || []);
+      if (pBooking) setParticipantBookings(pBooking);
+      setIsBookingsLoaded(true);
+    } catch (err) {
+      console.error("Bookings Fetch Error:", err);
+    } finally {
+      setIsFetchingBookings(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isBookingExpanded && !isBookingsLoaded && !isFetchingBookings) {
+      fetchBookings();
+    }
+  }, [isBookingExpanded, isBookingsLoaded, isFetchingBookings, data?.event_id, data?.id]);
 
   // Live Scores State
   const [liveScoreSettings, setLiveScoreSettings] = useState(null);
   const [liveSports, setLiveSports] = useState([]);
   const [liveMatches, setLiveMatches] = useState([]);
   const [collapsedSports, setCollapsedSports] = useState({});
+  const [isLiveScoresExpanded, setIsLiveScoresExpanded] = useState(false);
+  const [isLiveScoresLoaded, setIsLiveScoresLoaded] = useState(false);
+  const [isFetchingScores, setIsFetchingScores] = useState(false);
+
+  const fetchLiveScores = async () => {
+    if (!data?.event_id) return;
+    setIsFetchingScores(true);
+    try {
+      const [sports, matches] = await Promise.all([
+        LiveScoresAPI.getSports(data.event_id),
+        LiveScoresAPI.getMatches(data.event_id)
+      ]);
+      setLiveSports(sports || []);
+      setLiveMatches(matches || []);
+      setIsLiveScoresLoaded(true);
+    } catch (err) {
+      console.error("Live Scores Fetch Error:", err);
+    } finally {
+      setIsFetchingScores(false);
+    }
+  };
 
   useEffect(() => {
-    if (!data?.event_id) return;
-    let intervalId;
-
-    const fetchLiveScores = async () => {
-      try {
-        const [settings, sports, matches] = await Promise.all([
-          LiveScoresAPI.getSettings(data.event_id),
-          LiveScoresAPI.getSports(data.event_id),
-          LiveScoresAPI.getMatches(data.event_id)
-        ]);
-        setLiveScoreSettings(settings);
-        if (settings?.live_scores_enabled) {
-          setLiveSports(sports || []);
-          setLiveMatches(matches || []);
-        }
-      } catch (err) {
-        console.error("Live Scores Fetch Error:", err);
-      }
-    };
-
-    fetchLiveScores(); // Initial fetch
-    intervalId = setInterval(fetchLiveScores, 15000); // 15s safe auto-refresh
-
-    return () => clearInterval(intervalId);
-  }, [data?.event_id]);
+    if (isLiveScoresExpanded && !isLiveScoresLoaded && !isFetchingScores) {
+      fetchLiveScores();
+    }
+  }, [isLiveScoresExpanded, isLiveScoresLoaded, isFetchingScores, data?.event_id]);
   const [expandedMeetings, setExpandedMeetings] = useState([]);
   const [expandedDates, setExpandedDates] = useState({});
 
@@ -326,26 +358,33 @@ export default function VerifyAccreditation() {
       const fname = nameParts[0] || "";
       const lname = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
 
-      const [eSettings, fieldSets, matrix, legMatrix, gSettings, fConfig, feedbackIsActiveRaw, zonesResult, scansResult, logsResult, bConfig, aBookings, pBooking] = await Promise.race([
+      // APEX-DEEP: Split into Priority Load vs Lazy Load to fix QR Profile bottleneck
+      const [eSettings, fieldSets, matrix, legMatrix, gSettings, zonesResult, scansResult, logsResult, bConfigRaw, lsSettingsRaw] = await Promise.race([
         Promise.all([
-          (async () => { console.log("APEX_SYNC: EventSettings..."); const r = await (accData?.event_id ? EventSettingsAPI.getAll(accData.event_id) : Promise.resolve({})); console.log("APEX_SYNC: EventSettings DONE"); return r; })(),
-          (async () => { console.log("APEX_SYNC: FieldSettings..."); const r = await (accData?.event_id ? FormFieldSettingsAPI.getByEventId(accData.event_id) : Promise.resolve({})); console.log("APEX_SYNC: FieldSettings DONE"); return r; })(),
-          (async () => { console.log("APEX_SYNC: AthleteEvents..."); const r = await (accData?.id && accData?.role?.toLowerCase() === "athlete" ? AthleteEventsAPI.getForAthlete(accData.id) : Promise.resolve([])); console.log("APEX_SYNC: AthleteEvents DONE"); return r; })(),
-          (async () => { console.log("APEX_SYNC: LegacyMatrix..."); const r = await (accData?.event_id && accData?.role?.toLowerCase() === "athlete" ? HeatSheetMatrixAPI.getForAthlete(accData.event_id, fname, lname) : Promise.resolve([])); console.log("APEX_SYNC: LegacyMatrix DONE"); return r; })(),
-          (async () => { console.log("APEX_SYNC: GlobalSettings..."); const r = await GlobalSettingsAPI.getAll(); console.log("APEX_SYNC: GlobalSettings DONE"); return r; })(),
-          (async () => { console.log("APEX_SYNC: FeedbackConfig..."); const r = await (accData?.event_id ? ConfigAPI.getFeedback(accData.event_id) : Promise.resolve(null)); console.log("APEX_SYNC: FeedbackConfig DONE"); return r; })(),
-          (async () => { console.log("APEX_SYNC: FeedbackStatus..."); const r = await (accData?.event_id ? GlobalSettingsAPI.get(`event_${accData.event_id}_feedback_is_active`) : Promise.resolve(null)); console.log("APEX_SYNC: FeedbackStatus DONE"); return r; })(),
-          (async () => { console.log("APEX_SYNC: Zones..."); const r = await (accData?.event_id ? ZonesAPI.getByEventId(accData.event_id) : Promise.resolve([])); console.log("APEX_SYNC: Zones DONE"); return r; })(),
-          (async () => { console.log("APEX_SYNC: Attendance..."); const r = await (accData?.event_id && accData?.id ? AttendanceAPI.getAthleteAttendance(accData.event_id, accData.id) : Promise.resolve([])); console.log("APEX_SYNC: Attendance DONE"); return r; })(),
-          (async () => { console.log("APEX_SYNC: Logs..."); const r = await (accData?.event_id && accData?.id ? AttendanceAPI.getAthleteLogs(accData.event_id, accData.id) : Promise.resolve([])); console.log("APEX_SYNC: Logs DONE"); return r; })(),
-          (async () => { console.log("APEX_SYNC: BookingConfig..."); const r = await (accData?.event_id ? BookingsAPI.getConfig(accData.event_id) : Promise.resolve(null)); return r; })(),
-          (async () => { console.log("APEX_SYNC: AllBookings..."); const r = await (accData?.event_id ? BookingsAPI.getBookings(accData.event_id) : Promise.resolve([])); return r; })(),
-          (async () => { console.log("APEX_SYNC: ParticipantBooking..."); const r = await (accData?.event_id && accData?.id ? BookingsAPI.getParticipantBooking(accData.event_id, accData.id) : Promise.resolve(null)); return r; })(),
+          (async () => { const r = await (accData?.event_id ? EventSettingsAPI.getAll(accData.event_id) : Promise.resolve({})); return r; })(),
+          (async () => { const r = await (accData?.event_id ? FormFieldSettingsAPI.getByEventId(accData.event_id) : Promise.resolve({})); return r; })(),
+          (async () => { const r = await (accData?.id && accData?.role?.toLowerCase() === "athlete" ? AthleteEventsAPI.getForAthlete(accData.id) : Promise.resolve([])); return r; })(),
+          (async () => { const r = await (accData?.event_id && accData?.role?.toLowerCase() === "athlete" ? HeatSheetMatrixAPI.getForAthlete(accData.event_id, fname, lname) : Promise.resolve([])); return r; })(),
+          (async () => { const r = await GlobalSettingsAPI.getAll(); return r; })(),
+          (async () => { const r = await (accData?.event_id ? ZonesAPI.getByEventId(accData.event_id) : Promise.resolve([])); return r; })(),
+          (async () => { const r = await (accData?.event_id && accData?.id ? AttendanceAPI.getAthleteAttendance(accData.event_id, accData.id) : Promise.resolve([])); return r; })(),
+          (async () => { const r = await (accData?.event_id && accData?.id ? AttendanceAPI.getAthleteLogs(accData.event_id, accData.id) : Promise.resolve([])); return r; })(),
+          (async () => { const r = await (accData?.event_id ? BookingsAPI.getConfig(accData.event_id) : Promise.resolve(null)); return r; })(), // Get config ONLY to see if active
+          (async () => { const r = await (accData?.event_id ? LiveScoresAPI.getSettings(accData.event_id) : Promise.resolve(null)); return r; })() // Get config to show tab
         ]),
-        timeoutPromise(45000, "Metadata Sync")
+        timeoutPromise(15000, "Priority Metadata Sync")
       ]);
 
-      console.log("APEX_DEBUG: All metadata synced");
+      const fConfig = null;
+      const feedbackIsActiveRaw = false;
+      const bConfig = bConfigRaw;
+      const aBookings = [];
+      const pBooking = null;
+
+      // Ensure settings is set so the tab renders if enabled
+      setLiveScoreSettings(lsSettingsRaw || {});
+
+      console.log("APEX_DEBUG: All priority metadata synced");
       console.log("APEX_DEBUG: Finalizing data states...");
       setPhase("Applying Data");
       
@@ -1452,21 +1491,52 @@ export default function VerifyAccreditation() {
 
             {liveScoreSettings?.live_scores_enabled && (
               <div className="w-full mb-6">
-                <div className="bg-white rounded-[2rem] p-6 sm:p-8 shadow-xl">
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="p-4 bg-emerald-50 rounded-2xl">
-                      <Activity className="w-8 h-8 text-emerald-600" />
+                <div className="bg-slate-50 border border-slate-100 rounded-[2rem] shadow-sm overflow-hidden">
+                  <button 
+                    onClick={() => setIsLiveScoresExpanded(!isLiveScoresExpanded)}
+                    className="w-full flex items-center justify-between p-6 bg-white hover:bg-slate-50 transition-colors border-b border-slate-100/50"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-emerald-50 rounded-xl">
+                        <Activity className="w-6 h-6 text-emerald-600" />
+                      </div>
+                      <div className="text-left">
+                        <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">Live Scores</h2>
+                        <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
+                          View Match Results
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">Live Scores</h2>
-                      <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span> Auto-Updating
-                      </p>
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100">
+                      {isLiveScoresExpanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
                     </div>
-                  </div>
+                  </button>
 
-                  <div className="space-y-6">
-                    {liveSports.map(sport => {
+                  <AnimatePresence>
+                    {isLiveScoresExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden bg-white"
+                      >
+                        <div className="p-6">
+                          <div className="flex items-center justify-end mb-4">
+                            <button 
+                              onClick={() => fetchLiveScores()}
+                              disabled={isFetchingScores}
+                              className="px-4 py-2 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase rounded-xl transition-all flex items-center gap-2"
+                            >
+                              <RotateCcw className={cn("w-3.5 h-3.5", isFetchingScores && "animate-spin")} />
+                              {isFetchingScores ? "Updating..." : "Refresh Scores"}
+                            </button>
+                          </div>
+
+                          {isFetchingScores && !isLiveScoresLoaded ? (
+                            <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 text-emerald-500 animate-spin" /></div>
+                          ) : (
+                            <div className="space-y-6">
+                              {liveSports.map(sport => {
                       const sportMatches = liveMatches.filter(m => m.sport_id === sport.id);
                       if (sportMatches.length === 0) return null;
                       
@@ -1535,10 +1605,12 @@ export default function VerifyAccreditation() {
                         </div>
                       );
                     })}
-                    {liveMatches.length === 0 && (
-                      <p className="text-xs text-slate-400 font-bold text-center py-4">No live scores available at the moment. Please check again later.</p>
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
                     )}
-                  </div>
+                  </AnimatePresence>
                 </div>
               </div>
             )}

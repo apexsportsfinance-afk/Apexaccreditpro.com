@@ -8,8 +8,9 @@ export default function QRProfileGallery({ eventId, matchedPhotoIds = [] }) {
   const [photos, setPhotos] = useState([]);
   const [albums, setAlbums] = useState([]);
   const [activeAlbum, setActiveAlbum] = useState('All');
-  const [loading, setLoading] = useState(true);
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [touchStart, setTouchStart] = useState(null);
 
@@ -57,12 +58,13 @@ export default function QRProfileGallery({ eventId, matchedPhotoIds = [] }) {
   };
 
   useEffect(() => {
-    if (eventId) {
+    if (eventId && isExpanded && !hasLoaded) {
       loadPhotos();
     }
-  }, [eventId]);
+  }, [eventId, isExpanded, hasLoaded]);
 
   const loadPhotos = async () => {
+    if (hasLoaded) return;
     try {
       setLoading(true);
       // Fetch only public photos
@@ -84,6 +86,8 @@ export default function QRProfileGallery({ eventId, matchedPhotoIds = [] }) {
         if (matchedPhotoIds && matchedPhotoIds.length > 0) {
           setActiveAlbum('My Photos');
         }
+        
+        setHasLoaded(true);
       }
     } catch (err) {
       console.error("Failed to load public photos:", err);
@@ -92,7 +96,7 @@ export default function QRProfileGallery({ eventId, matchedPhotoIds = [] }) {
     }
   };
 
-  if (!loading && photos.length === 0) {
+  if (hasLoaded && !loading && photos.length === 0) {
     return null; // Don't show the gallery section at all if there are no public photos
   }
 
@@ -110,7 +114,7 @@ export default function QRProfileGallery({ eventId, matchedPhotoIds = [] }) {
             <div className="text-left">
               <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">Event Gallery</h2>
               <p className="text-[10px] font-bold text-purple-600 uppercase tracking-wider flex items-center gap-1">
-                {photos.length} Photos Available
+                {hasLoaded ? `${photos.length} Photos Available` : "Tap to view photos"}
               </p>
             </div>
           </div>
