@@ -208,7 +208,7 @@ export default function Accreditations() {
     const loadEventData = async () => {
       setLoading(true);
       try {
-        // APX-PERF: Parallel data calls
+        // APX-PERF: Parallel data calls optimized to prevent connection pool exhaustion
         const results = await Promise.allSettled([
           AccreditationsAPI.getPaginatedByEventId(selectedEvent, { 
             limit: 100, 
@@ -221,16 +221,11 @@ export default function Accreditations() {
           }),
           ZonesAPI.getByEventId(selectedEvent),
           supabase.from("event_categories").select("*, category:categories(*)").eq("event_id", selectedEvent),
-          GlobalSettingsAPI.getClubs(selectedEvent),
-          GlobalSettingsAPI.get(`event_${selectedEvent}_front_bg`),
-          GlobalSettingsAPI.get(`event_${selectedEvent}_category_documents`),
-          GlobalSettingsAPI.get(`event_${selectedEvent}_custom_fields`),
-          GlobalSettingsAPI.get(`event_${selectedEvent}_only_front_page`),
-          GlobalSettingsAPI.get(`event_${selectedEvent}_sport`),
-          EventsAPI.getById(selectedEvent)
+          EventsAPI.getById(selectedEvent),
+          GlobalSettingsAPI.getAll()
         ]);
 
-        const [accResult, zoneResult, ecResult, clubResult, bgResult, catDocsResult, customFieldsResult, onlyFrontResult, sportResult, fullEventResult] = results;
+        const [accResult, zoneResult, ecResult, fullEventResult, settingsResult] = results;
 
         if (fullEventResult.status === "fulfilled" && fullEventResult.value) {
           setFullEventDetails(fullEventResult.value);
@@ -246,33 +241,30 @@ export default function Accreditations() {
 
         if (zoneResult.status === "fulfilled") setZones(zoneResult.value);
         if (ecResult.status === "fulfilled" && ecResult.value?.data) setEventCategories(ecResult.value.data);
-        if (clubResult.status === "fulfilled") setClubs(clubResult.value || []);
-        else setClubs([]);
-        if (bgResult.status === "fulfilled") setFrontBackgroundUrl(bgResult.value || "");
-        else setFrontBackgroundUrl("");
-        if (catDocsResult.status === "fulfilled") setCategoryDocuments(catDocsResult.value || {});
-        else setCategoryDocuments({});
 
-        if (onlyFrontResult.status === "fulfilled") {
-          const val = onlyFrontResult.value;
-          setOnlyFrontPage(val === "true" || val === true);
-        } else {
-          setOnlyFrontPage(false);
-        }
-
-        if (customFieldsResult.status === "fulfilled") {
+        // Process Global Settings from the single bulk fetch
+        if (settingsResult.status === "fulfilled") {
+          const settings = settingsResult.value || {};
+          
+          const clubsData = settings[`event_${selectedEvent}_clubs`];
+          setClubs(clubsData ? JSON.parse(clubsData) : []);
+          
+          setFrontBackgroundUrl(settings[`event_${selectedEvent}_front_bg`] || "");
+          
+          const catDocsData = settings[`event_${selectedEvent}_category_documents`];
+          setCategoryDocuments(catDocsData ? JSON.parse(catDocsData) : {});
+          
+          const onlyFrontVal = settings[`event_${selectedEvent}_only_front_page`];
+          setOnlyFrontPage(onlyFrontVal === "true" || onlyFrontVal === true);
+          
+          const customFieldsData = settings[`event_${selectedEvent}_custom_fields`];
           try {
-            setCustomFields(JSON.parse(customFieldsResult.value || "[]"));
+            setCustomFields(customFieldsData ? JSON.parse(customFieldsData) : []);
           } catch (e) {
-            console.error("Failed to parse custom fields:", e);
             setCustomFields([]);
           }
-        } else {
-          setCustomFields([]);
-        }
-
-        if (sportResult.status === "fulfilled") {
-          const sportRaw = sportResult.value;
+          
+          const sportRaw = settings[`event_${selectedEvent}_sport`];
           let sportList = [];
           if (sportRaw) {
             try {
@@ -283,6 +275,13 @@ export default function Accreditations() {
             }
           }
           setActiveEventSports(sportList);
+        } else {
+          setClubs([]);
+          setFrontBackgroundUrl("");
+          setCategoryDocuments({});
+          setOnlyFrontPage(false);
+          setCustomFields([]);
+          setActiveEventSports([]);
         }
 
         searchParams.set("event", selectedEvent);

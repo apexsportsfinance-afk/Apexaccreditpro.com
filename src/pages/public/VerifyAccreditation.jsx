@@ -372,7 +372,7 @@ export default function VerifyAccreditation() {
           (async () => { const r = await (accData?.event_id ? BookingsAPI.getConfig(accData.event_id) : Promise.resolve(null)); return r; })(), // Get config ONLY to see if active
           (async () => { const r = await (accData?.event_id ? LiveScoresAPI.getSettings(accData.event_id) : Promise.resolve(null)); return r; })() // Get config to show tab
         ]),
-        timeoutPromise(15000, "Priority Metadata Sync")
+        timeoutPromise(30000, "Priority Metadata Sync")
       ]);
 
       const fConfig = null;

@@ -130,7 +130,7 @@ export default function TemplateView({ event, onClose, onSave }) {
                       <input type="file" accept="image/*" onChange={e => handleFileUpload(e, "logoUrl")} className="hidden" />
                     </label>
                   )}
-                  <p className="text-xs text-slate-500 max-w-[200px]">Transparent PNG or high-res SVG recommended. Max 2MB.</p>
+                  <p className="text-xs text-slate-500 max-w-[200px]">Transparent PNG or high-res SVG recommended. Recommended width: 1800px. Max 2MB.</p>
                 </div>
               </div>
 
@@ -154,7 +154,7 @@ export default function TemplateView({ event, onClose, onSave }) {
                       <input type="file" accept="image/*" onChange={e => handleFileUpload(e, "frontBackgroundUrl")} className="hidden" />
                     </label>
                   )}
-                  <p className="text-xs text-slate-500 max-w-[200px]">Background image to fill the white space of the front card. Max 2MB.</p>
+                  <p className="text-xs text-slate-500 max-w-[200px]">Background image to fill the white space of the front card. Recommended size: 2000x2837px. Max 2MB.</p>
                 </div>
               </div>
 
@@ -190,7 +190,8 @@ export default function TemplateView({ event, onClose, onSave }) {
 
             <div className="space-y-6 bg-slate-900/40 p-6 rounded-2xl border border-white/5">
               <div className={cn("transition-all duration-300", templateData.onlyFrontPage && "opacity-40 grayscale pointer-events-none")}>
-                <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-3">Back Graphic</label>
+                <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-1">Back Graphic</label>
+                <p className="text-xs text-slate-500 mb-3">Recommended size: 2000x2837px. Max 2MB.</p>
                 <div className="relative aspect-[3/4] max-w-[200px] border-2 border-dashed border-slate-700 rounded-2xl overflow-hidden group">
                   {templateData.backTemplateUrl ? (
                     <>
@@ -210,7 +211,8 @@ export default function TemplateView({ event, onClose, onSave }) {
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-3">Sponsor Logos (Max 6)</label>
+                <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-1">Sponsor Logos (Max 6)</label>
+                <p className="text-xs text-slate-500 mb-3">Transparent PNG recommended. Minimum width: 800px per logo.</p>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {templateData.sponsorLogos.map((logo, i) => (
                     <div key={i} className="relative group h-24 bg-white rounded-xl flex items-center justify-center p-3 border border-slate-200 shadow-sm transition-shadow hover:shadow-md">
