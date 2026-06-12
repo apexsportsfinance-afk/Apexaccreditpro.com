@@ -3,17 +3,37 @@ import { CheckCircle2, AlertCircle } from "lucide-react";
 import Card, { CardHeader, CardContent } from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import { useToast } from "../../../components/ui/Toast";
-import { EventsAPI } from "../../../lib/storage";
+import { GlobalSettingsAPI } from "../../../lib/broadcastApi";
 
 export default function TermsView({ event, onSave }) {
-  const [content, setContent] = useState(event.termsAndConditions || "");
+  const [content, setContent] = useState("");
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const toast = useToast();
+
+  React.useEffect(() => {
+    const fetchTerms = async () => {
+      try {
+        const storedTerms = await GlobalSettingsAPI.get(`event_${event.id}_terms`);
+        setContent(storedTerms || event.termsAndConditions || "");
+      } catch (err) {
+        console.error("Failed to fetch terms:", err);
+        setContent(event.termsAndConditions || "");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTerms();
+  }, [event.id, event.termsAndConditions]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await EventsAPI.update(event.id, { termsAndConditions: content });
+      if (content) {
+        await GlobalSettingsAPI.set(`event_${event.id}_terms`, content);
+      } else {
+        await GlobalSettingsAPI.remove(`event_${event.id}_terms`);
+      }
       toast.success("Terms and Conditions updated successfully");
       if (onSave) onSave();
     } catch (err) {
@@ -36,8 +56,9 @@ export default function TermsView({ event, onSave }) {
           </div>
           <Button 
             onClick={handleSave} 
-            loading={saving}
+            loading={saving || loading}
             icon={CheckCircle2}
+            disabled={loading}
           >
             Save Changes
           </Button>
@@ -45,12 +66,16 @@ export default function TermsView({ event, onSave }) {
       </CardHeader>
       <CardContent className="p-6">
         <div className="space-y-4">
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-amber-200/80 leading-relaxed font-light">
-              <span className="font-bold text-amber-400">Note:</span> If left empty, the system will use the default Apex Sports terms. You can use standard text. New lines will be preserved.
-            </p>
-          </div>
+          {loading ? (
+            <div className="flex justify-center p-8"><div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div></div>
+          ) : (
+            <>
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-amber-200/80 leading-relaxed font-light">
+                  <span className="font-bold text-amber-400">Note:</span> If left empty, the system will use the default Apex Sports terms. You can use standard text. New lines will be preserved.
+                </p>
+              </div>
           
           <div className="relative group">
             <textarea
@@ -69,6 +94,8 @@ export default function TermsView({ event, onSave }) {
               * Remember to include health waivers and media release authorizations if specific to this event.
             </p>
           </div>
+            </>
+          )}
         </div>
       </CardContent>
     </Card>

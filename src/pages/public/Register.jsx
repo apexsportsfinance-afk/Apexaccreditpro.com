@@ -153,6 +153,18 @@ export default function Register() {
   useEffect(() => {
     const loadEvent = async () => {
       const eventData = await EventsAPI.getBySlug(slug);
+      
+      if (eventData) {
+        try {
+          const storedTerms = await GlobalSettingsAPI.get(`event_${eventData.id}_terms`);
+          if (storedTerms) {
+            eventData.termsAndConditions = storedTerms;
+          }
+        } catch(err) {
+          console.error("Failed to load custom terms:", err);
+        }
+      }
+
       setEvent(eventData);
       if (eventData) {
         try {
