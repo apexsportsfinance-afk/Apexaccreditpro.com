@@ -16,7 +16,7 @@ export const registerTranslations = {
     affiliation: "Affiliation",
     role: "Category/Role",
     placeholderRole: "Select category/role",
-    organization: "Organization/Club/Academy",
+    organization: "Organization",
     placeholderOrganization: "Enter organization, club or academy",
     placeholderSearch: "Search and select...",
     participatingSports: "Participating Sports",

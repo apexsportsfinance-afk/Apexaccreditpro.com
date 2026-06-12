@@ -115,7 +115,14 @@ export default function CategoriesView({ event, availableCategories, onClose }) 
       
       if (allowlistRaw) setCategoryAllowlists(typeof allowlistRaw === 'string' ? JSON.parse(allowlistRaw) : allowlistRaw);
       if (sportsRaw) setCategorySports(typeof sportsRaw === 'string' ? JSON.parse(sportsRaw) : sportsRaw);
-      if (docsRaw) setCategoryDocuments(typeof docsRaw === 'string' ? JSON.parse(docsRaw) : docsRaw);
+      if (docsRaw) {
+          const parsed = typeof docsRaw === 'string' ? JSON.parse(docsRaw) : docsRaw;
+          const normalized = {};
+          for (const [k, v] of Object.entries(parsed)) {
+            normalized[k] = (v || []).map(x => typeof x === 'string' ? x.toLowerCase() : x);
+          }
+          setCategoryDocuments(normalized);
+        }
 
       if (customFieldsEventRaw) {
         try {
@@ -152,7 +159,8 @@ export default function CategoriesView({ event, availableCategories, onClose }) 
       toast.success("Categories and rules updated successfully");
       onClose();
     } catch (err) {
-      toast.error("Failed to save changes");
+      console.error("Save config error:", err);
+      toast.error("Failed to save changes: " + (err.message || "Unknown error"));
     } finally {
       setSaving(false);
     }
@@ -413,7 +421,7 @@ export default function CategoriesView({ event, availableCategories, onClose }) 
             <div>
               <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Allowed Sports</label>
               <MultiSearchableSelect 
-                options={(eventSports || ["Swimming"]).map(s => ({ value: s, label: s }))}
+                options={(eventSports || ["Swimming"]).map(s => ({ value: s.value || s, label: s.label || s }))}
                 value={tempSports}
                 onChange={setTempSports}
                 placeholder="Select sports for this category..."
@@ -484,3 +492,4 @@ export default function CategoriesView({ event, availableCategories, onClose }) 
     </div>
   );
 }
+

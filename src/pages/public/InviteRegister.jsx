@@ -331,7 +331,7 @@ export default function InviteRegister() {
     if (!formData.gender) newErrors.gender = "Gender is required";
     if (!formData.dateOfBirth) newErrors.dateOfBirth = "Date of birth is required";
     if (!formData.nationality) newErrors.nationality = "Nationality is required";
-    if (!formData.club.trim()) newErrors.club = "Organization/Club/Academy is required";
+    if (!formData.club.trim()) newErrors.club = "Organization is required";
     if (!formData.role) newErrors.role = "Role is required";
     if (!formData.email.trim()) {
       newErrors.email = "Email is required";
@@ -645,7 +645,7 @@ export default function InviteRegister() {
 
               <div className="relative z-[20]">
                 {inviteLink?.club ? (
-                  <Input label="Organization/Club/Academy" value={formData.club} disabled light className="opacity-75 bg-slate-100" title="Pre-filled from invite" />
+                  <Input label="Organization" value={formData.club} disabled light className="opacity-75 bg-slate-100" title="Pre-filled from invite" />
                 ) : (
                   (() => {
                     const selectedCat = eventCategories.find(c => c.name === formData.role);
@@ -653,20 +653,20 @@ export default function InviteRegister() {
                     const restrictedOrgs = formData.role ? categoryAllowlist[catId] : null;
                     if (restrictedOrgs && restrictedOrgs.length > 0) {
                       return (
-                        <SearchableSelect label="Organization/Club/Academy *" value={formData.club}
+                        <SearchableSelect label="Organization *" value={formData.club}
                           onChange={e => handleInputChange({ target: { name: "club", value: e.target.value } })}
                           error={errors.club} required options={restrictedOrgs.map(name => ({ value: name, label: name }))} placeholder="Select Organization" light disabled={restrictedOrgs.length === 1} />
                       );
                     }
                     if (formData.role && (teamRoles.includes(formData.role.toLowerCase()) || formData.role.toLowerCase().includes("athlete") || formData.role.toLowerCase().includes("coach")) && clubs.length > 0) {
                       return (
-                        <SearchableSelect label="Organization/Club/Academy *" value={formData.club}
+                        <SearchableSelect label="Organization *" value={formData.club}
                           onChange={e => handleInputChange({ target: { name: "club", value: e.target.value } })}
                           error={errors.club} required options={clubs.map(c => { const name = typeof c === "string" ? c : (c?.full || c?.short); return name ? { value: name, label: name } : null; }).filter(Boolean)} placeholder="Select organization" light />
                       );
                     }
                     return (
-                      <Input label="Organization/Club/Academy" name="club" value={formData.club} onChange={handleInputChange} error={errors.club} required placeholder="Enter organization, club or academy" light />
+                      <Input label="Organization" name="club" value={formData.club} onChange={handleInputChange} error={errors.club} required placeholder="Enter organization, club or academy" light />
                     );
                   })()
                 )}

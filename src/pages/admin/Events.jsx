@@ -94,7 +94,7 @@ const OVERRIDABLE_FIELDS = [
   { id: 'nationality', label: 'Nationality' },
   { id: 'affiliation_info', label: 'Affiliation Heading' },
   { id: 'category_role', label: 'Category/Role' },
-  { id: 'organization', label: 'Organization/Club' },
+  { id: 'organization', label: 'Organization' },
   { id: 'participatingSports', label: 'Participating Sports' },
   { id: 'contact_details', label: 'Contact Details Heading' },
   { id: 'email', label: 'Email' },

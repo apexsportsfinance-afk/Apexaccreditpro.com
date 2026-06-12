@@ -101,7 +101,7 @@ export const EventsAPI = {
   },
   getAllMinimal: async () => {
     const data = await handleResponse(
-      () => supabase.from("events").select("id, name, slug, description, start_date, end_date, location, age_calculation_year, registration_open, header_arabic, header_subtitle, timezone, logo_url, back_template_url, sponsor_logos").order("created_at", { ascending: false })
+      () => supabase.from("events").select("id, name, slug, description, start_date, end_date, location, registration_open, required_documents").order("created_at", { ascending: false })
     );
     return (data || []).map(mapEventFromDB);
   },

@@ -12,6 +12,7 @@ import MultiSearchableSelect from "../../components/ui/MultiSearchableSelect";
 import { useToast } from "../../components/ui/Toast";
 import { useAuth } from "../../contexts/AuthContext";
 import { UsersAPI, EventsAPI } from "../../lib/storage";
+import { supabase } from "../../lib/supabase";
 import { formatDate } from "../../lib/utils";
 
 const ROLES = [

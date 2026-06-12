@@ -568,7 +568,7 @@ export default function Register() {
     
     // Conditional validation for Affiliation
     if (visibilityConfig.affiliation !== false && fieldConfig?.['affiliation_info']?.show !== false) {
-      if (isRequiredAndVisible('organization') && !formData.club.trim()) newErrors.club = "Organization/Club/Academy is required";
+      if (isRequiredAndVisible('organization') && !formData.club.trim()) newErrors.club = "Organization is required";
       if (isRequiredAndVisible('category_role') && !formData.role) newErrors.role = "Role is required";
       
       const isTeamRole = formData.role && (teamRoles.includes(formData.role.toLowerCase()) || formData.role.toLowerCase().includes("athlete") || formData.role.toLowerCase().includes("coach"));
@@ -600,9 +600,9 @@ export default function Register() {
       });
     }
 
-    if (!termsAccepted) {
-      newErrors.terms = "You must accept the terms and conditions";
-    }
+      if (visibilityConfig.termsLink !== false && !termsAccepted) {
+        newErrors.terms = "You must accept the terms and conditions";
+      }
 
     // Validation for Custom Fields - ONLY validate fields visible to this role (APX-Fix)
     const visibleCustomFields = getFilteredCustomFields();
@@ -1133,7 +1133,7 @@ export default function Register() {
                             if (restrictedOrgs.length === 1) {
                               return (
                                 <Input
-                                  label="Organization/Club/Academy *"
+                                  label="Organization *"
                                   name="club"
                                   value={formData.club || restrictedOrgs[0]}
                                   onChange={handleInputChange}
@@ -1146,7 +1146,7 @@ export default function Register() {
                             }
                             return (
                               <SearchableSelect
-                                label="Organization/Club/Academy *"
+                                label="Organization *"
                                 value={formData.club}
                                 onChange={(e) => handleInputChange({ target: { name: "club", value: e.target.value } })}
                                 error={errors.club}
@@ -1161,7 +1161,7 @@ export default function Register() {
                           if (formData.role && (teamRoles.includes(formData.role.toLowerCase()) || formData.role.toLowerCase().includes("athlete") || formData.role.toLowerCase().includes("coach")) && clubs.length > 0) {
                             return (
                               <SearchableSelect
-                                label="Organization/Club/Academy *"
+                                label="Organization *"
                                 value={formData.club}
                                 onChange={(e) => handleInputChange({ target: { name: "club", value: e.target.value } })}
                                 error={errors.club}
@@ -1178,7 +1178,7 @@ export default function Register() {
 
                           return (
                             <Input
-                              label="Organization/Club/Academy"
+                              label="Organization"
                               name="club"
                               value={formData.club}
                               onChange={handleInputChange}
@@ -1328,8 +1328,7 @@ export default function Register() {
                   <Mail className={`${language === "ar" ? "ml-2" : ""}`} />
                   {t("contact_details")}
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-6">
+                <div className="grid grid-cols-1 gap-4">
                   <div className="flex flex-col h-full">
                     <Input
                       label={t("email")}
@@ -1357,7 +1356,7 @@ export default function Register() {
                           name="countryCode"
                           value={formData.countryCode}
                           onChange={handleInputChange}
-                          className="w-24 px-3 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-700 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all outline-none font-medium"
+                          className="w-[140px] px-3 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-700 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all outline-none font-medium"
                         >
                           {COUNTRY_PHONE_CODES.map(c => (
                             <option key={c.code} value={c.code}>{c.code} ({c.country})</option>
@@ -1379,7 +1378,7 @@ export default function Register() {
                     </div>
                   ) : visibilityConfig.phone === "optional" || !visibilityConfig.phone ? (
                     /* User Switch (Optional) Mode */
-                    <>
+                    <div className="flex flex-col gap-4">
                       <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 border-2 border-slate-100 hover:border-cyan-100 transition-colors cursor-pointer group">
                         <input
                           type="checkbox"
@@ -1408,7 +1407,7 @@ export default function Register() {
                               name="countryCode"
                               value={formData.countryCode}
                               onChange={handleInputChange}
-                              className="w-24 px-3 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-700 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all outline-none font-medium"
+                              className="w-[140px] px-3 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-700 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all outline-none font-medium"
                             >
                               {COUNTRY_PHONE_CODES.map(c => (
                                 <option key={c.code} value={c.code}>{c.code} ({c.country})</option>
@@ -1429,9 +1428,8 @@ export default function Register() {
                           {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
                         </motion.div>
                       )}
-                    </>
+                    </div>
                   ) : null /* Hidden Mode */}
-                </div>
                 </div>
               </div>
             )}
@@ -1477,37 +1475,39 @@ export default function Register() {
               </div>
             )}
 
-            <div className="flex items-start gap-3 p-4 bg-gradient-to-r from-cyan-50 to-blue-50 rounded-lg border border-cyan-200 relative z-10">
-              <input
-                type="checkbox"
-                id="terms"
-                checked={termsAccepted}
-                onChange={(e) => {
-                  setTermsAccepted(e.target.checked);
-                  if (e.target.checked && errors.terms) {
-                    setErrors((prev) => ({ ...prev, terms: null }));
-                  }
-                }}
-                className={`mt-1.5 w-6 h-6 rounded border-cyan-300 bg-white text-cyan-500 focus:ring-cyan-400/50 ${!hasViewedTerms ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
-                disabled={!hasViewedTerms}
-              />
-              <div>
-                <label htmlFor="terms" className={`text-lg transition-colors ${!hasViewedTerms ? 'text-slate-400 cursor-not-allowed' : 'text-slate-700 cursor-pointer'} block`}>
-                  {t("termsConfirm")}{" "}
-                  <button
-                    type="button"
-                    onClick={() => setTermsModalOpen(true)}
-                    className="text-cyan-600 hover:text-cyan-500 underline font-medium"
-                  >
-                    {t("termsLink")}
-                  </button>
-                  {!hasViewedTerms && <span className="text-sm text-cyan-600 ml-2 animate-pulse">({t("termsUnlock")})</span>}
-                </label>
-                {errors.terms && (
-                  <p className="text-lg text-red-500 mt-1">{errors.terms}</p>
-                )}
+            {visibilityConfig.termsLink !== false && (
+              <div className="flex items-start gap-3 p-4 bg-gradient-to-r from-cyan-50 to-blue-50 rounded-lg border border-cyan-200 relative z-10">
+                <input
+                  type="checkbox"
+                  id="terms"
+                  checked={termsAccepted}
+                  onChange={(e) => {
+                    setTermsAccepted(e.target.checked);
+                    if (e.target.checked && errors.terms) {
+                      setErrors((prev) => ({ ...prev, terms: null }));
+                    }
+                  }}
+                  className={`mt-1.5 w-6 h-6 rounded border-cyan-300 bg-white text-cyan-500 focus:ring-cyan-400/50 ${!hasViewedTerms ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                  disabled={!hasViewedTerms}
+                />
+                <div>
+                  <label htmlFor="terms" className={`text-lg transition-colors ${!hasViewedTerms ? 'text-slate-400 cursor-not-allowed' : 'text-slate-700 cursor-pointer'} block`}>
+                    {t("termsConfirm")}{" "}
+                    <button
+                      type="button"
+                      onClick={() => setTermsModalOpen(true)}
+                      className="text-cyan-600 hover:text-cyan-500 underline font-medium"
+                    >
+                      {t("termsLink")}
+                    </button>
+                    {!hasViewedTerms && <span className="text-sm text-cyan-600 ml-2 animate-pulse">({t("termsUnlock")})</span>}
+                  </label>
+                  {errors.terms && (
+                    <p className="text-lg text-red-500 mt-1">{errors.terms}</p>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             {errors.submit && (
               <div className="p-4 bg-red-50 border border-red-200 rounded-lg relative z-[1]">
