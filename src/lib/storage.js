@@ -399,7 +399,7 @@ const ACCREDITATION_LIST_COLUMNS = [
   "nationality", "club", "role", "email", "photo_url", "id_document_url",
   "status", "zone_code", "badge_number", "accreditation_id", "remarks",
   "badge_color", "payment_status", "payment_amount", "stripe_session_id",
-  "expires_at", "custom_message", "selected_sports"
+  "expires_at", "custom_message", "selected_sports", "created_at"
 ].join(",");
 
 export const AccreditationsAPI = {
@@ -1585,6 +1585,7 @@ function mapAccreditationToDB(acc) {
   let meta = acc.customMessage ? (typeof acc.customMessage === 'string' ? JSON.parse(acc.customMessage) : { ...acc.customMessage }) : {};
   if (acc.eidUrl) meta.eidUrl = acc.eidUrl;
   if (acc.medicalUrl) meta.medicalUrl = acc.medicalUrl;
+  if (acc.phone) meta.phone = acc.phone; // Fix: Ensure phone is saved to JSONB
   if (acc.customFields) meta = { ...meta, ...(typeof acc.customFields === 'string' ? JSON.parse(acc.customFields) : acc.customFields) };
   
   if (Object.keys(meta).length > 0) map.custom_message = JSON.stringify(meta);
@@ -1603,13 +1604,15 @@ function mapAccreditationFromDB(db) {
     remarks: db.remarks, badgeColor: db.badge_color || "#2563eb",
     paymentStatus: db.payment_status || 'unpaid', paymentAmount: db.payment_amount,
     stripeSessionId: db.stripe_session_id,
-    expiresAt: db.expires_at
+    expiresAt: db.expires_at,
+    createdAt: db.created_at // Fix: Map created_at for Export
   };
   
   try {
     const meta = (db.custom_message && db.custom_message.startsWith('{')) ? JSON.parse(db.custom_message) : {};
     acc.eidUrl = meta.eidUrl || null;
     acc.medicalUrl = meta.medicalUrl || null;
+    acc.phone = meta.phone || null; // Fix: Extract phone from JSONB
     acc.customFields = meta;
     
     // Priority 1: Use the dedicated 'documents' JSONB column if it exists and has data

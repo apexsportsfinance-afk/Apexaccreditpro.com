@@ -41,7 +41,7 @@ export const exportToExcel = async (data, filename = "export", event = null, pas
       if (!cf) return false;
       const cid = clean(cf.id);
       const cname = clean(cf.name);
-      const clabel = clean(cf.label);
+      const clabel = clean(cf.label_en || cf.label);
       
       return (cid && (targetKey === cid || targetKey.includes(cid) || cid.includes(targetKey))) ||
              (cname && (targetKey === cname || targetKey.includes(cname) || cname.includes(targetKey))) ||
@@ -49,7 +49,7 @@ export const exportToExcel = async (data, filename = "export", event = null, pas
     });
     
     if (config) {
-      const label = config.label || config.name || config.placeholder;
+      const label = config.label_en || config.label || config.name || config.placeholder;
       if (label) return label;
     }
 
@@ -68,16 +68,22 @@ export const exportToExcel = async (data, filename = "export", event = null, pas
     return key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim();
   };
 
-  const allCustomFieldKeys = new Set();
-  data.forEach(row => {
-    // Robust detection: check all possible names for custom field data
-    const cFields = row.customFields || row.custom_fields || (row.custom_message && row.custom_message.startsWith('{') ? JSON.parse(row.custom_message) : {});
-    if (cFields && typeof cFields === 'object') {
-      Object.keys(cFields).forEach(key => allCustomFieldKeys.add(key));
-      // Map it back to row.customFields for the column loop below
-      row._computedFields = cFields;
-    }
-  });
+    const allCustomFieldKeys = new Set();
+    const ignoredKeys = new Set(['phone', 'eidUrl', 'medicalUrl', 'selectedSports', 'sportName']);
+
+    data.forEach(row => {
+      // Robust detection: check all possible names for custom field data
+      const cFields = row.customFields || row.custom_fields || (row.custom_message && row.custom_message.startsWith('{') ? JSON.parse(row.custom_message) : {});
+      if (cFields && typeof cFields === 'object') {
+        Object.keys(cFields).forEach(key => {
+          if (!ignoredKeys.has(key)) {
+            allCustomFieldKeys.add(key);
+          }
+        });
+        // Map it back to row.customFields for the column loop below
+        row._computedFields = cFields;
+      }
+    });
 
   // Ensure fixed column order
   const orderedCustomFieldKeys = Array.from(allCustomFieldKeys).sort((a, b) => {
@@ -102,34 +108,39 @@ export const exportToExcel = async (data, filename = "export", event = null, pas
     return timeA - timeB; // Ascending
   });
 
-  const exportData = sortedData.map((row) => {
-    const rowData = {
-      "Accreditation ID": row.accreditationId || "",
-      "Badge Number": row.badgeNumber || "",
-      "First Name": row.firstName || "",
-      "Last Name": row.lastName || "",
+    const exportData = sortedData.map((row) => {
+      const rawTime = row.createdAt || row.created_at;
+      const formattedTime = rawTime ? new Date(rawTime).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : "";
+
+      const rowData = {
+        "Accreditation ID": row.accreditationId || "",
+        "Registration Date & Time": formattedTime,
+        "Badge Number": row.badgeNumber || "",
+        "First Name": row.firstName || "",
+        "Last Name": row.lastName || "",
       "Gender": row.gender || "",
       "Date of Birth": row.dateOfBirth || "",
       "Age": (row.dateOfBirth && event?.ageCalculationYear) ? calculateAge(row.dateOfBirth, event.ageCalculationYear) : (row.age || ""),
       "Nationality": getCountryCode3(row.nationality),
       "Club": row.club || "",
       "Role": row.role || "",
+      "Phone Number": row.phone || row.phoneNumber || "",
+      "Participating Sports": row.selectedSports ? (Array.isArray(row.selectedSports) ? row.selectedSports.join(", ") : row.selectedSports) : (row.sportName || ""),
+      "Sub-Event / Category": row.sportEvent ? (Array.isArray(row.sportEvent) ? row.sportEvent.join(", ") : row.sportEvent) : "",
     };
 
-    orderedCustomFieldKeys.forEach(key => {
-      const header = getFriendlyName(key);
-      rowData[header] = row._computedFields?.[key] || row.customFields?.[key] || row.custom_fields?.[key] || "";
-    });
+      orderedCustomFieldKeys.forEach(key => {
+        const header = getFriendlyName(key);
+        let val = row._computedFields?.[key] || row.customFields?.[key] || row.custom_fields?.[key] || "";
+        if (Array.isArray(val)) {
+          val = val.join(", ");
+        }
+        rowData[header] = val;
+      });
 
     rowData["Email"] = row.email || "";
     rowData["Status"] = row.status || "";
     rowData["Zone Access"] = row.zoneCode || "";
-    
-    // Add explicitly formatted Booking Time
-    const rawTime = row.createdAt || row.created_at;
-    rowData["Booking Date & Time"] = rawTime ? new Date(rawTime).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : "";
-
-    rowData["Created At Raw"] = row.createdAt || "";
 
     return rowData;
   });
