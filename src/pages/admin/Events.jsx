@@ -1957,7 +1957,7 @@ export default function Events() {
                           <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Options (Comma separated) *</label>
                           <input
                             type="text"
-                            value={field.options}
+                            value={field.options || ""}
                             onChange={(e) => updateCustomField(field.id, 'options', e.target.value)}
                             placeholder="Dubai, Abu Dhabi, Sharjah..."
                             className="w-full px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-600 focus:ring-1 focus:ring-primary-500 outline-none transition-all"
