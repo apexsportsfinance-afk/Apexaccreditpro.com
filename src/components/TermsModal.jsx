@@ -42,16 +42,45 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 };
 
 export default function TermsModal({ isOpen, onClose, onAccept, content }) {
+  const renderCustomContent = (text) => {
+    if (!text) return null;
+    
+    const blocks = text.split(/\n\s*\n/);
+    
+    return blocks.map((block, idx) => {
+      const lines = block.trim().split('\n');
+      
+      // If the block has multiple lines and the first line is short enough, treat it as a header
+      if (lines.length > 1 && lines[0].length < 150) {
+        const header = lines[0];
+        const body = lines.slice(1).join('\n');
+        return (
+          <section key={idx} className="space-y-3 font-light mb-6">
+            <h4 className="text-lg font-black text-main uppercase tracking-tight">{header}</h4>
+            <p className="text-lg text-muted whitespace-pre-wrap">{body}</p>
+          </section>
+        );
+      }
+      
+      // Otherwise, render as a plain paragraph
+      return (
+        <section key={idx} className="space-y-3 font-light mb-6">
+          <p className="text-lg text-muted whitespace-pre-wrap">{block}</p>
+        </section>
+      );
+    });
+  };
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title="Terms and Conditions"
     >
-      <div className="p-8 space-y-6 text-main leading-relaxed">
+      <div className="p-8 text-main leading-relaxed">
         {content ? (
-          <div className="whitespace-pre-wrap text-[17px] font-light text-muted bg-base-alt p-6 rounded-2xl border border-border italic">
-            {content}
+          <div className="space-y-6">
+            {renderCustomContent(content)}
           </div>
         ) : (
           <>
