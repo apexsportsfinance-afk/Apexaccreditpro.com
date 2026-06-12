@@ -1923,6 +1923,7 @@ export default function Events() {
                           >
                             <option value="text">Single Line Text</option>
                             <option value="select">Dropdown Menu</option>
+                            <option value="multi_select">Multiple Choice Dropdown</option>
                             <option value="medical_booking">Medical Test Calendar Booking</option>
                           </select>
                         </div>
@@ -1952,7 +1953,7 @@ export default function Events() {
                         </div>
                       </div>
 
-                      {field.type === 'select' && (
+                      {(field.type === 'select' || field.type === 'multi_select') && (
                         <div className="space-y-1.5">
                           <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Options (Comma separated) *</label>
                           <input

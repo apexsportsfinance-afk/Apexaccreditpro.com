@@ -619,7 +619,9 @@ export default function Register() {
     // Validation for Custom Fields - ONLY validate fields visible to this role (APX-Fix)
     const visibleCustomFields = getFilteredCustomFields();
     visibleCustomFields.forEach(field => {
-      if (field.required && !formData.customFields[field.id]) {
+      const val = formData.customFields[field.id];
+      const isEmpty = val === undefined || val === null || val === "" || (Array.isArray(val) && val.length === 0);
+      if (field.required && isEmpty) {
         newErrors[`custom_${field.id}`] = `${language === 'ar' ? field.label_ar : field.label_en} is required`;
       }
     });
@@ -1294,6 +1296,31 @@ export default function Register() {
                             required={field.required}
                             light
                             placeholder={language === "ar" ? "اختر خياراً..." : "Select an option..."}
+                            options={(() => {
+                              let opts = [];
+                              if (Array.isArray(field.options)) {
+                                opts = field.options;
+                              } else if (typeof field.options === 'string') {
+                                opts = field.options.split(",").map(o => o.trim()).filter(Boolean);
+                              }
+                              return opts.map(opt => ({ 
+                                value: typeof opt === 'string' ? opt : (opt.value || opt.label || opt), 
+                                label: typeof opt === 'string' ? opt : (opt.label || opt.value || opt)
+                              }));
+                            })()}
+                          />
+                        ) : field.type === 'multi_select' ? (
+                          <MultiSearchableSelect
+                            label={language === "ar" ? field.label_ar : field.label_en}
+                            value={formData.customFields[field.id] || []}
+                            onChange={(val) => setFormData(prev => ({
+                              ...prev,
+                              customFields: { ...prev.customFields, [field.id]: val }
+                            }))}
+                            error={errors[`custom_${field.id}`]}
+                            required={field.required}
+                            light
+                            placeholder={language === "ar" ? "اختر من القائمة..." : "Select options..."}
                             options={(() => {
                               let opts = [];
                               if (Array.isArray(field.options)) {
