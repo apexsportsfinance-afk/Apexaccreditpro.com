@@ -67,3 +67,19 @@ export const dataUrlToBlob = (dataUrl) => {
   for (let i = 0; i < n; i++) u8arr[i] = bstr.charCodeAt(i);
   return new Blob([u8arr], { type: mime });
 };
+
+// APX-PERF: Converts a standard Supabase storage URL to an Image Transformation API URL.
+// Dramatically reduces payload sizes (e.g., 5MB -> 20KB).
+export const getOptimizedImageUrl = (url, width = 150, quality = 70) => {
+  if (!url) return url;
+  if (!url.includes("supabase.co/storage/v1/object/public/")) return url;
+  
+  // Transform /object/ to /render/image/
+  const optimized = url.replace(
+    "/storage/v1/object/public/", 
+    "/storage/v1/render/image/public/"
+  );
+  
+  // Add query parameters for resizing
+  return `${optimized}?width=${width}&quality=${quality}`;
+};

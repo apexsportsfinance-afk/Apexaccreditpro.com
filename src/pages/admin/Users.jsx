@@ -68,12 +68,19 @@ export default function Users() {
   const loadUsers = async () => {
     setLoading(true);
     try {
-      const [userData, eventData, mappingData, moduleData] = await Promise.all([
+      // APX-PERF: Load global settings once to get mappings, and prevent double-firing Edge Function
+      const [userData, eventData, globalSettings] = await Promise.all([
         UsersAPI.getAll(),
         EventsAPI.getAllMinimal(),
-        UsersAPI.getAccessMappings(),
-        UsersAPI.getModuleAccessMappings()
+        supabase.from("global_settings").select("key, value").in("key", ["user_event_access", "user_module_access"])
       ]);
+      
+      const settingsMap = {};
+      (globalSettings?.data || []).forEach(s => settingsMap[s.key] = s.value);
+      
+      const mappingData = settingsMap["user_event_access"] ? JSON.parse(settingsMap["user_event_access"]) : {};
+      const moduleData = settingsMap["user_module_access"] ? JSON.parse(settingsMap["user_module_access"]) : {};
+
       setUsers(userData);
       setAllEvents(eventData);
       setAccessMappings(mappingData);
@@ -85,10 +92,6 @@ export default function Users() {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    loadUsers();
-  }, []);
 
   const resetForm = () => {
     setFormData({

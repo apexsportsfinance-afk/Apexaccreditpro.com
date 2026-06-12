@@ -30,8 +30,9 @@ const differenceInHours = (d1, d2) => {
   return Math.floor(diff / (1000 * 60 * 60));
 };
 
+// APX-PERF: Image Transformations reverted due to Supabase CPU throttling
+// on bulk loads (50+ simultaneous transformations causing 30s timeouts).
 export const getThumbnailUrl = (originalUrl, width = 100) => {
-  // Bypassed Supabase Image Transformations to prevent 400 errors on unsupported tiers.
   return originalUrl;
 };
 

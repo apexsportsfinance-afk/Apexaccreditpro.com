@@ -13,7 +13,7 @@ import { EventSettingsAPI, FormFieldSettingsAPI, BroadcastV2API, AthleteEventsAP
 import { AttendanceAPI } from "../../lib/attendanceApi";
 import { ConfigAPI, ZonesAPI, BookingsAPI, LiveScoresAPI } from "../../lib/storage";
 import { computeExpiryStatus, formatEventDateTime } from "../../lib/expiryUtils";
-import { getCountryFlag, getCountryCode3, COUNTRIES, calculateAge, cn } from "../../lib/utils";
+import { getCountryFlag, getCountryCode3, COUNTRIES, calculateAge, cn, getThumbnailUrl } from "../../lib/utils";
 import { toast } from "sonner";
 import { createPortal } from "react-dom";
 import QRProfileGallery from "../../components/public/QRProfileGallery";
@@ -1144,7 +1144,7 @@ export default function VerifyAccreditation() {
                     <div className="relative shrink-0">
                       <div className="w-20 h-24 border-2 border-slate-100 rounded-2xl overflow-hidden shadow-sm bg-slate-50">
                         {data.photo_url ? (
-                          <img src={data.photo_url} alt="Profile" className="w-full h-full object-cover" />
+                          <img src={getThumbnailUrl(data.photo_url, 400)} alt="Profile" className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <User className="w-8 h-8 text-slate-300" />

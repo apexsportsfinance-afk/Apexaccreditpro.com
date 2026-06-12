@@ -209,7 +209,12 @@ export default function Accreditations() {
       setLoading(true);
       try {
         // APX-PERF: Parallel data calls optimized to prevent connection pool exhaustion
-        const results = await Promise.allSettled([
+        // APX-102: Emergency timeout to prevent infinite spinning
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("Request timed out after 15 seconds")), 15000)
+        );
+
+        const fetchPromise = Promise.allSettled([
           AccreditationsAPI.getPaginatedByEventId(selectedEvent, { 
             limit: 100, 
             offset: 0,
@@ -224,6 +229,8 @@ export default function Accreditations() {
           EventsAPI.getById(selectedEvent),
           GlobalSettingsAPI.getAll()
         ]);
+
+        const results = await Promise.race([fetchPromise, timeoutPromise]);
 
         const [accResult, zoneResult, ecResult, fullEventResult, settingsResult] = results;
 
@@ -813,7 +820,7 @@ export default function Accreditations() {
             <div className="relative group">
               {row.photoUrl ? (
                 <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-border group-hover:border-primary-500 transition-colors">
-                  <img src={getThumbnailUrl(row.photoUrl, 100)} alt="" className="w-full h-full object-cover" />
+                  <img src={getThumbnailUrl(row.photoUrl, 100)} loading="lazy" alt="" className="w-full h-full object-cover" />
                 </div>
               ) : (
                 <div className="w-10 h-10 rounded-full bg-base-alt flex items-center justify-center text-muted border-2 border-border">

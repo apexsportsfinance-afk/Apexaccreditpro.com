@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Upload, Trash2, X, Plus, ImageIcon, FileImage } from "lucide-react";
+import { Upload, Trash2, X, Plus, ImageIcon, FileImage, Info } from "lucide-react";
 import Card, { CardContent } from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
@@ -21,6 +21,50 @@ export default function TemplateView({ event, onClose, onSave }) {
   });
   const [saving, setSaving] = useState(false);
   const toast = useToast();
+
+  const isMembershipCard = event?.outputType === "Membership Card";
+
+  const getGuidance = () => {
+    if (isMembershipCard) {
+      return {
+        logo: {
+          size: "Recommended width: 1800px. Recommended height: 250px – 350px. Max 2MB.",
+          note: "Note: Keep the header clean and avoid very small text."
+        },
+        frontBg: {
+          size: "Recommended size: 2025x1275px. Max 2MB.",
+          note: "Note: This sits behind the member photo, QR code, name, ID, badge number, category, nationality, and DOB. Keep the centre and QR area clean."
+        },
+        backBg: {
+          size: "Recommended size: 2025x1275px. Max 2MB.",
+          note: "Note: This is for CR80 landscape membership card size. Keep important text/logos at least 100px away from the borders."
+        },
+        sponsors: {
+          size: "Recommended strip size: 1800x250px. If individual logos: minimum width 600px."
+        }
+      };
+    }
+    
+    return {
+      logo: {
+        size: "Recommended width: 1800px. Recommended height: 400px – 600px. Max 2MB.",
+        note: "Note: Keep text and logos inside the centre safe zone."
+      },
+      frontBg: {
+        size: "Recommended size: 2000x2837px. Max 2MB.",
+        note: "Note: This sits behind the participant photo and data. Keep the centre area clean or use low-opacity background design."
+      },
+      backBg: {
+        size: "Recommended size: 2000x2837px. Max 2MB.",
+        note: "Note: Background colours should bleed to the edge, but important text/logos should stay at least 150px away from the borders."
+      },
+      sponsors: {
+        size: "Recommended strip size: 1800x400px. If individual logos: minimum width 800px."
+      }
+    };
+  };
+
+  const guidance = getGuidance();
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -90,6 +134,15 @@ export default function TemplateView({ event, onClose, onSave }) {
           <Button onClick={save} loading={saving}>Save Configuration</Button>
         </div>
 
+        <div className="bg-primary-500/10 border border-primary-500/20 rounded-xl p-4 flex gap-3 text-sm text-primary-200">
+          <Info className="w-5 h-5 text-primary-400 shrink-0" />
+          <p>
+            <strong className="text-white block mb-1">General Print Quality Note:</strong>
+            For best print quality, upload PNG files exported directly from the original design file. 
+            Avoid screenshots, WhatsApp-compressed images, or low-resolution JPG files.
+          </p>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Front Configuration */}
           <div className="space-y-6">
@@ -112,9 +165,9 @@ export default function TemplateView({ event, onClose, onSave }) {
               />
               <div>
                 <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-3">Event Logo</label>
-                <div className="flex items-center gap-6">
+                <div className="flex items-start gap-6">
                   {templateData.logoUrl ? (
-                    <div className="relative group">
+                    <div className="relative group shrink-0">
                       <img src={templateData.logoUrl} className="w-24 h-24 object-contain rounded-xl bg-white/5 p-2" alt="Logo" />
                       <button 
                         onClick={() => setTemplateData(prev => ({ ...prev, logoUrl: "" }))}
@@ -124,21 +177,25 @@ export default function TemplateView({ event, onClose, onSave }) {
                       </button>
                     </div>
                   ) : (
-                    <label className="w-24 h-24 border-2 border-dashed border-slate-700 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-primary-500 transition-all text-slate-500">
+                    <label className="w-24 h-24 shrink-0 border-2 border-dashed border-slate-700 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-primary-500 transition-all text-slate-500">
                       <Upload className="w-6 h-6 mb-1" />
                       <span className="text-[10px] font-bold">UPLOAD</span>
                       <input type="file" accept="image/*" onChange={e => handleFileUpload(e, "logoUrl")} className="hidden" />
                     </label>
                   )}
-                  <p className="text-xs text-slate-500 max-w-[200px]">Transparent PNG or high-res SVG recommended. Recommended width: 1800px. Max 2MB.</p>
+                  <div className="text-xs text-slate-500 pt-2 space-y-1">
+                    <p className="text-slate-300 font-medium">Transparent PNG or high-res SVG recommended.</p>
+                    <p>{guidance.logo.size}</p>
+                    <p className="text-primary-400">{guidance.logo.note}</p>
+                  </div>
                 </div>
               </div>
 
-              <div>
+              <div className="pt-2">
                 <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-3">Front Body Background</label>
-                <div className="flex items-center gap-6">
+                <div className="flex items-start gap-6">
                   {templateData.frontBackgroundUrl ? (
-                    <div className="relative group">
+                    <div className="relative group shrink-0">
                       <img src={templateData.frontBackgroundUrl} className="w-24 h-24 object-cover rounded-xl bg-white/5 p-2" alt="Front Bg" />
                       <button 
                         onClick={() => setTemplateData(prev => ({ ...prev, frontBackgroundUrl: "" }))}
@@ -148,13 +205,16 @@ export default function TemplateView({ event, onClose, onSave }) {
                       </button>
                     </div>
                   ) : (
-                    <label className="w-24 h-24 border-2 border-dashed border-slate-700 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-primary-500 transition-all text-slate-500">
+                    <label className="w-24 h-24 shrink-0 border-2 border-dashed border-slate-700 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-primary-500 transition-all text-slate-500">
                       <Upload className="w-6 h-6 mb-1" />
                       <span className="text-[10px] font-bold text-center">UPLOAD BG</span>
                       <input type="file" accept="image/*" onChange={e => handleFileUpload(e, "frontBackgroundUrl")} className="hidden" />
                     </label>
                   )}
-                  <p className="text-xs text-slate-500 max-w-[200px]">Background image to fill the white space of the front card. Recommended size: 2000x2837px. Max 2MB.</p>
+                  <div className="text-xs text-slate-500 pt-2 space-y-1">
+                    <p>{guidance.frontBg.size}</p>
+                    <p className="text-primary-400">{guidance.frontBg.note}</p>
+                  </div>
                 </div>
               </div>
 
@@ -191,7 +251,10 @@ export default function TemplateView({ event, onClose, onSave }) {
             <div className="space-y-6 bg-slate-900/40 p-6 rounded-2xl border border-white/5">
               <div className={cn("transition-all duration-300", templateData.onlyFrontPage && "opacity-40 grayscale pointer-events-none")}>
                 <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-1">Back Graphic</label>
-                <p className="text-xs text-slate-500 mb-3">Recommended size: 2000x2837px. Max 2MB.</p>
+                <div className="text-xs text-slate-500 mb-4 space-y-1">
+                  <p>{guidance.backBg.size}</p>
+                  <p className="text-primary-400">{guidance.backBg.note}</p>
+                </div>
                 <div className="relative aspect-[3/4] max-w-[200px] border-2 border-dashed border-slate-700 rounded-2xl overflow-hidden group">
                   {templateData.backTemplateUrl ? (
                     <>
@@ -210,9 +273,12 @@ export default function TemplateView({ event, onClose, onSave }) {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-1">Sponsor Logos (Max 6)</label>
-                <p className="text-xs text-slate-500 mb-3">Transparent PNG recommended. Minimum width: 800px per logo.</p>
+              <div className="pt-2 border-t border-white/5">
+                <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-1 mt-4">Sponsor Logos (Max 6)</label>
+                <div className="text-xs text-slate-500 mb-4 space-y-1">
+                  <p className="text-slate-300 font-medium">Transparent PNG recommended.</p>
+                  <p>{guidance.sponsors.size}</p>
+                </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {templateData.sponsorLogos.map((logo, i) => (
                     <div key={i} className="relative group h-24 bg-white rounded-xl flex items-center justify-center p-3 border border-slate-200 shadow-sm transition-shadow hover:shadow-md">
@@ -258,3 +324,4 @@ export default function TemplateView({ event, onClose, onSave }) {
     </Card>
   );
 }
+

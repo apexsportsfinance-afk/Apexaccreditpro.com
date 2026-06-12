@@ -188,17 +188,57 @@ export default function Events() {
   const loadEvents = async () => {
     try {
       setFetchingEvents(true);
-      const data = await EventsAPI.getAllMinimal();
-      const filteredData = data.filter(e => canAccessEvent(e.id));
-      setEvents(filteredData);
       
-      if (filteredData.length > 0) {
-        const eventIds = filteredData.map(e => e.id);
-        const counts = await AccreditationsAPI.getCountsByEventIds(eventIds);
-        setEventCounts(counts);
-      }
+      const fetchPromise = async () => {
+        const data = await EventsAPI.getAllMinimal();
+        const filteredData = data.filter(e => canAccessEvent(e.id));
+        setEvents(filteredData);
+        
+        if (filteredData.length > 0) {
+          // APX-PERF: Load event counts asynchronously so they don't block the UI
+          const now = new Date();
+          now.setDate(now.getDate() - 30);
+          
+          const activeEventIds = filteredData.filter(e => {
+            if (e.registrationOpen) return true;
+            if (!e.endDate) return true;
+            return new Date(e.endDate) >= now;
+          }).map(e => e.id);
+          
+          if (activeEventIds.length > 0) {
+            // Kick off background fetch without awaiting
+            AccreditationsAPI.getCountsByEventIds(activeEventIds).then(counts => {
+              const finalCounts = { ...counts };
+              filteredData.forEach(e => {
+                if (!activeEventIds.includes(e.id)) {
+                  finalCounts[e.id] = { archived: true, total: '-', pending: '-', approved: '-' };
+                }
+              });
+              setEventCounts(finalCounts);
+            }).catch(err => {
+              console.error("Background counts fetch failed:", err);
+            });
+          } else {
+            const finalCounts = {};
+            filteredData.forEach(e => {
+              finalCounts[e.id] = { archived: true, total: '-', pending: '-', approved: '-' };
+            });
+            setEventCounts(finalCounts);
+          }
+        }
+      };
+
+      // APX-102: Emergency timeout to prevent infinite spinning
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Request timed out after 15 seconds")), 15000)
+      );
+
+      await Promise.race([fetchPromise(), timeoutPromise]);
     } catch (error) {
       console.error("Failed to load events:", error);
+      if (error.message.includes("timed out")) {
+        toast.error("Loading events took too long. Showing partial data.");
+      }
     } finally {
       setFetchingEvents(false);
     }
@@ -1330,20 +1370,27 @@ export default function Events() {
                       </div>
                     </div>
 
-                    <div className="bg-base-alt rounded-2xl p-6 border border-border flex items-center justify-around shadow-inner">
-                      <div className="text-center">
-                        <p className="text-3xl font-bold text-main mb-1">{counts.total}</p>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted">Total</p>
-                      </div>
-                      <div className="w-px h-12 bg-border" />
-                      <div className="text-center">
-                        <p className="text-3xl font-bold text-amber-600 dark:text-amber-400 mb-1">{counts.pending}</p>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted">Pending</p>
-                      </div>
-                      <div className="w-px h-12 bg-border" />
-                      <div className="text-center">
-                        <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 mb-1">{counts.approved}</p>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted">Approved</p>
+                    <div className="bg-base-alt rounded-2xl p-6 border border-border relative overflow-hidden shadow-inner">
+                      {counts.archived ? (
+                        <div className="absolute inset-0 flex items-center justify-center bg-base-alt/80 backdrop-blur-sm z-10">
+                          <span className="text-sm font-black text-muted uppercase tracking-[0.3em]">Archived Event</span>
+                        </div>
+                      ) : null}
+                      <div className={`flex items-center justify-around ${counts.archived ? 'opacity-30 blur-sm' : ''}`}>
+                        <div className="text-center">
+                          <p className="text-3xl font-bold text-main mb-1">{counts.total}</p>
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted">Total</p>
+                        </div>
+                        <div className="w-px h-12 bg-border" />
+                        <div className="text-center">
+                          <p className="text-3xl font-bold text-amber-600 dark:text-amber-400 mb-1">{counts.pending}</p>
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted">Pending</p>
+                        </div>
+                        <div className="w-px h-12 bg-border" />
+                        <div className="text-center">
+                          <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 mb-1">{counts.approved}</p>
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted">Approved</p>
+                        </div>
                       </div>
                     </div>
                   </div>

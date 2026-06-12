@@ -439,46 +439,47 @@ export const AccreditationsAPI = {
       counts[id] = { total: 0, pending: 0, approved: 0, rejected: 0 };
     });
 
-    const PAGE_SIZE = 1000;
-    let allData = [];
-    let hasMore = true;
-    let start = 0;
-
     try {
+      // APX-PERF: Fix for browser HTTP connection exhaustion.
+      // Instead of 4 queries per event (120+ queries), we bulk-fetch lightweight columns 
+      // (status, event_id) and aggregate in Javascript. Bypasses 1000-row PostgREST limits via pagination.
+      let start = 0;
+      let hasMore = true;
+      
       while (hasMore) {
         const { data, error } = await supabase
-          .from("accreditations")
-          .select("event_id, status")
-          .in("event_id", eventIds)
-          .range(start, start + PAGE_SIZE - 1);
-
+          .from('accreditations')
+          .select('status, event_id')
+          .in('event_id', eventIds)
+          .range(start, start + 999);
+          
         if (error) {
-          console.error("Error fetching counts:", error);
+          console.error("Aggregation chunk error:", error);
           break;
         }
-
+        
         if (data && data.length > 0) {
-          allData = allData.concat(data);
-          start += PAGE_SIZE;
+          data.forEach(row => {
+            const eid = row.event_id;
+            if (counts[eid]) {
+              counts[eid].total++;
+              if (row.status === 'pending') counts[eid].pending++;
+              if (row.status === 'approved') counts[eid].approved++;
+              if (row.status === 'rejected') counts[eid].rejected++;
+            }
+          });
         }
-
-        if (!data || data.length < PAGE_SIZE) {
+        
+        if (!data || data.length < 1000) {
           hasMore = false;
+        } else {
+          start += 1000;
         }
       }
-
-      allData.forEach(row => {
-        const c = counts[row.event_id];
-        if (!c) return;
-        c.total++;
-        if (row.status === "pending") c.pending++;
-        else if (row.status === "approved") c.approved++;
-        else if (row.status === "rejected") c.rejected++;
-      });
     } catch (err) {
       console.error("Failed to aggregate counts:", err);
     }
-
+    
     return counts;
   },
 
@@ -630,7 +631,7 @@ export const AccreditationsAPI = {
     
     let q = supabase
       .from("accreditations")
-      .select(ACCREDITATION_LIST_COLUMNS, { count: "exact" })
+      .select(ACCREDITATION_LIST_COLUMNS, { count: "estimated" })
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
       
@@ -1126,31 +1127,43 @@ export const TicketingAPI = {
 // --- USERS API ---
 export const UsersAPI = {
   getAll: async () => {
-    // APX-Recovery: Try Edge Function first to reach accounts missing from 'profiles'
+    // APX-Recovery: Try Edge Function first to reach accounts missing from 'profiles', but with a strict timeout
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.access_token) {
         const EDGE_URL = "https://dixelomafeobabahqeqg.supabase.co/functions/v1/manage-users";
-        const response = await fetch(EDGE_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session.access_token}` },
-          body: JSON.stringify({ action: "list" })
-        });
-        if (response.ok) {
-          const data = await response.json();
-          if (data.users) return data.users.map(u => ({
-            id: u.id,
-            email: u.email,
-            name: u.full_name || u.email,
-            role: u.role || "viewer",
-            createdAt: u.created_at,
-            type: "Admin Staff",
-            isAuthUser: true
-          }));
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        
+        try {
+          const response = await fetch(EDGE_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session.access_token}` },
+            body: JSON.stringify({ action: "list" }),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.users) return data.users.map(u => ({
+              id: u.id,
+              email: u.email,
+              name: u.full_name || u.email,
+              role: u.role || "viewer",
+              createdAt: u.created_at,
+              type: "Admin Staff",
+              isAuthUser: true
+            }));
+          }
+        } catch (fetchErr) {
+          clearTimeout(timeoutId);
+          throw fetchErr;
         }
       }
     } catch (err) {
-      console.warn("Edge list failed, falling back to profiles:", err);
+      console.warn("Edge list failed or timed out, falling back to profiles:", err);
     }
 
     const data = await handleResponse(() => supabase.from("profiles").select("*").order("created_at", { ascending: false }));
