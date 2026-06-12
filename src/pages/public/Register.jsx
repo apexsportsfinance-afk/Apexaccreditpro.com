@@ -1335,7 +1335,10 @@ export default function Register() {
                             })()}
                           />
                           ) : field.type === 'checkbox' ? (
-                            <div className="flex items-start gap-3 p-4 bg-slate-50/50 rounded-xl border border-slate-200">
+                            <label 
+                              htmlFor={`custom_${field.id}`}
+                              className="flex items-start gap-3.5 p-4 bg-gradient-to-br from-slate-50 to-white hover:from-cyan-50 hover:to-white rounded-xl border border-slate-200 hover:border-cyan-200 transition-all cursor-pointer shadow-sm hover:shadow"
+                            >
                               <input
                                 type="checkbox"
                                 name={`custom_${field.id}`}
@@ -1345,18 +1348,18 @@ export default function Register() {
                                   ...prev,
                                   customFields: { ...prev.customFields, [field.id]: e.target.checked }
                                 }))}
-                                className="w-5 h-5 rounded border-slate-300 text-cyan-600 focus:ring-cyan-500/50 mt-0.5 shrink-0"
+                                className="mt-0.5 w-6 h-6 rounded-md border-slate-300 text-cyan-600 focus:ring-cyan-500/50 shrink-0 cursor-pointer transition-colors"
                               />
                               <div className="flex flex-col">
-                                <label htmlFor={`custom_${field.id}`} className="text-[15px] text-slate-700 font-medium leading-relaxed cursor-pointer">
+                                <span className="text-[15px] text-slate-700 font-medium leading-relaxed select-none">
                                   {language === "ar" ? field.label_ar : field.label_en}
-                                  {field.required && <span className="text-red-500 ml-1">*</span>}
-                                </label>
+                                  {field.required && <span className="text-red-500 ml-1.5">*</span>}
+                                </span>
                                 {errors[`custom_${field.id}`] && (
-                                  <p className="text-sm text-red-500 font-medium mt-1">{errors[`custom_${field.id}`]}</p>
+                                  <p className="text-sm text-red-500 font-bold mt-1.5 animate-pulse">{errors[`custom_${field.id}`]}</p>
                                 )}
                               </div>
-                            </div>
+                            </label>
                           ) : field.type === 'medical_booking' ? (
                           <MedicalBookingSelector
                             field={field}
