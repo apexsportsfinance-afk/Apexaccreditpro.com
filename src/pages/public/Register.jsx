@@ -620,7 +620,7 @@ export default function Register() {
     const visibleCustomFields = getFilteredCustomFields();
     visibleCustomFields.forEach(field => {
       const val = formData.customFields[field.id];
-      const isEmpty = val === undefined || val === null || val === "" || (Array.isArray(val) && val.length === 0);
+      const isEmpty = val === undefined || val === null || val === "" || (Array.isArray(val) && val.length === 0) || (field.type === 'checkbox' && !val);
       if (field.required && isEmpty) {
         newErrors[`custom_${field.id}`] = `${language === 'ar' ? field.label_ar : field.label_en} is required`;
       }
@@ -1334,7 +1334,30 @@ export default function Register() {
                               }));
                             })()}
                           />
-                        ) : field.type === 'medical_booking' ? (
+                          ) : field.type === 'checkbox' ? (
+                            <div className="flex items-start gap-3 p-4 bg-slate-50/50 rounded-xl border border-slate-200">
+                              <input
+                                type="checkbox"
+                                name={`custom_${field.id}`}
+                                id={`custom_${field.id}`}
+                                checked={!!formData.customFields[field.id]}
+                                onChange={(e) => setFormData(prev => ({
+                                  ...prev,
+                                  customFields: { ...prev.customFields, [field.id]: e.target.checked }
+                                }))}
+                                className="w-5 h-5 rounded border-slate-300 text-cyan-600 focus:ring-cyan-500/50 mt-0.5 shrink-0"
+                              />
+                              <div className="flex flex-col">
+                                <label htmlFor={`custom_${field.id}`} className="text-[15px] text-slate-700 font-medium leading-relaxed cursor-pointer">
+                                  {language === "ar" ? field.label_ar : field.label_en}
+                                  {field.required && <span className="text-red-500 ml-1">*</span>}
+                                </label>
+                                {errors[`custom_${field.id}`] && (
+                                  <p className="text-sm text-red-500 font-medium mt-1">{errors[`custom_${field.id}`]}</p>
+                                )}
+                              </div>
+                            </div>
+                          ) : field.type === 'medical_booking' ? (
                           <MedicalBookingSelector
                             field={field}
                             value={formData.customFields[field.id]}

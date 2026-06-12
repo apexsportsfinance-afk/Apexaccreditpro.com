@@ -1924,6 +1924,7 @@ export default function Events() {
                             <option value="text">Single Line Text</option>
                             <option value="select">Dropdown Menu</option>
                             <option value="multi_select">Multiple Choice Dropdown</option>
+                            <option value="checkbox">Single Checkbox</option>
                             <option value="medical_booking">Medical Test Calendar Booking</option>
                           </select>
                         </div>
