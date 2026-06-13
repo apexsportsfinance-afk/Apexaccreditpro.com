@@ -66,6 +66,47 @@ export default function TemplateView({ event, onClose, onSave }) {
 
   const guidance = getGuidance();
 
+  // Minimum native pixel dimensions for crisp output in the flattened (html2canvas) PDF export.
+  const getMinDimensions = (field) => {
+    switch (field) {
+      case "logoUrl":
+        return isMembershipCard ? { width: 1800, height: 250 } : { width: 1800, height: 400 };
+      case "frontBackgroundUrl":
+      case "backTemplateUrl":
+        return isMembershipCard ? { width: 2025, height: 1275 } : { width: 2000, height: 2837 };
+      case "sponsorLogos":
+        return isMembershipCard ? { width: 600, height: 0 } : { width: 800, height: 0 };
+      default:
+        return null;
+    }
+  };
+
+  const getImageDimensions = (file) =>
+    new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(null);
+      };
+      img.src = url;
+    });
+
+  const warnIfLowResolution = async (file, field) => {
+    const min = getMinDimensions(field);
+    if (!min) return;
+    const dims = await getImageDimensions(file);
+    if (dims && (dims.width < min.width || dims.height < min.height)) {
+      toast.warning(
+        `This image is ${dims.width}x${dims.height}px, below the recommended ${min.width}x${min.height}px. It may look pixelated when printed.`
+      );
+    }
+  };
+
   useEffect(() => {
     const fetchSettings = async () => {
       try {
@@ -88,6 +129,7 @@ export default function TemplateView({ event, onClose, onSave }) {
   const handleFileUpload = async (e, field) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    await warnIfLowResolution(file, field);
     const toastId = toast.loading ? toast.loading("Uploading image...") : null;
     try {
       const fileExt = file.name.split('.').pop();
@@ -297,6 +339,7 @@ export default function TemplateView({ event, onClose, onSave }) {
                       <input type="file" accept="image/*" onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (file) {
+                          await warnIfLowResolution(file, "sponsorLogos");
                           const toastId = toast.loading ? toast.loading("Uploading sponsor logo...") : null;
                           try {
                             const fileExt = file.name.split('.').pop();

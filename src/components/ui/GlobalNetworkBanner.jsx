@@ -10,7 +10,7 @@ import { cn } from "../../lib/utils";
  */
 export default function GlobalNetworkBanner() {
   const [status, setStatus] = useState("online"); // online, offline, degraded
-  const [isVisible, setIsVisible] = useState(true); // FORCED VISIBLE FOR DEBUGGING
+  const [isVisible, setIsVisible] = useState(false);
 
   const checkConnectivity = useCallback(async () => {
     try {

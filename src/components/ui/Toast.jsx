@@ -41,7 +41,11 @@ export const ToastProvider = ({ children }) => {
   return (
     <ToastContext.Provider value={toast}>
       {children}
-      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 max-w-md w-full px-4">
+      <div
+        role="status"
+        aria-live="polite"
+        className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 max-w-md w-full px-4"
+      >
         <AnimatePresence>
           {toasts.map((t) => (
             <Toast key={t.id} {...t} onClose={() => removeToast(t.id)} />
@@ -81,7 +85,7 @@ function Toast({ message, type, onClose }) {
     >
       <Icon className="w-5 h-5 flex-shrink-0" />
       <p className="flex-1 text-lg font-medium">{message}</p>
-      <button onClick={onClose} className="p-1 hover:opacity-70 transition-opacity">
+      <button onClick={onClose} aria-label="Dismiss notification" className="p-1 hover:opacity-70 transition-opacity">
         <X className="w-4 h-4" />
       </button>
     </motion.div>

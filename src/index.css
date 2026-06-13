@@ -200,8 +200,8 @@ select {
 
 /* Selection */
 ::selection {
-  background: rgba(224, 194, 123, 0.25);
-  color: white;
+  background: rgba(224, 194, 123, 0.35);
+  color: var(--main);
 }
 
 /* ==========================================
@@ -721,6 +721,13 @@ html.dark:not(#verify-accreditation-page *):not(.qr-print-preview *),
    ========================================== */
 
 /* Fix input & select padding overrides for fields with left icons globally */
+html body #root input.pl-9,
+html body #root select.pl-9,
+.dark input.pl-9,
+.dark select.pl-9 {
+  padding-left: 2.25rem !important;
+}
+
 html body #root input.pl-14,
 html body #root select.pl-14,
 .dark input.pl-14,
@@ -764,6 +771,7 @@ html body #root select.pr-12,
   --main: #1e293b !important;
   --muted: #64748b !important;
   --border: #e2e8f0 !important;
+  color-scheme: light;
 }
 
 #root .light-form h1,

@@ -175,11 +175,11 @@ export const generatePdfForAccreditation = async (accreditation, event, zones, p
     compress: true,
   });
 
-  pdf.addImage(frontCanvas.toDataURL("image/jpeg", 1.0), "JPEG", 0, 0, pdfW, pdfH, undefined, "FAST");
+  pdf.addImage(frontCanvas.toDataURL("image/png", 1.0), "PNG", 0, 0, pdfW, pdfH, undefined, "FAST");
 
   if (backCanvas) {
     pdf.addPage([pdfW, pdfH], pdfW > pdfH ? "l" : "p");
-    pdf.addImage(backCanvas.toDataURL("image/jpeg", 1.0), "JPEG", 0, 0, pdfW, pdfH, undefined, "FAST");
+    pdf.addImage(backCanvas.toDataURL("image/png", 1.0), "PNG", 0, 0, pdfW, pdfH, undefined, "FAST");
   }
 
   root.unmount();

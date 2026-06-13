@@ -71,6 +71,11 @@ export function SearchableSelect({
           type="button"
           onClick={handleOpen}
           disabled={disabled}
+          role="combobox"
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
+          aria-controls="searchable-select-listbox"
+          aria-label={!label ? placeholder : undefined}
           className={cn(
             "w-full px-4 py-2.5 rounded-lg border text-lg transition-all text-left flex items-center justify-between gap-2 bg-base border-border focus:ring-primary-500/40 focus:border-primary-500",
             light ? "text-white" : "text-main",
@@ -102,13 +107,14 @@ export function SearchableSelect({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search..."
+                aria-label="Search options"
                 className={cn(
                   "flex-1 bg-transparent text-base focus:outline-none w-full min-w-0",
                   light ? "text-white placeholder-slate-400" : "text-main placeholder-muted"
                 )}
               />
             </div>
-            <div className="max-h-60 overflow-y-auto overscroll-contain divide-y divide-border">
+            <div id="searchable-select-listbox" role="listbox" className="max-h-60 overflow-y-auto overscroll-contain divide-y divide-border">
               {filtered.length === 0 ? (
                 <p className={cn("text-sm text-center py-6", light ? "text-slate-400" : "text-muted")}>
                   No options found
@@ -119,6 +125,8 @@ export function SearchableSelect({
                     <button
                       key={option.value}
                       type="button"
+                      role="option"
+                      aria-selected={option.value === value}
                       onClick={() => handleSelect(option)}
                       className={cn(
                         "w-full px-4 py-3 text-left text-base transition-all rounded-lg select-none",

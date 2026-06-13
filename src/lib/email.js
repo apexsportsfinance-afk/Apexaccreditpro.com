@@ -52,6 +52,18 @@ export const getEmailTemplate = async (templateType, eventId = null) => {
   }
 };
 
+// [APX-SEC] Escape HTML special characters before interpolating
+// user-controlled values (name, remarks, event name, etc.) into HTML emails.
+const escapeHtml = (value) => {
+  if (value === null || value === undefined) return "";
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+};
+
 const replacePlaceholders = (text, vars) => {
   if (!text) return text;
   return text
@@ -86,14 +98,14 @@ export const sendApprovalEmail = async ({
     let customSubject = null;
     if (template && template.body) {
       const vars = {
-        name,
-        firstName: name?.split(" ")[0] || "",
-        lastName: name?.split(" ").slice(1).join(" ") || "",
-        eventName,
-        role,
-        badge: badgeNumber || accreditationId || "",
-        zones: zoneCode || "",
-        email: to
+        name: escapeHtml(name),
+        firstName: escapeHtml(name?.split(" ")[0] || ""),
+        lastName: escapeHtml(name?.split(" ").slice(1).join(" ") || ""),
+        eventName: escapeHtml(eventName),
+        role: escapeHtml(role),
+        badge: escapeHtml(badgeNumber || accreditationId || ""),
+        zones: escapeHtml(zoneCode || ""),
+        email: escapeHtml(to)
       };
       customBody = replacePlaceholders(template.body, vars);
       customSubject = replacePlaceholders(template.subject, vars);
@@ -162,18 +174,18 @@ export const sendRejectionEmail = async ({
     let customSubject = null;
     if (template && template.body) {
       const vars = {
-        name,
-        firstName: name?.split(" ")[0] || "",
-        lastName: name?.split(" ").slice(1).join(" ") || "",
-        eventName,
-        role: role || "Participant",
+        name: escapeHtml(name),
+        firstName: escapeHtml(name?.split(" ")[0] || ""),
+        lastName: escapeHtml(name?.split(" ").slice(1).join(" ") || ""),
+        eventName: escapeHtml(eventName),
+        role: escapeHtml(role || "Participant"),
         badge: "",
         zones: "",
-        email: to
+        email: escapeHtml(to)
       };
       customBody = replacePlaceholders(template.body, vars);
       if (remarks) {
-        customBody += "\n\nReason: " + remarks;
+        customBody += "\n\nReason: " + escapeHtml(remarks);
       }
       customSubject = replacePlaceholders(template.subject, vars);
     }
@@ -322,10 +334,10 @@ export const sendTicketEmail = async ({
 
     // Prepare variables for placeholder replacement
     const vars = {
-      name: name || "Customer",
-      firstName: name?.split(" ")[0] || "Customer",
-      lastName: name?.split(" ").slice(1).join(" ") || "",
-      eventName,
+      name: escapeHtml(name || "Customer"),
+      firstName: escapeHtml(name?.split(" ")[0] || "Customer"),
+      lastName: escapeHtml(name?.split(" ").slice(1).join(" ") || ""),
+      eventName: escapeHtml(eventName),
       ticketCount,
       amountPaid,
       paymentMethod,
@@ -358,8 +370,8 @@ export const sendTicketEmail = async ({
     
     // Minimalist HTML - No wrappers, no complex CSS
     const finalBody = `
-Dear ${name || 'Customer'},<br/><br/>
-Your booking for <strong>${eventName}</strong> has been confirmed.<br/><br/>
+Dear ${escapeHtml(name) || 'Customer'},<br/><br/>
+Your booking for <strong>${escapeHtml(eventName)}</strong> has been confirmed.<br/><br/>
 <strong>ORDER SUMMARY:</strong><br/>
 - Tickets: ${ticketCount || 1} Person(s)<br/>
 - Amount Paid: ${amountPaid} AED<br/>
