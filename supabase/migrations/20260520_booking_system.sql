@@ -29,17 +29,21 @@ ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
 
 -- 4. Create RLS Policies
 -- Allow anyone to read the booking config (needed for the public scan page)
+DROP POLICY IF EXISTS "Public Read Booking Configs" ON public.booking_configs;
 CREATE POLICY "Public Read Booking Configs" ON public.booking_configs
     FOR SELECT USING (true);
 
 -- Allow authenticated admins to manage configs
+DROP POLICY IF EXISTS "Admins Manage Booking Configs" ON public.booking_configs;
 CREATE POLICY "Admins Manage Booking Configs" ON public.booking_configs
     FOR ALL TO authenticated USING (true);
 
 -- Allow public read of bookings to count slot occupancy dynamically on frontend
+DROP POLICY IF EXISTS "Public Read Bookings" ON public.bookings;
 CREATE POLICY "Public Read Bookings" ON public.bookings
     FOR SELECT USING (true);
 
 -- Allow participants to make, change, or delete their own booking via anon/public
+DROP POLICY IF EXISTS "Public Manage Personal Bookings" ON public.bookings;
 CREATE POLICY "Public Manage Personal Bookings" ON public.bookings
     FOR ALL USING (true);

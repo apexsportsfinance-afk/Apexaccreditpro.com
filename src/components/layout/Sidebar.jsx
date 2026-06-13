@@ -19,7 +19,8 @@ import {
   RefreshCw,
   Trophy,
   MessageSquare,
-  Book
+  Book,
+  Shield
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -30,6 +31,8 @@ export const navItems = [
   { to: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/staff", icon: Smartphone, label: "Staff App (Mobile)" },
   { to: "/admin/events", icon: Calendar, label: "Events" },
+  { to: "/admin/teams", icon: Shield, label: "Admin Teams" },
+  { to: "/portal/teams", icon: Users, label: "Team Portal" },
   { to: "/admin/ticketing", icon: Ticket, label: "Spectator Portal" },
   { to: "/admin/accreditations", icon: ClipboardList, label: "Accreditations" },
   { to: "/admin/zones", icon: Map, label: "Zones" },

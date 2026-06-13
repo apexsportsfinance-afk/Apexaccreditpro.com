@@ -180,6 +180,11 @@ export const AuthProvider = ({ children }) => {
   const canAccessModule = (path) => {
     if (!user) return false;
     if (user.role === "super_admin" || user.role === "admin") return true;
+
+    // Always allow access to the Team Portal for any authenticated user
+    // The portal has its own API-level security and RLS checks
+    if (path.startsWith("/portal/teams")) return true;
+
     if (!user.allowedModules) return false;
     
     // Exact match, parent match, or child match

@@ -17,3 +17,4 @@ tmp
 
 server/uploads/
 _archive/
+supabase/.temp/

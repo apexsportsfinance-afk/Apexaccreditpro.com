@@ -22,6 +22,10 @@ const FeedbackForm = lazy(() => import("./pages/public/FeedbackForm"));
 
 const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
 const Events = lazy(() => import("./pages/admin/Events"));
+const TeamsDashboard = lazy(() => import("./pages/admin/Teams/TeamsDashboard"));
+import TeamDetail from './pages/admin/Teams/TeamDetail';
+import TeamPortalGateway from './pages/portal/TeamPortalGateway';
+import TeamPortalDashboard from './pages/portal/TeamPortalDashboard';
 const Accreditations = lazy(() => import("./pages/admin/Accreditations"));
 const Zones = lazy(() => import("./pages/admin/Zones"));
 const Users = lazy(() => import("./pages/admin/Users"));
@@ -91,6 +95,8 @@ export default function App() {
                 <Route index element={<Navigate to="/admin/dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="events/:id?/:subpage?" element={<Events />} />
+                <Route path="teams" element={<TeamsDashboard />} />
+                <Route path="teams/:teamId" element={<TeamDetail />} />
                 <Route path="ticketing" element={<Ticketing />} />
                 <Route path="accreditations" element={<Accreditations />} />
                 <Route path="zones" element={<Zones />} />
@@ -103,6 +109,12 @@ export default function App() {
                 <Route path="feedback" element={<Feedback />} />
                 <Route path="partners" element={<Partners />} />
                 <Route path="api-docs" element={<APIDocs />} />
+              </Route>
+
+              {/* Team Portal Routes (Uses AdminLayout for Sidebar but distinct base path) */}
+              <Route element={<AdminLayout />}>
+                <Route path="/portal/teams" element={<TeamPortalGateway />} />
+                <Route path="/portal/teams/:teamId" element={<TeamPortalDashboard />} />
               </Route>
 
               <Route path="/staff" element={<ErrorBoundary><StaffLayout /></ErrorBoundary>}>
