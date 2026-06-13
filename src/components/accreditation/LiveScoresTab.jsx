@@ -596,9 +596,9 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
           </div>
 
           {/* Filter Bar */}
-          <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-4 flex flex-wrap gap-3 items-end">
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-500 uppercase">Sport</label>
+          <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-4 flex flex-wrap gap-4 items-end">
+            <div className="flex flex-col gap-2 min-w-[140px]">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Sport</label>
               <select
                 value={filterSportId}
                 onChange={e => setFilter(setFilterSportId)(e.target.value)}
@@ -608,8 +608,8 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                 {sports.map(s => <option key={s.id} value={s.id}>{s.sport_name}</option>)}
               </select>
             </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-500 uppercase">Status</label>
+            <div className="flex flex-col gap-2 min-w-[140px]">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Status</label>
               <select
                 value={filterStatus}
                 onChange={e => setFilter(setFilterStatus)(e.target.value)}
@@ -619,8 +619,8 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                 {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-500 uppercase">Date</label>
+            <div className="flex flex-col gap-2 min-w-[140px]">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Date</label>
               <input
                 type="date"
                 value={filterDate}
@@ -628,8 +628,8 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                 className="bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-500 uppercase">Team</label>
+            <div className="flex flex-col gap-2 min-w-[140px]">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Team</label>
               <select
                 value={filterTeamId}
                 onChange={e => setFilter(setFilterTeamId)(e.target.value)}
@@ -639,20 +639,20 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                 {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
-            <div className="flex-1 min-w-[180px] space-y-1">
-              <label className="text-[10px] font-bold text-slate-500 uppercase">Search</label>
+            <div className="flex-1 min-w-[220px] flex flex-col gap-2">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Search</label>
               <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Match, team, or venue..."
                   value={filterSearch}
                   onChange={e => setFilter(setFilterSearch)(e.target.value)}
-                  className="w-full bg-slate-800 border border-white/10 rounded-lg pl-8 pr-3 py-2 text-white text-sm outline-none"
+                  className="w-full bg-slate-800 border border-white/10 rounded-lg pl-10 pr-3 py-2 text-white text-sm outline-none"
                 />
               </div>
             </div>
-            <button onClick={clearFilters} className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-bold uppercase transition-colors">
+            <button onClick={clearFilters} className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-bold uppercase transition-colors">
               Clear Filters
             </button>
           </div>

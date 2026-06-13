@@ -20,7 +20,7 @@ const STATUS_FILTER_OPTIONS = ["Upcoming", "Live", "Half Time / Break", "Finishe
 
 const STANDINGS_LEGEND = "P = Played · W = Won · D = Drawn · L = Lost · GF = Goals/Points For · GA = Goals/Points Against · GD = Goal/Point Difference · PTS = Total Points";
 
-export default function PortalScheduleTab({ teamId, eventId }) {
+export default function PortalScheduleTab({ teamId = null, eventId }) {
   const [view, setView] = useState("fixtures");
   const [matches, setMatches] = useState([]);
   const [sports, setSports] = useState([]);
@@ -33,7 +33,7 @@ export default function PortalScheduleTab({ teamId, eventId }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (teamId && eventId) load();
+    if (eventId) load();
   }, [teamId, eventId]);
 
   useEffect(() => {
@@ -47,7 +47,7 @@ export default function PortalScheduleTab({ teamId, eventId }) {
       const [matchesData, sportsData, teamSportsData] = await Promise.all([
         LiveScoresAPI.getMatches(eventId),
         LiveScoresAPI.getSports(eventId),
-        TeamPortalAPI.getPortalTeamSports(teamId),
+        teamId ? TeamPortalAPI.getPortalTeamSports(teamId) : Promise.resolve([]),
       ]);
       setMatches(matchesData);
       setSports(sportsData);
@@ -120,7 +120,9 @@ export default function PortalScheduleTab({ teamId, eventId }) {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-lg font-bold text-main">Schedule & Standings</h2>
-          <p className="text-sm text-muted">Fixtures and the league table for your sport.</p>
+          <p className="text-sm text-muted">
+            {teamId ? "Fixtures and the league table for your sport." : "Fixtures and league tables for every sport in this event."}
+          </p>
         </div>
         <div className="flex items-center gap-2 bg-base-alt/50 border border-border rounded-lg p-1">
           <button
@@ -169,20 +171,22 @@ export default function PortalScheduleTab({ teamId, eventId }) {
               </select>
             </div>
 
-            <div className="flex items-center gap-2 bg-base border border-border rounded-lg p-1 ml-auto">
-              <button
-                onClick={() => setScopeFilter("all")}
-                className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${scopeFilter === "all" ? "bg-primary-500 text-white" : "text-muted hover:text-main"}`}
-              >
-                All Teams
-              </button>
-              <button
-                onClick={() => setScopeFilter("mine")}
-                className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 ${scopeFilter === "mine" ? "bg-primary-500 text-white" : "text-muted hover:text-main"}`}
-              >
-                <Users className="w-3 h-3" /> My Team Only
-              </button>
-            </div>
+            {teamId && (
+              <div className="flex items-center gap-2 bg-base border border-border rounded-lg p-1 ml-auto">
+                <button
+                  onClick={() => setScopeFilter("all")}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${scopeFilter === "all" ? "bg-primary-500 text-white" : "text-muted hover:text-main"}`}
+                >
+                  All Teams
+                </button>
+                <button
+                  onClick={() => setScopeFilter("mine")}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 ${scopeFilter === "mine" ? "bg-primary-500 text-white" : "text-muted hover:text-main"}`}
+                >
+                  <Users className="w-3 h-3" /> My Team Only
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>
