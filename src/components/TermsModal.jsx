@@ -19,14 +19,18 @@ const Modal = ({ isOpen, onClose, title, children }) => {
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
           onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="terms-modal-title"
           className="w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden bg-base border border-border"
         >
           <div className="px-6 py-4 flex items-center justify-between border-b border-border">
-            <h3 className="text-xl font-bold text-main">
+            <h3 id="terms-modal-title" className="text-xl font-bold text-main">
               {title}
             </h3>
             <button
               onClick={onClose}
+              aria-label="Close"
               className="p-2 rounded-lg transition-colors hover:bg-base-alt text-muted hover:text-main"
             >
               <X className="w-5 h-5" />
@@ -115,7 +119,19 @@ export default function TermsModal({ isOpen, onClose, onAccept, content }) {
             <section className="space-y-3 font-light">
               <h4 className="text-lg font-black text-main uppercase tracking-tight">5. Data Privacy</h4>
               <p className="text-lg text-muted">
-                Calculated age and identification data provided will be used solely for accreditation and eligibility verification purposes.
+                The personal information, photo, and identification data you provide are used solely for accreditation processing, eligibility verification, and event access control.
+              </p>
+              <p className="text-lg text-muted">
+                <strong className="text-main">Face matching:</strong> if a facial comparison step is offered during registration, the comparison runs entirely in your browser. Your photo and any reference image are processed locally to verify a match and are not uploaded for this purpose, retained, or stored on our servers.
+              </p>
+              <p className="text-lg text-muted">
+                <strong className="text-main">Third-party processors:</strong> your accreditation data is stored and managed using Supabase (database, authentication, and file storage). If you make a payment, card details are handled directly by Stripe and are never seen or stored by us. Some pages load fonts and supporting libraries from third-party content delivery networks (e.g. Google Fonts, jsDelivr).
+              </p>
+              <p className="text-lg text-muted">
+                <strong className="text-main">Retention:</strong> accreditation records are retained for the duration of the event and for a reasonable period afterward for reporting, auditing, and legal/compliance purposes, after which they may be archived or deleted.
+              </p>
+              <p className="text-lg text-muted">
+                <strong className="text-main">Your rights:</strong> to request access to, correction of, or deletion of your personal data, contact the event organizer at <a href="mailto:privacy@apexsports.ae" className="text-primary-500 underline">privacy@apexsports.ae</a>.
               </p>
             </section>
           </>

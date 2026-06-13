@@ -1090,13 +1090,13 @@ export default function Register() {
                 <div className="space-y-4 relative z-[90]">
                   <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">
                     <Flag className={`${language === "ar" ? "ml-2" : ""}`} />
-                    {t("affiliation_info")}
+                    {t("affiliation")}
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {fieldConfig?.['category_role']?.show !== false && (
                       <div className="space-y-2">
                         <label className={`block text-sm font-semibold text-cyan-700 ${language === "ar" ? "text-right" : ""}`}>
-                          {t("category_role")} {fieldConfig?.['category_role']?.required !== false && <span className="text-red-500">*</span>}
+                          {t("role")} {fieldConfig?.['category_role']?.required !== false && <span className="text-red-500">*</span>}
                         </label>
                         <Select
                           name="role"
@@ -1104,7 +1104,7 @@ export default function Register() {
                           onChange={handleInputChange}
                           error={errors.role}
                           options={getRoleOptions()}
-                          placeholder={t("select_role")}
+                          placeholder={t("placeholderRole")}
                           light
                         />
                       </div>
@@ -1391,7 +1391,7 @@ export default function Register() {
               <div className="space-y-4 relative z-[40] border-t border-cyan-100 pt-6">
                 <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">
                   <Mail className={`${language === "ar" ? "ml-2" : ""}`} />
-                  {t("contact_details")}
+                  {t("contact")}
                 </h2>
                 <div className="grid grid-cols-1 gap-4">
                   <div className="flex flex-col h-full">

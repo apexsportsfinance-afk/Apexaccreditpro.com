@@ -304,8 +304,8 @@ export const buildPDF = async (accreditation, event, zones, scale, sizeKey) => {
   try {
     const frontCanvas = await captureEl(frontEl, scale, wPx, hPx);
     pdf.addImage(
-      frontCanvas.toDataURL("image/jpeg", 0.9),
-      "JPEG",
+      frontCanvas.toDataURL("image/png", 1.0),
+      "PNG",
       0, 0, size.width, size.height,
       undefined,
       "FAST"
@@ -318,8 +318,8 @@ export const buildPDF = async (accreditation, event, zones, scale, sizeKey) => {
       pdf.addPage([size.width, size.height], isLandscape ? "landscape" : "portrait");
       const backCanvas = await captureEl(backEl, scale, wPx, hPx);
       pdf.addImage(
-        backCanvas.toDataURL("image/jpeg", 0.9),
-        "JPEG",
+        backCanvas.toDataURL("image/png", 1.0),
+        "PNG",
         0, 0, size.width, size.height,
         undefined,
         "FAST"

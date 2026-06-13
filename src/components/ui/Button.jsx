@@ -3,7 +3,7 @@ import { Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 
 const variants = {
-  primary: "bg-gradient-to-r from-primary-600 to-blue-600 text-white shadow-lg shadow-primary-500/25 hover:from-primary-500 hover:to-blue-500 hover:-translate-y-0.5 active:translate-y-0.5 active:scale-95",
+  primary: "btn-primary bg-gradient-to-r from-primary-600 to-blue-600 text-white shadow-lg shadow-primary-500/25 hover:from-primary-500 hover:to-blue-500 hover:-translate-y-0.5 active:translate-y-0.5 active:scale-95",
   secondary: "bg-base-alt border border-border text-main hover:bg-base hover:border-primary-500/50 hover:-translate-y-0.5 active:translate-y-0.5 active:scale-95",
   danger: "bg-red-500 text-white shadow-lg shadow-red-500/20 hover:bg-red-600 hover:-translate-y-0.5 active:translate-y-0.5 active:scale-95",
   success: "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 hover:-translate-y-0.5 active:translate-y-0.5 active:scale-95",

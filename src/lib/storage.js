@@ -1355,21 +1355,31 @@ export const BookingsAPI = {
     );
     return data || [];
   },
+  // [APX-SEC] Anonymous participants no longer have direct table access to
+  // `bookings` (see supabase/migrations/20260612_rls_hardening.sql). These
+  // SECURITY DEFINER RPCs verify the accreditation belongs to the event
+  // before reading/writing on the participant's behalf.
   getParticipantBooking: async (eventId, accreditationId) => {
-    const data = await handleResponse(() => supabase.from("bookings").select("*").eq("event_id", eventId).eq("accreditation_id", accreditationId));
+    const data = await handleResponse(() => supabase.rpc("get_my_booking", {
+      p_event_id: eventId,
+      p_accreditation_id: accreditationId
+    }));
     return data || [];
   },
   bookSlot: async (eventId, accreditationId, slotId, groupName = "General Meeting") => {
-    return handleResponse(() => supabase.from("bookings").upsert([{
-      event_id: eventId,
-      accreditation_id: accreditationId,
-      group_name: groupName,
-      slot_id: slotId,
-      updated_at: new Date().toISOString()
-    }], { onConflict: "event_id,accreditation_id,group_name" }).select().single());
+    return handleResponse(() => supabase.rpc("upsert_my_booking", {
+      p_event_id: eventId,
+      p_accreditation_id: accreditationId,
+      p_slot_id: slotId,
+      p_group_name: groupName
+    }));
   },
   cancelBooking: async (eventId, accreditationId, slotId) => {
-    return handleResponse(() => supabase.from("bookings").delete().eq("event_id", eventId).eq("accreditation_id", accreditationId).eq("slot_id", slotId).select());
+    return handleResponse(() => supabase.rpc("delete_my_booking", {
+      p_event_id: eventId,
+      p_accreditation_id: accreditationId,
+      p_slot_id: slotId
+    }));
   }
 };
 
@@ -1775,7 +1785,7 @@ export const PartnersAPI = {
   },
 
   generateKey: async (partnerId, label, permissions = [], allowedFields = []) => {
-    const apiKey = `apex_live_${Math.random().toString(36).substring(2)}${Math.random().toString(36).substring(2)}`;
+    const apiKey = `apex_live_${crypto.randomUUID().replace(/-/g, "")}`;
     const { data, error } = await supabase
       .from("partner_api_keys")
       .insert({

@@ -1621,13 +1621,13 @@ export default function Accreditations() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <Button
                     variant="primary"
                     icon={Download}
                     onClick={() => handleDownloadPDF(pdfPreviewModal.accreditation)}
                     loading={downloadingId === pdfPreviewModal.accreditation.id}
-                    className="flex-1"
+                    className="w-full text-sm"
                   >
                     Download PDF
                   </Button>
@@ -1636,7 +1636,7 @@ export default function Accreditations() {
                     icon={Download}
                     onClick={() => handleDownloadPDF(pdfPreviewModal.accreditation, false, true)}
                     loading={downloadingId === pdfPreviewModal.accreditation.id}
-                    className="flex-1 !bg-amber-600 hover:!bg-amber-700"
+                    className="w-full text-sm !bg-amber-600 hover:!bg-amber-700"
                     title="Force regenerate a new HQ PDF and overwrite the old cache"
                   >
                     Regenerate HQ PDF
@@ -1645,7 +1645,7 @@ export default function Accreditations() {
                     variant="secondary"
                     icon={Eye}
                     onClick={() => handleDownloadPDF(pdfPreviewModal.accreditation, true)}
-                    className="flex-1"
+                    className="w-full text-sm"
                   >
                     Open in Browser
                   </Button>
@@ -1653,14 +1653,14 @@ export default function Accreditations() {
                     variant="secondary"
                     onClick={() => handleDownloadImages(pdfPreviewModal.accreditation)}
                     loading={downloadingId === pdfPreviewModal.accreditation.id}
-                    className="flex-1"
+                    className="w-full text-sm"
                   >
                     Download Images
                   </Button>
                   <Button
                     variant="ghost"
                     onClick={handlePrintPDF}
-                    className="flex-1"
+                    className="w-full text-sm"
                   >
                     Print
                   </Button>

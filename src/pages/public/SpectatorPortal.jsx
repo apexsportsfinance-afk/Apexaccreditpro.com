@@ -377,11 +377,12 @@ export default function SpectatorPortal() {
           const item = [...ticketTypes, ...packages].find(i => i.id === id);
           if (item) {
             const factor = item.isFullEvent ? 1 : (selectedDates.length || 1);
-            itemsForStripe.push({ 
+            itemsForStripe.push({
+              id: item.id,
               name: item.name,
               description: item.description || '',
-              price: Number(item.price) * factor,
-              quantity: qty 
+              dayFactor: factor,
+              quantity: qty
             });
           }
         }

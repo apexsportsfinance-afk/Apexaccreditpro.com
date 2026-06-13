@@ -10,17 +10,49 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const app = express();
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-
 dotenv.config();
+
+const app = express();
+
+// [APX-SEC] CORS allow-list. Add production domains via the
+// CORS_ALLOWED_ORIGINS env var (comma-separated) instead of widening this.
+const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:5180,http://localhost:5173,https://accreditation.apexsports.ae')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow non-browser requests (no Origin header) and whitelisted origins
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  }
+}));
+app.use(express.json({ limit: '50mb' }));
 
 // Initialize Supabase Client for the API
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
   process.env.VITE_SUPABASE_ANON_KEY
 );
+
+// [APX-SEC] Require a valid Supabase session for write endpoints that were
+// previously open to anyone on the internet.
+const requireAuth = async (req, res, next) => {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  const { data, error } = await supabase.auth.getUser(token);
+  if (error || !data?.user) {
+    return res.status(401).json({ error: 'Invalid or expired session' });
+  }
+  req.user = data.user;
+  next();
+};
 
 const uploadDir = path.join(__dirname, 'server', 'uploads', 'acc');
 // Ensure it exists
@@ -93,8 +125,8 @@ const uploadPhotos = multer({
   fileFilter: photoFileFilter
 });
 
-// Upload Endpoint (open for public registrations)
-app.post('/api/upload', (req, res) => {
+// Upload Endpoint (requires an authenticated admin/staff session)
+app.post('/api/upload', requireAuth, (req, res) => {
   const uploadSingle = upload.single('file');
   uploadSingle(req, res, function (err) {
     if (err) {
@@ -106,8 +138,8 @@ app.post('/api/upload', (req, res) => {
   });
 });
 
-// Event Photos Upload Endpoint (supports multiple files)
-app.post('/api/upload/photos', (req, res) => {
+// Event Photos Upload Endpoint (supports multiple files, requires an authenticated admin/staff session)
+app.post('/api/upload/photos', requireAuth, (req, res) => {
   const uploadArray = uploadPhotos.array('photos', 50);
   uploadArray(req, res, function (err) {
     if (err) {
@@ -179,6 +211,12 @@ app.post('/api/v1/verify', async (req, res) => {
 
     if (!apiKey) return res.status(401).json({ success: false, error: 'API Key is required in x-api-key header' });
     if (!badgeId) return res.status(400).json({ success: false, error: 'badgeId is required in request body' });
+
+    // [APX-SEC] Restrict badgeId to a safe charset before it is interpolated
+    // into a PostgREST .or() filter string, to prevent filter injection.
+    if (!/^[A-Za-z0-9_-]+$/.test(String(badgeId))) {
+      return res.status(400).json({ success: false, error: 'Invalid badgeId format' });
+    }
 
     // 1. Validate the API Key
     const { data: keyData, error: keyError } = await supabase

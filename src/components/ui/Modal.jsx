@@ -46,6 +46,9 @@ export default function Modal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.2 }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={title ? "modal-title" : undefined}
             className={cn(
               "relative w-full rounded-2xl shadow-2xl overflow-hidden bg-base border border-border shadow-black/20",
               sizes[size],
@@ -54,9 +57,10 @@ export default function Modal({
           >
             {title && (
               <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-base-alt/50">
-                <h2 className="text-xl font-bold text-main">{title}</h2>
+                <h2 id="modal-title" className="text-xl font-bold text-main">{title}</h2>
                 <button
                   onClick={onClose}
+                  aria-label="Close"
                   className="p-2 rounded-lg transition-colors border border-transparent hover:bg-primary-500/10 hover:border-border text-muted hover:text-main"
                 >
                   <X className="w-5 h-5" />
