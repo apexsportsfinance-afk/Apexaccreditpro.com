@@ -14,12 +14,12 @@ import CreateTeamModal from "../../../components/teams/CreateTeamModal";
 import { formatDate } from "../../../lib/utils";
 
 export default function TeamsDashboard() {
-  const { user } = useAuth();
+  const { isSuperAdmin, isEventAdmin } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  
+
   // Security Check
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'event_admin';
+  const isAdmin = isSuperAdmin || isEventAdmin;
 
   const [teams, setTeams] = useState([]);
   const [events, setEvents] = useState([]);
@@ -324,7 +324,7 @@ export default function TeamsDashboard() {
                           team.status === 'completed' ? 'muted' : 'warning'
                         }
                       >
-                        {team.status.charAt(0).toUpperCase() + team.status.slice(1)}
+                        {(team.status || 'pending').charAt(0).toUpperCase() + (team.status || 'pending').slice(1)}
                       </Badge>
                     </td>
                     <td className="px-6 py-4 text-right text-muted">

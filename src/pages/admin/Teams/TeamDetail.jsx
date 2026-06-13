@@ -28,7 +28,7 @@ const STATUS_SELECT_CLASSES = {
 export default function TeamDetail() {
   const { teamId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { isSuperAdmin, isEventAdmin } = useAuth();
   const toast = useToast();
 
   const [team, setTeam] = useState(null);
@@ -38,7 +38,7 @@ export default function TeamDetail() {
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
   // Permission Check based on Correction 1
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'event_admin';
+  const isAdmin = isSuperAdmin || isEventAdmin;
 
   useEffect(() => {
     if (isAdmin && teamId) {
@@ -148,7 +148,7 @@ export default function TeamDetail() {
             <h1 className="text-2xl font-bold text-main truncate">{team.name}</h1>
             {isAdmin ? (
               <select
-                value={team.status}
+                value={team.status || 'pending'}
                 onChange={handleStatusChange}
                 disabled={updatingStatus}
                 className={`text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full border cursor-pointer outline-none transition-all ${STATUS_SELECT_CLASSES[team.status] || STATUS_SELECT_CLASSES.pending}`}
@@ -163,7 +163,7 @@ export default function TeamDetail() {
                 team.status === 'suspended' ? 'danger' :
                 team.status === 'completed' ? 'muted' : 'warning'
               }>
-                {team.status.toUpperCase()}
+                {(team.status || 'pending').toUpperCase()}
               </Badge>
             )}
           </div>
