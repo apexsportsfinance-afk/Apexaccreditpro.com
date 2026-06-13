@@ -411,5 +411,39 @@ export const TeamPortalAPI = {
 
     if (error) throw error;
     return data;
+  },
+
+  /**
+   * ==========================================
+   * PHASE 5: SCHEDULE / FIXTURES / STANDINGS
+   * ==========================================
+   */
+
+  /**
+   * Get this team's fixtures (matches where the team is on either side),
+   * including the linked sport name for display.
+   */
+  async getTeamFixtures(teamId) {
+    const { data, error } = await supabase
+      .from('live_score_matches')
+      .select('*, live_score_sports(sport_name)')
+      .or(`team_a_id.eq.${teamId},team_b_id.eq.${teamId}`)
+      .order('match_date', { ascending: true })
+      .order('match_time', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  /**
+   * Get the win/draw/loss points league table for an event, optionally
+   * scoped to a single live_score_sports.id.
+   */
+  async getStandings(eventId, sportId) {
+    const { data, error } = await supabase
+      .rpc('get_team_standings', { p_event_id: eventId, p_sport_id: sportId || null });
+
+    if (error) throw error;
+    return data || [];
   }
 };

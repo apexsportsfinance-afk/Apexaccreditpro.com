@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Building2, LayoutDashboard, Trophy, FileText, ShieldAlert, MapPin, BookOpen } from 'lucide-react';
+import { ChevronLeft, Building2, LayoutDashboard, Trophy, FileText, ShieldAlert, MapPin, BookOpen, Calendar } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { TeamPortalAPI } from '../../services/teamPortalApi';
 import Button from '../../components/ui/Button';
@@ -12,6 +12,7 @@ import PortalDocumentsTab from '../../components/portal/tabs/PortalDocumentsTab'
 import PortalRosterTab from '../../components/portal/tabs/PortalRosterTab';
 import PortalFacilityTab from '../../components/portal/tabs/PortalFacilityTab';
 import PortalRulesTab from '../../components/portal/tabs/PortalRulesTab';
+import PortalScheduleTab from '../../components/portal/tabs/PortalScheduleTab';
 import { Users } from 'lucide-react';
 
 export default function TeamPortalDashboard() {
@@ -84,6 +85,7 @@ export default function TeamPortalDashboard() {
     { id: "roster", label: "Roster", icon: Users },
     { id: "sports", label: "Registered Sports", icon: Trophy },
     { id: "facility", label: "Facility Hosting", icon: MapPin },
+    { id: "schedule", label: "Schedule & Standings", icon: Calendar },
     { id: "rules", label: "Rules & Regulations", icon: BookOpen },
     { id: "documents", label: "Documents", icon: FileText }
   ];
@@ -158,6 +160,9 @@ export default function TeamPortalDashboard() {
         )}
         {activeTab === "facility" && (
           <PortalFacilityTab teamId={team.id} eventId={team.event_id} userRole={userRole} />
+        )}
+        {activeTab === "schedule" && (
+          <PortalScheduleTab teamId={team.id} eventId={team.event_id} />
         )}
         {activeTab === "rules" && (
           <PortalRulesTab teamId={team.id} eventId={team.event_id} />

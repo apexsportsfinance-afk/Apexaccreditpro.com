@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, Save, Calendar, Clock, Edit2, Play, CheckCircle, XCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Trash2, Save, Calendar, Clock, Edit2, Play, CheckCircle, XCircle, ChevronDown, ChevronUp, Trophy } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { LiveScoresAPI } from "../../lib/storage";
+import { TeamAPI } from "../../services/teamApi";
 import { toast } from "sonner";
 import { cn } from "../../lib/utils";
 import Button from "../ui/Button";
@@ -18,6 +19,7 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
   const [settings, setSettings] = useState({ event_id: eventId, live_scores_enabled: false });
   const [sports, setSports] = useState([]);
   const [matches, setMatches] = useState([]);
+  const [teams, setTeams] = useState([]);
   const [collapsedSports, setCollapsedSports] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -25,10 +27,16 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
   const [newSport, setNewSport] = useState({ sport_name: "" });
   const [editingMatch, setEditingMatch] = useState(null);
 
+  const [standingsSportId, setStandingsSportId] = useState("");
+  const [standings, setStandings] = useState([]);
+  const [standingsLoading, setStandingsLoading] = useState(false);
+
   const [matchForm, setMatchForm] = useState({
     sport_id: "",
     match_title: "",
+    team_a_id: "",
     team_a_name: "",
+    team_b_id: "",
     team_b_name: "",
     team_a_score: "0",
     team_b_score: "0",
@@ -45,22 +53,46 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
     loadData();
   }, [eventId]);
 
+  useEffect(() => {
+    if (sports.length > 0 && !standingsSportId) {
+      setStandingsSportId(sports[0].id);
+    }
+  }, [sports]);
+
+  useEffect(() => {
+    if (eventId && standingsSportId) loadStandings(standingsSportId);
+  }, [eventId, standingsSportId, matches]);
+
   const loadData = async () => {
     setLoading(true);
     try {
-      const [sData, spData, mData] = await Promise.all([
+      const [sData, spData, mData, tData] = await Promise.all([
         LiveScoresAPI.getSettings(eventId),
         LiveScoresAPI.getSports(eventId),
-        LiveScoresAPI.getMatches(eventId)
+        LiveScoresAPI.getMatches(eventId),
+        TeamAPI.getTeamsByEvent(eventId)
       ]);
       if (sData) setSettings(sData);
       if (spData) setSports(spData);
       if (mData) setMatches(mData);
+      if (tData) setTeams(tData);
     } catch (err) {
       console.error(err);
       toast.error("Failed to load Live Scores data");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadStandings = async (sportId) => {
+    setStandingsLoading(true);
+    try {
+      const data = await LiveScoresAPI.getStandings(eventId, sportId);
+      setStandings(data || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setStandingsLoading(false);
     }
   };
 
@@ -109,7 +141,7 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
       return;
     }
     try {
-      const payload = { ...matchForm, event_id: eventId };
+      const payload = { ...matchForm, event_id: eventId, team_a_id: matchForm.team_a_id || null, team_b_id: matchForm.team_b_id || null };
       if (editingMatch) payload.id = editingMatch.id;
 
       const saved = await LiveScoresAPI.saveMatch(payload);
@@ -144,7 +176,9 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
     setMatchForm({
       sport_id: m.sport_id || "",
       match_title: m.match_title || "",
+      team_a_id: m.team_a_id || "",
       team_a_name: m.team_a_name || "",
+      team_b_id: m.team_b_id || "",
       team_b_name: m.team_b_name || "",
       team_a_score: m.team_a_score || "0",
       team_b_score: m.team_b_score || "0",
@@ -162,7 +196,9 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
     setMatchForm({
       sport_id: sports.length > 0 ? sports[0].id : "",
       match_title: "",
+      team_a_id: "",
       team_a_name: "",
+      team_b_id: "",
       team_b_name: "",
       team_a_score: "0",
       team_b_score: "0",
@@ -319,21 +355,51 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-500 uppercase">Team/Player A</label>
-                    <input 
-                      type="text" placeholder="Name"
-                      value={matchForm.team_a_name} onChange={e => setMatchForm({...matchForm, team_a_name: e.target.value})}
+                    <select
+                      value={matchForm.team_a_id}
+                      onChange={e => {
+                        const id = e.target.value;
+                        const team = teams.find(t => t.id === id);
+                        setMatchForm({...matchForm, team_a_id: id, team_a_name: team ? team.name : ""});
+                      }}
                       disabled={isSettingsDisabled && !editingMatch}
-                      className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
-                    />
+                      className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none mb-1.5"
+                    >
+                      <option value="">Custom Name...</option>
+                      {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                    {!matchForm.team_a_id && (
+                      <input
+                        type="text" placeholder="Name"
+                        value={matchForm.team_a_name} onChange={e => setMatchForm({...matchForm, team_a_name: e.target.value})}
+                        disabled={isSettingsDisabled && !editingMatch}
+                        className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
+                      />
+                    )}
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-500 uppercase">Team/Player B</label>
-                    <input 
-                      type="text" placeholder="Name"
-                      value={matchForm.team_b_name} onChange={e => setMatchForm({...matchForm, team_b_name: e.target.value})}
+                    <select
+                      value={matchForm.team_b_id}
+                      onChange={e => {
+                        const id = e.target.value;
+                        const team = teams.find(t => t.id === id);
+                        setMatchForm({...matchForm, team_b_id: id, team_b_name: team ? team.name : ""});
+                      }}
                       disabled={isSettingsDisabled && !editingMatch}
-                      className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
-                    />
+                      className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none mb-1.5"
+                    >
+                      <option value="">Custom Name...</option>
+                      {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                    {!matchForm.team_b_id && (
+                      <input
+                        type="text" placeholder="Name"
+                        value={matchForm.team_b_name} onChange={e => setMatchForm({...matchForm, team_b_name: e.target.value})}
+                        disabled={isSettingsDisabled && !editingMatch}
+                        className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
+                      />
+                    )}
                   </div>
                 </div>
 
@@ -552,6 +618,67 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
 
         </div>
       </div>
+
+      {/* Standings Section */}
+      {sports.length > 0 && (
+        <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-6 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-amber-400" /> League Standings
+            </h3>
+            <select
+              value={standingsSportId}
+              onChange={e => setStandingsSportId(e.target.value)}
+              className="bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
+            >
+              {sports.map(s => <option key={s.id} value={s.id}>{s.sport_name}</option>)}
+            </select>
+          </div>
+
+          {standingsLoading ? (
+            <p className="text-slate-400 text-sm">Loading standings...</p>
+          ) : standings.length === 0 ? (
+            <p className="text-slate-400 text-sm">
+              No teams registered for this sport yet, or no matches between linked teams have been marked Finished.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-white/10 text-slate-500 text-xs uppercase tracking-widest">
+                    <th className="py-2 pr-4">#</th>
+                    <th className="py-2 pr-4">Team</th>
+                    <th className="py-2 pr-3 text-center">P</th>
+                    <th className="py-2 pr-3 text-center">W</th>
+                    <th className="py-2 pr-3 text-center">D</th>
+                    <th className="py-2 pr-3 text-center">L</th>
+                    <th className="py-2 pr-3 text-center">GF</th>
+                    <th className="py-2 pr-3 text-center">GA</th>
+                    <th className="py-2 pr-3 text-center">GD</th>
+                    <th className="py-2 pr-3 text-center">Pts</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {standings.map((row, i) => (
+                    <tr key={row.team_id} className="text-white">
+                      <td className="py-2 pr-4 text-slate-500">{i + 1}</td>
+                      <td className="py-2 pr-4 font-bold">{row.team_name}</td>
+                      <td className="py-2 pr-3 text-center">{row.played}</td>
+                      <td className="py-2 pr-3 text-center">{row.won}</td>
+                      <td className="py-2 pr-3 text-center">{row.drawn}</td>
+                      <td className="py-2 pr-3 text-center">{row.lost}</td>
+                      <td className="py-2 pr-3 text-center">{row.goals_for}</td>
+                      <td className="py-2 pr-3 text-center">{row.goals_against}</td>
+                      <td className="py-2 pr-3 text-center">{row.goal_diff}</td>
+                      <td className="py-2 pr-3 text-center font-black text-amber-400">{row.points}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

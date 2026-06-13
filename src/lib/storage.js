@@ -1735,6 +1735,10 @@ export const LiveScoresAPI = {
   },
   deleteMatch: async (id) => {
     return handleResponse(() => supabase.from("live_score_matches").delete().eq("id", id).select());
+  },
+  getStandings: async (eventId, sportId) => {
+    const data = await handleResponse(() => supabase.rpc("get_team_standings", { p_event_id: eventId, p_sport_id: sportId || null }));
+    return data || [];
   }
 };
 
