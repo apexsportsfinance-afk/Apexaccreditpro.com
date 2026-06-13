@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ChevronLeft, Building2, Users, Trophy, ShieldAlert, LayoutDashboard, FileText, MapPin, BookOpen } from "lucide-react";
+import { ChevronLeft, Building2, Users, Trophy, ShieldAlert, LayoutDashboard, FileText, MapPin, BookOpen, Calendar } from "lucide-react";
 import { useAuth } from "../../../contexts/AuthContext";
 import { TeamAPI } from "../../../services/teamApi";
 import { useToast } from "../../../components/ui/Toast";
@@ -15,6 +15,7 @@ import TeamDocumentsTab from "../../../components/teams/tabs/TeamDocumentsTab";
 import TeamRosterReviewTab from "../../../components/teams/tabs/TeamRosterReviewTab";
 import TeamFacilityTab from "../../../components/teams/tabs/TeamFacilityTab";
 import TeamRulesTab from "../../../components/teams/tabs/TeamRulesTab";
+import PortalScheduleTab from "../../../components/portal/tabs/PortalScheduleTab";
 
 const STATUS_OPTIONS = ["pending", "active", "suspended", "completed"];
 
@@ -117,6 +118,7 @@ export default function TeamDetail() {
     { id: "roster", label: "Roster Review", icon: Users },
     { id: "users", label: "Users & Roles", icon: Users },
     { id: "sports", label: "Registered Sports", icon: Trophy },
+    { id: "schedule", label: "Schedule & Standings", icon: Calendar },
     { id: "facility", label: "Facility Hosting", icon: MapPin },
     { id: "rules", label: "Rules & Regulations", icon: BookOpen },
     { id: "documents", label: "Documents", icon: FileText }
@@ -210,6 +212,9 @@ export default function TeamDetail() {
         )}
         {activeTab === "sports" && (
           <TeamSportsTab teamId={team.id} eventId={team.event_id} />
+        )}
+        {activeTab === "schedule" && (
+          <PortalScheduleTab teamId={team.id} eventId={team.event_id} />
         )}
         {activeTab === "facility" && (
           <TeamFacilityTab teamId={team.id} />

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Plus, Trash2, Save, Calendar, Clock, Edit2, Play, CheckCircle, XCircle, ChevronDown, ChevronUp, Trophy } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Plus, Trash2, Save, Calendar, Clock, Edit2, Play, CheckCircle, XCircle, ChevronDown, ChevronUp, Trophy, Search, RotateCcw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { LiveScoresAPI } from "../../lib/storage";
 import { TeamAPI } from "../../services/teamApi";
@@ -47,7 +47,15 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
     notes: ""
   });
 
-  const STATUS_OPTIONS = ["Upcoming", "Live", "Half Time / Break", "Finished", "Cancelled"];
+  const STATUS_OPTIONS = ["Upcoming", "Live", "Half Time / Break", "Finished", "Cancelled", "Postponed"];
+
+  // Matches list filters
+  const [filterSportId, setFilterSportId] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterDate, setFilterDate] = useState("");
+  const [filterTeamId, setFilterTeamId] = useState("all");
+  const [filterSearch, setFilterSearch] = useState("");
+  const [quickView, setQuickView] = useState("all");
 
   useEffect(() => {
     loadData();
@@ -243,6 +251,77 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
       toast.error("Failed to update score");
     }
   };
+
+  // Scores can only be edited while a match is actually in play. Once it's
+  // Finished, an admin must "Reopen" it (or use Edit Match) to change scores.
+  const canEditScore = (match) => !disabled && (match.status === "Live" || match.status === "Half Time / Break");
+
+  const handleReopenMatch = (match) => {
+    quickUpdateScore(match, match.team_a_score, match.team_b_score, "Live");
+  };
+
+  const setFilter = (setter) => (value) => {
+    setter(value);
+    setQuickView(null);
+  };
+
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const applyQuickView = (view) => {
+    setQuickView(view);
+    setFilterSportId("all");
+    setFilterTeamId("all");
+    setFilterSearch("");
+    if (view === "today") {
+      setFilterStatus("Upcoming");
+      setFilterDate(todayStr);
+    } else if (view === "recent") {
+      setFilterStatus("Finished");
+      setFilterDate("");
+    } else {
+      // "live" and "all" both clear status/date; "live" is handled separately below
+      setFilterStatus("all");
+      setFilterDate("");
+    }
+  };
+
+  const clearFilters = () => {
+    setFilterSportId("all");
+    setFilterStatus("all");
+    setFilterDate("");
+    setFilterTeamId("all");
+    setFilterSearch("");
+    setQuickView("all");
+  };
+
+  const filteredMatches = useMemo(() => {
+    let result = matches.filter(m => {
+      if (filterSportId !== "all" && m.sport_id !== filterSportId) return false;
+      if (quickView === "live") {
+        if (m.status !== "Live" && m.status !== "Half Time / Break") return false;
+      } else if (filterStatus !== "all" && m.status !== filterStatus) {
+        return false;
+      }
+      if (filterDate && m.match_date !== filterDate) return false;
+      if (filterTeamId !== "all" && m.team_a_id !== filterTeamId && m.team_b_id !== filterTeamId) return false;
+      if (filterSearch.trim()) {
+        const q = filterSearch.trim().toLowerCase();
+        const haystack = [m.match_title, m.team_a_name, m.team_b_name, m.venue].filter(Boolean).join(" ").toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+
+    if (quickView === "recent") {
+      result = [...result].sort((a, b) => {
+        const da = `${a.match_date || ""} ${a.match_time || ""}`;
+        const db = `${b.match_date || ""} ${b.match_time || ""}`;
+        return db.localeCompare(da);
+      });
+    }
+
+    return result;
+  }, [matches, filterSportId, filterStatus, filterDate, filterTeamId, filterSearch, quickView]);
 
   if (loading) return <div className="p-12 text-center animate-pulse text-slate-500">Loading Live Scores...</div>;
 
@@ -488,7 +567,94 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-lg font-bold text-white">Live & Upcoming Matches</h3>
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{matches.length} Matches Total</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+              {filteredMatches.length === matches.length ? `${matches.length} Matches Total` : `${filteredMatches.length} of ${matches.length} Matches`}
+            </span>
+          </div>
+
+          {/* Quick Views */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {[
+              { id: "all", label: "All Matches" },
+              { id: "live", label: "Live Now" },
+              { id: "today", label: "Upcoming Today" },
+              { id: "recent", label: "Recently Completed" },
+            ].map(qv => (
+              <button
+                key={qv.id}
+                onClick={() => applyQuickView(qv.id)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors border",
+                  quickView === qv.id
+                    ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400"
+                    : "bg-slate-800/50 border-white/10 text-slate-400 hover:text-white"
+                )}
+              >
+                {qv.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Filter Bar */}
+          <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-4 flex flex-wrap gap-3 items-end">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase">Sport</label>
+              <select
+                value={filterSportId}
+                onChange={e => setFilter(setFilterSportId)(e.target.value)}
+                className="bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
+              >
+                <option value="all">All Sports</option>
+                {sports.map(s => <option key={s.id} value={s.id}>{s.sport_name}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase">Status</label>
+              <select
+                value={filterStatus}
+                onChange={e => setFilter(setFilterStatus)(e.target.value)}
+                className="bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
+              >
+                <option value="all">All Statuses</option>
+                {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase">Date</label>
+              <input
+                type="date"
+                value={filterDate}
+                onChange={e => setFilter(setFilterDate)(e.target.value)}
+                className="bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase">Team</label>
+              <select
+                value={filterTeamId}
+                onChange={e => setFilter(setFilterTeamId)(e.target.value)}
+                className="bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
+              >
+                <option value="all">All Teams</option>
+                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+            <div className="flex-1 min-w-[180px] space-y-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase">Search</label>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                <input
+                  type="text"
+                  placeholder="Match, team, or venue..."
+                  value={filterSearch}
+                  onChange={e => setFilter(setFilterSearch)(e.target.value)}
+                  className="w-full bg-slate-800 border border-white/10 rounded-lg pl-8 pr-3 py-2 text-white text-sm outline-none"
+                />
+              </div>
+            </div>
+            <button onClick={clearFilters} className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-bold uppercase transition-colors">
+              Clear Filters
+            </button>
           </div>
 
           <div className="space-y-3">
@@ -496,9 +662,13 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
               <div className="border border-dashed border-white/10 rounded-2xl p-12 text-center">
                 <p className="text-slate-400 font-medium">No matches created yet.</p>
               </div>
+            ) : filteredMatches.length === 0 ? (
+              <div className="border border-dashed border-white/10 rounded-2xl p-12 text-center">
+                <p className="text-slate-400 font-medium">No matches match the current filters.</p>
+              </div>
             ) : (
               sports.map(sport => {
-                const sportMatches = matches.filter(m => m.sport_id === sport.id);
+                const sportMatches = filteredMatches.filter(m => m.sport_id === sport.id);
                 if (sportMatches.length === 0) return null;
                 
                 const isCollapsed = collapsedSports[sport.id];
@@ -539,6 +709,7 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                                       match.status === "Live" ? "bg-red-500 text-white animate-pulse" :
                                       match.status === "Finished" ? "bg-slate-700 text-slate-300" :
                                       match.status === "Cancelled" ? "bg-red-900/50 text-red-400" :
+                                      match.status === "Postponed" ? "bg-amber-900/50 text-amber-400" :
                                       "bg-blue-500/20 text-blue-400"
                                     )}>
                                       {match.status}
@@ -551,20 +722,22 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                                       <p className="text-white font-bold">{match.team_a_name || 'TBA'}</p>
                                     </div>
                                     <div className="flex items-center gap-2 px-3 py-1 bg-black/40 rounded-lg border border-white/5 shrink-0">
-                                      <button 
-                                        onClick={() => handleIncrementScore(match.id, 'team_a_score')} 
-                                        disabled={disabled}
-                                        className="w-7 h-7 flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500/30 text-emerald-400 rounded-md transition-colors"
+                                      <button
+                                        onClick={() => handleIncrementScore(match.id, 'team_a_score')}
+                                        disabled={!canEditScore(match)}
+                                        title={canEditScore(match) ? "Add point" : "Score is locked. Set match to Live (or Reopen) to edit."}
+                                        className="w-7 h-7 flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500/30 text-emerald-400 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-emerald-500/10"
                                       >
                                         <Plus className="w-3 h-3" />
                                       </button>
                                       <span className="w-8 text-center text-xl font-black text-emerald-400">{match.team_a_score}</span>
                                       <span className="text-xs text-slate-600">-</span>
                                       <span className="w-8 text-center text-xl font-black text-emerald-400">{match.team_b_score}</span>
-                                      <button 
-                                        onClick={() => handleIncrementScore(match.id, 'team_b_score')} 
-                                        disabled={disabled}
-                                        className="w-7 h-7 flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500/30 text-emerald-400 rounded-md transition-colors"
+                                      <button
+                                        onClick={() => handleIncrementScore(match.id, 'team_b_score')}
+                                        disabled={!canEditScore(match)}
+                                        title={canEditScore(match) ? "Add point" : "Score is locked. Set match to Live (or Reopen) to edit."}
+                                        className="w-7 h-7 flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500/30 text-emerald-400 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-emerald-500/10"
                                       >
                                         <Plus className="w-3 h-3" />
                                       </button>
@@ -592,9 +765,14 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                                         Start Live
                                       </button>
                                     )}
-                                    {match.status === "Live" && (
+                                    {(match.status === "Live" || match.status === "Half Time / Break") && (
                                       <button onClick={() => quickUpdateScore(match, match.team_a_score, match.team_b_score, "Finished")} className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-xs font-bold transition-colors">
                                         Finish
+                                      </button>
+                                    )}
+                                    {match.status === "Finished" && (
+                                      <button onClick={() => handleReopenMatch(match)} className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5">
+                                        <RotateCcw className="w-3 h-3" /> Reopen Match
                                       </button>
                                     )}
                                     {!isSettingsDisabled && (
