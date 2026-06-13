@@ -36,7 +36,7 @@ export default function PortalRulesTab({ teamId, eventId }) {
     try {
       setLoading(true);
       const [docs, acks] = await Promise.all([
-        TeamPortalAPI.getPortalRulesDocuments(eventId),
+        TeamPortalAPI.getPortalRulesDocuments(eventId, teamId),
         TeamPortalAPI.getMyRulesAcknowledgements(teamId, user.id),
       ]);
       setDocuments(docs);

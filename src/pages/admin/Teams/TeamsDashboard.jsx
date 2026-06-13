@@ -320,8 +320,8 @@ export default function TeamsDashboard() {
                       <Badge
                         variant={
                           team.status === 'active' ? 'success' :
-                          team.status === 'suspended' ? 'error' :
-                          team.status === 'completed' ? 'neutral' : 'warning'
+                          team.status === 'suspended' ? 'danger' :
+                          team.status === 'completed' ? 'muted' : 'warning'
                         }
                       >
                         {team.status.charAt(0).toUpperCase() + team.status.slice(1)}

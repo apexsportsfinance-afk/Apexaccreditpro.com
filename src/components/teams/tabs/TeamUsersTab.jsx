@@ -61,10 +61,10 @@ export default function TeamUsersTab({ teamId, isAdmin }) {
 
   const getRoleBadge = (role) => {
     switch(role) {
-      case 'admin': return <Badge variant="error">Admin</Badge>;
+      case 'admin': return <Badge variant="danger">Admin</Badge>;
       case 'manager': return <Badge variant="warning">Manager</Badge>;
       case 'coach': return <Badge variant="success">Coach</Badge>;
-      case 'viewer': return <Badge variant="neutral">Viewer</Badge>;
+      case 'viewer': return <Badge variant="muted">Viewer</Badge>;
       default: return <Badge>{role}</Badge>;
     }
   };

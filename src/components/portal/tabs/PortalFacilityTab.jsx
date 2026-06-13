@@ -121,7 +121,7 @@ export default function PortalFacilityTab({ teamId, eventId, userRole }) {
       <div>
         <h2 className="text-lg font-bold text-main">Facility Hosting</h2>
         <p className="text-sm text-muted">
-          Tell us whether your university can host games, and provide details about your facilities.
+          Tell us whether your organization can host events, and provide details about your facilities.
         </p>
       </div>
 
@@ -135,7 +135,7 @@ export default function PortalFacilityTab({ teamId, eventId, userRole }) {
             className="w-5 h-5 rounded border-border accent-primary-500"
           />
           <span className="text-main font-medium">
-            Our university has sports facilities available to host games
+            Our organization has sports facilities available to host events
           </span>
         </label>
 

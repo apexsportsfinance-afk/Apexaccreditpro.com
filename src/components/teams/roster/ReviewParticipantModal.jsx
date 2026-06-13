@@ -1,17 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import Modal from '../../ui/Modal';
 import Button from '../../ui/Button';
+import Select from '../../ui/Select';
 import { TeamAPI } from '../../../services/teamApi';
 import { useToast } from '../../ui/Toast';
+
+const ROSTER_ROLES = [
+  { value: 'athlete', label: 'Athlete' },
+  { value: 'head_coach', label: 'Head Coach' },
+  { value: 'assistant_coach', label: 'Assistant Coach' },
+  { value: 'team_manager', label: 'Team Manager' },
+  { value: 'physio', label: 'Physio' },
+  { value: 'support_staff', label: 'Support Staff' }
+];
 
 export default function ReviewParticipantModal({ isOpen, onClose, participant, onSuccess }) {
   const toast = useToast();
   const acc = participant.accreditations;
-  
+
   const [notes, setNotes] = useState(participant.review_notes || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+
+  const [rosterRole, setRosterRole] = useState(participant.roster_role || 'athlete');
+  const [sportName, setSportName] = useState(participant.sport_name || "");
+  const [teamSports, setTeamSports] = useState([]);
+  const [savingAssignment, setSavingAssignment] = useState(false);
+
+  useEffect(() => {
+    TeamAPI.getTeamSports(participant.team_id)
+      .then((sports) => setTeamSports(sports || []))
+      .catch((err) => console.error(err));
+  }, [participant.team_id]);
 
   const handleReview = async (status) => {
     setError(null);
@@ -33,17 +54,27 @@ export default function ReviewParticipantModal({ isOpen, onClose, participant, o
     }
   };
 
-  const getRoleLabel = (role) => {
-    const labels = {
-      athlete: 'Athlete',
-      head_coach: 'Head Coach',
-      assistant_coach: 'Assistant Coach',
-      team_manager: 'Team Manager',
-      physio: 'Physio',
-      support_staff: 'Support Staff'
-    };
-    return labels[role] || role;
+  const handleSaveAssignment = async () => {
+    try {
+      setSavingAssignment(true);
+      await TeamAPI.updateRosterAssignment(participant.id, {
+        roster_role: rosterRole,
+        sport_name: sportName || null
+      });
+      toast.success("Roster assignment updated.");
+      onSuccess();
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || "Failed to update roster assignment.");
+    } finally {
+      setSavingAssignment(false);
+    }
   };
+
+  const sportOptions = [
+    { value: '', label: 'Not Assigned' },
+    ...teamSports.map((s) => ({ value: s.sport_name, label: s.sport_name }))
+  ];
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Review Roster Participant" size="lg">
@@ -101,13 +132,50 @@ export default function ReviewParticipantModal({ isOpen, onClose, participant, o
             <p className="text-sm text-muted mb-1">System Accreditation Role</p>
             <p className="font-bold text-main">{acc?.role || 'None'}</p>
             <p className="text-xs text-muted mt-1">What they are registered as globally.</p>
+            {Array.isArray(acc?.selected_sports) && acc.selected_sports.length > 0 && (
+              <p className="text-xs text-muted mt-1">Registered sports: {acc.selected_sports.join(', ')}</p>
+            )}
           </div>
           <div className="p-4 border border-primary-500/30 rounded-xl bg-primary-500/5">
-            <p className="text-sm text-primary-500 mb-1">Requested Roster Role</p>
-            <p className="font-bold text-main text-lg">{getRoleLabel(participant.roster_role)}</p>
+            <p className="text-sm text-primary-500 mb-1">Roster Details</p>
             <p className="text-xs text-muted mt-1">
               Jersey: {participant.jersey_number || '-'} • Pos: {participant.position || '-'}
             </p>
+          </div>
+        </div>
+
+        {/* Roster Assignment */}
+        <div className="p-4 border border-border rounded-xl bg-base space-y-4">
+          <p className="text-sm font-semibold text-main">Roster Assignment</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-main mb-1.5">Roster Role</label>
+              <Select
+                value={rosterRole}
+                onChange={(e) => setRosterRole(e.target.value)}
+                options={ROSTER_ROLES}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-main mb-1.5">Sport</label>
+              <Select
+                value={sportName}
+                onChange={(e) => setSportName(e.target.value)}
+                options={sportOptions}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleSaveAssignment}
+              disabled={savingAssignment}
+              isLoading={savingAssignment}
+            >
+              Save Assignment
+            </Button>
           </div>
         </div>
 

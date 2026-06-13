@@ -11,14 +11,16 @@ export const TeamAPI = {
         id, 
         team_id,
         event_id,
-        accreditation_id, 
-        roster_role, 
-        status, 
-        review_notes, 
-        reviewed_by, 
-        reviewed_at, 
-        jersey_number, 
-        position, 
+        accreditation_id,
+        roster_role,
+        status,
+        is_active,
+        sport_name,
+        review_notes,
+        reviewed_by,
+        reviewed_at,
+        jersey_number,
+        position,
         created_at,
         accreditations (
           first_name,
@@ -27,7 +29,10 @@ export const TeamAPI = {
           club,
           photo_url,
           accreditation_id,
-          badge_number
+          badge_number,
+          nationality,
+          date_of_birth,
+          selected_sports
         ),
         reviewer:reviewed_by (
           email
@@ -62,6 +67,27 @@ export const TeamAPI = {
         reviewed_by: user.id,
         reviewed_at: new Date().toISOString()
       })
+      .eq('id', participantId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Update the roster role and/or assigned sport for a participant (Admin Only).
+   */
+  async updateRosterAssignment(participantId, updates) {
+    const safeUpdates = {};
+    if (updates.roster_role !== undefined) safeUpdates.roster_role = updates.roster_role;
+    if (updates.sport_name !== undefined) safeUpdates.sport_name = updates.sport_name;
+
+    if (Object.keys(safeUpdates).length === 0) return null;
+
+    const { data, error } = await supabase
+      .from('team_participants')
+      .update(safeUpdates)
       .eq('id', participantId)
       .select()
       .single();
@@ -506,5 +532,20 @@ export const TeamAPI = {
       ...a,
       profile: profiles?.find(p => p.id === a.user_id) || null
     }));
+  },
+
+  /**
+   * Get every acknowledgement recorded across all teams for an event
+   * (used by the admin Rules & Regulations management page to show
+   * per-document acknowledgement progress across teams).
+   */
+  async getEventAcknowledgements(eventId) {
+    const { data, error } = await supabase
+      .from('team_rules_acknowledgements')
+      .select('*')
+      .eq('event_id', eventId);
+
+    if (error) throw error;
+    return data || [];
   }
 };

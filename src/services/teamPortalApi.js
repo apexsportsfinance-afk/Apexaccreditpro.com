@@ -152,22 +152,23 @@ export const TeamPortalAPI = {
       throw new Error("Search term must be at least 3 characters.");
     }
 
-    // 1. Get the team's event_id safely internally
+    // 1. Get the team's event_id and name safely internally
     const { data: team, error: teamError } = await supabase
       .from('teams')
-      .select('event_id')
+      .select('event_id, name')
       .eq('id', teamId)
       .single();
 
     if (teamError) throw teamError;
     if (!team || !team.event_id) throw new Error("Team not found or has no event.");
 
-    // 2. Perform safe search strictly scoped to the same event_id
+    // 2. Perform safe search strictly scoped to the same event_id and this team's club
     const safeTerm = `%${searchTerm.trim()}%`;
     const { data, error } = await supabase
       .from('accreditations')
       .select('id, first_name, last_name, role, club, photo_url, accreditation_id, badge_number')
       .eq('event_id', team.event_id)
+      .ilike('club', team.name.trim())
       .or(`first_name.ilike.${safeTerm},last_name.ilike.${safeTerm},email.ilike.${safeTerm},accreditation_id.ilike.${safeTerm},badge_number.ilike.${safeTerm}`)
       .limit(20);
 
@@ -186,13 +187,15 @@ export const TeamPortalAPI = {
         team_id,
         event_id,
         accreditation_id, 
-        roster_role, 
-        status, 
-        review_notes, 
-        reviewed_by, 
-        reviewed_at, 
-        jersey_number, 
-        position, 
+        roster_role,
+        status,
+        is_active,
+        sport_name,
+        review_notes,
+        reviewed_by,
+        reviewed_at,
+        jersey_number,
+        position,
         created_at,
         accreditations (
           first_name,
@@ -201,7 +204,10 @@ export const TeamPortalAPI = {
           club,
           photo_url,
           accreditation_id,
-          badge_number
+          badge_number,
+          nationality,
+          date_of_birth,
+          selected_sports
         )
       `)
       .eq('team_id', teamId)
@@ -215,26 +221,29 @@ export const TeamPortalAPI = {
    * Safely map an existing accreditation to the team roster.
    */
   async addTeamParticipant(teamId, accreditationId, rosterRole, jerseyNumber, position) {
-    // 1. Get the team's event_id safely internally
+    // 1. Get the team's event_id and name safely internally
     const { data: team, error: teamError } = await supabase
       .from('teams')
-      .select('event_id')
+      .select('event_id, name')
       .eq('id', teamId)
       .single();
 
     if (teamError) throw teamError;
     if (!team || !team.event_id) throw new Error("Team not found.");
 
-    // 2. Verify the accreditation belongs to the same event
+    // 2. Verify the accreditation belongs to the same event and club
     const { data: acc, error: accError } = await supabase
       .from('accreditations')
-      .select('event_id')
+      .select('event_id, club')
       .eq('id', accreditationId)
       .single();
 
     if (accError) throw new Error("Accreditation not found.");
     if (acc.event_id !== team.event_id) {
       throw new Error("Security Error: Cannot add an athlete from a different event to this team.");
+    }
+    if (!acc.club || acc.club.trim().toLowerCase() !== team.name.trim().toLowerCase()) {
+      throw new Error("Security Error: Cannot add an athlete from a different club to this team.");
     }
 
     // 3. Insert the mapping
@@ -269,6 +278,7 @@ export const TeamPortalAPI = {
     const safeUpdates = {};
     if (updates.jersey_number !== undefined) safeUpdates.jersey_number = updates.jersey_number;
     if (updates.position !== undefined) safeUpdates.position = updates.position;
+    if (updates.is_active !== undefined) safeUpdates.is_active = updates.is_active;
 
     if (Object.keys(safeUpdates).length === 0) return null;
 
@@ -353,8 +363,9 @@ export const TeamPortalAPI = {
 
   /**
    * Get all active rules/regulations documents published for this team's event
+   * and targeted at this team (target_team_ids is null/empty = all teams).
    */
-  async getPortalRulesDocuments(eventId) {
+  async getPortalRulesDocuments(eventId, teamId) {
     const { data, error } = await supabase
       .from('event_rules_documents')
       .select('*')
@@ -364,7 +375,11 @@ export const TeamPortalAPI = {
       .order('created_at', { ascending: true });
 
     if (error) throw error;
-    return data || [];
+
+    return (data || []).filter((doc) => {
+      const targets = doc.target_team_ids;
+      return !targets || targets.length === 0 || targets.includes(teamId);
+    });
   },
 
   /**

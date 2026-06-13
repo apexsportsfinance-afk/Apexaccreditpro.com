@@ -16,6 +16,15 @@ import TeamRosterReviewTab from "../../../components/teams/tabs/TeamRosterReview
 import TeamFacilityTab from "../../../components/teams/tabs/TeamFacilityTab";
 import TeamRulesTab from "../../../components/teams/tabs/TeamRulesTab";
 
+const STATUS_OPTIONS = ["pending", "active", "suspended", "completed"];
+
+const STATUS_SELECT_CLASSES = {
+  active: "bg-emerald-600 border-emerald-400/30 text-white",
+  suspended: "bg-rose-600 border-rose-400/30 text-white",
+  completed: "bg-slate-500/10 border-slate-500/20 text-slate-400",
+  pending: "bg-amber-600 border-amber-400/30 text-white"
+};
+
 export default function TeamDetail() {
   const { teamId } = useParams();
   const navigate = useNavigate();
@@ -26,6 +35,7 @@ export default function TeamDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   // Permission Check based on Correction 1
   const isAdmin = user?.role === 'super_admin' || user?.role === 'event_admin';
@@ -37,6 +47,22 @@ export default function TeamDetail() {
       setLoading(false);
     }
   }, [teamId, isAdmin]);
+
+  const handleStatusChange = async (e) => {
+    const newStatus = e.target.value;
+    if (newStatus === team.status) return;
+    setUpdatingStatus(true);
+    try {
+      const updated = await TeamAPI.updateTeam(team.id, { status: newStatus });
+      setTeam(updated);
+      toast.success(`Team status changed to ${newStatus}`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update team status");
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
 
   const loadTeamDetails = async () => {
     try {
@@ -120,13 +146,26 @@ export default function TeamDetail() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 mb-1">
             <h1 className="text-2xl font-bold text-main truncate">{team.name}</h1>
-            <Badge variant={
-              team.status === 'active' ? 'success' :
-              team.status === 'suspended' ? 'error' :
-              team.status === 'completed' ? 'neutral' : 'warning'
-            }>
-              {team.status.toUpperCase()}
-            </Badge>
+            {isAdmin ? (
+              <select
+                value={team.status}
+                onChange={handleStatusChange}
+                disabled={updatingStatus}
+                className={`text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full border cursor-pointer outline-none transition-all ${STATUS_SELECT_CLASSES[team.status] || STATUS_SELECT_CLASSES.pending}`}
+              >
+                {STATUS_OPTIONS.map(s => (
+                  <option key={s} value={s}>{s.toUpperCase()}</option>
+                ))}
+              </select>
+            ) : (
+              <Badge variant={
+                team.status === 'active' ? 'success' :
+                team.status === 'suspended' ? 'danger' :
+                team.status === 'completed' ? 'muted' : 'warning'
+              }>
+                {team.status.toUpperCase()}
+              </Badge>
+            )}
           </div>
           <div className="flex items-center gap-4 text-sm text-muted">
             {team.short_name && <span className="font-medium">{team.short_name}</span>}

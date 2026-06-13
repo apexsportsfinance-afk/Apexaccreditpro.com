@@ -11,6 +11,7 @@ export default function EditParticipantModal({ isOpen, onClose, participant, onS
   const [loading, setLoading] = useState(false);
   const [jerseyNumber, setJerseyNumber] = useState(participant.jersey_number || "");
   const [position, setPosition] = useState(participant.position || "");
+  const [isActive, setIsActive] = useState(participant.is_active !== false);
 
   const acc = participant.accreditations;
 
@@ -20,7 +21,8 @@ export default function EditParticipantModal({ isOpen, onClose, participant, onS
       setLoading(true);
       await TeamPortalAPI.updateTeamParticipant(participant.id, {
         jersey_number: jerseyNumber.trim() || null,
-        position: position.trim() || null
+        position: position.trim() || null,
+        is_active: isActive
       });
       toast.success("Participant updated successfully.");
       onSuccess();
@@ -62,13 +64,26 @@ export default function EditParticipantModal({ isOpen, onClose, participant, onS
             </div>
             <div>
               <label className="block text-sm font-medium text-main mb-1.5">Position (Optional)</label>
-              <Input 
+              <Input
                 value={position}
                 onChange={e => setPosition(e.target.value)}
                 placeholder="e.g. Forward"
               />
             </div>
           </div>
+
+          <label className="flex items-center gap-3 p-3 bg-base-alt/50 border border-border rounded-xl cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isActive}
+              onChange={e => setIsActive(e.target.checked)}
+              className="w-4 h-4 rounded border-border text-primary-500 focus:ring-primary-500"
+            />
+            <div>
+              <p className="text-sm font-medium text-main">Active on Roster</p>
+              <p className="text-xs text-muted">Uncheck to mark this person as inactive without removing them.</p>
+            </div>
+          </label>
         </div>
 
         <div className="p-4 border-t border-border flex justify-end gap-3 bg-base-alt/50">

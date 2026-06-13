@@ -61,7 +61,7 @@ export default function TeamFacilityTab({ teamId }) {
           <p className="text-sm text-muted">Facility hosting answers submitted by the team.</p>
         </div>
         <Badge variant={answers?.has_facility ? "success" : "muted"}>
-          {answers?.has_facility ? "Can Host Games" : "Cannot Host Games"}
+          {answers?.has_facility ? "Can Host Events" : "Cannot Host Events"}
         </Badge>
       </div>
 
@@ -70,7 +70,7 @@ export default function TeamFacilityTab({ teamId }) {
           <EmptyState
             icon={Building2}
             title="No Facility Information"
-            description="This team has not indicated that they can host games, or has not yet submitted facility details."
+            description="This team has not indicated that they can host events, or has not yet submitted facility details."
           />
         ) : (
           <div className="space-y-6">

@@ -7,6 +7,7 @@ import AddParticipantModal from './AddParticipantModal';
 import EditParticipantModal from './EditParticipantModal';
 import Modal from '../../ui/Modal';
 import { useToast } from '../../ui/Toast';
+import { calculateAge, getCountryCode3, getCountryFlag } from '../../../lib/utils';
 
 export default function TeamRosterList({ teamId, userRole }) {
   const toast = useToast();
@@ -22,6 +23,11 @@ export default function TeamRosterList({ teamId, userRole }) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [participantToDelete, setParticipantToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Filtering
+  const [search, setSearch] = useState('');
+  const [sportFilter, setSportFilter] = useState('all');
+  const [teamSports, setTeamSports] = useState([]);
 
   const canManage = userRole === 'admin' || userRole === 'manager';
 
@@ -42,6 +48,9 @@ export default function TeamRosterList({ teamId, userRole }) {
   useEffect(() => {
     if (teamId) {
       fetchRoster();
+      TeamPortalAPI.getPortalTeamSports(teamId)
+        .then((sports) => setTeamSports(sports || []))
+        .catch((err) => console.error(err));
     }
   }, [teamId]);
 
@@ -52,6 +61,12 @@ export default function TeamRosterList({ teamId, userRole }) {
       default: return <Badge variant="warning">Pending</Badge>;
     }
   };
+
+  const getActiveBadge = (isActive) => (
+    isActive !== false
+      ? <Badge variant="success">Active</Badge>
+      : <Badge variant="muted">Inactive</Badge>
+  );
 
   const getRoleLabel = (role) => {
     const labels = {
@@ -64,6 +79,33 @@ export default function TeamRosterList({ teamId, userRole }) {
     };
     return labels[role] || role;
   };
+
+  const getSportDisplay = (p) => {
+    const acc = p.accreditations;
+    if (p.sport_name) return p.sport_name;
+    if (Array.isArray(acc?.selected_sports) && acc.selected_sports.length > 0) {
+      return acc.selected_sports.join(', ');
+    }
+    return '-';
+  };
+
+  const filteredParticipants = participants.filter(p => {
+    const acc = p.accreditations;
+    if (sportFilter !== 'all') {
+      const matchesSport = p.sport_name === sportFilter ||
+        (Array.isArray(acc?.selected_sports) && acc.selected_sports.includes(sportFilter));
+      if (!matchesSport) return false;
+    }
+    if (search) {
+      const term = search.toLowerCase();
+      const match =
+        acc?.first_name?.toLowerCase().includes(term) ||
+        acc?.last_name?.toLowerCase().includes(term) ||
+        acc?.accreditation_id?.toLowerCase().includes(term);
+      if (!match) return false;
+    }
+    return true;
+  });
 
   const handleDeleteClick = (participant) => {
     setParticipantToDelete(participant);
@@ -110,18 +152,30 @@ export default function TeamRosterList({ teamId, userRole }) {
   return (
     <div className="space-y-6">
       {/* Header Actions */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
+          <select
+            value={sportFilter}
+            onChange={(e) => setSportFilter(e.target.value)}
+            className="px-3 py-2 bg-base border border-border rounded-lg text-sm text-main focus:outline-none focus:border-primary-500 transition-colors"
+          >
+            <option value="all">All Sports</option>
+            {teamSports.map((s) => (
+              <option key={s.sport_name} value={s.sport_name}>{s.sport_name}</option>
+            ))}
+          </select>
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-            <input 
-              type="text" 
-              placeholder="Filter roster..." 
+            <input
+              type="text"
+              placeholder="Filter roster..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               className="pl-9 pr-4 py-2 bg-base border border-border rounded-lg text-sm focus:outline-none focus:border-primary-500 transition-colors w-64 text-main placeholder:text-muted"
             />
           </div>
         </div>
-        
+
         {canManage && (
           <Button onClick={() => setAddModalOpen(true)} icon={Plus}>
             Add Participant
@@ -147,30 +201,43 @@ export default function TeamRosterList({ teamId, userRole }) {
             </Button>
           )}
         </div>
+      ) : filteredParticipants.length === 0 ? (
+        <div className="text-center py-16 border-2 border-dashed border-border rounded-2xl bg-base-alt/30">
+          <div className="w-16 h-16 bg-primary-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Search className="w-8 h-8 text-primary-500" />
+          </div>
+          <h3 className="text-lg font-bold text-main mb-2">No Matches Found</h3>
+          <p className="text-muted max-w-sm mx-auto">
+            No roster members match your current search or sport filter.
+          </p>
+        </div>
       ) : (
         <div className="bg-base border border-border rounded-xl overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-base-alt/50 border-b border-border text-sm font-medium text-muted">
-                  <th className="px-6 py-4 whitespace-nowrap">Participant</th>
-                  <th className="px-6 py-4 whitespace-nowrap">Roster Role</th>
-                  <th className="px-6 py-4 whitespace-nowrap">Jersey / Pos</th>
-                  <th className="px-6 py-4 whitespace-nowrap">Status</th>
-                  {canManage && <th className="px-6 py-4 whitespace-nowrap text-right">Actions</th>}
+                  <th className="px-4 py-3 whitespace-nowrap">Participant</th>
+                  <th className="px-4 py-3 whitespace-nowrap">Nationality</th>
+                  <th className="px-4 py-3 whitespace-nowrap">Age</th>
+                  <th className="px-4 py-3 whitespace-nowrap">Sport</th>
+                  <th className="px-4 py-3 whitespace-nowrap">Roster Role</th>
+                  <th className="px-4 py-3 whitespace-nowrap">Jersey / Pos</th>
+                  <th className="px-4 py-3 whitespace-nowrap">Status</th>
+                  {canManage && <th className="px-4 py-3 whitespace-nowrap text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border text-sm">
-                {participants.map(p => {
+                {filteredParticipants.map(p => {
                   const acc = p.accreditations;
                   return (
                     <tr key={p.id} className="hover:bg-base-alt/30 transition-colors">
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           {acc?.photo_url ? (
-                            <img src={acc.photo_url} alt="" className="w-10 h-10 rounded-full object-cover border border-border bg-base-alt" />
+                            <img src={acc.photo_url} alt="" className="w-8 h-8 rounded-full object-cover border border-border bg-base-alt" />
                           ) : (
-                            <div className="w-10 h-10 rounded-full bg-primary-500/10 flex items-center justify-center shrink-0 border border-border">
+                            <div className="w-8 h-8 rounded-full bg-primary-500/10 flex items-center justify-center shrink-0 border border-border">
                               <User className="w-4 h-4 text-primary-500" />
                             </div>
                           )}
@@ -178,25 +245,42 @@ export default function TeamRosterList({ teamId, userRole }) {
                             <p className="font-bold text-main truncate max-w-[200px]">
                               {acc?.first_name} {acc?.last_name}
                             </p>
-                            <p className="text-muted text-xs truncate max-w-[200px]">
-                              {acc?.accreditation_id} • {acc?.club}
-                            </p>
+                            <span className="text-muted text-xs font-mono">{acc?.accreditation_id}</span>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-main">{getRoleLabel(p.roster_role)}</div>
-                        <div className="text-muted text-xs">{acc?.role}</div>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          {getCountryFlag(acc?.nationality) && (
+                            <img src={getCountryFlag(acc?.nationality)} alt="" className="w-5 h-auto rounded-sm border border-border shrink-0" />
+                          )}
+                          <span className="text-main">{getCountryCode3(acc?.nationality) || '-'}</span>
+                        </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3">
+                        <div className="text-main">{calculateAge(acc?.date_of_birth) ?? '-'}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-main">{getSportDisplay(p)}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-main">{getRoleLabel(p.roster_role)}</div>
+                        {acc?.role && getRoleLabel(p.roster_role) !== acc.role && (
+                          <div className="text-muted text-xs whitespace-nowrap">Accreditation: {acc.role}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
                         <div className="text-main">{p.jersey_number || '-'}</div>
                         <div className="text-muted text-xs">{p.position || '-'}</div>
                       </td>
-                      <td className="px-6 py-4">
-                        {getStatusBadge(p.status)}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {getStatusBadge(p.status)}
+                          {getActiveBadge(p.is_active)}
+                        </div>
                       </td>
                       {canManage && (
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button 
                               onClick={() => {

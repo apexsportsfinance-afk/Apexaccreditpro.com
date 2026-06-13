@@ -24,6 +24,7 @@ const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
 const Events = lazy(() => import("./pages/admin/Events"));
 const TeamsDashboard = lazy(() => import("./pages/admin/Teams/TeamsDashboard"));
 import TeamDetail from './pages/admin/Teams/TeamDetail';
+const RulesManagement = lazy(() => import("./pages/admin/Rules/RulesManagement"));
 import TeamPortalGateway from './pages/portal/TeamPortalGateway';
 import TeamPortalDashboard from './pages/portal/TeamPortalDashboard';
 const Accreditations = lazy(() => import("./pages/admin/Accreditations"));
@@ -97,6 +98,7 @@ export default function App() {
                 <Route path="events/:id?/:subpage?" element={<Events />} />
                 <Route path="teams" element={<TeamsDashboard />} />
                 <Route path="teams/:teamId" element={<TeamDetail />} />
+                <Route path="rules" element={<RulesManagement />} />
                 <Route path="ticketing" element={<Ticketing />} />
                 <Route path="accreditations" element={<Accreditations />} />
                 <Route path="zones" element={<Zones />} />
