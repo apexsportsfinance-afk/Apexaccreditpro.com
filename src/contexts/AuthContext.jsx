@@ -34,21 +34,25 @@ export const AuthProvider = ({ children }) => {
     fetchedProfileForRef.current = sessionUser.id;
 
     try {
-      // Fetch profile AND access mappings in parallel for speed
-      const [profileRes, accessMapping, moduleMapping] = await Promise.all([
+      // Fetch profile, access mappings, and team assignments in parallel for speed
+      const [profileRes, accessMapping, moduleMapping, teamAssignments] = await Promise.all([
         supabase
           .from("profiles")
           .select("role, full_name")
           .eq("id", sessionUser.id)
           .single(),
         UsersAPI.getAccessMappings(),
-        UsersAPI.getModuleAccessMappings()
+        UsersAPI.getModuleAccessMappings(),
+        supabase
+          .from("team_users")
+          .select("team_id")
+          .eq("user_id", sessionUser.id)
       ]);
 
       if (!mountedRef.current) return;
 
       const { data, error } = profileRes;
-      
+
       // Update user state with both profile info and allowed events
       setUser((current) => {
         if (!current) return current;
@@ -57,7 +61,8 @@ export const AuthProvider = ({ children }) => {
           name: data?.full_name || current.name,
           role: data?.role || current.role,
           allowedEventIds: accessMapping[sessionUser.id] || [],
-          allowedModules: moduleMapping[sessionUser.id] || []
+          allowedModules: moduleMapping[sessionUser.id] || [],
+          hasTeamAccess: (teamAssignments.data?.length || 0) > 0
         };
       });
 
@@ -181,9 +186,9 @@ export const AuthProvider = ({ children }) => {
     if (!user) return false;
     if (user.role === "super_admin" || user.role === "admin") return true;
 
-    // Always allow access to the Team Portal for any authenticated user
-    // The portal has its own API-level security and RLS checks
-    if (path.startsWith("/portal/teams")) return true;
+    // Team Portal is only relevant once an admin has assigned the user to a team
+    // (it has its own API-level security and RLS checks beyond this)
+    if (path.startsWith("/portal/teams")) return !!user.hasTeamAccess;
 
     if (!user.allowedModules) return false;
     

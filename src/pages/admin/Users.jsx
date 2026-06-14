@@ -25,6 +25,7 @@ const MODULES = [
   { value: "/admin/dashboard", label: "Dashboard" },
   { value: "/admin/events", label: "Events (Full Setup)" },
   { value: "/admin/events/audit-log", label: "Events (Scanner Log Only)" },
+  { value: "/admin/teams", label: "Team Management" },
   { value: "/admin/ticketing", label: "Spectator Portal" },
   { value: "/admin/accreditations", label: "Accreditations" },
   { value: "/admin/zones", label: "Zones" },

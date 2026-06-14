@@ -31,7 +31,7 @@ export default function AdminLayout() {
         }
       }
     }
-  }, [isAuthenticated, loading, navigate, isSuperAdmin, location.pathname, user?.allowedModules]);
+  }, [isAuthenticated, loading, navigate, isSuperAdmin, location.pathname, user?.allowedModules, user?.hasTeamAccess]);
 
   if (loading) {
     return (
