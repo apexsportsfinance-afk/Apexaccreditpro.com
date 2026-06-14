@@ -36,9 +36,13 @@ export default function Feedback() {
   const [roleFilter, setRoleFilter] = useState("All");
   const [showSetup, setShowSetup] = useState(false);
   const [selectedFeedback, setSelectedFeedback] = useState(null);
-  const { canAccessEvent } = useAuth();
+  const { canAccessEvent, profileLoaded } = useAuth();
 
   useEffect(() => {
+    // Wait for the profile (allowedEventIds for restricted roles) to load
+    // before filtering events, otherwise event-restricted users would see
+    // an empty event list until a manual refresh.
+    if (!profileLoaded) return;
     async function init() {
       try {
         const evs = await EventsAPI.getAllMinimal();
@@ -50,7 +54,7 @@ export default function Feedback() {
       }
     }
     init();
-  }, []);
+  }, [profileLoaded]);
 
   useEffect(() => {
     async function loadData() {

@@ -49,11 +49,15 @@ export default function Zones() {
   const [selectedZonesToCopy, setSelectedZonesToCopy] = useState([]);
   const [copying, setCopying] = useState(false);
   const toast = useToast();
-  const { canAccessEvent, isViewer } = useAuth();
+  const { canAccessEvent, isViewer, profileLoaded } = useAuth();
 
   useEffect(() => {
+    // Wait for the profile (allowedEventIds for restricted roles) to load
+    // before filtering events, otherwise event-restricted users would see
+    // an empty event list until a manual refresh.
+    if (!profileLoaded) return;
     loadEvents();
-  }, []);
+  }, [profileLoaded]);
 
   useEffect(() => {
     if (selectedEvent) {

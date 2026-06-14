@@ -43,7 +43,7 @@ export default function MedalRankings() {
   const clearTimerRef = useRef(null);
   
   const toast = useToast();
-  const { canAccessEvent, isSuperAdmin } = useAuth();
+  const { canAccessEvent, isSuperAdmin, profileLoaded } = useAuth();
   const fileInputRef = useRef(null);
 
   const handleClearAllData = async () => {
@@ -70,9 +70,13 @@ export default function MedalRankings() {
   };
 
   useEffect(() => {
+    // Wait for the profile (allowedEventIds for restricted roles) to load
+    // before filtering events, otherwise event-restricted users would see
+    // an empty event/results list until a manual refresh.
+    if (!profileLoaded) return;
     fetchResults();
     fetchLiveEvents();
-  }, []);
+  }, [profileLoaded]);
 
   const fetchLiveEvents = async () => {
     setEventsLoading(true);

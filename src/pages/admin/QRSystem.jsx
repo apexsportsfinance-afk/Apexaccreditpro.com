@@ -12,9 +12,13 @@ export default function QRSystem() {
   const toast = useToast();
   const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState("");
-  const { canAccessEvent } = useAuth();
+  const { canAccessEvent, profileLoaded } = useAuth();
 
   useEffect(() => {
+    // Wait for the profile (allowedEventIds for restricted roles) to load
+    // before filtering events, otherwise event-restricted users would see
+    // an empty event list until a manual refresh.
+    if (!profileLoaded) return;
     EventsAPI.getAllMinimal().then(evs => {
       const filtered = evs.filter(e => canAccessEvent(e.id));
       console.log("APEX_DEBUG: Loaded Minimal Events:", filtered.length);
@@ -31,7 +35,7 @@ export default function QRSystem() {
         });
       }, 3000);
     });
-  }, []);
+  }, [profileLoaded]);
 
   const handleToast = (msg, type = "success") => {
     if (!msg) return;

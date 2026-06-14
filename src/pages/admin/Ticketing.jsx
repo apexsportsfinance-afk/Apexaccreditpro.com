@@ -52,12 +52,16 @@ export default function Ticketing() {
   const [pinModal, setPinModal] = useState({ open: false, orderId: null, value: "" });
   const [isVerifying, setIsVerifying] = useState(false);
   const toast = useToast();
-  const { canAccessEvent } = useAuth();
+  const { canAccessEvent, profileLoaded } = useAuth();
 
   useEffect(() => {
+    // Wait for the profile (allowedEventIds for restricted roles) to load
+    // before filtering events, otherwise event-restricted users would see
+    // an empty event list until a manual refresh.
+    if (!profileLoaded) return;
     loadEvents();
     loadSecurityPin();
-  }, []);
+  }, [profileLoaded]);
 
   const loadSecurityPin = async () => {
     try {

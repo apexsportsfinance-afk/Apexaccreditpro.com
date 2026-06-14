@@ -93,7 +93,7 @@ import { downloadSinglePhoto, downloadFullRecord, bulkDownloadPhotos } from "../
 export default function Accreditations() {
   const [searchParams, setSearchParams] = useSearchParams();
   const toast = useToast();
-  const { canAccessEvent, isViewer } = useAuth();
+  const { canAccessEvent, isViewer, profileLoaded } = useAuth();
   const { addToQueue, currentTask, queue } = useBackground();
 
   const [events, setEvents] = useState([]);
@@ -173,6 +173,12 @@ export default function Accreditations() {
   }, [searchTerm]);
 
   useEffect(() => {
+    // Wait until the user's profile (including allowedEventIds for
+    // event-restricted roles) has finished loading. Otherwise canAccessEvent
+    // would filter out every event for non-admin users before their event
+    // allocations are known, leaving them stuck on "Select an Event".
+    if (!profileLoaded) return;
+
     const initializeData = async () => {
       setLoading(true);
       try {
@@ -200,7 +206,7 @@ export default function Accreditations() {
       }
     };
     initializeData();
-  }, []);
+  }, [profileLoaded]);
 
 
   useEffect(() => {

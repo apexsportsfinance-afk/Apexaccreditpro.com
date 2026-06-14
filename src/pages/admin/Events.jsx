@@ -107,7 +107,7 @@ const OVERRIDABLE_FIELDS = [
 export default function Events() {
   const { id, subpage } = useParams();
   const navigate = useNavigate();
-  const { canAccessEvent, user, hasExactModuleAccess } = useAuth();
+  const { canAccessEvent, user, hasExactModuleAccess, profileLoaded } = useAuth();
   const isSuperAdminOnly = user?.role === "super_admin";
   const hasFullEventAccess = hasExactModuleAccess("/admin/events");
   const hasAuditLogAccess = hasExactModuleAccess("/admin/events/audit-log");
@@ -179,9 +179,13 @@ export default function Events() {
   const toast = useToast();
 
   useEffect(() => {
+    // Wait for the profile (allowedEventIds for restricted roles) to load
+    // before filtering events, otherwise event-restricted users would see
+    // an empty event list until a manual refresh.
+    if (!profileLoaded) return;
     loadEvents();
     loadCategories();
-  }, []);
+  }, [profileLoaded]);
 
   const [fetchingEvents, setFetchingEvents] = useState(true);
 

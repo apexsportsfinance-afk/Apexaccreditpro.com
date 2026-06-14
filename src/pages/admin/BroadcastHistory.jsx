@@ -23,11 +23,15 @@ export default function BroadcastHistory() {
   const [deleting, setDeleting] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [editMessage, setEditMessage] = useState("");
-  const { canAccessEvent, isSuperAdmin } = useAuth();
+  const { canAccessEvent, isSuperAdmin, profileLoaded } = useAuth();
 
   useEffect(() => {
+    // Wait for the profile (allowedEventIds for restricted roles) to load
+    // before filtering events, otherwise event-restricted users would see
+    // an empty event list until a manual refresh.
+    if (!profileLoaded) return;
     loadData();
-  }, []);
+  }, [profileLoaded]);
 
   const loadData = async () => {
     setLoading(true);
