@@ -15,6 +15,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoaded, setProfileLoaded] = useState(false);
 
   const fetchedProfileForRef = useRef(null);
   const mountedRef = useRef(true);
@@ -71,6 +72,8 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (err) {
       console.warn("Background auth enhancement failed:", err);
+    } finally {
+      if (mountedRef.current) setProfileLoaded(true);
     }
   };
 
@@ -89,6 +92,7 @@ export const AuthProvider = ({ children }) => {
           const safeUser = getSafeUserFromSession(session.user);
           setUser(safeUser);
           // Fire background enhancement (async)
+          setProfileLoaded(false);
           upgradeProfileRole(session.user);
         }
       } catch (error) {
@@ -111,11 +115,13 @@ export const AuthProvider = ({ children }) => {
         if (isNewUser) {
           const safeUser = getSafeUserFromSession(session.user);
           setUser(safeUser);
+          setProfileLoaded(false);
           upgradeProfileRole(session.user);
         }
       } else {
         setUser(null);
         fetchedProfileForRef.current = null;
+        setProfileLoaded(false);
       }
  
       if (mountedRef.current) setLoading(false);
@@ -230,6 +236,7 @@ export const AuthProvider = ({ children }) => {
   const value = {
     user,
     loading,
+    profileLoaded,
     login,
     logout,
     hasPermission,

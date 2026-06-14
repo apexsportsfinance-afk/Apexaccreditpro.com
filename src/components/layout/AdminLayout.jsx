@@ -5,7 +5,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import BackgroundProgress from "../accreditation/BackgroundProgress";
 
 export default function AdminLayout() {
-  const { isAuthenticated, loading, isSuperAdmin, canAccessModule, user } = useAuth();
+  const { isAuthenticated, loading, profileLoaded, isSuperAdmin, canAccessModule, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -13,8 +13,10 @@ export default function AdminLayout() {
     if (!loading) {
       if (!isAuthenticated) {
         navigate("/login");
-      } else {
+      } else if (profileLoaded) {
         // Protect routes based on module permissions
+        // (wait for profileLoaded so we don't redirect away before
+        // allowedModules/team assignments have finished loading)
         if (!canAccessModule(location.pathname)) {
           // APX-Fix: Find first authorized module instead of always defaulting to dashboard
           const firstAllowed = navItems.find(item => {
@@ -31,7 +33,7 @@ export default function AdminLayout() {
         }
       }
     }
-  }, [isAuthenticated, loading, navigate, isSuperAdmin, location.pathname, user?.allowedModules, user?.hasTeamAccess]);
+  }, [isAuthenticated, loading, profileLoaded, navigate, isSuperAdmin, location.pathname, user?.allowedModules, user?.hasTeamAccess]);
 
   if (loading) {
     return (
