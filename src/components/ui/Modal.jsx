@@ -50,13 +50,13 @@ export default function Modal({
             aria-modal="true"
             aria-labelledby={title ? "modal-title" : undefined}
             className={cn(
-              "relative w-full rounded-2xl shadow-2xl overflow-hidden bg-base border border-border shadow-black/20",
+              "relative w-full max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden bg-base border border-border shadow-black/20 flex flex-col",
               sizes[size],
               className
             )}
           >
             {title && (
-              <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-base-alt/50">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-base-alt/50 shrink-0">
                 <h2 id="modal-title" className="text-xl font-bold text-main">{title}</h2>
                 <button
                   onClick={onClose}
@@ -67,7 +67,7 @@ export default function Modal({
                 </button>
               </div>
             )}
-            <div className="max-h-[80vh] overflow-y-auto">
+            <div className="overflow-y-auto flex-1 min-h-0">
               {children}
             </div>
           </motion.div>

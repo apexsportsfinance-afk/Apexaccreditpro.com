@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Save, Calendar, Clock, Edit2, Play, CheckCircle, XCircle, ChevronDown, ChevronUp, Trophy, Search, RotateCcw } from "lucide-react";
+import { Plus, Trash2, Save, Calendar, Clock, Edit2, Play, CheckCircle, XCircle, ChevronDown, ChevronUp, Trophy, Search, RotateCcw, Wand2, Info } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { LiveScoresAPI } from "../../lib/storage";
+import { LiveScoresAPI, DivisionsAPI } from "../../lib/storage";
 import { TeamAPI } from "../../services/teamApi";
 import { toast } from "sonner";
 import { cn } from "../../lib/utils";
 import Button from "../ui/Button";
 import Modal from "../ui/Modal";
+import TeamBadge from "../ui/TeamBadge";
+import MatchEventsPanel from "./MatchEventsPanel";
+import GenerateFixturesModal from "./GenerateFixturesModal";
 import { useAuth } from "../../contexts/AuthContext";
 
 export default function LiveScoresTab({ eventId, onToast, disabled }) {
@@ -30,6 +33,19 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
   const [standingsSportId, setStandingsSportId] = useState("");
   const [standings, setStandings] = useState([]);
   const [standingsLoading, setStandingsLoading] = useState(false);
+
+  // Phase 3: divisions / configurable points
+  const [standingsDivisionId, setStandingsDivisionId] = useState("all");
+  const [divisions, setDivisions] = useState([]);
+  const [pointsConfig, setPointsConfig] = useState({ points_win: 3, points_draw: 1, points_loss: 0 });
+  const [savingPoints, setSavingPoints] = useState(false);
+  const [teamDivisions, setTeamDivisions] = useState({});
+  const [newDivisionName, setNewDivisionName] = useState("");
+  const [newDivisionGender, setNewDivisionGender] = useState("");
+  const [showDivisionSettings, setShowDivisionSettings] = useState(false);
+
+  // Phase 4: competition format builder / fixture generation
+  const [generateFixturesSport, setGenerateFixturesSport] = useState(null);
 
   const [matchForm, setMatchForm] = useState({
     sport_id: "",
@@ -68,8 +84,12 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
   }, [sports]);
 
   useEffect(() => {
-    if (eventId && standingsSportId) loadStandings(standingsSportId);
-  }, [eventId, standingsSportId, matches]);
+    if (eventId && standingsSportId) loadStandings(standingsSportId, standingsDivisionId);
+  }, [eventId, standingsSportId, standingsDivisionId, matches]);
+
+  useEffect(() => {
+    if (standingsSportId) loadSportExtras(standingsSportId);
+  }, [standingsSportId, teams]);
 
   const loadData = async () => {
     setLoading(true);
@@ -92,15 +112,109 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
     }
   };
 
-  const loadStandings = async (sportId) => {
+  const loadStandings = async (sportId, divisionId) => {
     setStandingsLoading(true);
     try {
-      const data = await LiveScoresAPI.getStandings(eventId, sportId);
+      const data = await LiveScoresAPI.getStandings(eventId, sportId, divisionId !== "all" ? divisionId : null);
       setStandings(data || []);
     } catch (err) {
       console.error(err);
     } finally {
       setStandingsLoading(false);
+    }
+  };
+
+  // Load this sport's divisions, points config, and per-team division
+  // assignments (for the "Configure Divisions & Points" panel).
+  const loadSportExtras = async (sportId) => {
+    setStandingsDivisionId("all");
+    try {
+      const [divs, cfg] = await Promise.all([
+        DivisionsAPI.getBySport(sportId),
+        LiveScoresAPI.getPointsConfig(eventId, sportId)
+      ]);
+      setDivisions(divs);
+      setPointsConfig(cfg || { points_win: 3, points_draw: 1, points_loss: 0 });
+
+      const sport = sports.find(s => s.id === sportId);
+      if (sport && teams.length > 0) {
+        const tds = await LiveScoresAPI.getTeamSportDivisions(teams.map(t => t.id), sport.sport_name);
+        const map = {};
+        tds.forEach(td => { map[td.team_id] = td.division_id || ""; });
+        setTeamDivisions(map);
+      } else {
+        setTeamDivisions({});
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSavePoints = async () => {
+    if (isSettingsDisabled || !standingsSportId) return;
+    setSavingPoints(true);
+    try {
+      const saved = await LiveScoresAPI.savePointsConfig({
+        event_id: eventId,
+        sport_id: standingsSportId,
+        points_win: Number(pointsConfig.points_win) || 0,
+        points_draw: Number(pointsConfig.points_draw) || 0,
+        points_loss: Number(pointsConfig.points_loss) || 0,
+      });
+      setPointsConfig(saved);
+      toast.success("Points system saved");
+    } catch (err) {
+      toast.error("Failed to save points system");
+    } finally {
+      setSavingPoints(false);
+    }
+  };
+
+  const handleAddDivision = async () => {
+    if (isSettingsDisabled || !standingsSportId || !newDivisionName.trim()) return;
+    try {
+      const saved = await DivisionsAPI.save({
+        event_id: eventId,
+        sport_id: standingsSportId,
+        name: newDivisionName.trim(),
+        gender: newDivisionGender || null,
+        display_order: divisions.length,
+      });
+      setDivisions([...divisions, saved]);
+      setNewDivisionName("");
+      setNewDivisionGender("");
+      toast.success("Division added");
+    } catch (err) {
+      toast.error("Failed to add division");
+    }
+  };
+
+  const handleDeleteDivision = async (id) => {
+    if (isSettingsDisabled) return;
+    if (!window.confirm("Delete this division? Teams assigned to it will become unassigned.")) return;
+    try {
+      await DivisionsAPI.delete(id);
+      setDivisions(divisions.filter(d => d.id !== id));
+      setTeamDivisions(prev => {
+        const next = { ...prev };
+        Object.keys(next).forEach(tid => { if (next[tid] === id) next[tid] = ""; });
+        return next;
+      });
+      if (standingsDivisionId === id) setStandingsDivisionId("all");
+    } catch (err) {
+      toast.error("Failed to delete division");
+    }
+  };
+
+  const handleTeamDivisionChange = async (teamId, divisionId) => {
+    if (isSettingsDisabled) return;
+    const sport = sports.find(s => s.id === standingsSportId);
+    if (!sport) return;
+    setTeamDivisions(prev => ({ ...prev, [teamId]: divisionId }));
+    try {
+      await LiveScoresAPI.setTeamSportDivision(teamId, sport.sport_name, divisionId || null);
+    } catch (err) {
+      toast.error("Failed to update team's division");
     }
   };
 
@@ -126,6 +240,18 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
       toast.success("Sport added");
     } catch (err) {
       toast.error("Failed to add sport");
+    }
+  };
+
+  // Phase 4: called after the Generate Fixtures modal creates new matches
+  // and/or saves the sport's chosen format. Additive only - never removes
+  // existing matches.
+  const handleFixturesGenerated = (insertedMatches, updatedSport) => {
+    if (insertedMatches && insertedMatches.length > 0) {
+      setMatches(prev => [...prev, ...insertedMatches]);
+    }
+    if (updatedSport) {
+      setSports(prev => prev.map(s => s.id === updatedSport.id ? updatedSport : s));
     }
   };
 
@@ -294,6 +420,12 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
     setQuickView("all");
   };
 
+  const teamsById = useMemo(() => {
+    const map = {};
+    teams.forEach(t => { map[t.id] = t; });
+    return map;
+  }, [teams]);
+
   const filteredMatches = useMemo(() => {
     let result = matches.filter(m => {
       if (filterSportId !== "all" && m.sport_id !== filterSportId) return false;
@@ -383,12 +515,26 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
             <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
               {sports.map(s => (
                 <div key={s.id} className="flex items-center justify-between bg-slate-800/50 p-2 rounded-lg border border-white/5">
-                  <span className="text-white text-sm font-medium">{s.sport_name}</span>
-                  {!isSettingsDisabled && (
-                    <button onClick={() => handleDeleteSport(s.id)} className="text-red-400 hover:text-red-300 p-1">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-white text-sm font-medium truncate">{s.sport_name}</span>
+                    <span className="text-[10px] text-slate-500 uppercase tracking-widest">{s.format || "Custom (Manual)"}</span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {!isSettingsDisabled && (
+                      <button
+                        onClick={() => setGenerateFixturesSport(s)}
+                        title="Generate Fixtures"
+                        className="text-blue-400 hover:text-blue-300 p-1"
+                      >
+                        <Wand2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {!isSettingsDisabled && (
+                      <button onClick={() => handleDeleteSport(s.id)} className="text-red-400 hover:text-red-300 p-1">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
               {sports.length === 0 && <p className="text-xs text-slate-500">No sports added yet.</p>}
@@ -595,6 +741,26 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
             ))}
           </div>
 
+          {/* Individual / Heat Sheet sports - no team matches, managed elsewhere */}
+          {sports.some(s => s.format === "Individual") && (
+            <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-4 space-y-2">
+              <div className="flex items-center gap-2 text-indigo-200">
+                <Info className="w-4 h-4 shrink-0" />
+                <h4 className="text-xs font-bold uppercase tracking-widest">Individual / Heat Sheet Sports</h4>
+              </div>
+              <p className="text-xs text-indigo-200/70">
+                These sports use the Individual format - no team-vs-team matches. Manage their event schedules and heat sheets/results in the Sport Events &amp; Heat Sheets tab.
+              </p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {sports.filter(s => s.format === "Individual").map(s => (
+                  <span key={s.id} className="px-2 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-lg text-xs text-indigo-100">
+                    {s.sport_name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Filter Bar */}
           <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-4 flex flex-wrap gap-4 items-end">
             <div className="flex flex-col gap-2 min-w-[140px]">
@@ -718,8 +884,14 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                                   </div>
                                   
                                   <div className="flex items-center justify-between sm:justify-start gap-4 mb-2">
-                                    <div className="flex-1 text-right sm:text-left">
-                                      <p className="text-white font-bold">{match.team_a_name || 'TBA'}</p>
+                                    <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
+                                      <TeamBadge
+                                        logoUrl={teamsById[match.team_a_id]?.logo_url}
+                                        country={teamsById[match.team_a_id]?.country}
+                                        name={match.team_a_name}
+                                        size="md"
+                                      />
+                                      <p className="text-white font-bold truncate">{match.team_a_name || 'TBA'}</p>
                                     </div>
                                     <div className="flex items-center gap-2 px-3 py-1 bg-black/40 rounded-lg border border-white/5 shrink-0">
                                       <button
@@ -742,8 +914,14 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                                         <Plus className="w-3 h-3" />
                                       </button>
                                     </div>
-                                    <div className="flex-1 text-left">
-                                      <p className="text-white font-bold">{match.team_b_name || 'TBA'}</p>
+                                    <div className="flex-1 flex items-center gap-2 min-w-0">
+                                      <TeamBadge
+                                        logoUrl={teamsById[match.team_b_id]?.logo_url}
+                                        country={teamsById[match.team_b_id]?.country}
+                                        name={match.team_b_name}
+                                        size="md"
+                                      />
+                                      <p className="text-white font-bold truncate">{match.team_b_name || 'TBA'}</p>
                                     </div>
                                   </div>
 
@@ -752,6 +930,8 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                                     <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {match.match_time}</span>
                                     <span>{match.venue}</span>
                                   </div>
+
+                                  <MatchEventsPanel match={match} sportName={sport.sport_name} disabled={disabled} />
                                 </div>
 
                                 {/* Quick Actions */}
@@ -804,14 +984,140 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <Trophy className="w-5 h-5 text-amber-400" /> League Standings
             </h3>
-            <select
-              value={standingsSportId}
-              onChange={e => setStandingsSportId(e.target.value)}
-              className="bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
-            >
-              {sports.map(s => <option key={s.id} value={s.id}>{s.sport_name}</option>)}
-            </select>
+            <div className="flex items-center gap-2 flex-wrap">
+              <select
+                value={standingsSportId}
+                onChange={e => setStandingsSportId(e.target.value)}
+                className="bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
+              >
+                {sports.map(s => <option key={s.id} value={s.id}>{s.sport_name}</option>)}
+              </select>
+              {divisions.length > 0 && (
+                <select
+                  value={standingsDivisionId}
+                  onChange={e => setStandingsDivisionId(e.target.value)}
+                  className="bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
+                >
+                  <option value="all">All Divisions</option>
+                  {divisions.map(d => <option key={d.id} value={d.id}>{d.name}{d.gender ? ` (${d.gender})` : ""}</option>)}
+                </select>
+              )}
+              {!isSettingsDisabled && (
+                <button
+                  onClick={() => setShowDivisionSettings(prev => !prev)}
+                  className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-bold uppercase transition-colors flex items-center gap-1.5"
+                >
+                  {showDivisionSettings ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                  Divisions &amp; Points
+                </button>
+              )}
+            </div>
           </div>
+
+          {/* Divisions & Points configuration panel */}
+          {!isSettingsDisabled && (
+            <AnimatePresence>
+              {showDivisionSettings && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="overflow-hidden"
+                >
+                  <div className="bg-slate-950/50 border border-white/10 rounded-xl p-4 space-y-5">
+                    {/* Points System */}
+                    <div className="space-y-2">
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Points System</h4>
+                      <div className="flex items-end gap-3 flex-wrap">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase">Win</label>
+                          <input type="number" value={pointsConfig.points_win} onChange={e => setPointsConfig(prev => ({ ...prev, points_win: e.target.value }))} className="w-20 bg-slate-800 border border-white/10 rounded-lg px-2 py-1.5 text-white text-sm outline-none" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase">Draw</label>
+                          <input type="number" value={pointsConfig.points_draw} onChange={e => setPointsConfig(prev => ({ ...prev, points_draw: e.target.value }))} className="w-20 bg-slate-800 border border-white/10 rounded-lg px-2 py-1.5 text-white text-sm outline-none" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase">Loss</label>
+                          <input type="number" value={pointsConfig.points_loss} onChange={e => setPointsConfig(prev => ({ ...prev, points_loss: e.target.value }))} className="w-20 bg-slate-800 border border-white/10 rounded-lg px-2 py-1.5 text-white text-sm outline-none" />
+                        </div>
+                        <Button onClick={handleSavePoints} loading={savingPoints} variant="primary" icon={Save}>
+                          Save
+                        </Button>
+                      </div>
+                      <p className="text-[11px] text-slate-500">Applies to standings for this sport only. Defaults to 3 / 1 / 0 if unset.</p>
+                    </div>
+
+                    {/* Divisions */}
+                    <div className="space-y-2">
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Divisions</h4>
+                      {divisions.length > 0 && (
+                        <div className="space-y-1.5">
+                          {divisions.map(d => (
+                            <div key={d.id} className="flex items-center justify-between bg-slate-800/50 p-2 rounded-lg border border-white/5">
+                              <span className="text-white text-sm font-medium">{d.name}{d.gender ? <span className="text-slate-500"> · {d.gender}</span> : ""}</span>
+                              <button onClick={() => handleDeleteDivision(d.id)} className="text-red-400 hover:text-red-300 p-1">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex gap-2 flex-wrap">
+                        <input
+                          type="text"
+                          placeholder="New Division Name (e.g. Men's Division A)"
+                          value={newDivisionName}
+                          onChange={e => setNewDivisionName(e.target.value)}
+                          className="flex-1 min-w-[200px] bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
+                        />
+                        <select
+                          value={newDivisionGender}
+                          onChange={e => setNewDivisionGender(e.target.value)}
+                          className="bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
+                        >
+                          <option value="">No Gender</option>
+                          <option value="Men">Men</option>
+                          <option value="Women">Women</option>
+                          <option value="Mixed">Mixed</option>
+                        </select>
+                        <Button onClick={handleAddDivision} className="bg-blue-600 hover:bg-blue-500 text-white px-3">
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Team Division Assignments */}
+                    {divisions.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Team Assignments</h4>
+                        {Object.keys(teamDivisions).length === 0 ? (
+                          <p className="text-xs text-slate-500">No teams registered for this sport yet.</p>
+                        ) : (
+                          <div className="space-y-1.5 max-h-56 overflow-y-auto pr-2">
+                            {Object.keys(teamDivisions).map(teamId => (
+                              <div key={teamId} className="flex items-center justify-between gap-2 bg-slate-800/50 p-2 rounded-lg border border-white/5">
+                                <span className="text-white text-sm font-medium truncate">{teamsById[teamId]?.name || "Unknown Team"}</span>
+                                <select
+                                  value={teamDivisions[teamId] || ""}
+                                  onChange={e => handleTeamDivisionChange(teamId, e.target.value)}
+                                  className="bg-slate-800 border border-white/10 rounded-lg px-2 py-1 text-white text-xs outline-none"
+                                >
+                                  <option value="">Unassigned</option>
+                                  {divisions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                </select>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          )}
 
           {standingsLoading ? (
             <p className="text-slate-400 text-sm">Loading standings...</p>
@@ -826,14 +1132,14 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                   <tr className="border-b border-white/10 text-slate-500 text-xs uppercase tracking-widest">
                     <th className="py-2 pr-4">#</th>
                     <th className="py-2 pr-4">Team</th>
-                    <th className="py-2 pr-3 text-center">P</th>
-                    <th className="py-2 pr-3 text-center">W</th>
-                    <th className="py-2 pr-3 text-center">D</th>
-                    <th className="py-2 pr-3 text-center">L</th>
-                    <th className="py-2 pr-3 text-center">GF</th>
-                    <th className="py-2 pr-3 text-center">GA</th>
-                    <th className="py-2 pr-3 text-center">GD</th>
-                    <th className="py-2 pr-3 text-center">Pts</th>
+                    <th className="py-2 pr-3 text-center" title="Played">P</th>
+                    <th className="py-2 pr-3 text-center" title="Won">W</th>
+                    <th className="py-2 pr-3 text-center" title="Drawn">D</th>
+                    <th className="py-2 pr-3 text-center" title="Lost">L</th>
+                    <th className="py-2 pr-3 text-center" title="Goals/Points For">GF</th>
+                    <th className="py-2 pr-3 text-center" title="Goals/Points Against">GA</th>
+                    <th className="py-2 pr-3 text-center" title="Goal/Point Difference">GD</th>
+                    <th className="py-2 pr-3 text-center" title="Total Points">Pts</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -853,10 +1159,24 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                   ))}
                 </tbody>
               </table>
+              <p className="text-[11px] text-slate-500 leading-relaxed mt-2">
+                P = Played · W = Won · D = Drawn · L = Lost · GF = Goals/Points For · GA = Goals/Points Against · GD = Goal/Point Difference · Pts = Total Points
+              </p>
             </div>
           )}
         </div>
       )}
+
+      <GenerateFixturesModal
+        isOpen={!!generateFixturesSport}
+        onClose={() => setGenerateFixturesSport(null)}
+        sport={generateFixturesSport}
+        eventId={eventId}
+        teams={teams}
+        divisions={generateFixturesSport && generateFixturesSport.id === standingsSportId ? divisions : []}
+        teamDivisions={generateFixturesSport && generateFixturesSport.id === standingsSportId ? teamDivisions : {}}
+        onGenerated={handleFixturesGenerated}
+      />
     </div>
   );
 }

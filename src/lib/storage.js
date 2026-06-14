@@ -1719,6 +1719,13 @@ export const LiveScoresAPI = {
     const data = await handleResponse(() => supabase.from("live_score_matches").select("*").eq("event_id", eventId).order("match_date", { ascending: true }).order("match_time", { ascending: true }));
     return data || [];
   },
+  // Same matches as getMatches(), enriched with each team's logo_url/country
+  // (for badge/flag rendering) via a SECURITY DEFINER RPC, since anon/portal
+  // users don't have direct read access to the `teams` table.
+  getMatchesWithTeams: async (eventId, sportId) => {
+    const data = await handleResponse(() => supabase.rpc("get_live_scores_matches", { p_event_id: eventId, p_sport_id: sportId || null }));
+    return data || [];
+  },
   saveMatch: async (match) => {
     const dbMatch = { ...match };
     if (!dbMatch.id) {
@@ -1736,9 +1743,124 @@ export const LiveScoresAPI = {
   deleteMatch: async (id) => {
     return handleResponse(() => supabase.from("live_score_matches").delete().eq("id", id).select());
   },
-  getStandings: async (eventId, sportId) => {
-    const data = await handleResponse(() => supabase.rpc("get_team_standings", { p_event_id: eventId, p_sport_id: sportId || null }));
+  getStandings: async (eventId, sportId, divisionId) => {
+    const data = await handleResponse(() => supabase.rpc("get_team_standings", { p_event_id: eventId, p_sport_id: sportId || null, p_division_id: divisionId || null }));
     return data || [];
+  },
+  // Per-event-per-sport win/draw/loss points override. Returns null if no
+  // custom config has been saved (caller should fall back to 3/1/0 defaults).
+  getPointsConfig: async (eventId, sportId) => {
+    const data = await handleResponse(() => supabase.from("sport_points_config").select("*").eq("event_id", eventId).eq("sport_id", sportId).maybeSingle());
+    return data || null;
+  },
+  savePointsConfig: async (config) => {
+    return handleResponse(() => supabase.from("sport_points_config").upsert(config, { onConflict: "event_id,sport_id" }).select().single());
+  },
+  // Teams registered for `sportName` (via team_sports), with their current
+  // division assignment, scoped to the given event's teams.
+  getTeamSportDivisions: async (teamIds, sportName) => {
+    if (!teamIds || teamIds.length === 0) return [];
+    const data = await handleResponse(() => supabase.from("team_sports").select("team_id, sport_name, division_id").eq("sport_name", sportName).in("team_id", teamIds));
+    return data || [];
+  },
+  setTeamSportDivision: async (teamId, sportName, divisionId) => {
+    return handleResponse(() => supabase.from("team_sports").update({ division_id: divisionId || null }).eq("team_id", teamId).eq("sport_name", sportName).select());
+  },
+  // team_ids registered for `sportName` (used by the fixture generator to
+  // default the team list to teams actually entered in this sport).
+  getTeamIdsForSport: async (teamIds, sportName) => {
+    if (!teamIds || teamIds.length === 0) return [];
+    const data = await handleResponse(() => supabase.from("team_sports").select("team_id").eq("sport_name", sportName).in("team_id", teamIds));
+    return (data || []).map(row => row.team_id);
+  },
+  // Inserts many live_score_matches rows at once (used by the fixture
+  // generator). Returns the inserted rows.
+  bulkCreateMatches: async (rows) => {
+    if (!rows || rows.length === 0) return [];
+    const now = new Date().toISOString();
+    const payload = rows.map(r => ({ ...r, created_at: now, updated_at: now }));
+    const data = await handleResponse(() => supabase.from("live_score_matches").insert(payload).select());
+    return data || [];
+  }
+};
+
+// --- COMPETITION DIVISIONS API (sport/gender-separated standings groups) ---
+export const DivisionsAPI = {
+  getBySport: async (sportId) => {
+    const data = await handleResponse(() => supabase.from("competition_divisions").select("*").eq("sport_id", sportId).order("display_order", { ascending: true }).order("name", { ascending: true }));
+    return data || [];
+  },
+  save: async (division) => {
+    if (division.id) {
+      return handleResponse(() => supabase.from("competition_divisions").update(division).eq("id", division.id).select().single());
+    } else {
+      return handleResponse(() => supabase.from("competition_divisions").insert([division]).select().single());
+    }
+  },
+  delete: async (id) => {
+    return handleResponse(() => supabase.from("competition_divisions").delete().eq("id", id).select());
+  }
+};
+
+// --- MATCH EVENTS API (goal/point scorers) ---
+export const MatchEventsAPI = {
+  getByMatch: async (matchId) => {
+    const data = await handleResponse(() => supabase.from("match_events").select("*").eq("match_id", matchId).order("created_at", { ascending: true }));
+    return data || [];
+  },
+  getByEvent: async (eventId) => {
+    const data = await handleResponse(() => supabase.from("match_events").select("*").eq("event_id", eventId).order("created_at", { ascending: true }));
+    return data || [];
+  },
+  save: async (evt) => {
+    const dbEvt = { ...evt };
+    if (!dbEvt.id) {
+      delete dbEvt.id;
+      dbEvt.created_at = new Date().toISOString();
+    } else {
+      dbEvt.updated_at = new Date().toISOString();
+    }
+    if (evt.id) {
+      return handleResponse(() => supabase.from("match_events").update(dbEvt).eq("id", evt.id).select().single());
+    } else {
+      return handleResponse(() => supabase.from("match_events").insert([dbEvt]).select().single());
+    }
+  },
+  delete: async (id) => {
+    return handleResponse(() => supabase.from("match_events").delete().eq("id", id).select());
+  }
+};
+
+// --- PLAYER DISCIPLINARY RECORDS API (yellow/red cards) ---
+export const DisciplinaryAPI = {
+  getByMatch: async (matchId) => {
+    const data = await handleResponse(() => supabase.from("player_disciplinary_records").select("*").eq("match_id", matchId).order("created_at", { ascending: true }));
+    return data || [];
+  },
+  getByEvent: async (eventId) => {
+    const data = await handleResponse(() => supabase.from("player_disciplinary_records").select("*").eq("event_id", eventId).order("match_date", { ascending: false }));
+    return data || [];
+  },
+  getByPlayer: async (accreditationId) => {
+    const data = await handleResponse(() => supabase.from("player_disciplinary_records").select("*").eq("player_accreditation_id", accreditationId).order("match_date", { ascending: false }));
+    return data || [];
+  },
+  save: async (record) => {
+    const dbRecord = { ...record };
+    if (!dbRecord.id) {
+      delete dbRecord.id;
+      dbRecord.created_at = new Date().toISOString();
+    } else {
+      dbRecord.updated_at = new Date().toISOString();
+    }
+    if (record.id) {
+      return handleResponse(() => supabase.from("player_disciplinary_records").update(dbRecord).eq("id", record.id).select().single());
+    } else {
+      return handleResponse(() => supabase.from("player_disciplinary_records").insert([dbRecord]).select().single());
+    }
+  },
+  delete: async (id) => {
+    return handleResponse(() => supabase.from("player_disciplinary_records").delete().eq("id", id).select());
   }
 };
 

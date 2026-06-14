@@ -439,9 +439,9 @@ export const TeamPortalAPI = {
    * Get the win/draw/loss points league table for an event, optionally
    * scoped to a single live_score_sports.id.
    */
-  async getStandings(eventId, sportId) {
+  async getStandings(eventId, sportId, divisionId) {
     const { data, error } = await supabase
-      .rpc('get_team_standings', { p_event_id: eventId, p_sport_id: sportId || null });
+      .rpc('get_team_standings', { p_event_id: eventId, p_sport_id: sportId || null, p_division_id: divisionId || null });
 
     if (error) throw error;
     return data || [];

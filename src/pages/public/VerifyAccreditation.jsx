@@ -11,12 +11,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase";
 import { EventSettingsAPI, FormFieldSettingsAPI, BroadcastV2API, AthleteEventsAPI, GlobalSettingsAPI, HeatSheetMatrixAPI } from "../../lib/broadcastApi";
 import { AttendanceAPI } from "../../lib/attendanceApi";
-import { ConfigAPI, ZonesAPI, BookingsAPI, LiveScoresAPI } from "../../lib/storage";
+import { ConfigAPI, ZonesAPI, BookingsAPI, LiveScoresAPI, MatchEventsAPI } from "../../lib/storage";
 import { computeExpiryStatus, formatEventDateTime } from "../../lib/expiryUtils";
 import { getCountryFlag, getCountryCode3, COUNTRIES, calculateAge, cn, getThumbnailUrl } from "../../lib/utils";
 import { toast } from "sonner";
 import { createPortal } from "react-dom";
 import QRProfileGallery from "../../components/public/QRProfileGallery";
+import TeamBadge from "../../components/ui/TeamBadge";
 
 // Helper function to calculate exact split time between PB and Record
 const parseTimeSeconds = (timeStr) => {
@@ -167,6 +168,7 @@ export default function VerifyAccreditation() {
   const [liveScoreSettings, setLiveScoreSettings] = useState(null);
   const [liveSports, setLiveSports] = useState([]);
   const [liveMatches, setLiveMatches] = useState([]);
+  const [liveMatchEvents, setLiveMatchEvents] = useState({});
   const [collapsedSports, setCollapsedSports] = useState({});
   const [isLiveScoresExpanded, setIsLiveScoresExpanded] = useState(false);
   const [isLiveScoresLoaded, setIsLiveScoresLoaded] = useState(false);
@@ -176,12 +178,19 @@ export default function VerifyAccreditation() {
     if (!data?.event_id) return;
     setIsFetchingScores(true);
     try {
-      const [sports, matches] = await Promise.all([
+      const [sports, matches, matchEvents] = await Promise.all([
         LiveScoresAPI.getSports(data.event_id),
-        LiveScoresAPI.getMatches(data.event_id)
+        LiveScoresAPI.getMatchesWithTeams(data.event_id),
+        MatchEventsAPI.getByEvent(data.event_id)
       ]);
       setLiveSports(sports || []);
       setLiveMatches(matches || []);
+      const grouped = {};
+      (matchEvents || []).forEach(ev => {
+        if (!grouped[ev.match_id]) grouped[ev.match_id] = [];
+        grouped[ev.match_id].push(ev);
+      });
+      setLiveMatchEvents(grouped);
       setIsLiveScoresLoaded(true);
     } catch (err) {
       console.error("Live Scores Fetch Error:", err);
@@ -1564,14 +1573,19 @@ export default function VerifyAccreditation() {
                                 className="overflow-hidden"
                               >
                                 <div className="space-y-3 pt-1">
-                                  {sportMatches.map(match => (
+                                  {sportMatches.map(match => {
+                                    const isLive = match.status === "Live" || match.status === "Half Time / Break";
+                                    const showScore = isLive || match.status === "Finished";
+                                    return (
                                     <div key={match.id} className="bg-slate-50 border border-slate-100 rounded-xl p-3 flex flex-col gap-2">
                                       <div className="flex justify-between items-center">
                                         <span className={cn(
                                           "px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider",
                                           match.status === "Live" ? "bg-red-500 text-white animate-pulse" :
+                                          match.status === "Half Time / Break" ? "bg-amber-100 text-amber-600" :
                                           match.status === "Finished" ? "bg-slate-200 text-slate-500" :
                                           match.status === "Cancelled" ? "bg-red-100 text-red-600" :
+                                          match.status === "Postponed" ? "bg-amber-100 text-amber-600" :
                                           "bg-blue-100 text-blue-600"
                                         )}>
                                           {match.status}
@@ -1579,15 +1593,23 @@ export default function VerifyAccreditation() {
                                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{match.match_title}</span>
                                       </div>
                                       <div className="flex items-center justify-between gap-2">
-                                        <div className="flex-1 text-right">
+                                        <div className="flex-1 flex items-center justify-end gap-2 text-right">
                                           <p className="text-xs font-bold text-slate-800 truncate">{match.team_a_name || 'TBA'}</p>
+                                          <TeamBadge logoUrl={match.team_a_logo_url} country={match.team_a_country} name={match.team_a_name} size="sm" />
                                         </div>
-                                        <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-lg border border-slate-200 shadow-sm shrink-0">
-                                          <span className="text-sm font-black text-emerald-600">{match.team_a_score}</span>
-                                          <span className="text-[10px] text-slate-300">-</span>
-                                          <span className="text-sm font-black text-emerald-600">{match.team_b_score}</span>
-                                        </div>
-                                        <div className="flex-1 text-left">
+                                        {showScore ? (
+                                          <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-lg border border-slate-200 shadow-sm shrink-0">
+                                            <span className="text-sm font-black text-emerald-600">{match.team_a_score}</span>
+                                            <span className="text-[10px] text-slate-300">-</span>
+                                            <span className="text-sm font-black text-emerald-600">{match.team_b_score}</span>
+                                          </div>
+                                        ) : (
+                                          <div className="px-3 py-1 shrink-0">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase">vs</span>
+                                          </div>
+                                        )}
+                                        <div className="flex-1 flex items-center gap-2 text-left">
+                                          <TeamBadge logoUrl={match.team_b_logo_url} country={match.team_b_country} name={match.team_b_name} size="sm" />
                                           <p className="text-xs font-bold text-slate-800 truncate">{match.team_b_name || 'TBA'}</p>
                                         </div>
                                       </div>
@@ -1596,8 +1618,19 @@ export default function VerifyAccreditation() {
                                         <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {match.match_time}</span>
                                         <span>{match.venue}</span>
                                       </div>
+                                      {(liveMatchEvents[match.id] || []).length > 0 && (
+                                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[9px] font-semibold text-slate-500 border-t border-slate-100 pt-1.5 mt-1">
+                                          {liveMatchEvents[match.id].map(ev => (
+                                            <span key={ev.id} className="flex items-center gap-1">
+                                              <span className="text-emerald-600 font-bold">{ev.event_type}</span> {ev.player_name}
+                                              {ev.minute ? ` ${ev.minute}'` : ""}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
                                     </div>
-                                  ))}
+                                    );
+                                  })}
                                 </div>
                               </motion.div>
                             )}

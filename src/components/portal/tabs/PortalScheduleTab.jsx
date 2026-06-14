@@ -3,8 +3,9 @@ import { Calendar, Clock, MapPin, Trophy, ShieldAlert, Users } from "lucide-reac
 import Card from "../../ui/Card";
 import Badge from "../../ui/Badge";
 import EmptyState from "../../ui/EmptyState";
+import TeamBadge from "../../ui/TeamBadge";
 import { TeamPortalAPI } from "../../../services/teamPortalApi";
-import { LiveScoresAPI } from "../../../lib/storage";
+import { LiveScoresAPI, MatchEventsAPI, DivisionsAPI } from "../../../lib/storage";
 import { formatDate } from "../../../lib/utils";
 
 const STATUS_VARIANTS = {
@@ -23,10 +24,13 @@ const STANDINGS_LEGEND = "P = Played · W = Won · D = Drawn · L = Lost · GF =
 export default function PortalScheduleTab({ teamId = null, eventId }) {
   const [view, setView] = useState("fixtures");
   const [matches, setMatches] = useState([]);
+  const [matchEvents, setMatchEvents] = useState({});
   const [sports, setSports] = useState([]);
   const [selectedSportId, setSelectedSportId] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [scopeFilter, setScopeFilter] = useState("all"); // "all" | "mine"
+  const [divisions, setDivisions] = useState([]);
+  const [selectedDivisionId, setSelectedDivisionId] = useState("all");
   const [standings, setStandings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [standingsLoading, setStandingsLoading] = useState(false);
@@ -37,20 +41,35 @@ export default function PortalScheduleTab({ teamId = null, eventId }) {
   }, [teamId, eventId]);
 
   useEffect(() => {
-    if (eventId && selectedSportId) loadStandings(selectedSportId);
-  }, [eventId, selectedSportId]);
+    if (eventId && selectedSportId) loadStandings(selectedSportId, selectedDivisionId);
+  }, [eventId, selectedSportId, selectedDivisionId]);
+
+  useEffect(() => {
+    if (selectedSportId) {
+      setSelectedDivisionId("all");
+      DivisionsAPI.getBySport(selectedSportId).then(setDivisions).catch(() => setDivisions([]));
+    }
+  }, [selectedSportId]);
 
   const load = async () => {
     try {
       setLoading(true);
       setError(null);
-      const [matchesData, sportsData, teamSportsData] = await Promise.all([
-        LiveScoresAPI.getMatches(eventId),
+      const [matchesData, sportsData, teamSportsData, matchEventsData] = await Promise.all([
+        LiveScoresAPI.getMatchesWithTeams(eventId),
         LiveScoresAPI.getSports(eventId),
         teamId ? TeamPortalAPI.getPortalTeamSports(teamId) : Promise.resolve([]),
+        MatchEventsAPI.getByEvent(eventId),
       ]);
       setMatches(matchesData);
       setSports(sportsData);
+
+      const grouped = {};
+      (matchEventsData || []).forEach((ev) => {
+        if (!grouped[ev.match_id]) grouped[ev.match_id] = [];
+        grouped[ev.match_id].push(ev);
+      });
+      setMatchEvents(grouped);
 
       if (sportsData.length > 0) {
         const myNames = new Set((teamSportsData || []).map((s) => s.sport_name.toLowerCase()));
@@ -65,10 +84,10 @@ export default function PortalScheduleTab({ teamId = null, eventId }) {
     }
   };
 
-  const loadStandings = async (sportId) => {
+  const loadStandings = async (sportId, divisionId) => {
     try {
       setStandingsLoading(true);
-      const data = await TeamPortalAPI.getStandings(eventId, sportId);
+      const data = await TeamPortalAPI.getStandings(eventId, sportId, divisionId !== "all" ? divisionId : null);
       setStandings(data || []);
     } catch (err) {
       console.error(err);
@@ -155,6 +174,22 @@ export default function PortalScheduleTab({ teamId = null, eventId }) {
           </select>
         </div>
 
+        {view === "standings" && divisions.length > 0 && (
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-bold text-muted uppercase tracking-wider">Division</label>
+            <select
+              value={selectedDivisionId}
+              onChange={(e) => setSelectedDivisionId(e.target.value)}
+              className="px-3 py-1.5 bg-base border border-border rounded-lg text-sm text-main focus:outline-none focus:border-primary-500"
+            >
+              <option value="all">All Divisions</option>
+              {divisions.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}{d.gender ? ` (${d.gender})` : ""}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {view === "fixtures" && (
           <>
             <div className="flex items-center gap-2">
@@ -208,7 +243,10 @@ export default function PortalScheduleTab({ teamId = null, eventId }) {
                     {m.match_title && <span className="text-xs text-muted">{m.match_title}</span>}
                   </div>
                   <div className="flex items-center justify-center gap-3">
-                    <p className="font-semibold text-main text-right flex-1 truncate">{m.team_a_name || "TBA"}</p>
+                    <div className="flex items-center justify-end gap-2 flex-1 min-w-0">
+                      <p className="font-semibold text-main text-right truncate">{m.team_a_name || "TBA"}</p>
+                      <TeamBadge logoUrl={m.team_a_logo_url} country={m.team_a_country} name={m.team_a_name} size="sm" />
+                    </div>
                     {(m.status === "Live" || m.status === "Half Time / Break" || m.status === "Finished") ? (
                       <div className="text-center px-3 py-1.5 bg-base-alt/50 rounded-lg border border-border shrink-0">
                         <span className="text-lg font-black text-main">{m.team_a_score} - {m.team_b_score}</span>
@@ -216,7 +254,10 @@ export default function PortalScheduleTab({ teamId = null, eventId }) {
                     ) : (
                       <span className="text-xs font-bold text-muted shrink-0 px-3">vs</span>
                     )}
-                    <p className="font-semibold text-main flex-1 truncate">{m.team_b_name || "TBA"}</p>
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <TeamBadge logoUrl={m.team_b_logo_url} country={m.team_b_country} name={m.team_b_name} size="sm" />
+                      <p className="font-semibold text-main truncate">{m.team_b_name || "TBA"}</p>
+                    </div>
                   </div>
                   <div className="flex items-center justify-center gap-3 text-xs text-muted flex-wrap">
                     {m.match_date && (
@@ -235,6 +276,16 @@ export default function PortalScheduleTab({ teamId = null, eventId }) {
                       </span>
                     )}
                   </div>
+                  {(matchEvents[m.id] || []).length > 0 && (
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 justify-center text-xs text-muted border-t border-border/50 pt-2">
+                      {matchEvents[m.id].map((ev) => (
+                        <span key={ev.id} className="flex items-center gap-1">
+                          <span className="text-primary-500 font-semibold">{ev.event_type}</span> {ev.player_name}
+                          {ev.minute ? ` ${ev.minute}'` : ""}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
