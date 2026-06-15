@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { cn } from "../../lib/utils";
@@ -8,6 +9,7 @@ export default function Modal({
   onClose,
   title,
   children,
+  footer,
   size = "md",
   className
 }) {
@@ -30,7 +32,7 @@ export default function Modal({
     full: "max-w-6xl"
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -70,9 +72,15 @@ export default function Modal({
             <div className="overflow-y-auto flex-1 min-h-0">
               {children}
             </div>
+            {footer && (
+              <div className="shrink-0 border-t border-border bg-base-alt/50 px-6 py-4">
+                {footer}
+              </div>
+            )}
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

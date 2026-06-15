@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { Plus, Search, ShieldAlert, Filter, Building2, MapPin, Mail, Phone, Calendar, Trophy, List, Link2, Check, X } from "lucide-react";
+import { Plus, Search, ShieldAlert, Filter, Building2, MapPin, Mail, Phone, Calendar, Trophy, List, Link2, Check, X, Tags } from "lucide-react";
 import Card, { CardContent } from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
@@ -11,6 +11,7 @@ import { useAuth } from "../../../contexts/AuthContext";
 import { TeamAPI } from "../../../services/teamApi";
 import { EventsAPI } from "../../../lib/storage";
 import CreateTeamModal from "../../../components/teams/CreateTeamModal";
+import AssignSportsModal from "../../../components/teams/AssignSportsModal";
 import PortalScheduleTab from "../../../components/portal/tabs/PortalScheduleTab";
 import { formatDate } from "../../../lib/utils";
 
@@ -28,6 +29,9 @@ export default function TeamsDashboard() {
   const [error, setError] = useState(null);
   const [stats, setStats] = useState({ total: 0, active: 0, pending: 0, suspended: 0, rejected: 0 });
 
+  // team_id -> [{ sport_name, gender }]
+  const [teamSportsMap, setTeamSportsMap] = useState({});
+
   // Filters
   const [selectedEventId, setSelectedEventId] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -36,8 +40,12 @@ export default function TeamsDashboard() {
   // View mode: "teams" list vs event-wide "schedule" & standings
   const [viewMode, setViewMode] = useState("teams");
 
+  // Row selection for bulk sport assignment
+  const [selectedTeamIds, setSelectedTeamIds] = useState([]);
+
   // Modals
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [assignSportsModalOpen, setAssignSportsModalOpen] = useState(false);
 
   useEffect(() => {
     if (isAdmin) {
@@ -76,9 +84,18 @@ export default function TeamsDashboard() {
       setError(null);
       const data = await TeamAPI.getTeamsByEvent(eventId);
       setTeams(data);
-      
+      setSelectedTeamIds([]);
+
       const teamStats = await TeamAPI.getTeamStats(eventId);
       setStats(teamStats);
+
+      const sportsRows = await TeamAPI.getTeamSportsByEvent(eventId);
+      const map = {};
+      (sportsRows || []).forEach(row => {
+        if (!map[row.team_id]) map[row.team_id] = [];
+        map[row.team_id].push({ sport_name: row.sport_name, gender: row.gender });
+      });
+      setTeamSportsMap(map);
     } catch (err) {
       console.error("Failed to load teams", err);
       setError(err.message || "Failed to load teams");
@@ -128,12 +145,28 @@ export default function TeamsDashboard() {
   // Derived state for filtering
   const filteredTeams = useMemo(() => {
     return teams.filter(team => {
-      const matchesSearch = (team.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      const matchesSearch = (team.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                              team.short_name?.toLowerCase().includes(searchQuery.toLowerCase()));
       const matchesStatus = statusFilter === "all" || team.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
   }, [teams, searchQuery, statusFilter]);
+
+  const toggleTeamSelection = (teamId) => {
+    setSelectedTeamIds(prev =>
+      prev.includes(teamId) ? prev.filter(id => id !== teamId) : [...prev, teamId]
+    );
+  };
+
+  const toggleSelectAllVisible = () => {
+    const visibleIds = filteredTeams.map(t => t.id);
+    const allSelected = visibleIds.length > 0 && visibleIds.every(id => selectedTeamIds.includes(id));
+    setSelectedTeamIds(allSelected ? [] : visibleIds);
+  };
+
+  const handleSportsAssigned = () => {
+    if (selectedEventId) loadTeams(selectedEventId);
+  };
 
 
   if (!isAdmin) {
@@ -172,6 +205,10 @@ export default function TeamsDashboard() {
           
           <Button onClick={handleCopyRegistrationLink} variant="ghost" icon={Link2} disabled={!selectedEventId}>
             Copy Registration Link
+          </Button>
+
+          <Button onClick={() => setAssignSportsModalOpen(true)} variant="secondary" icon={Tags} disabled={!selectedEventId || teams.length === 0}>
+            Assign Sports
           </Button>
 
           <Button onClick={() => setCreateModalOpen(true)} icon={Plus}>
@@ -336,9 +373,18 @@ export default function TeamsDashboard() {
             <table className="w-full text-left text-sm whitespace-nowrap">
               <thead>
                 <tr className="bg-base-alt/30 border-b border-border">
+                  <th className="px-4 py-4 font-medium text-muted w-10">
+                    <input
+                      type="checkbox"
+                      checked={filteredTeams.length > 0 && filteredTeams.every(t => selectedTeamIds.includes(t.id))}
+                      onChange={toggleSelectAllVisible}
+                      className="w-4 h-4 accent-primary-500 cursor-pointer"
+                    />
+                  </th>
                   <th className="px-6 py-4 font-medium text-muted">Team Name</th>
                   <th className="px-6 py-4 font-medium text-muted">Location</th>
                   <th className="px-6 py-4 font-medium text-muted">Contact</th>
+                  <th className="px-6 py-4 font-medium text-muted">Sports</th>
                   <th className="px-6 py-4 font-medium text-muted">Status</th>
                   <th className="px-6 py-4 font-medium text-muted text-right">Added</th>
                   <th className="px-6 py-4 font-medium text-muted text-right">Actions</th>
@@ -346,11 +392,19 @@ export default function TeamsDashboard() {
               </thead>
               <tbody className="divide-y divide-border">
                 {filteredTeams.map((team) => (
-                  <tr 
-                    key={team.id} 
+                  <tr
+                    key={team.id}
                     onClick={() => navigate(`/admin/teams/${team.id}`)}
                     className="hover:bg-base-alt/50 transition-colors group cursor-pointer"
                   >
+                    <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedTeamIds.includes(team.id)}
+                        onChange={() => toggleTeamSelection(team.id)}
+                        className="w-4 h-4 accent-primary-500 cursor-pointer"
+                      />
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         {team.logo_url ? (
@@ -398,6 +452,19 @@ export default function TeamsDashboard() {
                       )}
                     </td>
                     <td className="px-6 py-4">
+                      {teamSportsMap[team.id]?.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5 max-w-[220px]">
+                          {teamSportsMap[team.id].map((s, i) => (
+                            <Badge key={i} variant="muted">
+                              {s.sport_name}{s.gender ? ` (${s.gender})` : ""}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-muted italic text-xs">No sports assigned</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
                       <Badge
                         variant={
                           team.status === 'active' ? 'success' :
@@ -441,12 +508,21 @@ export default function TeamsDashboard() {
         )}
       </Card>
 
-      <CreateTeamModal 
-        isOpen={createModalOpen} 
+      <CreateTeamModal
+        isOpen={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
         onSubmit={handleCreateTeam}
         events={events}
         defaultEventId={selectedEventId}
+      />
+
+      <AssignSportsModal
+        isOpen={assignSportsModalOpen}
+        onClose={() => setAssignSportsModalOpen(false)}
+        eventId={selectedEventId}
+        teams={teams}
+        selectedTeamIds={selectedTeamIds}
+        onAssigned={handleSportsAssigned}
       />
     </div>
   );

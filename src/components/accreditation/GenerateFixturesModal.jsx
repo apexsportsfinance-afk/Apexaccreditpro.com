@@ -188,7 +188,20 @@ export default function GenerateFixturesModal({ isOpen, onClose, sport, eventId,
   if (!sport) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Generate Fixtures — ${sport.sport_name}${sport.gender ? ` (${sport.gender})` : ""}`} size="lg">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={`Generate Fixtures — ${sport.sport_name}${sport.gender ? ` (${sport.gender})` : ""}`}
+      size="lg"
+      footer={
+        <div className="flex justify-end gap-3">
+          <Button onClick={onClose} className="bg-slate-800 hover:bg-slate-700 text-white">Cancel</Button>
+          <Button onClick={handleGenerate} loading={generating} variant="primary" icon={Wand2}>
+            {(format === "Custom" || format === "Individual") ? "Save Format" : "Generate Fixtures"}
+          </Button>
+        </div>
+      }
+    >
       <div className="p-6 space-y-5 bg-slate-900 text-white">
         <div className="flex items-start gap-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-200 text-xs">
           <Info className="w-4 h-4 shrink-0 mt-0.5" />
@@ -347,13 +360,6 @@ export default function GenerateFixturesModal({ isOpen, onClose, sport, eventId,
             </div>
           </>
         )}
-
-        <div className="flex justify-end gap-3 pt-2 border-t border-white/10">
-          <Button onClick={onClose} className="bg-slate-800 hover:bg-slate-700 text-white">Cancel</Button>
-          <Button onClick={handleGenerate} loading={generating} variant="primary" icon={Wand2}>
-            {(format === "Custom" || format === "Individual") ? "Save Format" : "Generate Fixtures"}
-          </Button>
-        </div>
       </div>
     </Modal>
   );

@@ -519,9 +519,15 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                 <option value="Women">Women</option>
                 <option value="Mixed">Mixed</option>
               </select>
-              <Button onClick={handleAddSport} disabled={isSettingsDisabled} className="bg-blue-600 hover:bg-blue-500 text-white p-2">
+              <button
+                type="button"
+                onClick={handleAddSport}
+                disabled={isSettingsDisabled || !newSport.sport_name.trim()}
+                className="shrink-0 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg px-3 flex items-center justify-center transition-colors"
+                title="Add Sport"
+              >
                 <Plus className="w-4 h-4" />
-              </Button>
+              </button>
             </div>
             <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
               {sports.map(s => (

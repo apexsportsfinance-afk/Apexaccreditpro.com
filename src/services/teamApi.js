@@ -388,6 +388,58 @@ export const TeamAPI = {
   },
 
   /**
+   * Get registered sports (sport_name, gender) for every team in an event,
+   * keyed by team_id. Used by the Teams list to show each team's sports
+   * without opening its profile.
+   */
+  async getTeamSportsByEvent(eventId) {
+    const { data, error } = await supabase
+      .from('team_sports')
+      .select('team_id, sport_name, gender')
+      .eq('event_id', eventId);
+
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Assign a sport (with optional gender) to multiple teams at once.
+   * Skips teams that already have this exact sport_name + gender combo.
+   */
+  async bulkAssignSport(teamIds, eventId, sportName, gender) {
+    if (!teamIds || teamIds.length === 0) return [];
+    const normalizedGender = gender || null;
+
+    const { data: existing, error: fetchError } = await supabase
+      .from('team_sports')
+      .select('team_id, gender')
+      .eq('sport_name', sportName)
+      .in('team_id', teamIds);
+
+    if (fetchError) throw fetchError;
+
+    const existingTeamIds = new Set(
+      (existing || [])
+        .filter(row => (row.gender || null) === normalizedGender)
+        .map(row => row.team_id)
+    );
+
+    const rowsToInsert = teamIds
+      .filter(id => !existingTeamIds.has(id))
+      .map(id => ({ team_id: id, event_id: eventId, sport_name: sportName, gender: normalizedGender }));
+
+    if (rowsToInsert.length === 0) return [];
+
+    const { data, error } = await supabase
+      .from('team_sports')
+      .insert(rowsToInsert)
+      .select();
+
+    if (error) throw error;
+    return data;
+  },
+
+  /**
    * Get uploaded documents for a team
    */
   async getTeamDocuments(teamId) {
