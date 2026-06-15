@@ -76,10 +76,11 @@ export default function PortalSportsTab({ teamId }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-main truncate">{sport.sport_name}</h3>
-                  <div className="mt-1">
+                  <div className="mt-1 flex items-center gap-2 flex-wrap">
                     <Badge variant={sport.status === 'active' ? 'success' : 'warning'}>
                       {(sport.status || 'active').toUpperCase()}
                     </Badge>
+                    {sport.gender && <Badge variant="muted">{sport.gender}</Badge>}
                   </div>
                 </div>
               </div>

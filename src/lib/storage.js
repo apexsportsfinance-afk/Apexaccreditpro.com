@@ -1767,11 +1767,17 @@ export const LiveScoresAPI = {
     return handleResponse(() => supabase.from("team_sports").update({ division_id: divisionId || null }).eq("team_id", teamId).eq("sport_name", sportName).select());
   },
   // team_ids registered for `sportName` (used by the fixture generator to
-  // default the team list to teams actually entered in this sport).
-  getTeamIdsForSport: async (teamIds, sportName) => {
+  // restrict the team list to teams actually entered in this sport). If
+  // `gender` is provided, teams whose team_sports.gender is set and differs
+  // from it are excluded (teams with no gender set are still included).
+  getTeamIdsForSport: async (teamIds, sportName, gender) => {
     if (!teamIds || teamIds.length === 0) return [];
-    const data = await handleResponse(() => supabase.from("team_sports").select("team_id").eq("sport_name", sportName).in("team_id", teamIds));
-    return (data || []).map(row => row.team_id);
+    const data = await handleResponse(() => supabase.from("team_sports").select("team_id, gender").eq("sport_name", sportName).in("team_id", teamIds));
+    let rows = data || [];
+    if (gender) {
+      rows = rows.filter(row => !row.gender || row.gender === gender);
+    }
+    return rows.map(row => row.team_id);
   },
   // Inserts many live_score_matches rows at once (used by the fixture
   // generator). Returns the inserted rows.

@@ -27,7 +27,7 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const [newSport, setNewSport] = useState({ sport_name: "" });
+  const [newSport, setNewSport] = useState({ sport_name: "", gender: "" });
   const [editingMatch, setEditingMatch] = useState(null);
 
   const [standingsSportId, setStandingsSportId] = useState("");
@@ -234,9 +234,9 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
   const handleAddSport = async () => {
     if (isSettingsDisabled || !newSport.sport_name.trim()) return;
     try {
-      const added = await LiveScoresAPI.saveSport({ event_id: eventId, sport_name: newSport.sport_name.trim() });
+      const added = await LiveScoresAPI.saveSport({ event_id: eventId, sport_name: newSport.sport_name.trim(), gender: newSport.gender || null });
       setSports([...sports, added]);
-      setNewSport({ sport_name: "" });
+      setNewSport({ sport_name: "", gender: "" });
       toast.success("Sport added");
     } catch (err) {
       toast.error("Failed to add sport");
@@ -504,10 +504,21 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                 type="text"
                 placeholder="New Sport Name"
                 value={newSport.sport_name}
-                onChange={e => setNewSport({ sport_name: e.target.value })}
+                onChange={e => setNewSport({ ...newSport, sport_name: e.target.value })}
                 disabled={isSettingsDisabled}
                 className="flex-1 bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
               />
+              <select
+                value={newSport.gender}
+                onChange={e => setNewSport({ ...newSport, gender: e.target.value })}
+                disabled={isSettingsDisabled}
+                className="bg-slate-800 border border-white/10 rounded-lg px-2 py-2 text-white text-sm outline-none"
+              >
+                <option value="">No Gender</option>
+                <option value="Men">Men</option>
+                <option value="Women">Women</option>
+                <option value="Mixed">Mixed</option>
+              </select>
               <Button onClick={handleAddSport} disabled={isSettingsDisabled} className="bg-blue-600 hover:bg-blue-500 text-white p-2">
                 <Plus className="w-4 h-4" />
               </Button>
@@ -516,7 +527,7 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
               {sports.map(s => (
                 <div key={s.id} className="flex items-center justify-between bg-slate-800/50 p-2 rounded-lg border border-white/5">
                   <div className="flex flex-col min-w-0">
-                    <span className="text-white text-sm font-medium truncate">{s.sport_name}</span>
+                    <span className="text-white text-sm font-medium truncate">{s.sport_name}{s.gender ? ` (${s.gender})` : ""}</span>
                     <span className="text-[10px] text-slate-500 uppercase tracking-widest">{s.format || "Custom (Manual)"}</span>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
@@ -563,7 +574,7 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                     className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
                   >
                     <option value="">Select Sport...</option>
-                    {sports.map(s => <option key={s.id} value={s.id}>{s.sport_name}</option>)}
+                    {sports.map(s => <option key={s.id} value={s.id}>{s.sport_name}{s.gender ? ` (${s.gender})` : ""}</option>)}
                   </select>
                 </div>
                 
@@ -771,7 +782,7 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                 className="bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
               >
                 <option value="all">All Sports</option>
-                {sports.map(s => <option key={s.id} value={s.id}>{s.sport_name}</option>)}
+                {sports.map(s => <option key={s.id} value={s.id}>{s.sport_name}{s.gender ? ` (${s.gender})` : ""}</option>)}
               </select>
             </div>
             <div className="flex flex-col gap-2 min-w-[140px]">
@@ -846,7 +857,7 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                       className="w-full flex items-center justify-between group"
                     >
                       <h3 className="text-sm font-black text-white uppercase tracking-widest group-hover:text-emerald-400 transition-colors flex items-center gap-2">
-                        {sport.sport_name}
+                        {sport.sport_name}{sport.gender ? ` (${sport.gender})` : ""}
                         <span className="bg-white/10 text-white/50 px-2 py-0.5 rounded-full text-[10px]">{sportMatches.length} Matches</span>
                       </h3>
                       <div className="p-1 rounded-md bg-white/5 group-hover:bg-white/10 transition-colors">
@@ -990,7 +1001,7 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                 onChange={e => setStandingsSportId(e.target.value)}
                 className="bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
               >
-                {sports.map(s => <option key={s.id} value={s.id}>{s.sport_name}</option>)}
+                {sports.map(s => <option key={s.id} value={s.id}>{s.sport_name}{s.gender ? ` (${s.gender})` : ""}</option>)}
               </select>
               {divisions.length > 0 && (
                 <select

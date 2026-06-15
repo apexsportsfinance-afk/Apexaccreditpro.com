@@ -273,10 +273,16 @@ export function generateDoubleElimination(teams) {
 
 // --- Groups + Knockout / Pool Play ---------------------------------------------
 
-export function generateGroups(teams, { numGroups = 2, advancePerGroup = 2, label = "Group" } = {}) {
+export function generateGroups(teams, { numGroups = 2, advancePerGroup = 2, label = "Group", groups: customGroups = null } = {}) {
   numGroups = Math.max(1, Math.min(numGroups, teams.length));
-  const groups = Array.from({ length: numGroups }, () => []);
-  teams.forEach((t, i) => groups[i % numGroups].push(t));
+
+  let groups;
+  if (customGroups && customGroups.length > 0) {
+    groups = customGroups;
+  } else {
+    groups = Array.from({ length: numGroups }, () => []);
+    teams.forEach((t, i) => groups[i % numGroups].push(t));
+  }
 
   const matches = [];
   let maxRoundOffset = -1;
@@ -356,6 +362,7 @@ export function generateFixtures(format, teams, options = {}) {
         numGroups: options.numGroups || 2,
         advancePerGroup: options.advancePerGroup ?? 2,
         label: options.groupLabel || "Group",
+        groups: options.manualGroups || null,
       });
     case "Single Elimination":
       return generateSingleElimination(teams);

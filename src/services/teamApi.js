@@ -358,13 +358,14 @@ export const TeamAPI = {
   /**
    * Add a registered sport to a team
    */
-  async addTeamSport(teamId, eventId, sportName) {
+  async addTeamSport(teamId, eventId, sportName, gender) {
     const { data, error } = await supabase
       .from('team_sports')
       .insert([{
         team_id: teamId,
         event_id: eventId,
-        sport_name: sportName
+        sport_name: sportName,
+        gender: gender || null
       }])
       .select()
       .single();

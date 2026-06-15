@@ -13,6 +13,7 @@ export default function TeamSportsTab({ teamId, eventId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [newSport, setNewSport] = useState("");
+  const [newGender, setNewGender] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const toast = useToast();
 
@@ -49,9 +50,10 @@ export default function TeamSportsTab({ teamId, eventId }) {
 
     try {
       setIsAdding(true);
-      const addedSport = await TeamAPI.addTeamSport(teamId, eventId, newSport.trim());
+      const addedSport = await TeamAPI.addTeamSport(teamId, eventId, newSport.trim(), newGender || null);
       setSports(prev => [...prev, addedSport]);
       setNewSport("");
+      setNewGender("");
       toast.success("Sport added successfully");
     } catch (err) {
       console.error(err);
@@ -101,12 +103,22 @@ export default function TeamSportsTab({ teamId, eventId }) {
           <p className="text-sm text-muted">Sports this team is actively participating in.</p>
         </div>
         <form onSubmit={handleAddSport} className="flex items-end gap-2">
-          <Input 
+          <Input
             placeholder="e.g. Football"
             value={newSport}
             onChange={(e) => setNewSport(e.target.value)}
             className="w-48"
           />
+          <select
+            value={newGender}
+            onChange={(e) => setNewGender(e.target.value)}
+            className="px-3 py-2 bg-base border border-border rounded-lg text-sm text-main focus:outline-none focus:border-primary-500 transition-colors h-[42px]"
+          >
+            <option value="">No Gender</option>
+            <option value="Men">Men</option>
+            <option value="Women">Women</option>
+            <option value="Mixed">Mixed</option>
+          </select>
           <Button type="submit" loading={isAdding} disabled={!newSport.trim() || isAdding}>
             Add Sport
           </Button>
@@ -128,7 +140,10 @@ export default function TeamSportsTab({ teamId, eventId }) {
                   <div className="w-10 h-10 rounded-full bg-primary-500/10 flex items-center justify-center">
                     <Trophy className="w-5 h-5 text-primary-500" />
                   </div>
-                  <span className="font-semibold text-main">{sport.sport_name}</span>
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-main">{sport.sport_name}</span>
+                    {sport.gender && <span className="text-xs text-muted">{sport.gender}</span>}
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <Badge variant={(!sport.status || sport.status === 'active') ? 'success' : 'warning'}>

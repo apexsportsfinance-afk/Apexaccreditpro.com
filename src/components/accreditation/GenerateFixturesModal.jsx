@@ -20,6 +20,8 @@ export default function GenerateFixturesModal({ isOpen, onClose, sport, eventId,
   const [numConferences, setNumConferences] = useState(2);
   const [useDivisions, setUseDivisions] = useState(false);
   const [selectedTeamIds, setSelectedTeamIds] = useState([]);
+  const [eligibleTeamIds, setEligibleTeamIds] = useState([]);
+  const [groupAssignments, setGroupAssignments] = useState({});
   const [startDate, setStartDate] = useState(new Date().toISOString().split("T")[0]);
   const [daysBetweenRounds, setDaysBetweenRounds] = useState(7);
   const [venue, setVenue] = useState("");
@@ -35,19 +37,27 @@ export default function GenerateFixturesModal({ isOpen, onClose, sport, eventId,
     setAdvancePerGroup(sport.format_config?.advancePerGroup ?? 2);
     setNumConferences(sport.format_config?.numConferences || 2);
     setUseDivisions(false);
+    setGroupAssignments({});
     setStartDate(new Date().toISOString().split("T")[0]);
     setDaysBetweenRounds(7);
     setVenue("");
 
     (async () => {
       try {
-        const registeredIds = await LiveScoresAPI.getTeamIdsForSport(teams.map(t => t.id), sport.sport_name);
-        setSelectedTeamIds(registeredIds.length > 0 ? registeredIds : teams.map(t => t.id));
+        const registeredIds = await LiveScoresAPI.getTeamIdsForSport(teams.map(t => t.id), sport.sport_name, sport.gender);
+        setEligibleTeamIds(registeredIds);
+        setSelectedTeamIds(registeredIds);
       } catch {
-        setSelectedTeamIds(teams.map(t => t.id));
+        setEligibleTeamIds([]);
+        setSelectedTeamIds([]);
       }
     })();
   }, [isOpen, sport]);
+
+  const eligibleTeams = useMemo(
+    () => eligibleTeamIds.map(id => teams.find(t => t.id === id)).filter(Boolean),
+    [eligibleTeamIds, teams]
+  );
 
   const selectedTeams = useMemo(
     () => selectedTeamIds.map(id => teams.find(t => t.id === id)).filter(Boolean).map(t => ({ id: t.id, name: t.name })),
@@ -65,13 +75,45 @@ export default function GenerateFixturesModal({ isOpen, onClose, sport, eventId,
     return Array.from(map.values()).filter(g => g.length > 0);
   }, [useDivisions, hasUsableDivisions, selectedTeams, teamDivisions]);
 
+  // Manual per-team group assignments for "Groups + Knockout". Teams without
+  // an explicit assignment are distributed evenly across the remaining groups.
+  const manualGroups = useMemo(() => {
+    if (format !== "Groups + Knockout") return null;
+    const n = Math.max(1, Number(numGroups) || 2);
+    const hasManual = selectedTeams.some(t => {
+      const g = groupAssignments[t.id];
+      return g !== undefined && g !== null && g !== "" && Number(g) < n;
+    });
+    if (!hasManual) return null;
+
+    const groups = Array.from({ length: n }, () => []);
+    const unassigned = [];
+    selectedTeams.forEach(t => {
+      const g = groupAssignments[t.id];
+      if (g !== undefined && g !== null && g !== "" && Number(g) < n) {
+        groups[Number(g)].push(t);
+      } else {
+        unassigned.push(t);
+      }
+    });
+    unassigned.forEach(t => {
+      let minIdx = 0;
+      for (let i = 1; i < n; i++) {
+        if (groups[i].length < groups[minIdx].length) minIdx = i;
+      }
+      groups[minIdx].push(t);
+    });
+    return groups;
+  }, [format, selectedTeams, groupAssignments, numGroups]);
+
   const options = useMemo(() => ({
     doubleRound,
     numGroups: Number(numGroups) || 2,
     advancePerGroup: Number(advancePerGroup) || 0,
     numConferences: Number(numConferences) || 2,
     divisionGroups,
-  }), [doubleRound, numGroups, advancePerGroup, numConferences, divisionGroups]);
+    manualGroups,
+  }), [doubleRound, numGroups, advancePerGroup, numConferences, divisionGroups, manualGroups]);
 
   const preview = useMemo(() => {
     if (format === "Custom" || selectedTeams.length < 2) return [];
@@ -86,8 +128,11 @@ export default function GenerateFixturesModal({ isOpen, onClose, sport, eventId,
     setSelectedTeamIds(prev => prev.includes(teamId) ? prev.filter(id => id !== teamId) : [...prev, teamId]);
   };
 
-  const selectAll = () => setSelectedTeamIds(teams.map(t => t.id));
+  const selectAll = () => setSelectedTeamIds(eligibleTeamIds);
   const selectNone = () => setSelectedTeamIds([]);
+  const setTeamGroup = (teamId, groupValue) => {
+    setGroupAssignments(prev => ({ ...prev, [teamId]: groupValue }));
+  };
   const shuffleOrder = () => {
     setSelectedTeamIds(prev => {
       const arr = [...prev];
@@ -143,7 +188,7 @@ export default function GenerateFixturesModal({ isOpen, onClose, sport, eventId,
   if (!sport) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Generate Fixtures — ${sport.sport_name}`} size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title={`Generate Fixtures — ${sport.sport_name}${sport.gender ? ` (${sport.gender})` : ""}`} size="lg">
       <div className="p-6 space-y-5 bg-slate-900 text-white">
         <div className="flex items-start gap-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-200 text-xs">
           <Info className="w-4 h-4 shrink-0 mt-0.5" />
@@ -239,6 +284,12 @@ export default function GenerateFixturesModal({ isOpen, onClose, sport, eventId,
                   </button>
                 </div>
               </div>
+              {format === "Groups + Knockout" && eligibleTeams.length > 0 && (
+                <p className="text-[11px] text-slate-500">
+                  Optionally assign each team to a specific group below. Teams left on "Auto" are
+                  distributed evenly across the remaining groups.
+                </p>
+              )}
               <div className="max-h-44 overflow-y-auto space-y-1 pr-1">
                 {selectedTeamIds.map((id, i) => {
                   const team = teams.find(t => t.id === id);
@@ -247,18 +298,34 @@ export default function GenerateFixturesModal({ isOpen, onClose, sport, eventId,
                     <div key={id} className="flex items-center gap-2 bg-slate-800/50 border border-white/5 rounded-lg px-2 py-1.5">
                       <span className="text-[10px] text-slate-500 w-5 text-center">{i + 1}</span>
                       <span className="flex-1 text-sm text-white truncate">{team.name}</span>
+                      {format === "Groups + Knockout" && (
+                        <select
+                          value={groupAssignments[id] ?? ""}
+                          onChange={e => setTeamGroup(id, e.target.value)}
+                          className="bg-slate-900 border border-white/10 rounded-lg px-1.5 py-1 text-white text-xs outline-none"
+                        >
+                          <option value="">Auto</option>
+                          {Array.from({ length: Math.max(1, Number(numGroups) || 2) }, (_, gi) => (
+                            <option key={gi} value={gi}>Group {String.fromCharCode(65 + gi)}</option>
+                          ))}
+                        </select>
+                      )}
                       <button type="button" onClick={() => toggleTeam(id)} className="text-xs text-red-400 hover:underline">Remove</button>
                     </div>
                   );
                 })}
-                {teams.filter(t => !selectedTeamIds.includes(t.id)).map(team => (
+                {eligibleTeams.filter(t => !selectedTeamIds.includes(t.id)).map(team => (
                   <div key={team.id} className="flex items-center gap-2 bg-slate-900/40 border border-white/5 rounded-lg px-2 py-1.5 opacity-60">
                     <span className="w-5" />
                     <span className="flex-1 text-sm text-slate-400 truncate">{team.name}</span>
                     <button type="button" onClick={() => toggleTeam(team.id)} className="text-xs text-emerald-400 hover:underline">Add</button>
                   </div>
                 ))}
-                {teams.length === 0 && <p className="text-xs text-slate-500">No teams registered for this event yet.</p>}
+                {eligibleTeams.length === 0 && (
+                  <p className="text-xs text-slate-500">
+                    No teams have {sport.sport_name}{sport.gender ? ` (${sport.gender})` : ""} registered as a sport yet.
+                  </p>
+                )}
               </div>
             </div>
 
