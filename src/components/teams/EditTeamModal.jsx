@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { X, Building2, MapPin, Phone, Mail, User, Upload, Loader2, ImageOff, ChevronDown } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Building2, MapPin, Phone, Mail, User, Upload, Loader2, ImageOff, ChevronDown } from "lucide-react";
 import Modal from "../ui/Modal";
 import Input from "../ui/Input";
 import Button from "../ui/Button";
@@ -7,9 +7,8 @@ import { useToast } from "../ui/Toast";
 import { uploadToStorage } from "../../lib/uploadToStorage";
 import { COUNTRIES, UAE_EMIRATES, getDialCode, validatePhoneForCountry } from "../../lib/utils";
 
-export default function CreateTeamModal({ isOpen, onClose, onSubmit, events, defaultEventId }) {
+export default function EditTeamModal({ isOpen, onClose, onSubmit, team }) {
   const [formData, setFormData] = useState({
-    event_id: defaultEventId || "",
     name: "",
     short_name: "",
     country: "",
@@ -17,13 +16,26 @@ export default function CreateTeamModal({ isOpen, onClose, onSubmit, events, def
     contact_name: "",
     contact_email: "",
     contact_phone: "",
-    logo_url: "",
-    status: "pending",
-    notes: ""
+    logo_url: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const toast = useToast();
+
+  useEffect(() => {
+    if (team) {
+      setFormData({
+        name: team.name || "",
+        short_name: team.short_name || "",
+        country: team.country || "",
+        city: team.city || "",
+        contact_name: team.contact_name || "",
+        contact_email: team.contact_email || "",
+        contact_phone: team.contact_phone || "",
+        logo_url: team.logo_url || ""
+      });
+    }
+  }, [team]);
 
   const handleLogoUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -43,7 +55,7 @@ export default function CreateTeamModal({ isOpen, onClose, onSubmit, events, def
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.event_id) return;
+    if (!formData.name) return;
 
     const phoneError = validatePhoneForCountry(formData.contact_phone, formData.country);
     if (phoneError) {
@@ -55,20 +67,6 @@ export default function CreateTeamModal({ isOpen, onClose, onSubmit, events, def
     try {
       await onSubmit(formData);
       onClose();
-      // Reset form
-      setFormData({
-        event_id: defaultEventId || "",
-        name: "",
-        short_name: "",
-        country: "",
-        city: "",
-        contact_name: "",
-        contact_email: "",
-        contact_phone: "",
-        logo_url: "",
-        status: "pending",
-        notes: ""
-      });
     } catch (error) {
       console.error(error);
     } finally {
@@ -80,26 +78,10 @@ export default function CreateTeamModal({ isOpen, onClose, onSubmit, events, def
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Create New Team"
+      title="Edit Team"
       size="xl"
     >
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Event Selection */}
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-main">Event <span className="text-red-500">*</span></label>
-          <select
-            value={formData.event_id}
-            onChange={(e) => setFormData(prev => ({ ...prev, event_id: e.target.value }))}
-            className="w-full bg-base-alt border border-border rounded-xl px-4 py-2.5 text-main focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all"
-            required
-          >
-            <option value="">Select an Event</option>
-            {events.map(event => (
-              <option key={event.id} value={event.id}>{event.name}</option>
-            ))}
-          </select>
-        </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
             label="Team / University Name"
@@ -200,21 +182,7 @@ export default function CreateTeamModal({ isOpen, onClose, onSubmit, events, def
           </div>
         </div>
 
-        <div className="border-t border-border pt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-main">Status</label>
-            <select
-              value={formData.status}
-              onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
-              className="w-full bg-base-alt border border-border rounded-xl px-4 py-2.5 text-main focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all"
-            >
-              <option value="pending">Pending</option>
-              <option value="active">Active</option>
-              <option value="suspended">Suspended</option>
-              <option value="completed">Completed</option>
-            </select>
-          </div>
-          
+        <div className="border-t border-border pt-4">
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-main">Team Logo (Optional)</label>
             <div className="flex items-center gap-3">
@@ -254,22 +222,12 @@ export default function CreateTeamModal({ isOpen, onClose, onSubmit, events, def
           </div>
         </div>
 
-        <div className="space-y-1.5 border-t border-border pt-4">
-          <label className="text-sm font-medium text-main">Internal Notes</label>
-          <textarea
-            value={formData.notes}
-            onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-            className="w-full bg-base-alt border border-border rounded-xl px-4 py-3 text-main focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all resize-none h-24"
-            placeholder="Add any internal administrative notes here..."
-          />
-        </div>
-
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
           </Button>
           <Button type="submit" variant="primary" loading={isSubmitting}>
-            Create Team
+            Save Changes
           </Button>
         </div>
       </form>

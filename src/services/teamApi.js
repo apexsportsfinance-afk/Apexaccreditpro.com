@@ -139,6 +139,27 @@ export const TeamAPI = {
   },
 
   /**
+   * Public self-registration: submit a new team for an event via the
+   * SECURITY DEFINER RPC. Status is always forced to 'pending' server-side.
+   */
+  async submitPublicTeamRegistration(payload) {
+    const { data, error } = await supabase.rpc('submit_team_registration', {
+      p_event_id: payload.event_id,
+      p_name: payload.name,
+      p_short_name: payload.short_name || null,
+      p_country: payload.country || null,
+      p_city: payload.city || null,
+      p_contact_name: payload.contact_name || null,
+      p_contact_email: payload.contact_email || null,
+      p_contact_phone: payload.contact_phone || null,
+      p_logo_url: payload.logo_url || null,
+    });
+
+    if (error) throw error;
+    return data;
+  },
+
+  /**
    * Update an existing team
    */
   async updateTeam(teamId, teamData) {
@@ -182,12 +203,14 @@ export const TeamAPI = {
       active: 0,
       pending: 0,
       suspended: 0,
+      rejected: 0,
     };
 
     data.forEach(team => {
       if (team.status === 'active') stats.active++;
       else if (team.status === 'pending') stats.pending++;
       else if (team.status === 'suspended') stats.suspended++;
+      else if (team.status === 'rejected') stats.rejected++;
     });
 
     return stats;

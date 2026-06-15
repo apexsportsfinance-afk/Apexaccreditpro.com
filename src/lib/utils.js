@@ -150,6 +150,79 @@ export const ROLE_GROUPS = {
   "VIP": ["Guest", "Sponsor Representative", "Dignitary", "VIP"]
 };
 
+// UAE emirates - used as a dependent "City / Emirate" dropdown when
+// Country is set to "United Arab Emirates".
+export const UAE_EMIRATES = [
+  "Abu Dhabi",
+  "Dubai",
+  "Sharjah",
+  "Ajman",
+  "Umm Al Quwain",
+  "Ras Al Khaimah",
+  "Fujairah"
+];
+
+// ISO 3166-1 alpha-2 -> international calling code, keyed off COUNTRIES[].code.
+// Used to auto-fill and validate the "Contact Phone" field against the
+// selected Country.
+export const COUNTRY_DIAL_CODES = {
+  AF: "+93", AL: "+355", DZ: "+213", AD: "+376", AO: "+244", AG: "+1",
+  AR: "+54", AM: "+374", AU: "+61", AT: "+43", AZ: "+994", BS: "+1",
+  BH: "+973", BD: "+880", BB: "+1", BY: "+375", BE: "+32", BZ: "+501",
+  BJ: "+229", BT: "+975", BO: "+591", BA: "+387", BW: "+267", BR: "+55",
+  BN: "+673", BG: "+359", BF: "+226", BI: "+257", KH: "+855", CM: "+237",
+  CA: "+1", CV: "+238", CF: "+236", TD: "+235", CL: "+56", CN: "+86",
+  CO: "+57", KM: "+269", CD: "+243", CG: "+242", CR: "+506", HR: "+385",
+  CU: "+53", CY: "+357", CZ: "+420", DK: "+45", DJ: "+253", DM: "+1",
+  DO: "+1", TL: "+670", EC: "+593", EG: "+20", SV: "+503", GQ: "+240",
+  ER: "+291", EE: "+372", ET: "+251", FJ: "+679", FI: "+358", FR: "+33",
+  GA: "+241", GM: "+220", GE: "+995", DE: "+49", GH: "+233", GR: "+30",
+  GD: "+1", GT: "+502", GN: "+224", GW: "+245", GY: "+592", HT: "+509",
+  HN: "+504", HU: "+36", IS: "+354", IN: "+91", ID: "+62", IR: "+98",
+  IQ: "+964", IE: "+353", IL: "+972", IT: "+39", CI: "+225", JM: "+1",
+  JP: "+81", JO: "+962", KZ: "+7", KE: "+254", KI: "+686", KP: "+850",
+  KR: "+82", XK: "+383", KW: "+965", KG: "+996", LA: "+856", LV: "+371",
+  LB: "+961", LS: "+266", LR: "+231", LY: "+218", LI: "+423", LT: "+370",
+  LU: "+352", MK: "+389", MG: "+261", MW: "+265", MY: "+60", MV: "+960",
+  ML: "+223", MT: "+356", MH: "+692", MR: "+222", MU: "+230", MX: "+52",
+  FM: "+691", MD: "+373", MC: "+377", MN: "+976", ME: "+382", MA: "+212",
+  MZ: "+258", MM: "+95", NA: "+264", NR: "+674", NP: "+977", NL: "+31",
+  NZ: "+64", NI: "+505", NE: "+227", NG: "+234", NO: "+47", OM: "+968",
+  PK: "+92", PW: "+680", PS: "+970", PA: "+507", PG: "+675", PY: "+595",
+  PE: "+51", PH: "+63", PL: "+48", PT: "+351", QA: "+974", RO: "+40",
+  RU: "+7", RW: "+250", KN: "+1", LC: "+1", VC: "+1", WS: "+685",
+  SM: "+378", ST: "+239", SA: "+966", SN: "+221", RS: "+381", SC: "+248",
+  SL: "+232", SG: "+65", SK: "+421", SI: "+386", SB: "+677", SO: "+252",
+  ZA: "+27", SS: "+211", ES: "+34", LK: "+94", SD: "+249", SR: "+597",
+  SZ: "+268", SE: "+46", CH: "+41", SY: "+963", TW: "+886", TJ: "+992",
+  TZ: "+255", TH: "+66", TG: "+228", TO: "+676", TT: "+1", TN: "+216",
+  TR: "+90", TM: "+993", TV: "+688", UG: "+256", UA: "+380", AE: "+971",
+  GB: "+44", US: "+1", UY: "+598", UZ: "+998", VU: "+678", VA: "+379",
+  VE: "+58", VN: "+84", YE: "+967", ZM: "+260", ZW: "+263"
+};
+
+// Returns the international dial code (e.g. "+971") for a country name from
+// the COUNTRIES list, or "" if unknown.
+export function getDialCode(countryName) {
+  const country = COUNTRIES.find(c => c.name === countryName);
+  return country ? (COUNTRY_DIAL_CODES[country.code] || "") : "";
+}
+
+// Validates a "Contact Phone" value. Returns null when valid (or empty,
+// since the field is optional), or an error message describing the problem.
+// Accepts both international (+971501234567) and local (050 123 4567)
+// formats so existing records aren't broken by this check.
+export function validatePhoneForCountry(phone, countryName) {
+  if (!phone || !phone.trim()) return null;
+
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 7 || digits.length > 15) {
+    return "Enter a valid phone number (7-15 digits), e.g. +971 50 123 4567";
+  }
+
+  return null;
+}
+
 export const COUNTRIES = [
   { "name": "Afghanistan", "code": "AF", "flag": "af", "ioc": "AFG" },
   { "name": "Albania", "code": "AL", "flag": "al", "ioc": "ALB" },

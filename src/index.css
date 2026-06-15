@@ -893,7 +893,13 @@ html body #root input[class*="bg-"].pr-12 {
 #root #register_not-found h1,
 #root #register_not-found h2,
 #root #register_success h1,
-#root #register_success h2 {
+#root #register_success h2,
+#root #team_register_closed h1,
+#root #team_register_closed h2,
+#root #team_register_not-found h1,
+#root #team_register_not-found h2,
+#root #team_register_success h1,
+#root #team_register_success h2 {
   background: none !important;
   -webkit-text-fill-color: initial !important;
   text-shadow: none !important;
@@ -924,4 +930,12 @@ html body #root input[class*="bg-"].pr-12 {
 
 #root .light-form .divide-border > :not([hidden]) ~ :not([hidden]) {
   border-color: #e2e8f0 !important; /* slate-200 */
+}
+
+/* Country/City selects with a left icon + custom chevron (Team forms) */
+#root select.country-select,
+#root .light-form select.country-select,
+.dark select.country-select {
+  padding-left: 3rem !important;
+  padding-right: 2.5rem !important;
 }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { Plus, Search, ShieldAlert, Filter, Building2, MapPin, Mail, Phone, Calendar, Trophy, List } from "lucide-react";
+import { Plus, Search, ShieldAlert, Filter, Building2, MapPin, Mail, Phone, Calendar, Trophy, List, Link2, Check, X } from "lucide-react";
 import Card, { CardContent } from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
@@ -26,7 +26,7 @@ export default function TeamsDashboard() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [stats, setStats] = useState({ total: 0, active: 0, pending: 0, suspended: 0 });
+  const [stats, setStats] = useState({ total: 0, active: 0, pending: 0, suspended: 0, rejected: 0 });
 
   // Filters
   const [selectedEventId, setSelectedEventId] = useState("");
@@ -50,7 +50,7 @@ export default function TeamsDashboard() {
       loadTeams(selectedEventId);
     } else if (isAdmin && !selectedEventId) {
       setTeams([]);
-      setStats({ total: 0, active: 0, pending: 0, suspended: 0 });
+      setStats({ total: 0, active: 0, pending: 0, suspended: 0, rejected: 0 });
       setLoading(false);
     }
   }, [isAdmin, selectedEventId]);
@@ -102,6 +102,29 @@ export default function TeamsDashboard() {
     }
   };
 
+  const handleApproveReject = async (e, team, newStatus) => {
+    e.stopPropagation();
+    try {
+      await TeamAPI.updateTeam(team.id, { status: newStatus });
+      toast.success(newStatus === "active" ? "Team approved" : "Team rejected");
+      loadTeams(selectedEventId);
+    } catch (err) {
+      console.error("Failed to update team status", err);
+      toast.error("Failed to update team status");
+    }
+  };
+
+  const handleCopyRegistrationLink = () => {
+    const selectedEvent = events.find(ev => ev.id === selectedEventId);
+    if (!selectedEvent?.slug) {
+      toast.error("This event has no slug set, so a registration link can't be generated.");
+      return;
+    }
+    const link = `${window.location.origin}/team-register/${selectedEvent.slug}`;
+    navigator.clipboard.writeText(link);
+    toast.success("Registration link copied");
+  };
+
   // Derived state for filtering
   const filteredTeams = useMemo(() => {
     return teams.filter(team => {
@@ -147,6 +170,10 @@ export default function TeamsDashboard() {
             </select>
           </div>
           
+          <Button onClick={handleCopyRegistrationLink} variant="ghost" icon={Link2} disabled={!selectedEventId}>
+            Copy Registration Link
+          </Button>
+
           <Button onClick={() => setCreateModalOpen(true)} icon={Plus}>
             Create Team
           </Button>
@@ -154,7 +181,7 @@ export default function TeamsDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card className="bg-base-alt">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
@@ -199,6 +226,17 @@ export default function TeamsDashboard() {
             </div>
           </CardContent>
         </Card>
+        <Card className="bg-base-alt">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted">Rejected</p>
+              <p className="text-2xl font-bold text-main mt-1">{stats.rejected}</p>
+            </div>
+            <div className="w-10 h-10 rounded-full bg-slate-500/10 flex items-center justify-center">
+              <div className="w-3 h-3 rounded-full bg-slate-500" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filters and Search */}
@@ -228,6 +266,7 @@ export default function TeamsDashboard() {
                   <option value="active">Active</option>
                   <option value="suspended">Suspended</option>
                   <option value="completed">Completed</option>
+                  <option value="rejected">Rejected</option>
                 </select>
               </div>
             </>
@@ -302,6 +341,7 @@ export default function TeamsDashboard() {
                   <th className="px-6 py-4 font-medium text-muted">Contact</th>
                   <th className="px-6 py-4 font-medium text-muted">Status</th>
                   <th className="px-6 py-4 font-medium text-muted text-right">Added</th>
+                  <th className="px-6 py-4 font-medium text-muted text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -362,6 +402,7 @@ export default function TeamsDashboard() {
                         variant={
                           team.status === 'active' ? 'success' :
                           team.status === 'suspended' ? 'danger' :
+                          team.status === 'rejected' ? 'danger' :
                           team.status === 'completed' ? 'muted' : 'warning'
                         }
                       >
@@ -370,6 +411,26 @@ export default function TeamsDashboard() {
                     </td>
                     <td className="px-6 py-4 text-right text-muted">
                       {formatDate(team.created_at)}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      {team.status === 'pending' && (
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={(e) => handleApproveReject(e, team, 'active')}
+                            title="Approve"
+                            className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-colors"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={(e) => handleApproveReject(e, team, 'rejected')}
+                            title="Reject"
+                            className="p-1.5 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}

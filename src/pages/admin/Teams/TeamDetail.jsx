@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ChevronLeft, Building2, Users, Trophy, ShieldAlert, LayoutDashboard, FileText, MapPin, BookOpen, Calendar } from "lucide-react";
+import { ChevronLeft, Building2, Users, Trophy, ShieldAlert, LayoutDashboard, FileText, MapPin, BookOpen, Calendar, Pencil } from "lucide-react";
 import { useAuth } from "../../../contexts/AuthContext";
 import { TeamAPI } from "../../../services/teamApi";
 import { useToast } from "../../../components/ui/Toast";
 import Badge from "../../../components/ui/Badge";
 import Button from "../../../components/ui/Button";
+import EditTeamModal from "../../../components/teams/EditTeamModal";
 
 // Tabs
 import TeamOverviewTab from "../../../components/teams/tabs/TeamOverviewTab";
@@ -17,13 +18,14 @@ import TeamFacilityTab from "../../../components/teams/tabs/TeamFacilityTab";
 import TeamRulesTab from "../../../components/teams/tabs/TeamRulesTab";
 import PortalScheduleTab from "../../../components/portal/tabs/PortalScheduleTab";
 
-const STATUS_OPTIONS = ["pending", "active", "suspended", "completed"];
+const STATUS_OPTIONS = ["pending", "active", "suspended", "completed", "rejected"];
 
 const STATUS_SELECT_CLASSES = {
   active: "bg-emerald-600 border-emerald-400/30 text-white",
   suspended: "bg-rose-600 border-rose-400/30 text-white",
   completed: "bg-slate-500/10 border-slate-500/20 text-slate-400",
-  pending: "bg-amber-600 border-amber-400/30 text-white"
+  pending: "bg-amber-600 border-amber-400/30 text-white",
+  rejected: "bg-rose-700 border-rose-400/30 text-white"
 };
 
 export default function TeamDetail() {
@@ -37,6 +39,7 @@ export default function TeamDetail() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   // Permission Check based on Correction 1
   const isAdmin = isSuperAdmin || isEventAdmin;
@@ -62,6 +65,18 @@ export default function TeamDetail() {
       toast.error("Failed to update team status");
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  const handleEditTeam = async (formData) => {
+    try {
+      const updated = await TeamAPI.updateTeam(team.id, formData);
+      setTeam(updated);
+      toast.success("Team details updated");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update team details");
+      throw err;
     }
   };
 
@@ -163,6 +178,7 @@ export default function TeamDetail() {
               <Badge variant={
                 team.status === 'active' ? 'success' :
                 team.status === 'suspended' ? 'danger' :
+                team.status === 'rejected' ? 'danger' :
                 team.status === 'completed' ? 'muted' : 'warning'
               }>
                 {(team.status || 'pending').toUpperCase()}
@@ -179,7 +195,20 @@ export default function TeamDetail() {
             )}
           </div>
         </div>
+
+        {isAdmin && (
+          <Button variant="ghost" icon={Pencil} onClick={() => setEditModalOpen(true)}>
+            Edit Team
+          </Button>
+        )}
       </div>
+
+      <EditTeamModal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSubmit={handleEditTeam}
+        team={team}
+      />
 
       {/* Tabs Menu */}
       <div className="flex items-center gap-2 border-b border-border overflow-x-auto pb-px">
