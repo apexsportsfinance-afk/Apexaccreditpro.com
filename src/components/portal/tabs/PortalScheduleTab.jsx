@@ -169,7 +169,7 @@ export default function PortalScheduleTab({ teamId = null, eventId }) {
             className="px-3 py-1.5 bg-base border border-border rounded-lg text-sm text-main focus:outline-none focus:border-primary-500"
           >
             {sports.map((s) => (
-              <option key={s.id} value={s.id}>{s.sport_name}</option>
+              <option key={s.id} value={s.id}>{s.sport_name}{s.gender ? ` (${s.gender})` : ""}</option>
             ))}
           </select>
         </div>
