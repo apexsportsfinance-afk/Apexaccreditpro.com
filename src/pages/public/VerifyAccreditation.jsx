@@ -5,7 +5,7 @@ import {
   MessageSquare, Globe, AlertTriangle, ChevronDown, ChevronUp, ShieldCheck,
   User, Hash, MapPin, Building, Cake, ExternalLink, Bell, X, Paperclip, FileText,
   Files, FileSpreadsheet, FileBox, ShieldAlert, ChevronRight, Trophy, Search, Medal as MedalIcon, Target,
-  Heart, Clock, Timer, RotateCcw, CheckCircle2, Trash2, Activity
+  Heart, Clock, Timer, RotateCcw, CheckCircle2, Trash2, Activity, Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase";
@@ -204,6 +204,24 @@ export default function VerifyAccreditation() {
       fetchLiveScores();
     }
   }, [isLiveScoresExpanded, isLiveScoresLoaded, isFetchingScores, data?.event_id]);
+
+  // Lazy-load attendance scans and live scores settings after initial render
+  useEffect(() => {
+    if (!data?.event_id) return;
+    LiveScoresAPI.getSettings(data.event_id)
+      .then(s => setLiveScoreSettings(s || {}))
+      .catch(() => setLiveScoreSettings({}));
+    if (data.id) {
+      Promise.all([
+        AttendanceAPI.getAthleteAttendance(data.event_id, data.id),
+        AttendanceAPI.getAthleteLogs(data.event_id, data.id)
+      ]).then(([scans, logs]) => {
+        setAthleteScans(scans || []);
+        setAthleteLogs(logs || []);
+      }).catch(console.error);
+    }
+  }, [data?.event_id, data?.id]);
+
   const [expandedMeetings, setExpandedMeetings] = useState([]);
   const [expandedDates, setExpandedDates] = useState({});
 
@@ -368,7 +386,8 @@ export default function VerifyAccreditation() {
       const lname = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
 
       // APEX-DEEP: Split into Priority Load vs Lazy Load to fix QR Profile bottleneck
-      const [eSettings, fieldSets, matrix, legMatrix, gSettings, zonesResult, scansResult, logsResult, bConfigRaw, lsSettingsRaw] = await Promise.race([
+      // Attendance scans, attendance logs, and live scores settings are loaded lazily after render
+      const [eSettings, fieldSets, matrix, legMatrix, gSettings, zonesResult, bConfigRaw] = await Promise.race([
         Promise.all([
           (async () => { const r = await (accData?.event_id ? EventSettingsAPI.getAll(accData.event_id) : Promise.resolve({})); return r; })(),
           (async () => { const r = await (accData?.event_id ? FormFieldSettingsAPI.getByEventId(accData.event_id) : Promise.resolve({})); return r; })(),
@@ -376,10 +395,7 @@ export default function VerifyAccreditation() {
           (async () => { const r = await (accData?.event_id && accData?.role?.toLowerCase() === "athlete" ? HeatSheetMatrixAPI.getForAthlete(accData.event_id, fname, lname) : Promise.resolve([])); return r; })(),
           (async () => { const r = await GlobalSettingsAPI.getAll(); return r; })(),
           (async () => { const r = await (accData?.event_id ? ZonesAPI.getByEventId(accData.event_id) : Promise.resolve([])); return r; })(),
-          (async () => { const r = await (accData?.event_id && accData?.id ? AttendanceAPI.getAthleteAttendance(accData.event_id, accData.id) : Promise.resolve([])); return r; })(),
-          (async () => { const r = await (accData?.event_id && accData?.id ? AttendanceAPI.getAthleteLogs(accData.event_id, accData.id) : Promise.resolve([])); return r; })(),
           (async () => { const r = await (accData?.event_id ? BookingsAPI.getConfig(accData.event_id) : Promise.resolve(null)); return r; })(), // Get config ONLY to see if active
-          (async () => { const r = await (accData?.event_id ? LiveScoresAPI.getSettings(accData.event_id) : Promise.resolve(null)); return r; })() // Get config to show tab
         ]),
         timeoutPromise(30000, "Priority Metadata Sync")
       ]);
@@ -389,9 +405,6 @@ export default function VerifyAccreditation() {
       const bConfig = bConfigRaw;
       const aBookings = [];
       const pBooking = null;
-
-      // Ensure settings is set so the tab renders if enabled
-      setLiveScoreSettings(lsSettingsRaw || {});
 
       console.log("APEX_DEBUG: All priority metadata synced");
       console.log("APEX_DEBUG: Finalizing data states...");
@@ -415,9 +428,6 @@ export default function VerifyAccreditation() {
 
       setGlobSettings(gSettings || {});
       setAllZones(zonesResult || []);
-      setAthleteScans(scansResult || []);
-      setAthleteLogs(logsResult || []);
-      
       setBookingConfig(bConfig);
       setAllBookings(aBookings || []);
       if (pBooking) {
@@ -428,8 +438,6 @@ export default function VerifyAccreditation() {
       console.group("APX-ZONE-SYNC-DEBUG");
       console.log("Athlete ID used for scan query:", accData?.id);
       console.log("Event ID used for scan query:", accData?.event_id);
-      console.log("athleteScans count:", (scansResult || []).length);
-      console.log("athleteScans raw:", scansResult);
       console.log("allZones count:", (zonesResult || []).length);
       console.log("allZones raw (settings):", (zonesResult || []).map(z => ({ name: z.name, code: z.code, settings: z.settings })));
       console.groupEnd();
