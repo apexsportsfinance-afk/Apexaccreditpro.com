@@ -93,32 +93,15 @@ serve(async (req: Request) => {
           } else {
             console.log(`🎖️ Athlete Approved (Webhook): ${accreditationRecordId}`);
             
-            // 📈 [APX-S6] Increment Invite Link usage if applicable
+            // Atomically increment invite link use count via RPC (FOR UPDATE lock prevents double-counting)
             if (inviteLinkId && eventId) {
               try {
-                const settingsKey = `event_${eventId}_invite_links`;
-                const { data: settingsData } = await supabase
-                  .from('global_settings')
-                  .select('value')
-                  .eq('key', settingsKey)
-                  .single();
-
-                if (settingsData?.value) {
-                  const links = typeof settingsData.value === 'string' ? JSON.parse(settingsData.value) : settingsData.value;
-                  const updatedLinks = links.map((l: any) => {
-                    if (l.id !== inviteLinkId) return l;
-                    const newCount = (l.useCount || 0) + 1;
-                    const shouldDeactivate = l.mode === 'single' || (l.maxUses !== null && newCount >= l.maxUses);
-                    return { ...l, useCount: newCount, isActive: shouldDeactivate ? false : l.isActive };
-                  });
-                  
-                  await supabase
-                    .from('global_settings')
-                    .update({ value: JSON.stringify(updatedLinks) })
-                    .eq('key', settingsKey);
-                    
-                  console.log(`📈 Increment useCount for link: ${inviteLinkId}`);
-                }
+                const { error: rpcErr } = await supabase.rpc('increment_invite_link', {
+                  p_link_id:  inviteLinkId,
+                  p_event_id: eventId,
+                });
+                if (rpcErr) throw rpcErr;
+                console.log(`📈 Incremented invite link: ${inviteLinkId}`);
               } catch (linkErr) {
                 console.error(`⚠️ [Webhook] Failed to increment invite link count:`, linkErr);
               }

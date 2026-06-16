@@ -19,7 +19,7 @@ import { EventsAPI, AccreditationsAPI, EventCategoriesAPI, CategoriesAPI } from 
 import { COUNTRIES, ROLES, validateFile } from "../../lib/utils";
 import { SportEventsAPI, GlobalSettingsAPI } from "../../lib/broadcastApi";
 import { uploadToStorage } from "../../lib/uploadToStorage";
-import { validateInviteToken, incrementLinkUseCount } from "../../lib/inviteLinksApi";
+import { validateInviteToken, redeemInviteToken } from "../../lib/inviteLinksApi";
 
 const DEFAULT_DOCUMENTS = [
   { id: "picture", label: "Picture", accept: "image/jpeg,image/png,image/webp" },
@@ -423,7 +423,23 @@ export default function InviteRegister() {
         }
       }
 
-      // FREE REGISTRATION: Create record immediately and mark as unpaid/0
+      // FREE REGISTRATION: atomically redeem the invite link first (validates +
+      // increments in a single locked DB transaction) then create the record.
+      // Doing it in this order prevents a race condition where two concurrent
+      // submissions both pass the use-count check before either has incremented.
+      if (inviteLink) {
+        const redemption = await redeemInviteToken(token, event.id);
+        if (!redemption?.valid) {
+          const reasons = {
+            limit_reached: "This invite link has just reached its limit. No more registrations are available.",
+            inactive:      "This invite link has been deactivated.",
+            expired:       "This invite link has expired.",
+          };
+          setErrors({ submit: reasons[redemption?.reason] || "This invite link is no longer valid." });
+          setSubmitting(false);
+          return;
+        }
+      }
 
       const accRecord = await AccreditationsAPI.create({
         eventId: event.id,
@@ -444,10 +460,6 @@ export default function InviteRegister() {
       }, submissionSecret);
 
       setAccreditation(accRecord);
-
-      // Increment link use count
-      if (inviteLink) await incrementLinkUseCount(event.id, inviteLink.id);
-
       setStatus("submitted");
     } catch (error) {
       if (error.message && error.message.includes("DUPLICATE_NAME")) {
