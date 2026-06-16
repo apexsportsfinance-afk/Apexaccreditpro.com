@@ -486,18 +486,66 @@ export const TeamAPI = {
   },
 
   /**
-   * Update the status of a document
+   * Update the status of a document (with optional rejection reason)
    */
-  async updateDocumentStatus(documentId, status) {
+  async updateDocumentStatus(documentId, status, reviewNotes = null) {
+    const payload = { status };
+    if (reviewNotes !== null) payload.review_notes = reviewNotes;
     const { data, error } = await supabase
       .from('team_documents')
-      .update({ status })
+      .update(payload)
       .eq('id', documentId)
       .select()
       .single();
 
     if (error) throw error;
     return data;
+  },
+
+  /**
+   * Get configured document requirements for an event
+   */
+  async getEventDocumentRequirements(eventId) {
+    const { data, error } = await supabase
+      .from('event_document_requirements')
+      .select('*')
+      .eq('event_id', eventId)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  /**
+   * Replace all document requirements for an event
+   * docTypes: [{ doc_type, is_required, description, sort_order }]
+   */
+  async saveEventDocumentRequirements(eventId, docTypes) {
+    // Delete existing then insert new (upsert by (event_id, doc_type))
+    const { error: delError } = await supabase
+      .from('event_document_requirements')
+      .delete()
+      .eq('event_id', eventId);
+    if (delError) throw delError;
+
+    if (docTypes.length === 0) return [];
+
+    const rows = docTypes.map((d, i) => ({
+      event_id: eventId,
+      doc_type: d.doc_type,
+      is_required: d.is_required ?? true,
+      description: d.description || null,
+      sort_order: d.sort_order ?? i
+    }));
+
+    const { data, error } = await supabase
+      .from('event_document_requirements')
+      .insert(rows)
+      .select();
+
+    if (error) throw error;
+    return data || [];
   },
 
   // ==========================================

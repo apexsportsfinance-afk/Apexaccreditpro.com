@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { Plus, Search, ShieldAlert, Filter, Building2, MapPin, Mail, Phone, Calendar, Trophy, List, Link2, Check, X, Tags } from "lucide-react";
+import { Plus, Search, ShieldAlert, Filter, Building2, MapPin, Mail, Phone, Calendar, Trophy, List, Link2, Check, X, Tags, FileText } from "lucide-react";
 import Card, { CardContent } from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
@@ -12,6 +12,7 @@ import { TeamAPI } from "../../../services/teamApi";
 import { EventsAPI } from "../../../lib/storage";
 import CreateTeamModal from "../../../components/teams/CreateTeamModal";
 import AssignSportsModal from "../../../components/teams/AssignSportsModal";
+import DocumentRequirementsModal from "../../../components/teams/DocumentRequirementsModal";
 import PortalScheduleTab from "../../../components/portal/tabs/PortalScheduleTab";
 import { formatDate } from "../../../lib/utils";
 
@@ -46,6 +47,7 @@ export default function TeamsDashboard() {
   // Modals
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [assignSportsModalOpen, setAssignSportsModalOpen] = useState(false);
+  const [docRequirementsModalOpen, setDocRequirementsModalOpen] = useState(false);
 
   useEffect(() => {
     if (isAdmin) {
@@ -209,6 +211,10 @@ export default function TeamsDashboard() {
 
           <Button onClick={() => setAssignSportsModalOpen(true)} variant="secondary" icon={Tags} disabled={!selectedEventId || teams.length === 0}>
             Assign Sports
+          </Button>
+
+          <Button onClick={() => setDocRequirementsModalOpen(true)} variant="secondary" icon={FileText} disabled={!selectedEventId}>
+            Doc Requirements
           </Button>
 
           <Button onClick={() => setCreateModalOpen(true)} icon={Plus}>
@@ -523,6 +529,13 @@ export default function TeamsDashboard() {
         teams={teams}
         selectedTeamIds={selectedTeamIds}
         onAssigned={handleSportsAssigned}
+      />
+
+      <DocumentRequirementsModal
+        isOpen={docRequirementsModalOpen}
+        onClose={() => setDocRequirementsModalOpen(false)}
+        eventId={selectedEventId}
+        eventName={events.find(ev => ev.id === selectedEventId)?.name}
       />
     </div>
   );

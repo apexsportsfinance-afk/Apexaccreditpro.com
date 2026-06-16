@@ -81,6 +81,21 @@ export const TeamPortalAPI = {
   },
 
   /**
+   * Get configured document requirements for an event (used by portal to show checklist)
+   */
+  async getEventDocumentRequirements(eventId) {
+    const { data, error } = await supabase
+      .from('event_document_requirements')
+      .select('*')
+      .eq('event_id', eventId)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  /**
    * Get uploaded documents for the team
    */
   async getPortalTeamDocuments(teamId) {
