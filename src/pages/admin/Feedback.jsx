@@ -157,7 +157,7 @@ export default function Feedback() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-main tracking-tight">Event Feedback</h1>
-            <p className="text-muted text-sm">Analyze participant satisfaction for DIAC 2026</p>
+            <p className="text-muted text-sm">Analyze participant satisfaction for your event</p>
           </div>
         </div>
 

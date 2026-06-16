@@ -266,19 +266,19 @@ export default function FeedbackForm() {
       );
     }
   } else {
-    // Fallback: full DIAC 2026 hardcoded template
+    // Fallback: hardcoded template (shown when no custom feedback form is configured)
     steps = [
       <div key="s0" className="space-y-8">
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-500/10 border border-primary-500/20 text-primary-400 text-sm font-bold mb-4">
-            <Trophy className="w-4 h-4" /> DIAC 2026 Feedback
+            <Trophy className="w-4 h-4" /> Event Feedback
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">{event.name}</h1>
           <p className="text-slate-400">Give feedback (2 mins only)</p>
         </div>
         <div className="bg-slate-800/50 p-6 rounded-2xl border border-white/5 text-center">
           <p className="text-slate-200 leading-relaxed">
-            Thank you for being part of DIAC 2026. Your insights help us improve future events.
+            Thank you for participating. Your insights help us improve future events.
           </p>
         </div>
         <div className="space-y-4">
@@ -336,7 +336,7 @@ export default function FeedbackForm() {
       <div key="s4" className="space-y-10">
         <h2 className="text-2xl font-bold text-white flex items-center gap-3"><Megaphone className="w-6 h-6 text-purple-400" /> Final Impact</h2>
         <div className="space-y-4">
-          <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider">8. How likely to recommend DIAC? (0–10)</p>
+          <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider">8. How likely are you to recommend this event? (0–10)</p>
           <div className="flex justify-between items-center bg-slate-900/80 p-4 rounded-2xl border border-white/5">
             {[...Array(11)].map((_, i) => (
               <button key={i} onClick={() => updateForm("npsScore", i)}

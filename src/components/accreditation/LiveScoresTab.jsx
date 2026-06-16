@@ -13,9 +13,9 @@ import GenerateFixturesModal from "./GenerateFixturesModal";
 import { useAuth } from "../../contexts/AuthContext";
 
 export default function LiveScoresTab({ eventId, onToast, disabled }) {
-  const { role } = useAuth();
+  const { user } = useAuth();
   // If the user's role is "Score Operator", they can only update scores and status.
-  const isScoreOperator = role === "Score Operator";
+  const isScoreOperator = user?.role === "Score Operator";
   // The user cannot edit settings/delete if they are generally disabled OR a score operator.
   const isSettingsDisabled = disabled || isScoreOperator;
 

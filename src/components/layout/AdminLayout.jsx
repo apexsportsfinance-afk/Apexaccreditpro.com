@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import Sidebar, { navItems } from "./Sidebar";
 import { useAuth } from "../../contexts/AuthContext";
 import BackgroundProgress from "../accreditation/BackgroundProgress";
+import { ErrorBoundary } from "./ErrorBoundary";
 
 export default function AdminLayout() {
   const { isAuthenticated, loading, profileLoaded, isSuperAdmin, canAccessModule, user } = useAuth();
@@ -62,7 +63,9 @@ export default function AdminLayout() {
       <main className="ml-20 lg:ml-[280px] min-h-screen transition-[margin] duration-300 relative z-10">
         <div className="p-lg lg:p-xl max-w-[1600px] mx-auto">
           <BackgroundProgress />
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </div>
       </main>
     </div>

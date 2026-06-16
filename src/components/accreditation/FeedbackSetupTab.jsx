@@ -28,8 +28,8 @@ const QUESTION_TYPES = [
 
 export default function FeedbackSetupTab({ eventId, onToast, disabled }) {
   const [config, setConfig] = useState({
-    title: "DIAC 2026 – Event Feedback",
-    description: "Thank you for being part of DIAC 2026. Your feedback is very important to help us improve future events.",
+    title: "Event Feedback",
+    description: "Thank you for participating. Your feedback is very important to help us improve future events.",
     thank_you_message: "Thank you for your valuable feedback!",
     is_active: false,
     questions: [
@@ -133,7 +133,7 @@ export default function FeedbackSetupTab({ eventId, onToast, disabled }) {
                 "w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary-500/50 outline-none transition-all",
                 disabled && "opacity-50 cursor-not-allowed"
               )}
-              placeholder="e.g. DIAC 2026 – Event Feedback"
+              placeholder="e.g. Annual Championship – Event Feedback"
             />
           </div>
           <div className="space-y-2">

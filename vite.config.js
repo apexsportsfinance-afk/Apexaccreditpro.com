@@ -71,6 +71,10 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src")
     }
   },
+  esbuild: {
+    // Remove console.log/debug/info calls in production; keep console.warn and console.error
+    pure: process.env.NODE_ENV === "production" ? ["console.log", "console.debug", "console.info"] : [],
+  },
   build: {
     target: "esnext",
     minify: "esbuild",

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
+import { useAuth } from "../../contexts/AuthContext";
 import { BookingsAPI, AuditAPI } from "../../lib/storage";
 import { useHardwareScanner } from "../../hooks/useHardwareScanner";
 import { useQrCamera } from "../../hooks/useQrCamera";
@@ -14,6 +15,14 @@ import { cn } from "../../lib/utils";
 export default function ServiceCheckin() {
   const { eventSlug } = useParams();
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate("/login", { replace: true });
+    }
+  }, [user, authLoading, navigate]);
+
   const [eventData, setEventData] = useState(null);
   const [athlete, setAthlete] = useState(null);
   const [bookings, setBookings] = useState([]);

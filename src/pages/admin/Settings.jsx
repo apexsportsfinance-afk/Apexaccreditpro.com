@@ -222,8 +222,8 @@ export default function Settings() {
   const handleResetTemplate = () => {
     const defaults = {
       approved: {
-        subject: "Your Accreditation - Dubai International Aquatics Championships (DIAC) 2026",
-        body: "Dear {name},\n\nWe are delighted to welcome you to the Dubai International Aquatics Championships (DIAC) 2026.\n\nAttached you will find your accreditation pass. Kindly review your accreditation carefully and ensure that all details are correct, including:\n\n- Name\n- Age\n- Country\n- Club / Team Name\n\nEvent: {eventName}\nRole: {role}\nBadge Number: {badge}\nZone Access: {zones}\n\nIf you notice any errors or require any changes, please reply to this same email only with the corrected information so that we can update it accordingly.\n\nPlease note that the deadline to request any corrections is within 24 hours of receiving this email.\n\nYour accreditation pass must be presented at the main gate of Hamdan Sports Complex to gain access to the competition venue.\n\nWe truly appreciate your support and cooperation, and we look forward to welcoming you to DIAC 2026.\n\nWarm regards,\nDIAC 2026 Organizing Committee"
+        subject: "Your Accreditation - {eventName}",
+        body: "Dear {name},\n\nWe are delighted to welcome you to {eventName}.\n\nAttached you will find your accreditation pass. Kindly review your accreditation carefully and ensure that all details are correct, including:\n\n- Name\n- Age\n- Country\n- Club / Team Name\n\nEvent: {eventName}\nRole: {role}\nBadge Number: {badge}\nZone Access: {zones}\n\nIf you notice any errors or require any changes, please reply to this email with the corrected information so that we can update it accordingly.\n\nPlease note that the deadline to request any corrections is within 24 hours of receiving this email.\n\nWe truly appreciate your support and cooperation, and we look forward to welcoming you.\n\nWarm regards,\nEvent Organizing Committee"
       },
       rejected: {
         subject: "Accreditation Rejected - {eventName}",
