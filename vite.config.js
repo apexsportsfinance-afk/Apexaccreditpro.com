@@ -67,8 +67,9 @@ export default defineConfig({
     }
   },
   resolve: {
-    alias: { 
-      "@": path.resolve(__dirname, "./src")
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+      "xlsx": "@e965/xlsx"
     }
   },
   esbuild: {
@@ -89,7 +90,7 @@ export default defineConfig({
           'vendor-icons': ['lucide-react'],
           'vendor-jspdf': ['jspdf'],
           'vendor-html2canvas': ['html2canvas'],
-          'vendor-xlsx': ['xlsx'],
+          'vendor-xlsx': ['@e965/xlsx'],
         }
       }
     },

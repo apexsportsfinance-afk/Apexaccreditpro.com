@@ -54,7 +54,7 @@ export default function PortalRulesTab({ teamId, eventId }) {
   const handleAcknowledge = async (doc) => {
     setAcknowledging(doc.id);
     try {
-      const ack = await TeamPortalAPI.acknowledgeRulesDocument(eventId, teamId, doc.id, user.id);
+      const ack = await TeamPortalAPI.acknowledgeRulesDocument(eventId, teamId, doc.id);
       setAcknowledgements((prev) => [...prev.filter((a) => a.document_id !== doc.id), ack]);
       toast.success("Thank you for confirming you have read and accepted this document.");
     } catch (err) {

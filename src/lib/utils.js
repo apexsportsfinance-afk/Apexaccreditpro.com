@@ -1,3 +1,5 @@
+import { twMerge } from 'tailwind-merge';
+
 // Native alternatives to date-fns to avoid ESM issues
 const format = (date, formatStr) => {
   if (!(date instanceof Date) || isNaN(date.getTime())) return "";
@@ -36,9 +38,7 @@ export const getThumbnailUrl = (originalUrl, width = 100) => {
   return originalUrl;
 };
 
-export const cn = (...classes) => {
-  return classes.filter(Boolean).join(" ");
-};
+export const cn = (...classes) => twMerge(classes.filter(Boolean).join(" "));
 
 export const calculateAge = (dateOfBirth, calculationYear) => {
   if (!dateOfBirth) return null;

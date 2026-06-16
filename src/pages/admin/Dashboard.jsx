@@ -202,7 +202,7 @@ export default function Dashboard() {
       const [eventsRes, statsRes, recentRes, auditRes, zonesRes] = await Promise.allSettled([
         EventsAPI.getAllMinimal(),
         AccreditationsAPI.getStats(targetEventIds),
-        AccreditationsAPI.getRecent(10, targetEventIds),
+        AccreditationsAPI.getRecent(90, targetEventIds),
         AuditAPI.getRecent(10),
         isSuperAdmin
           ? (targetEventId ? ZonesAPI.getByEventId(targetEventId) : ZonesAPI.getAll())
@@ -251,16 +251,23 @@ export default function Dashboard() {
           return d.toISOString().split('T')[0];
         });
 
-        const accTrend = last9Days.map(date => {
-          const count = recentAcc.filter(a => a.createdAt?.startsWith(date)).length;
-          return Math.min(20 + (count * 15), 100);
+        const byDate = {};
+        recentAcc.forEach(a => {
+          const date = a.createdAt?.split('T')[0];
+          if (!date) return;
+          if (!byDate[date]) byDate[date] = { total: 0, approved: 0, pending: 0, rejected: 0 };
+          byDate[date].total++;
+          if (a.status === 'approved') byDate[date].approved++;
+          else if (a.status === 'pending') byDate[date].pending++;
+          else if (a.status === 'rejected') byDate[date].rejected++;
         });
-
+        const scale = (n) => Math.min(10 + n * 8, 100);
         setTrends(prev => ({
           ...prev,
-          accreditations: accTrend,
-          approved: accTrend.map(v => v * 0.8),
-          pending: accTrend.map(v => v * 0.2)
+          accreditations: last9Days.map(d => scale(byDate[d]?.total || 0)),
+          approved:       last9Days.map(d => scale(byDate[d]?.approved || 0)),
+          pending:        last9Days.map(d => scale(byDate[d]?.pending || 0)),
+          rejected:       last9Days.map(d => scale(byDate[d]?.rejected || 0))
         }));
       } else {
         console.error("Dashboard source (AccreditationsAPI.getRecent) failed:", recentRes.reason);
@@ -369,12 +376,23 @@ export default function Dashboard() {
     { name: 'Rejected', value: stats.rejected, color: '#f43f5e' }
   ];
 
+  const last9DatesUTC = useMemo(() => [...Array(9)].map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (8 - i));
+    return d.toISOString().split('T')[0];
+  }), []);
+
+  const liveEventsTrend = useMemo(() =>
+    last9DatesUTC.map(date => liveScanLogs.filter(l => l.created_at?.startsWith(date)).length),
+  [liveScanLogs, last9DatesUTC]);
+
   const attendanceData = useMemo(() => {
-    return trends.accreditations.map((v, i) => ({
-      day: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', 'Next', 'Future'][i] || '—',
-      checkins: Math.floor(v * 1.5)
+    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    return last9DatesUTC.map(date => ({
+      day: dayLabels[new Date(date).getDay()],
+      checkins: liveScanLogs.filter(l => l.created_at?.startsWith(date)).length
     }));
-  }, [trends.accreditations]);
+  }, [liveScanLogs, last9DatesUTC]);
 
   if (loading) {
     return (
@@ -412,9 +430,9 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Total Accreditations', value: stats.totalAccreditations, color: 'text-indigo-400', icon: Users, iconBg: 'bg-indigo-500/5 border-indigo-500/10', data: trends.accreditations },
-          { label: 'Pending Review', value: stats.pending, color: 'text-amber-400', icon: Clock, iconBg: 'bg-amber-500/5 border-amber-500/10', data: trends.accreditations.map(v => Math.floor(v * 0.1)), badge: stats.pending > 0 ? 'ACTION' : null },
+          { label: 'Pending Review', value: stats.pending, color: 'text-amber-400', icon: Clock, iconBg: 'bg-amber-500/5 border-amber-500/10', data: trends.pending, badge: stats.pending > 0 ? 'ACTION' : null },
           { label: 'Approved Users', value: stats.approved, color: 'text-emerald-400', icon: CheckCircle, iconBg: 'bg-emerald-500/5 border-emerald-500/10', data: trends.approved },
-          { label: 'Live Operations', value: liveScanLogs.length, color: 'text-sky-400', icon: Activity, iconBg: 'bg-sky-500/5 border-sky-500/10', data: trends.events }
+          { label: 'Live Operations', value: liveScanLogs.length, color: 'text-sky-400', icon: Activity, iconBg: 'bg-sky-500/5 border-sky-500/10', data: liveEventsTrend }
         ].map(({ label, value, color, icon: Icon, iconBg, data, badge }) => (
           <Card key={label} className="bg-slate-900/40 border border-white/5 shadow-xl hover:border-white/10 transition-all overflow-hidden group">
             <CardContent className="p-5">
@@ -689,10 +707,10 @@ export default function Dashboard() {
         <>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {[
-              { title: 'Total Events', value: stats.totalEvents, icon: Calendar, color: 'text-sky-400', iconBg: 'bg-sky-500/5 border-sky-500/10', data: trends.events },
+              { title: 'Total Events', value: stats.totalEvents, icon: Calendar, color: 'text-sky-400', iconBg: 'bg-sky-500/5 border-sky-500/10', data: liveEventsTrend },
               { title: 'Total Accreditations', value: stats.totalAccreditations, icon: Users, iconBg: 'bg-indigo-500/5', color: 'text-indigo-400', data: trends.accreditations },
               { title: 'Approved', value: stats.approved, icon: CheckCircle, iconBg: 'bg-emerald-500/5', color: 'text-emerald-400', data: trends.approved },
-              { title: 'Pending Review', value: stats.pending, icon: Clock, iconBg: 'bg-amber-500/5', color: 'text-amber-400', data: trends.accreditations.map(v => Math.floor(v * 0.05)), badge: stats.pending > 0 ? 'ACTION' : null },
+              { title: 'Pending Review', value: stats.pending, icon: Clock, iconBg: 'bg-amber-500/5', color: 'text-amber-400', data: trends.pending, badge: stats.pending > 0 ? 'ACTION' : null },
               { title: 'Rejected', value: stats.rejected, icon: XCircle, iconBg: 'bg-rose-500/5', color: 'text-rose-400', data: trends.rejected },
             ].map(({ title, value, icon: Icon, color, iconBg, data, badge }) => (
               <Card key={title} className="bg-slate-900/40 border border-white/5 shadow-xl hover:border-indigo-500/20 transition-all duration-500 group overflow-hidden">

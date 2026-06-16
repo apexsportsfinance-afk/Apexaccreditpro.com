@@ -399,15 +399,13 @@ export const TeamPortalAPI = {
   /**
    * Acknowledge ("read and accepted") a rules/regulations document
    */
-  async acknowledgeRulesDocument(eventId, teamId, documentId, userId) {
+  async acknowledgeRulesDocument(eventId, teamId, documentId) {
     const { data, error } = await supabase
-      .from('team_rules_acknowledgements')
-      .upsert(
-        [{ event_id: eventId, team_id: teamId, document_id: documentId, user_id: userId, acknowledged_at: new Date().toISOString() }],
-        { onConflict: 'team_id,document_id,user_id' }
-      )
-      .select()
-      .single();
+      .rpc('acknowledge_rules_document', {
+        p_event_id: eventId,
+        p_team_id: teamId,
+        p_document_id: documentId,
+      });
 
     if (error) throw error;
     return data;

@@ -489,16 +489,17 @@ export const HeatSheetMatrixAPI = {
       const batch = cleanedRows.slice(i, i + batchSize);
       const { data, error } = await supabase
         .from("lane_matrix")
-        .insert(batch)
+        .upsert(batch, { onConflict: 'meet_id,event_code,athlete_name', ignoreDuplicates: false })
         .select("id");
 
       if (error) {
-        console.error("APEX_DEBUG: Bulk Insert Error:", error);
-        // Final fallback: try one by one to isolate the bad row
+        console.error("APEX_DEBUG: Bulk Upsert Error:", error);
         for (const row of batch) {
-          const { error: insErr } = await supabase.from("lane_matrix").insert(row);
+          const { error: insErr } = await supabase
+            .from("lane_matrix")
+            .upsert(row, { onConflict: 'meet_id,event_code,athlete_name', ignoreDuplicates: false });
           if (!insErr) totalSaved++;
-          else console.error("APEX_DEBUG: Individual Insert Error:", insErr, row.athlete_name);
+          else console.error("APEX_DEBUG: Individual Upsert Error:", insErr, row.athlete_name);
         }
       } else {
         totalSaved += data?.length || batch.length;
