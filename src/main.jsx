@@ -5,6 +5,13 @@ import "./index.css";
 
 console.log("🚀 main.jsx: Mounting application...");
 
+// Auto-reload when Vercel deploys new chunks and the old chunk URL is no longer valid.
+// Without this, users on a stale tab get "Failed to fetch dynamically imported module"
+// on every lazy-loaded route after a deployment. A reload fetches the fresh HTML + new chunks.
+window.addEventListener("vite:preloadError", () => {
+  window.location.reload();
+});
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <App />
