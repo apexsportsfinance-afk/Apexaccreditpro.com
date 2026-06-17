@@ -12,7 +12,7 @@ const labelClass = "text-[10px] font-bold text-slate-500 uppercase tracking-wide
 // Admin modal: pick a competition format for a sport and auto-generate
 // live_score_matches fixtures for the selected teams. Generation is
 // additive-only - it never deletes or modifies existing matches.
-export default function GenerateFixturesModal({ isOpen, onClose, sport, eventId, teams, divisions, teamDivisions, onGenerated }) {
+export default function GenerateFixturesModal({ isOpen, onClose, sport, eventId, teams, divisions, teamDivisions, existingLeagues, existingSportMatchCount, onGenerated }) {
   const [format, setFormat] = useState("Round Robin");
   const [doubleRound, setDoubleRound] = useState(false);
   const [numGroups, setNumGroups] = useState(2);
@@ -25,6 +25,8 @@ export default function GenerateFixturesModal({ isOpen, onClose, sport, eventId,
   const [startDate, setStartDate] = useState(new Date().toISOString().split("T")[0]);
   const [daysBetweenRounds, setDaysBetweenRounds] = useState(7);
   const [venue, setVenue] = useState("");
+  const [leagueName, setLeagueName] = useState("");
+  const [replaceExisting, setReplaceExisting] = useState(false);
   const [generating, setGenerating] = useState(false);
 
   const hasUsableDivisions = (divisions || []).length >= 2;
@@ -41,6 +43,8 @@ export default function GenerateFixturesModal({ isOpen, onClose, sport, eventId,
     setStartDate(new Date().toISOString().split("T")[0]);
     setDaysBetweenRounds(7);
     setVenue("");
+    setLeagueName("");
+    setReplaceExisting(false);
 
     (async () => {
       try {
@@ -158,24 +162,39 @@ export default function GenerateFixturesModal({ isOpen, onClose, sport, eventId,
       const updatedSport = await LiveScoresAPI.saveSport({ id: sport.id, format, format_config: formatConfig });
 
       let inserted = [];
+      let deletedCount = 0;
       if (format !== "Custom" && format !== "Individual") {
         if (selectedTeams.length < 2) {
           toast.error("Select at least 2 teams to generate fixtures");
           setGenerating(false);
           return;
         }
+
+        // Replace mode: delete existing fixtures before inserting
+        if (replaceExisting) {
+          const trimmed = leagueName.trim();
+          if (trimmed) {
+            const deleted = await LiveScoresAPI.deleteLeague(eventId, sport.id, trimmed);
+            deletedCount = deleted?.length || 0;
+          } else {
+            const deleted = await LiveScoresAPI.deleteAllMatchesBySport(eventId, sport.id);
+            deletedCount = deleted?.length || 0;
+          }
+        }
+
         const rows = buildMatchRows(preview, {
           eventId,
           sportId: sport.id,
           startDate,
           daysBetweenRounds: Number(daysBetweenRounds) || 7,
           venue,
+          leagueName: leagueName.trim(),
         });
         inserted = await LiveScoresAPI.bulkCreateMatches(rows);
       }
 
-      onGenerated(inserted, updatedSport);
-      toast.success((format === "Custom" || format === "Individual") ? "Format saved" : `${inserted.length} fixture${inserted.length === 1 ? "" : "s"} generated`);
+      onGenerated(inserted, updatedSport, replaceExisting ? { sportId: sport.id, leagueName: leagueName.trim() } : null);
+      toast.success((format === "Custom" || format === "Individual") ? "Format saved" : `${inserted.length} fixture${inserted.length === 1 ? "" : "s"} generated${deletedCount > 0 ? ` (replaced ${deletedCount} old)` : ""}`);
       onClose();
     } catch (err) {
       console.error(err);
@@ -268,6 +287,43 @@ export default function GenerateFixturesModal({ isOpen, onClose, sport, eventId,
                 )}
               </div>
             )}
+
+            {/* Existing match warning + replace option */}
+            {existingSportMatchCount > 0 && (
+              <div className="flex items-start gap-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                <div className="flex-1 text-xs text-amber-200">
+                  <p className="font-bold mb-1">This sport already has {existingSportMatchCount} matches.</p>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={replaceExisting}
+                      onChange={e => setReplaceExisting(e.target.checked)}
+                      className="rounded"
+                    />
+                    <span>
+                      <strong>Replace existing</strong> — {leagueName.trim() ? `delete all "${leagueName.trim()}" matches first` : "delete ALL matches for this sport first"}, then insert new ones
+                    </span>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* League / Fixture Name */}
+            <div className="space-y-1">
+              <label className={labelClass}>League / Fixture Name</label>
+              <input
+                type="text"
+                list="gen-fixture-leagues"
+                value={leagueName}
+                onChange={e => setLeagueName(e.target.value)}
+                placeholder="e.g. Premier League, Group Stage, Cup 2026"
+                className={inputClass}
+              />
+              <datalist id="gen-fixture-leagues">
+                {(existingLeagues || []).map(l => <option key={l} value={l} />)}
+              </datalist>
+              <p className="text-[10px] text-slate-500">All generated fixtures will be grouped under this league/fixture name. Leave blank for no grouping.</p>
+            </div>
 
             {/* Scheduling */}
             <div className="grid grid-cols-3 gap-3">

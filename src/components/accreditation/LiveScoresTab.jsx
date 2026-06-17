@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Save, Calendar, Clock, Edit2, Play, CheckCircle, XCircle, ChevronDown, ChevronUp, Trophy, Search, RotateCcw, Wand2, Info } from "lucide-react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import * as XLSX from "xlsx";
+import { Plus, Trash2, Save, Calendar, Clock, Edit2, Play, CheckCircle, XCircle, ChevronDown, ChevronUp, Trophy, Search, RotateCcw, Wand2, Info, Download, FileText, Image } from "lucide-react";
+import FixturePNGCard from "./FixturePNGCard";
 import { motion, AnimatePresence } from "framer-motion";
-import { LiveScoresAPI, DivisionsAPI } from "../../lib/storage";
+import { LiveScoresAPI, DivisionsAPI, MatchEventsAPI, DisciplinaryAPI } from "../../lib/storage";
 import { TeamAPI } from "../../services/teamApi";
 import { toast } from "sonner";
 import { cn } from "../../lib/utils";
@@ -78,6 +80,13 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
   const [filterTeamId, setFilterTeamId] = useState("all");
   const [filterSearch, setFilterSearch] = useState("");
   const [quickView, setQuickView] = useState("all");
+
+  // Export menu + PNG modal
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [pngModal, setPngModal] = useState({ open: false, sportId: "", leagueName: "", status: "" });
+  const [pngData, setPngData] = useState(null);
+  const [pngGenerating, setPngGenerating] = useState(false);
+  const exportMenuRef = useRef(null);
 
   useEffect(() => {
     loadData();
@@ -252,8 +261,16 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
   // Phase 4: called after the Generate Fixtures modal creates new matches
   // and/or saves the sport's chosen format. Additive only - never removes
   // existing matches.
-  const handleFixturesGenerated = (insertedMatches, updatedSport) => {
-    if (insertedMatches && insertedMatches.length > 0) {
+  const handleFixturesGenerated = (insertedMatches, updatedSport, replaced) => {
+    if (replaced) {
+      // Remove deleted matches from state first, then append new ones
+      setMatches(prev => {
+        const filtered = replaced.leagueName
+          ? prev.filter(m => !(m.sport_id === replaced.sportId && m.league_name === replaced.leagueName))
+          : prev.filter(m => m.sport_id !== replaced.sportId);
+        return [...filtered, ...(insertedMatches || [])];
+      });
+    } else if (insertedMatches && insertedMatches.length > 0) {
       setMatches(prev => [...prev, ...insertedMatches]);
     }
     if (updatedSport) {
@@ -281,7 +298,7 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
       return;
     }
     try {
-      const payload = { ...matchForm, event_id: eventId, team_a_id: matchForm.team_a_id || null, team_b_id: matchForm.team_b_id || null };
+      const payload = { ...matchForm, event_id: eventId, team_a_id: matchForm.team_a_id || null, team_b_id: matchForm.team_b_id || null, league_name: matchForm.league_name.trim() || null };
       if (editingMatch) payload.id = editingMatch.id;
 
       const saved = await LiveScoresAPI.saveMatch(payload);
@@ -383,6 +400,340 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
       toast.error("Failed to delete league");
     }
   };
+
+  const handleDeleteNoLeagueMatches = async (sportId) => {
+    const count = matches.filter(m => m.sport_id === sportId && !m.league_name?.trim()).length;
+    if (!window.confirm(`Delete all ${count} match${count !== 1 ? 'es' : ''} with no league/fixture name for this sport? This cannot be undone.`)) return;
+    try {
+      await LiveScoresAPI.deleteMatchesBySportNoLeague(eventId, sportId);
+      setMatches(prev => prev.filter(m => !(m.sport_id === sportId && !m.league_name?.trim())));
+      toast.success(`${count} unassigned match${count !== 1 ? 'es' : ''} deleted`);
+    } catch (err) {
+      toast.error("Failed to delete matches");
+    }
+  };
+
+  const handleDeleteAllSportMatches = async (sportId) => {
+    const sport = sports.find(s => s.id === sportId);
+    const count = matches.filter(m => m.sport_id === sportId).length;
+    if (!window.confirm(`DELETE ALL ${count} MATCHES for ${sport?.sport_name || "this sport"}? This permanently removes every fixture and cannot be undone.`)) return;
+    try {
+      await LiveScoresAPI.deleteAllMatchesBySport(eventId, sportId);
+      setMatches(prev => prev.filter(m => m.sport_id !== sportId));
+      toast.success(`All matches for ${sport?.sport_name || "sport"} deleted`);
+    } catch (err) {
+      toast.error("Failed to delete matches");
+    }
+  };
+
+  const handleExportFixtures = async (exportAll = true) => {
+    const source = exportAll ? matches : filteredMatches;
+    if (source.length === 0) { toast.error("No matches to export"); return; }
+
+    toast.info("Preparing export…");
+
+    // Fetch all events and disciplinary records for this event in parallel
+    let allEvents = [], allCards = [];
+    try {
+      [allEvents, allCards] = await Promise.all([
+        MatchEventsAPI.getByEvent(eventId),
+        DisciplinaryAPI.getByEvent(eventId),
+      ]);
+    } catch {
+      // Non-fatal — export without events/cards if fetch fails
+    }
+
+    // Build match_id → events/cards lookup maps
+    const eventsMap = {};
+    allEvents.forEach(ev => { (eventsMap[ev.match_id] = eventsMap[ev.match_id] || []).push(ev); });
+    const cardsMap = {};
+    allCards.forEach(c => { (cardsMap[c.match_id] = cardsMap[c.match_id] || []).push(c); });
+
+    const fmtEvents = (matchId) =>
+      (eventsMap[matchId] || [])
+        .map(ev => `${ev.event_type}: ${ev.player_name}${ev.team_name ? ` (${ev.team_name})` : ""}${ev.minute ? ` ${ev.minute}'` : ""}${ev.notes ? ` [${ev.notes}]` : ""}`)
+        .join(";  ") || "";
+
+    const fmtCards = (matchId) =>
+      (cardsMap[matchId] || [])
+        .map(c => `${c.card_type} Card: ${c.player_name}${c.team_name ? ` (${c.team_name})` : ""}${c.minute ? ` ${c.minute}'` : ""}${c.reason ? ` [${c.reason}]` : ""}`)
+        .join(";  ") || "";
+
+    const wb = XLSX.utils.book_new();
+    const today = new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" });
+    const buildGroups = (sportId, sourceList) => {
+      const sportLeagues = getLeaguesForSport(sportId).filter(l => sourceList.some(m => m.league_name === l));
+      const leagueless = sourceList.filter(m => !m.league_name?.trim());
+      return [
+        ...sportLeagues.map(l => ({ label: l, items: sourceList.filter(m => m.league_name === l) })),
+        ...(leagueless.length > 0 ? [{ label: null, items: leagueless }] : [])
+      ];
+    };
+
+    // ── Sheet 1: All Fixtures ──────────────────────────────────────────────
+    const allRows = [
+      ["FIXTURE SCHEDULE — FULL OVERVIEW"],
+      [`Generated: ${today}`, "", "", exportAll ? `Total matches: ${matches.length}` : `Filtered view: ${filteredMatches.length} of ${matches.length} matches`],
+      [],
+      ["#", "Sport", "League / Fixture", "Phase / Round", "Date", "Time", "Venue", "Team A", "Score A", "Score B", "Team B", "Status", "Goals / Scorers", "Cards"],
+    ];
+    let num = 1;
+    sports.forEach(sport => {
+      const sm = source.filter(m => m.sport_id === sport.id);
+      if (sm.length === 0) return;
+      const sportLabel = `${sport.sport_name}${sport.gender ? ` (${sport.gender})` : ""}`;
+      allRows.push([]);
+      allRows.push([`▸ ${sportLabel.toUpperCase()}`]);
+      buildGroups(sport.id, sm).forEach(({ label, items }) => {
+        if (label) allRows.push(["", `  ◦ ${label}`, "", `(${items.length} matches)`]);
+        items.forEach(m => allRows.push([
+          num++, sportLabel, label || "", m.match_title || "",
+          m.match_date || "", m.match_time || "", m.venue || "",
+          m.team_a_name || "", m.team_a_score ?? "0", m.team_b_score ?? "0", m.team_b_name || "",
+          m.status || "", fmtEvents(m.id), fmtCards(m.id)
+        ]));
+      });
+    });
+    const ws1 = XLSX.utils.aoa_to_sheet(allRows);
+    ws1["!cols"] = [4, 22, 24, 22, 12, 8, 20, 24, 8, 8, 24, 14, 40, 40].map(w => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb, ws1, "All Fixtures");
+
+    // ── One sheet per sport ───────────────────────────────────────────────
+    sports.forEach(sport => {
+      const sm = source.filter(m => m.sport_id === sport.id)
+        .sort((a, b) => `${a.match_date} ${a.match_time}`.localeCompare(`${b.match_date} ${b.match_time}`));
+      if (sm.length === 0) return;
+      const sportLabel = `${sport.sport_name}${sport.gender ? ` (${sport.gender})` : ""}`;
+      const rows = [
+        [`${sportLabel.toUpperCase()} — FIXTURE SCHEDULE`],
+        [`Generated: ${today}`, "", `Total: ${sm.length} matches`],
+        [],
+        ["#", "League / Fixture", "Phase / Round", "Date", "Time", "Venue", "Team A", "Score A", "Score B", "Team B", "Status", "Goals / Scorers", "Cards"],
+      ];
+      let n = 1;
+      buildGroups(sport.id, sm).forEach(({ label, items }) => {
+        rows.push([]);
+        if (label) rows.push(["", `${label}`, "", `${items.length} matches`]);
+        items.forEach(m => rows.push([
+          n++, label || "", m.match_title || "",
+          m.match_date || "", m.match_time || "", m.venue || "",
+          m.team_a_name || "", m.team_a_score ?? "0", m.team_b_score ?? "0", m.team_b_name || "",
+          m.status || "", fmtEvents(m.id), fmtCards(m.id)
+        ]));
+      });
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      ws["!cols"] = [4, 24, 22, 12, 8, 20, 24, 8, 8, 24, 14, 40, 40].map(w => ({ wch: w }));
+      const sheetName = sportLabel.replace(/[:\\/?*[\]]/g, "").slice(0, 31);
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    });
+
+    const filename = `Fixtures_${new Date().toISOString().split("T")[0]}.xlsx`;
+    XLSX.writeFile(wb, filename);
+    toast.success(`Exported ${source.length} matches to ${filename}`);
+  };
+
+  // ── PDF Export ──────────────────────────────────────────────────────────
+  const handleExportPDF = async (exportAll = true) => {
+    const source = exportAll ? matches : filteredMatches;
+    if (!source.length) { toast.error("No matches to export"); return; }
+    setExportMenuOpen(false);
+    toast.info("Generating PDF…");
+
+    let allEvents = [], allCards = [];
+    try {
+      [allEvents, allCards] = await Promise.all([
+        MatchEventsAPI.getByEvent(eventId),
+        DisciplinaryAPI.getByEvent(eventId),
+      ]);
+    } catch {}
+
+    const evMap = {};
+    allEvents.forEach(ev => { (evMap[ev.match_id] = evMap[ev.match_id] || []).push(ev); });
+    const cMap = {};
+    allCards.forEach(c => { (cMap[c.match_id] = cMap[c.match_id] || []).push(c); });
+    const fmtEv = (id) => (evMap[id] || []).map(ev => `${ev.event_type}: ${ev.player_name}${ev.team_name ? ` (${ev.team_name})` : ""}${ev.minute ? ` ${ev.minute}'` : ""}`).join(", ");
+    const fmtC  = (id) => (cMap[id] || []).map(c => `${c.card_type}: ${c.player_name}${c.team_name ? ` (${c.team_name})` : ""}${c.minute ? ` ${c.minute}'` : ""}`).join(", ");
+
+    try {
+      const { jsPDF } = await import("jspdf");
+      const autoTable  = (await import("jspdf-autotable")).default;
+
+      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      const today = new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" });
+      const DARK  = [15, 23, 42];
+      const GOLD  = [223, 197, 139];
+      const LITE  = [241, 245, 249];
+      const PAGE_W = doc.internal.pageSize.getWidth();
+      const PAGE_H = doc.internal.pageSize.getHeight();
+
+      const buildGroups = (sportId, src) => {
+        const lgs = getLeaguesForSport(sportId).filter(l => src.some(m => m.league_name === l));
+        const ll  = src.filter(m => !m.league_name?.trim());
+        return [
+          ...lgs.map(l => ({ label: l, items: src.filter(m => m.league_name === l) })),
+          ...(ll.length > 0 ? [{ label: null, items: ll }] : []),
+        ];
+      };
+
+      let first = true;
+      sports.forEach(sport => {
+        const sm = source.filter(m => m.sport_id === sport.id)
+          .sort((a, b) => `${a.match_date} ${a.match_time}`.localeCompare(`${b.match_date} ${b.match_time}`));
+        if (!sm.length) return;
+        const sportLabel = `${sport.sport_name}${sport.gender ? ` (${sport.gender})` : ""}`;
+
+        buildGroups(sport.id, sm).forEach(({ label, items }) => {
+          if (!first) doc.addPage();
+          first = false;
+
+          // Dark header band
+          doc.setFillColor(...DARK);
+          doc.rect(0, 0, PAGE_W, 24, "F");
+          doc.setFontSize(15);
+          doc.setTextColor(...GOLD);
+          doc.setFont("helvetica", "bold");
+          doc.text(`${sportLabel.toUpperCase()}${label ? `  —  ${label}` : ""}`, 10, 14);
+          doc.setFontSize(8);
+          doc.setTextColor(148, 163, 184);
+          doc.setFont("helvetica", "normal");
+          doc.text(`${today}   ·   ${items.length} match${items.length !== 1 ? "es" : ""}`, 10, 21);
+
+          // Table
+          let n = 1;
+          autoTable(doc, {
+            startY: 27,
+            head: [["#", "Phase / Round", "Date", "Time", "Venue", "Team A", "Score", "Team B", "Status", "Goals / Scorers", "Cards"]],
+            body: items.map(m => [
+              n++,
+              m.match_title || "",
+              m.match_date  || "",
+              (m.match_time || "").slice(0, 5),
+              m.venue       || "",
+              m.team_a_name || "TBA",
+              `${m.team_a_score ?? 0} – ${m.team_b_score ?? 0}`,
+              m.team_b_name || "TBA",
+              m.status      || "",
+              fmtEv(m.id),
+              fmtC(m.id),
+            ]),
+            theme: "grid",
+            styles: { fontSize: 7.5, cellPadding: 2, textColor: DARK, overflow: "linebreak" },
+            headStyles: { fillColor: DARK, textColor: GOLD, fontStyle: "bold", fontSize: 8 },
+            alternateRowStyles: { fillColor: LITE },
+            columnStyles: {
+              0:  { cellWidth: 7,  halign: "center", overflow: "hidden" },
+              1:  { cellWidth: 30, overflow: "ellipsize" },
+              2:  { cellWidth: 20, overflow: "hidden" },
+              3:  { cellWidth: 16, halign: "center", overflow: "hidden" },
+              4:  { cellWidth: 20, overflow: "ellipsize" },
+              5:  { cellWidth: 36, overflow: "ellipsize" },
+              6:  { cellWidth: 15, halign: "center", fontStyle: "bold", overflow: "hidden" },
+              7:  { cellWidth: 36, overflow: "ellipsize" },
+              8:  { cellWidth: 18, overflow: "hidden" },
+              9:  { cellWidth: "auto" },
+              10: { cellWidth: "auto" },
+            },
+            didDrawPage: (data) => {
+              doc.setFontSize(7);
+              doc.setTextColor(150, 150, 150);
+              doc.text("APEX SPORTS ACADEMY", 10, PAGE_H - 5);
+              doc.text(`Page ${data.pageNumber}`, PAGE_W - 10, PAGE_H - 5, { align: "right" });
+            },
+          });
+        });
+      });
+
+      doc.save(`Fixtures_${new Date().toISOString().split("T")[0]}.pdf`);
+      toast.success("PDF exported");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to generate PDF");
+    }
+  };
+
+  // ── PNG Export ──────────────────────────────────────────────────────────
+  // Triggered after pngData state is set (card is then rendered in the DOM).
+  useEffect(() => {
+    if (!pngData || !pngGenerating) return;
+    const capture = async () => {
+      try {
+        await document.fonts.ready;
+        await new Promise(r => requestAnimationFrame(r));
+        await new Promise(r => setTimeout(r, 200));
+
+        const html2canvas = (await import("html2canvas")).default;
+        const el = document.getElementById("fixture-png-export-card");
+        if (!el) { toast.error("Card element not found"); return; }
+
+        const canvas = await html2canvas(el, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#0f172a",
+          logging: false,
+        });
+
+        const sport = pngData.sport;
+        const sportSlug = `${sport?.sport_name || ""}${sport?.gender ? `_${sport.gender}` : ""}`.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_]/g, "");
+        const leagueSlug = pngData.leagueName ? `_${pngData.leagueName}`.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_]/g, "") : "";
+        const a = document.createElement("a");
+        a.download = `Fixture_${sportSlug}${leagueSlug}_${new Date().toISOString().split("T")[0]}.png`;
+        a.href = canvas.toDataURL("image/png", 1.0);
+        a.click();
+        toast.success("PNG downloaded");
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to generate PNG");
+      } finally {
+        setPngGenerating(false);
+        setPngData(null);
+      }
+    };
+    capture();
+  }, [pngData]);
+
+  const handleExportPNG = async () => {
+    const { sportId, leagueName, status } = pngModal;
+    if (!sportId) { toast.error("Select a sport first"); return; }
+    const sport = sports.find(s => s.id === sportId);
+    let items = matches.filter(m => m.sport_id === sportId);
+    if (leagueName) items = items.filter(m => m.league_name === leagueName);
+    if (status)     items = items.filter(m => m.status === status);
+    items = items.sort((a, b) => `${a.match_date} ${a.match_time}`.localeCompare(`${b.match_date} ${b.match_time}`));
+    if (!items.length) { toast.error("No matches found for this selection"); return; }
+
+    // Large cards crash the browser — html2canvas at 2× scale needs ~3 MB per 10 rows.
+    // Hard-cap at 80; combine league + status filters to reduce the count.
+    if (items.length > 80) {
+      toast.error(`PNG is limited to 80 matches (${items.length} selected). Use the League and/or Status filters to narrow the selection, or use PDF / Excel for large exports.`);
+      return;
+    }
+
+    let allEvents = [], allCards = [];
+    try {
+      [allEvents, allCards] = await Promise.all([
+        MatchEventsAPI.getByEvent(eventId),
+        DisciplinaryAPI.getByEvent(eventId),
+      ]);
+    } catch {}
+    const evMap = {};
+    allEvents.forEach(ev => { (evMap[ev.match_id] = evMap[ev.match_id] || []).push(ev); });
+    const cMap = {};
+    allCards.forEach(c => { (cMap[c.match_id] = cMap[c.match_id] || []).push(c); });
+
+    // Close modal BEFORE starting capture so the page never goes blank.
+    setPngModal({ open: false, sportId: "", leagueName: "", status: "" });
+    toast.info("Preparing PNG image…");
+    setPngGenerating(true);
+    setPngData({ sport, leagueName, items, eventsMap: evMap, cardsMap: cMap });
+  };
+
+  // Close export menu on outside click
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const handler = (e) => { if (exportMenuRef.current && !exportMenuRef.current.contains(e.target)) setExportMenuOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [exportMenuOpen]);
 
   const quickUpdateScore = async (match, aScore, bScore, newStatus) => {
     if (disabled) return;
@@ -601,51 +952,90 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
           {/* Manage Leagues */}
           {sports.length > 0 && !isSettingsDisabled && (
             <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-6 space-y-4">
-              <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Manage Leagues</h4>
+              <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Manage Leagues / Fixtures</h4>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-500 uppercase">Sport</label>
                 <select
-                  value={leagueManageSportId || sports[0]?.id || ""}
+                  value={leagueManageSportId || sports.find(s => getLeaguesForSport(s.id).length > 0)?.id || sports[0]?.id || ""}
                   onChange={e => setLeagueManageSportId(e.target.value)}
                   className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
                 >
-                  {sports.map(s => <option key={s.id} value={s.id}>{s.sport_name}{s.gender ? ` (${s.gender})` : ""}</option>)}
+                  {sports.map(s => {
+                    const lCount = getLeaguesForSport(s.id).length;
+                    const noLeagueCount = matches.filter(m => m.sport_id === s.id && !m.league_name?.trim()).length;
+                    const total = matches.filter(m => m.sport_id === s.id).length;
+                    return <option key={s.id} value={s.id}>{s.sport_name}{s.gender ? ` (${s.gender})` : ""}{total > 0 ? ` — ${total} matches` : ""}</option>;
+                  })}
                 </select>
               </div>
               {(() => {
-                const sid = leagueManageSportId || sports[0]?.id;
+                const sid = leagueManageSportId || sports.find(s => getLeaguesForSport(s.id).length > 0)?.id || sports[0]?.id;
                 const leagues = getLeaguesForSport(sid);
-                if (leagues.length === 0) return <p className="text-xs text-slate-500">No leagues configured for this sport yet. Add a league name when creating matches.</p>;
+                const noLeagueCount = matches.filter(m => m.sport_id === sid && !m.league_name?.trim()).length;
+                const totalCount = matches.filter(m => m.sport_id === sid).length;
                 return (
-                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                    {leagues.map(league => {
-                      const count = matches.filter(m => m.sport_id === sid && m.league_name === league).length;
-                      return (
-                        <div key={league} className="flex items-center justify-between bg-slate-800/50 p-2.5 rounded-lg border border-white/5">
-                          <div className="min-w-0">
-                            <span className="text-white text-sm font-semibold block truncate">{league}</span>
-                            <span className="text-slate-500 text-[10px]">{count} match{count !== 1 ? 'es' : ''}</span>
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0 ml-2">
+                  <>
+                    {leagues.length === 0 && noLeagueCount === 0 && (
+                      <p className="text-xs text-slate-500">No matches yet for this sport.</p>
+                    )}
+                    {(leagues.length > 0 || noLeagueCount > 0) && (
+                      <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                        {leagues.map(league => {
+                          const count = matches.filter(m => m.sport_id === sid && m.league_name === league).length;
+                          return (
+                            <div key={league} className="flex items-center justify-between bg-slate-800/50 p-2.5 rounded-lg border border-white/5">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <Trophy className="w-3 h-3 text-amber-400 shrink-0" />
+                                  <span className="text-white text-sm font-semibold truncate">{league}</span>
+                                </div>
+                                <span className="text-slate-500 text-[10px] pl-4">{count} match{count !== 1 ? 'es' : ''}</span>
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0 ml-2">
+                                <button
+                                  onClick={() => setRenameLeagueModal({ open: true, sportId: sid, oldName: league, newName: league })}
+                                  className="p-1.5 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-lg transition-colors"
+                                  title="Rename"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteLeague(sid, league)}
+                                  className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+                                  title="Delete league & all its matches"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {noLeagueCount > 0 && (
+                          <div className="flex items-center justify-between bg-slate-800/30 p-2.5 rounded-lg border border-dashed border-white/10">
+                            <div className="min-w-0">
+                              <span className="text-slate-400 text-sm font-semibold block">No League / Unassigned</span>
+                              <span className="text-slate-500 text-[10px]">{noLeagueCount} match{noLeagueCount !== 1 ? 'es' : ''} with no fixture name</span>
+                            </div>
                             <button
-                              onClick={() => setRenameLeagueModal({ open: true, sportId: sid, oldName: league, newName: league })}
-                              className="p-1.5 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-lg transition-colors"
-                              title="Rename League"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteLeague(sid, league)}
-                              className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
-                              title="Delete League"
+                              onClick={() => handleDeleteNoLeagueMatches(sid)}
+                              className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors shrink-0 ml-2"
+                              title="Delete all unassigned matches"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        )}
+                      </div>
+                    )}
+                    {totalCount > 0 && (
+                      <button
+                        onClick={() => handleDeleteAllSportMatches(sid)}
+                        className="w-full py-2 bg-red-900/20 hover:bg-red-900/40 border border-red-500/20 text-red-400 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Delete All {totalCount} Matches for This Sport
+                      </button>
+                    )}
+                  </>
                 );
               })()}
             </div>
@@ -837,11 +1227,49 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
 
         {/* Right Column: Matches List */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
             <h3 className="text-lg font-bold text-white">Live & Upcoming Matches</h3>
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-              {filteredMatches.length === matches.length ? `${matches.length} Matches Total` : `${filteredMatches.length} of ${matches.length} Matches`}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                {filteredMatches.length === matches.length ? `${matches.length} Matches Total` : `${filteredMatches.length} of ${matches.length} Matches`}
+              </span>
+              {matches.length > 0 && (
+                <div className="relative" ref={exportMenuRef}>
+                  <button
+                    onClick={() => setExportMenuOpen(prev => !prev)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-white/10 text-slate-300 hover:text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" /> Export <ChevronDown className="w-3 h-3" />
+                  </button>
+                  {exportMenuOpen && (
+                    <div className="absolute right-0 top-full mt-1.5 z-30 bg-slate-900 border border-white/10 rounded-xl shadow-2xl p-2 min-w-[210px] space-y-0.5">
+                      <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest px-2 py-1">All Matches</p>
+                      <button onClick={() => { handleExportFixtures(true); setExportMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-800 rounded-lg text-sm text-slate-200 transition-colors text-left">
+                        <Download className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> <span>Excel (.xlsx)</span>
+                      </button>
+                      <button onClick={() => { handleExportPDF(true); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-800 rounded-lg text-sm text-slate-200 transition-colors text-left">
+                        <FileText className="w-3.5 h-3.5 text-red-400 shrink-0" /> <span>PDF Schedule</span>
+                      </button>
+                      <button onClick={() => { setPngModal({ open: true, sportId: sports[0]?.id || "", leagueName: "", status: "" }); setExportMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-800 rounded-lg text-sm text-slate-200 transition-colors text-left">
+                        <Image className="w-3.5 h-3.5 text-blue-400 shrink-0" /> <span>PNG / Social Media</span>
+                      </button>
+                      {filteredMatches.length !== matches.length && (
+                        <>
+                          <div className="h-px bg-white/5 my-1" />
+                          <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest px-2 py-1">Filtered View ({filteredMatches.length})</p>
+                          <button onClick={() => { handleExportFixtures(false); setExportMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-800 rounded-lg text-sm text-slate-200 transition-colors text-left">
+                            <Download className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> <span>Excel (filtered)</span>
+                          </button>
+                          <button onClick={() => { handleExportPDF(false); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-800 rounded-lg text-sm text-slate-200 transition-colors text-left">
+                            <FileText className="w-3.5 h-3.5 text-red-400 shrink-0" /> <span>PDF (filtered)</span>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Quick Views */}
@@ -1351,6 +1779,123 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
         </div>
       )}
 
+      {/* ── PNG Export Modal ──────────────────────────────────────────────── */}
+      {pngModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-4">
+            <div>
+              <h3 className="text-base font-bold text-white">Export PNG — Social Media Card</h3>
+              <p className="text-xs text-slate-500 mt-1">Generates a styled fixture card (920 px wide, 2× resolution) ready to share. Max 80 matches.</p>
+            </div>
+
+            {/* Sport */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase">Sport</label>
+              <select
+                value={pngModal.sportId}
+                onChange={e => setPngModal(prev => ({ ...prev, sportId: e.target.value, leagueName: "", status: "" }))}
+                className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
+              >
+                <option value="">Select sport…</option>
+                {sports.map(s => (
+                  <option key={s.id} value={s.id}>
+                    {s.sport_name}{s.gender ? ` (${s.gender})` : ""} — {matches.filter(m => m.sport_id === s.id).length} matches
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {pngModal.sportId && (
+              <>
+                {/* League */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">League / Fixture</label>
+                  <select
+                    value={pngModal.leagueName}
+                    onChange={e => setPngModal(prev => ({ ...prev, leagueName: e.target.value }))}
+                    className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
+                  >
+                    <option value="">All leagues</option>
+                    {getLeaguesForSport(pngModal.sportId).map(l => {
+                      const count = matches.filter(m => m.sport_id === pngModal.sportId && m.league_name === l && (!pngModal.status || m.status === pngModal.status)).length;
+                      return <option key={l} value={l}>{l} — {count} matches</option>;
+                    })}
+                  </select>
+                </div>
+
+                {/* Status */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Status Filter</label>
+                  <select
+                    value={pngModal.status}
+                    onChange={e => setPngModal(prev => ({ ...prev, status: e.target.value }))}
+                    className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
+                  >
+                    <option value="">All statuses</option>
+                    {STATUS_OPTIONS.map(s => {
+                      const count = matches.filter(m =>
+                        m.sport_id === pngModal.sportId &&
+                        (!pngModal.leagueName || m.league_name === pngModal.leagueName) &&
+                        m.status === s
+                      ).length;
+                      return count > 0
+                        ? <option key={s} value={s}>{s} — {count} matches</option>
+                        : null;
+                    })}
+                  </select>
+                </div>
+
+                {/* Live count preview */}
+                {(() => {
+                  const count = matches.filter(m =>
+                    m.sport_id === pngModal.sportId &&
+                    (!pngModal.leagueName || m.league_name === pngModal.leagueName) &&
+                    (!pngModal.status   || m.status     === pngModal.status)
+                  ).length;
+                  const over = count > 80;
+                  return (
+                    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold ${over ? "bg-red-500/10 border border-red-500/20 text-red-300" : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-300"}`}>
+                      <span>{count} match{count !== 1 ? "es" : ""} selected</span>
+                      {over && <span className="ml-auto text-red-400">↑ over 80 limit — add filters</span>}
+                    </div>
+                  );
+                })()}
+              </>
+            )}
+
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => setPngModal({ open: false, sportId: "", leagueName: "", status: "" })}
+                className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-sm font-bold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExportPNG}
+                disabled={pngGenerating || !pngModal.sportId}
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2"
+              >
+                <Image className="w-4 h-4" />
+                {pngGenerating ? "Generating…" : "Download PNG"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden fixture card rendered off-screen for html2canvas capture */}
+      {pngData && (
+        <div style={{ position: "fixed", left: -9999, top: 0, zIndex: -1, pointerEvents: "none" }}>
+          <FixturePNGCard
+            sport={pngData.sport}
+            leagueName={pngData.leagueName}
+            items={pngData.items}
+            eventsMap={pngData.eventsMap}
+            cardsMap={pngData.cardsMap}
+          />
+        </div>
+      )}
+
       <GenerateFixturesModal
         isOpen={!!generateFixturesSport}
         onClose={() => setGenerateFixturesSport(null)}
@@ -1359,6 +1904,8 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
         teams={teams}
         divisions={generateFixturesSport && generateFixturesSport.id === standingsSportId ? divisions : []}
         teamDivisions={generateFixturesSport && generateFixturesSport.id === standingsSportId ? teamDivisions : {}}
+        existingLeagues={generateFixturesSport ? getLeaguesForSport(generateFixturesSport.id) : []}
+        existingSportMatchCount={generateFixturesSport ? matches.filter(m => m.sport_id === generateFixturesSport.id).length : 0}
         onGenerated={handleFixturesGenerated}
       />
     </div>

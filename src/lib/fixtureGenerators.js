@@ -381,7 +381,7 @@ export function generateFixtures(format, teams, options = {}) {
 // Turns abstract fixtures (with round_offset) into live_score_matches insert
 // rows, spacing rounds `daysBetweenRounds` days apart starting from
 // `startDate` (YYYY-MM-DD).
-export function buildMatchRows(fixtures, { eventId, sportId, startDate, daysBetweenRounds = 7, venue = "", status = "Upcoming" } = {}) {
+export function buildMatchRows(fixtures, { eventId, sportId, startDate, daysBetweenRounds = 7, venue = "", leagueName = "", status = "Upcoming" } = {}) {
   const base = startDate ? new Date(`${startDate}T00:00:00`) : new Date();
   return fixtures.map((f) => {
     const date = new Date(base);
@@ -390,6 +390,7 @@ export function buildMatchRows(fixtures, { eventId, sportId, startDate, daysBetw
       event_id: eventId,
       sport_id: sportId,
       match_title: f.match_title,
+      league_name: leagueName || null,
       team_a_id: f.team_a_id || null,
       team_a_name: f.team_a_name,
       team_b_id: f.team_b_id || null,
