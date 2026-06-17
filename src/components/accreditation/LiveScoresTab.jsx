@@ -47,9 +47,15 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
   // Phase 4: competition format builder / fixture generation
   const [generateFixturesSport, setGenerateFixturesSport] = useState(null);
 
+  // League management
+  const [leagueManageSportId, setLeagueManageSportId] = useState("");
+  const [renameLeagueModal, setRenameLeagueModal] = useState({ open: false, sportId: null, oldName: "", newName: "" });
+  const [renamingLeague, setRenamingLeague] = useState(false);
+
   const [matchForm, setMatchForm] = useState({
     sport_id: "",
     match_title: "",
+    league_name: "",
     team_a_id: "",
     team_a_name: "",
     team_b_id: "",
@@ -310,6 +316,7 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
     setMatchForm({
       sport_id: m.sport_id || "",
       match_title: m.match_title || "",
+      league_name: m.league_name || "",
       team_a_id: m.team_a_id || "",
       team_a_name: m.team_a_name || "",
       team_b_id: m.team_b_id || "",
@@ -330,6 +337,7 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
     setMatchForm({
       sport_id: sports.length > 0 ? sports[0].id : "",
       match_title: "",
+      league_name: "",
       team_a_id: "",
       team_a_name: "",
       team_b_id: "",
@@ -342,6 +350,38 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
       status: "Upcoming",
       notes: ""
     });
+  };
+
+  // Derive leagues from current matches state (no extra DB query needed)
+  const getLeaguesForSport = (sportId) =>
+    [...new Set(matches.filter(m => m.sport_id === sportId && m.league_name?.trim()).map(m => m.league_name.trim()))].sort();
+
+  const handleRenameLeague = async () => {
+    const { sportId, oldName, newName } = renameLeagueModal;
+    if (!newName.trim() || newName.trim() === oldName) { setRenameLeagueModal({ open: false, sportId: null, oldName: "", newName: "" }); return; }
+    setRenamingLeague(true);
+    try {
+      await LiveScoresAPI.renameLeague(eventId, sportId, oldName, newName.trim());
+      setMatches(prev => prev.map(m => m.sport_id === sportId && m.league_name === oldName ? { ...m, league_name: newName.trim() } : m));
+      toast.success("League renamed");
+      setRenameLeagueModal({ open: false, sportId: null, oldName: "", newName: "" });
+    } catch (err) {
+      toast.error("Failed to rename league");
+    } finally {
+      setRenamingLeague(false);
+    }
+  };
+
+  const handleDeleteLeague = async (sportId, leagueName) => {
+    const count = matches.filter(m => m.sport_id === sportId && m.league_name === leagueName).length;
+    if (!window.confirm(`Delete league "${leagueName}"? This will permanently delete all ${count} match${count !== 1 ? 'es' : ''} in it.`)) return;
+    try {
+      await LiveScoresAPI.deleteLeague(eventId, sportId, leagueName);
+      setMatches(prev => prev.filter(m => !(m.sport_id === sportId && m.league_name === leagueName)));
+      toast.success(`League "${leagueName}" deleted`);
+    } catch (err) {
+      toast.error("Failed to delete league");
+    }
   };
 
   const quickUpdateScore = async (match, aScore, bScore, newStatus) => {
@@ -558,6 +598,59 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
             </div>
           </div>
 
+          {/* Manage Leagues */}
+          {sports.length > 0 && !isSettingsDisabled && (
+            <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-6 space-y-4">
+              <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Manage Leagues</h4>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase">Sport</label>
+                <select
+                  value={leagueManageSportId || sports[0]?.id || ""}
+                  onChange={e => setLeagueManageSportId(e.target.value)}
+                  className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
+                >
+                  {sports.map(s => <option key={s.id} value={s.id}>{s.sport_name}{s.gender ? ` (${s.gender})` : ""}</option>)}
+                </select>
+              </div>
+              {(() => {
+                const sid = leagueManageSportId || sports[0]?.id;
+                const leagues = getLeaguesForSport(sid);
+                if (leagues.length === 0) return <p className="text-xs text-slate-500">No leagues configured for this sport yet. Add a league name when creating matches.</p>;
+                return (
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {leagues.map(league => {
+                      const count = matches.filter(m => m.sport_id === sid && m.league_name === league).length;
+                      return (
+                        <div key={league} className="flex items-center justify-between bg-slate-800/50 p-2.5 rounded-lg border border-white/5">
+                          <div className="min-w-0">
+                            <span className="text-white text-sm font-semibold block truncate">{league}</span>
+                            <span className="text-slate-500 text-[10px]">{count} match{count !== 1 ? 'es' : ''}</span>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0 ml-2">
+                            <button
+                              onClick={() => setRenameLeagueModal({ open: true, sportId: sid, oldName: league, newName: league })}
+                              className="p-1.5 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-lg transition-colors"
+                              title="Rename League"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteLeague(sid, league)}
+                              className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+                              title="Delete League"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
           {/* Add/Edit Match */}
           <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-6 space-y-4">
             <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex justify-between">
@@ -585,8 +678,24 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                 </div>
                 
                 <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">League (Optional)</label>
+                  <input
+                    type="text"
+                    list="match-form-leagues"
+                    placeholder="e.g. Group A, Premier League"
+                    value={matchForm.league_name}
+                    onChange={e => setMatchForm({...matchForm, league_name: e.target.value})}
+                    disabled={isSettingsDisabled && !editingMatch}
+                    className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
+                  />
+                  <datalist id="match-form-leagues">
+                    {getLeaguesForSport(matchForm.sport_id).map(l => <option key={l} value={l} />)}
+                  </datalist>
+                </div>
+
+                <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-500 uppercase">Match Title / Phase</label>
-                  <input 
+                  <input
                     type="text" placeholder="e.g. Final, Group Stage"
                     value={matchForm.match_title} onChange={e => setMatchForm({...matchForm, match_title: e.target.value})}
                     disabled={isSettingsDisabled && !editingMatch}
@@ -881,7 +990,24 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                           className="overflow-hidden"
                         >
                           <div className="space-y-3 pt-3 mt-3 border-t border-white/5">
-                            {sportMatches.map(match => (
+                            {(() => {
+                              const sportLeagues = getLeaguesForSport(sport.id).filter(l => sportMatches.some(m => m.league_name === l));
+                              const leagueless = sportMatches.filter(m => !m.league_name?.trim());
+                              const groups = [
+                                ...sportLeagues.map(l => ({ label: l, items: sportMatches.filter(m => m.league_name === l) })),
+                                ...(leagueless.length > 0 ? [{ label: null, items: leagueless }] : [])
+                              ];
+                              return groups.map(({ label, items }) => (
+                                <div key={label || '__none__'}>
+                                  {label && (
+                                    <div className="flex items-center gap-2 mb-2 px-1">
+                                      <Trophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                      <span className="text-xs font-black text-amber-400 uppercase tracking-wider">{label}</span>
+                                      <span className="text-[10px] text-slate-600">· {items.length} match{items.length !== 1 ? 'es' : ''}</span>
+                                    </div>
+                                  )}
+                                  <div className="space-y-3">
+                                  {items.map(match => (
                               <div key={match.id} className="bg-slate-900/80 border border-white/10 rounded-xl p-4 hover:border-white/20 transition-all flex flex-col sm:flex-row gap-4 items-center">
                                 
                                 {/* Left Info */}
@@ -981,6 +1107,10 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                                 )}
                               </div>
                             ))}
+                                  </div>
+                                </div>
+                              ));
+                            })()}
                           </div>
                         </motion.div>
                       )}
@@ -1181,6 +1311,43 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
               </p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Rename League Modal */}
+      {renameLeagueModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-4">
+            <h3 className="text-base font-bold text-white">Rename League</h3>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase">New League Name</label>
+              <input
+                type="text"
+                value={renameLeagueModal.newName}
+                onChange={e => setRenameLeagueModal(prev => ({ ...prev, newName: e.target.value }))}
+                onKeyDown={e => e.key === 'Enter' && handleRenameLeague()}
+                className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm outline-none focus:border-blue-500"
+                autoFocus
+              />
+            </div>
+            <p className="text-xs text-slate-500">All matches in "{renameLeagueModal.oldName}" will be updated to the new name.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setRenameLeagueModal({ open: false, sportId: null, oldName: "", newName: "" })}
+                disabled={renamingLeague}
+                className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-bold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRenameLeague}
+                disabled={renamingLeague || !renameLeagueModal.newName.trim()}
+                className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white rounded-lg text-sm font-bold transition-colors"
+              >
+                {renamingLeague ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

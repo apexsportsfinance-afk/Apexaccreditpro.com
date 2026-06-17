@@ -53,6 +53,26 @@ export const LiveScoresAPI = {
   deleteMatch: async (id) => {
     return handleResponse(() => supabase.from("live_score_matches").delete().eq("id", id).select());
   },
+  renameLeague: async (eventId, sportId, oldName, newName) => {
+    return handleResponse(() =>
+      supabase.from("live_score_matches")
+        .update({ league_name: newName.trim() || null, updated_at: new Date().toISOString() })
+        .eq("event_id", eventId)
+        .eq("sport_id", sportId)
+        .eq("league_name", oldName)
+        .select()
+    );
+  },
+  deleteLeague: async (eventId, sportId, leagueName) => {
+    return handleResponse(() =>
+      supabase.from("live_score_matches")
+        .delete()
+        .eq("event_id", eventId)
+        .eq("sport_id", sportId)
+        .eq("league_name", leagueName)
+        .select()
+    );
+  },
   getStandings: async (eventId, sportId, divisionId) => {
     const data = await handleResponse(() => supabase.rpc("get_team_standings", { p_event_id: eventId, p_sport_id: sportId || null, p_division_id: divisionId || null }));
     return data || [];
