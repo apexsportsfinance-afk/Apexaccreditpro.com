@@ -147,9 +147,22 @@ AS $$
       )
     )
   ORDER BY
-    CASE s.st WHEN 'basketball' THEN win_pct ELSE points::numeric END DESC,
-    CASE s.st WHEN 'volleyball' THEN set_ratio ELSE goal_diff::numeric END DESC,
-    goals_for DESC,
+    CASE s.st
+      WHEN 'basketball' THEN
+        (CASE WHEN COALESCE(a.played, 0) = 0 THEN 0 ELSE ROUND(COALESCE(a.won, 0)::numeric / a.played, 3) END)
+      ELSE
+        (CASE s.st
+          WHEN 'volleyball' THEN COALESCE(a.volleyball_points, 0)
+          ELSE (COALESCE(a.won, 0) * COALESCE((SELECT points_win FROM cfg), 3)
+            + COALESCE(a.drawn, 0) * COALESCE((SELECT points_draw FROM cfg), 1)
+            + COALESCE(a.lost, 0) * COALESCE((SELECT points_loss FROM cfg), 0))
+        END)::numeric
+    END DESC,
+    CASE s.st
+      WHEN 'volleyball' THEN ROUND(COALESCE(a.goals_for, 0)::numeric / GREATEST(COALESCE(a.goals_against, 0), 1), 3)
+      ELSE (COALESCE(a.goals_for, 0) - COALESCE(a.goals_against, 0))::numeric
+    END DESC,
+    COALESCE(a.goals_for, 0) DESC,
     t.name ASC;
 $$;
 
