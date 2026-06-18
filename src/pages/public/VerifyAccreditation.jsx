@@ -164,46 +164,83 @@ export default function VerifyAccreditation() {
     }
   }, [isBookingExpanded, isBookingsLoaded, isFetchingBookings, data?.event_id, data?.id]);
 
-  // Live Scores State
+  // Live Scores State — gated behind a Sport choice so the widget never has
+  // to pull every sport/league/match for the event in one shot.
   const [liveScoreSettings, setLiveScoreSettings] = useState(null);
   const [liveSports, setLiveSports] = useState([]);
   const [liveMatches, setLiveMatches] = useState([]);
   const [liveMatchEvents, setLiveMatchEvents] = useState({});
-  const [collapsedSports, setCollapsedSports] = useState({});
   const [isLiveScoresExpanded, setIsLiveScoresExpanded] = useState(false);
-  const [isLiveScoresLoaded, setIsLiveScoresLoaded] = useState(false);
+  const [isSportsLoaded, setIsSportsLoaded] = useState(false);
   const [isFetchingScores, setIsFetchingScores] = useState(false);
 
-  const fetchLiveScores = async () => {
+  const [selectedSportId, setSelectedSportId] = useState(null);
+  const [filterOptions, setFilterOptions] = useState({ leagueNames: [], matchDates: [] });
+  const [selectedStatus, setSelectedStatus] = useState("");
+  const [selectedLeague, setSelectedLeague] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
+
+  const STATUS_FILTER_OPTIONS = ["Live", "Upcoming", "Half Time / Break", "Finished", "Cancelled", "Postponed"];
+
+  // Step 1: load only the (small) list of sports once the section is expanded.
+  const fetchLiveSports = async () => {
     if (!data?.event_id) return;
     setIsFetchingScores(true);
     try {
-      const [sports, matches, matchEvents] = await Promise.all([
-        LiveScoresAPI.getSports(data.event_id),
-        LiveScoresAPI.getMatchesWithTeams(data.event_id),
-        MatchEventsAPI.getByEvent(data.event_id)
-      ]);
+      const sports = await LiveScoresAPI.getSports(data.event_id);
       setLiveSports(sports || []);
-      setLiveMatches(matches || []);
-      const grouped = {};
-      (matchEvents || []).forEach(ev => {
-        if (!grouped[ev.match_id]) grouped[ev.match_id] = [];
-        grouped[ev.match_id].push(ev);
-      });
-      setLiveMatchEvents(grouped);
-      setIsLiveScoresLoaded(true);
+      setIsSportsLoaded(true);
     } catch (err) {
-      console.error("Live Scores Fetch Error:", err);
+      console.error("Live Scores Sports Fetch Error:", err);
     } finally {
       setIsFetchingScores(false);
     }
   };
 
   useEffect(() => {
-    if (isLiveScoresExpanded && !isLiveScoresLoaded && !isFetchingScores) {
-      fetchLiveScores();
+    if (isLiveScoresExpanded && !isSportsLoaded && !isFetchingScores) {
+      fetchLiveSports();
     }
-  }, [isLiveScoresExpanded, isLiveScoresLoaded, isFetchingScores, data?.event_id]);
+  }, [isLiveScoresExpanded, isSportsLoaded, isFetchingScores, data?.event_id]);
+
+  // Step 2: once a sport is chosen, fetch the league/date options for just
+  // that sport (cheap distinct-value lookup, no match rows downloaded).
+  useEffect(() => {
+    if (!selectedSportId || !data?.event_id) return;
+    setSelectedStatus("");
+    setSelectedLeague("");
+    setSelectedDate("");
+    LiveScoresAPI.getFilterOptions(data.event_id, selectedSportId)
+      .then(opts => setFilterOptions(opts))
+      .catch(() => setFilterOptions({ leagueNames: [], matchDates: [] }));
+  }, [selectedSportId, data?.event_id]);
+
+  // Step 3: fetch only the matches matching the chosen sport + filters, then
+  // only the match events belonging to those specific matches.
+  useEffect(() => {
+    if (!selectedSportId || !data?.event_id) return;
+    let cancelled = false;
+    setIsFetchingScores(true);
+    LiveScoresAPI.getMatchesWithTeams(data.event_id, selectedSportId, {
+      status: selectedStatus || null,
+      leagueName: selectedLeague || null,
+      matchDate: selectedDate || null,
+    }).then(async (matches) => {
+      if (cancelled) return;
+      setLiveMatches(matches || []);
+      const matchIds = (matches || []).map(m => m.id);
+      const events = await MatchEventsAPI.getByMatchIds(matchIds);
+      if (cancelled) return;
+      const grouped = {};
+      events.forEach(ev => {
+        if (!grouped[ev.match_id]) grouped[ev.match_id] = [];
+        grouped[ev.match_id].push(ev);
+      });
+      setLiveMatchEvents(grouped);
+    }).catch(err => console.error("Live Scores Matches Fetch Error:", err))
+      .finally(() => { if (!cancelled) setIsFetchingScores(false); });
+    return () => { cancelled = true; };
+  }, [selectedSportId, selectedStatus, selectedLeague, selectedDate, data?.event_id]);
 
   // Lazy-load attendance scans and live scores settings after initial render
   useEffect(() => {
@@ -1538,115 +1575,143 @@ export default function VerifyAccreditation() {
                         className="overflow-hidden bg-white"
                       >
                         <div className="p-6">
-                          <div className="flex items-center justify-end mb-4">
-                            <button 
-                              onClick={() => fetchLiveScores()}
-                              disabled={isFetchingScores}
-                              className="px-4 py-2 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase rounded-xl transition-all flex items-center gap-2"
-                            >
-                              <RotateCcw className={cn("w-3.5 h-3.5", isFetchingScores && "animate-spin")} />
-                              {isFetchingScores ? "Updating..." : "Refresh Scores"}
-                            </button>
-                          </div>
-
-                          {isFetchingScores && !isLiveScoresLoaded ? (
+                          {!isSportsLoaded && isFetchingScores ? (
                             <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 text-emerald-500 animate-spin" /></div>
                           ) : (
-                            <div className="space-y-6">
-                              {liveSports.map(sport => {
-                      const sportMatches = liveMatches.filter(m => m.sport_id === sport.id);
-                      if (sportMatches.length === 0) return null;
-                      
-                      const isCollapsed = collapsedSports[sport.id];
-                      
-                      return (
-                        <div key={sport.id} className="space-y-3">
-                          <button 
-                            onClick={() => setCollapsedSports(prev => ({...prev, [sport.id]: !prev[sport.id]}))}
-                            className="w-full flex items-center justify-between border-b border-slate-100 pb-2 group"
-                          >
-                            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest group-hover:text-emerald-600 transition-colors">{sport.sport_name}</h3>
-                            <div className="p-1 rounded-md bg-slate-50 group-hover:bg-emerald-50 transition-colors">
-                              {isCollapsed ? <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-emerald-500" /> : <ChevronUp className="w-4 h-4 text-slate-400 group-hover:text-emerald-500" />}
-                            </div>
-                          </button>
-                          
-                          <AnimatePresence>
-                            {!isCollapsed && (
-                              <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: "auto", opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                transition={{ duration: 0.3 }}
-                                className="overflow-hidden"
-                              >
-                                <div className="space-y-3 pt-1">
-                                  {sportMatches.map(match => {
-                                    const isLive = match.status === "Live" || match.status === "Half Time / Break";
-                                    const showScore = isLive || match.status === "Finished";
-                                    return (
-                                    <div key={match.id} className="bg-slate-50 border border-slate-100 rounded-xl p-3 flex flex-col gap-2">
-                                      <div className="flex justify-between items-center">
-                                        <span className={cn(
-                                          "px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider",
-                                          match.status === "Live" ? "bg-red-500 text-white animate-pulse" :
-                                          match.status === "Half Time / Break" ? "bg-amber-100 text-amber-600" :
-                                          match.status === "Finished" ? "bg-slate-200 text-slate-500" :
-                                          match.status === "Cancelled" ? "bg-red-100 text-red-600" :
-                                          match.status === "Postponed" ? "bg-amber-100 text-amber-600" :
-                                          "bg-blue-100 text-blue-600"
-                                        )}>
-                                          {match.status}
-                                        </span>
-                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{match.match_title}</span>
-                                      </div>
-                                      <div className="flex items-center justify-between gap-2">
-                                        <div className="flex-1 flex items-center justify-end gap-2 text-right">
-                                          <p className="text-xs font-bold text-slate-800 truncate">{match.team_a_name || 'TBA'}</p>
-                                          <TeamBadge logoUrl={match.team_a_logo_url} country={match.team_a_country} name={match.team_a_name} size="sm" />
-                                        </div>
-                                        {showScore ? (
-                                          <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-lg border border-slate-200 shadow-sm shrink-0">
-                                            <span className="text-sm font-black text-emerald-600">{match.team_a_score}</span>
-                                            <span className="text-[10px] text-slate-300">-</span>
-                                            <span className="text-sm font-black text-emerald-600">{match.team_b_score}</span>
-                                          </div>
-                                        ) : (
-                                          <div className="px-3 py-1 shrink-0">
-                                            <span className="text-[10px] font-black text-slate-400 uppercase">vs</span>
-                                          </div>
-                                        )}
-                                        <div className="flex-1 flex items-center gap-2 text-left">
-                                          <TeamBadge logoUrl={match.team_b_logo_url} country={match.team_b_country} name={match.team_b_name} size="sm" />
-                                          <p className="text-xs font-bold text-slate-800 truncate">{match.team_b_name || 'TBA'}</p>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {match.match_date}</span>
-                                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {match.match_time}</span>
-                                        <span>{match.venue}</span>
-                                      </div>
-                                      {(liveMatchEvents[match.id] || []).length > 0 && (
-                                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[9px] font-semibold text-slate-500 border-t border-slate-100 pt-1.5 mt-1">
-                                          {liveMatchEvents[match.id].map(ev => (
-                                            <span key={ev.id} className="flex items-center gap-1">
-                                              <span className="text-emerald-600 font-bold">{ev.event_type}</span> {ev.player_name}
-                                              {ev.minute ? ` ${ev.minute}'` : ""}
+                            <>
+                              {/* Sport chips — nothing else loads until one is picked */}
+                              <div className="flex flex-wrap gap-2 mb-4">
+                                {liveSports.map(sport => (
+                                  <button
+                                    key={sport.id}
+                                    onClick={() => setSelectedSportId(sport.id)}
+                                    className={cn(
+                                      "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all",
+                                      selectedSportId === sport.id
+                                        ? "bg-emerald-600 border-emerald-600 text-white"
+                                        : "bg-white border-slate-200 text-slate-600 hover:border-emerald-300"
+                                    )}
+                                  >
+                                    {sport.sport_name}{sport.gender ? ` (${sport.gender})` : ""}
+                                  </button>
+                                ))}
+                                {liveSports.length === 0 && (
+                                  <p className="text-[10px] font-bold text-slate-400 uppercase">No sports configured yet</p>
+                                )}
+                              </div>
+
+                              {selectedSportId && (
+                                <>
+                                  {/* Status / League / Date filters, scoped to the chosen sport */}
+                                  <div className="grid grid-cols-3 gap-2 mb-4">
+                                    <select
+                                      value={selectedStatus}
+                                      onChange={(e) => setSelectedStatus(e.target.value)}
+                                      className="px-2 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-bold uppercase text-slate-700 outline-none"
+                                    >
+                                      <option value="">All Statuses</option>
+                                      {STATUS_FILTER_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                                    </select>
+                                    <select
+                                      value={selectedLeague}
+                                      onChange={(e) => setSelectedLeague(e.target.value)}
+                                      className="px-2 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-bold uppercase text-slate-700 outline-none"
+                                    >
+                                      <option value="">All Leagues</option>
+                                      {filterOptions.leagueNames.map(l => <option key={l} value={l}>{l}</option>)}
+                                    </select>
+                                    <select
+                                      value={selectedDate}
+                                      onChange={(e) => setSelectedDate(e.target.value)}
+                                      className="px-2 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-bold uppercase text-slate-700 outline-none"
+                                    >
+                                      <option value="">All Dates</option>
+                                      {filterOptions.matchDates.map(d => <option key={d} value={d}>{d}</option>)}
+                                    </select>
+                                  </div>
+
+                                  <div className="flex items-center justify-end mb-4">
+                                    <button
+                                      onClick={() => LiveScoresAPI.getMatchesWithTeams(data.event_id, selectedSportId, {
+                                        status: selectedStatus || null, leagueName: selectedLeague || null, matchDate: selectedDate || null,
+                                      }).then(setLiveMatches)}
+                                      disabled={isFetchingScores}
+                                      className="px-4 py-2 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase rounded-xl transition-all flex items-center gap-2"
+                                    >
+                                      <RotateCcw className={cn("w-3.5 h-3.5", isFetchingScores && "animate-spin")} />
+                                      {isFetchingScores ? "Updating..." : "Refresh Scores"}
+                                    </button>
+                                  </div>
+
+                                  {isFetchingScores ? (
+                                    <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 text-emerald-500 animate-spin" /></div>
+                                  ) : liveMatches.length === 0 ? (
+                                    <p className="text-center text-[10px] font-bold text-slate-400 uppercase p-8">No matches match these filters</p>
+                                  ) : (
+                                    <div className="space-y-3">
+                                      {liveMatches.map(match => {
+                                        const isLive = match.status === "Live" || match.status === "Half Time / Break";
+                                        const showScore = isLive || match.status === "Finished";
+                                        return (
+                                        <div key={match.id} className="bg-slate-50 border border-slate-100 rounded-xl p-3 flex flex-col gap-2">
+                                          <div className="flex justify-between items-center">
+                                            <span className={cn(
+                                              "px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider",
+                                              match.status === "Live" ? "bg-red-500 text-white animate-pulse" :
+                                              match.status === "Half Time / Break" ? "bg-amber-100 text-amber-600" :
+                                              match.status === "Finished" ? "bg-slate-200 text-slate-500" :
+                                              match.status === "Cancelled" ? "bg-red-100 text-red-600" :
+                                              match.status === "Postponed" ? "bg-amber-100 text-amber-600" :
+                                              "bg-blue-100 text-blue-600"
+                                            )}>
+                                              {match.status}
                                             </span>
-                                          ))}
+                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{match.match_title}</span>
+                                          </div>
+                                          <div className="flex items-center justify-between gap-2">
+                                            <div className="flex-1 flex items-center justify-end gap-2 text-right">
+                                              <p className="text-xs font-bold text-slate-800 truncate">{match.team_a_name || 'TBA'}</p>
+                                              <TeamBadge logoUrl={match.team_a_logo_url} country={match.team_a_country} name={match.team_a_name} size="sm" />
+                                            </div>
+                                            {showScore ? (
+                                              <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-lg border border-slate-200 shadow-sm shrink-0">
+                                                <span className="text-sm font-black text-emerald-600">{match.team_a_score}</span>
+                                                <span className="text-[10px] text-slate-300">-</span>
+                                                <span className="text-sm font-black text-emerald-600">{match.team_b_score}</span>
+                                              </div>
+                                            ) : (
+                                              <div className="px-3 py-1 shrink-0">
+                                                <span className="text-[10px] font-black text-slate-400 uppercase">vs</span>
+                                              </div>
+                                            )}
+                                            <div className="flex-1 flex items-center gap-2 text-left">
+                                              <TeamBadge logoUrl={match.team_b_logo_url} country={match.team_b_country} name={match.team_b_name} size="sm" />
+                                              <p className="text-xs font-bold text-slate-800 truncate">{match.team_b_name || 'TBA'}</p>
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                                            <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {match.match_date}</span>
+                                            <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {match.match_time}</span>
+                                            <span>{match.venue}</span>
+                                          </div>
+                                          {(liveMatchEvents[match.id] || []).length > 0 && (
+                                            <div className="flex flex-wrap gap-x-3 gap-y-1 text-[9px] font-semibold text-slate-500 border-t border-slate-100 pt-1.5 mt-1">
+                                              {liveMatchEvents[match.id].map(ev => (
+                                                <span key={ev.id} className="flex items-center gap-1">
+                                                  <span className="text-emerald-600 font-bold">{ev.event_type}</span> {ev.player_name}
+                                                  {ev.minute ? ` ${ev.minute}'` : ""}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          )}
                                         </div>
-                                      )}
+                                        );
+                                      })}
                                     </div>
-                                    );
-                                  })}
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      );
-                    })}
-                            </div>
+                                  )}
+                                </>
+                              )}
+                            </>
                           )}
                         </div>
                       </motion.div>

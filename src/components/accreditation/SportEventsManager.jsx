@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import { SportEventsAPI, MeetProgrammesAPI } from "../../lib/broadcastApi";
 import { parseExcelEvents } from "../../lib/excelParser";
-import * as XLSX from "xlsx";
+import * as XLSX from "@e965/xlsx";
 import { extractTextFromPdf, parsePdfEventsFromText } from "../../lib/pdfParser";
 import { supabase } from "../../lib/supabase";
 

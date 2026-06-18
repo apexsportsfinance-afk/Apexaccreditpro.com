@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import * as XLSX from "xlsx";
+import * as XLSX from "@e965/xlsx";
 import { Plus, Trash2, Save, Calendar, Clock, Edit2, Play, CheckCircle, XCircle, ChevronDown, ChevronUp, Trophy, Search, RotateCcw, Wand2, Info, Download, FileText, Image } from "lucide-react";
 import FixturePNGCard from "./FixturePNGCard";
 import { motion, AnimatePresence } from "framer-motion";
