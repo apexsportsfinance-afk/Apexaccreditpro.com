@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UploadCloud, Image as ImageIcon, Trash2, Eye, EyeOff, Loader2, FolderPlus, Tag } from 'lucide-react';
+import { UploadCloud, Image as ImageIcon, Trash2, Eye, EyeOff, Loader2, FolderPlus, Tag, Save } from 'lucide-react';
 import { PhotoAPI } from '../../lib/photoApi';
+import { GlobalSettingsAPI } from '../../lib/broadcastApi';
 import { compressImage, generateThumbnail } from '../../lib/imageCompression';
 import { useAuth } from '../../contexts/AuthContext';
 import Card, { CardHeader, CardContent } from '../ui/Card';
@@ -10,6 +11,9 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Badge from '../ui/Badge';
 import FaceMatchingManager from './FaceMatchingManager';
+import { cn } from '../../lib/utils';
+
+const galleryVisibilityKey = (eventId) => `event_${eventId}_gallery_enabled`;
 
 export default function EventPhotosTab({ eventId, onToast, disabled }) {
   const { user } = useAuth();
@@ -21,9 +25,31 @@ export default function EventPhotosTab({ eventId, onToast, disabled }) {
   const [newAlbumName, setNewAlbumName] = useState('');
   const fileInputRef = useRef(null);
 
+  // Whole-section visibility on the public QR Profile - mirrors the Live
+  // Scores "Enabled/Disabled" toggle. Absent setting defaults to enabled so
+  // events that predate this control keep showing their gallery as before.
+  const [galleryEnabled, setGalleryEnabled] = useState(true);
+  const [savingVisibility, setSavingVisibility] = useState(false);
+
   useEffect(() => {
     loadPhotos();
+    GlobalSettingsAPI.get(galleryVisibilityKey(eventId))
+      .then(v => setGalleryEnabled(v === null || v === undefined ? true : v !== 'false'))
+      .catch(() => setGalleryEnabled(true));
   }, [eventId]);
+
+  const handleSaveVisibility = async () => {
+    if (disabled) return;
+    setSavingVisibility(true);
+    try {
+      await GlobalSettingsAPI.set(galleryVisibilityKey(eventId), String(galleryEnabled));
+      onToast("Gallery visibility saved!", "success");
+    } catch (err) {
+      onToast("Failed to save gallery visibility", "error");
+    } finally {
+      setSavingVisibility(false);
+    }
+  };
 
   const loadPhotos = async () => {
     try {
@@ -135,7 +161,40 @@ export default function EventPhotosTab({ eventId, onToast, disabled }) {
   };
 
   return (
-    <Card className="border-gray-800 bg-gray-900/50">
+    <div className="space-y-6">
+      <Card className="border-gray-800 bg-gray-900/50">
+        <CardContent className="flex items-center justify-between gap-4 py-6">
+          <div>
+            <h3 className="text-lg font-bold text-white">Event Photos Feature</h3>
+            <p className="text-sm text-gray-400">Enable or disable the Event Photos gallery tab on the public QR Profile.</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <label className={cn("flex items-center gap-3 group", disabled ? "cursor-not-allowed" : "cursor-pointer")}>
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  checked={galleryEnabled}
+                  onChange={(e) => setGalleryEnabled(e.target.checked)}
+                  disabled={disabled}
+                  className="sr-only peer"
+                />
+                <div className={cn(
+                  "w-11 h-6 bg-gray-800 border border-white/10 rounded-full peer peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-400 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white peer-checked:after:bg-white",
+                  !disabled && "group-hover:border-white/20"
+                )} />
+              </div>
+              <span className={cn("text-sm font-bold text-white uppercase tracking-widest", !disabled && "group-hover:text-emerald-400")}>
+                {galleryEnabled ? "Enabled" : "Disabled"}
+              </span>
+            </label>
+            <Button onClick={handleSaveVisibility} disabled={disabled} loading={savingVisibility} variant="primary">
+              <Save className="w-4 h-4 mr-2" /> Save Status
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-gray-800 bg-gray-900/50">
       <CardHeader>
         <div className="flex justify-between items-center">
           <div>
@@ -278,6 +337,7 @@ export default function EventPhotosTab({ eventId, onToast, disabled }) {
           )}
         </div>
       </CardContent>
-    </Card>
+      </Card>
+    </div>
   );
 }
