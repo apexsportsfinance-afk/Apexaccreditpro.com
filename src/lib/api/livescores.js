@@ -211,6 +211,43 @@ export const DisciplinaryAPI = {
   }
 };
 
+export const PlayerStatsAPI = {
+  getByMatch: async (matchId) => {
+    const data = await handleResponse(() => supabase.from("player_match_stats").select("*").eq("match_id", matchId).order("created_at", { ascending: true }));
+    return data || [];
+  },
+  getByMatchIds: async (matchIds) => {
+    if (!matchIds || matchIds.length === 0) return [];
+    const data = await handleResponse(() => supabase.from("player_match_stats").select("*").in("match_id", matchIds).order("created_at", { ascending: true }));
+    return data || [];
+  },
+  getByEvent: async (eventId) => {
+    const data = await handleResponse(() => supabase.from("player_match_stats").select("*").eq("event_id", eventId).order("created_at", { ascending: true }));
+    return data || [];
+  },
+  getPlayerTotals: async (accreditationId) => {
+    const data = await handleResponse(() => supabase.rpc("get_player_stat_totals", { p_accreditation_id: accreditationId }));
+    return data || [];
+  },
+  getTeamTotals: async (teamId) => {
+    const data = await handleResponse(() => supabase.rpc("get_team_stat_totals", { p_team_id: teamId }));
+    return data || [];
+  },
+  save: async (row) => {
+    const dbRow = { ...row };
+    if (!dbRow.id) { delete dbRow.id; dbRow.created_at = new Date().toISOString(); }
+    else { dbRow.updated_at = new Date().toISOString(); }
+    if (row.id) {
+      return handleResponse(() => supabase.from("player_match_stats").update(dbRow).eq("id", row.id).select().single());
+    } else {
+      return handleResponse(() => supabase.from("player_match_stats").upsert(dbRow, { onConflict: "match_id,player_accreditation_id" }).select().single());
+    }
+  },
+  delete: async (id) => {
+    return handleResponse(() => supabase.from("player_match_stats").delete().eq("id", id).select());
+  }
+};
+
 export const PartnersAPI = {
   getPartners: async () => {
     return handleResponse(() => supabase.from("partners").select("*").order("created_at", { ascending: false }));

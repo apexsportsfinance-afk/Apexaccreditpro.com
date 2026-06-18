@@ -3,7 +3,7 @@ import * as XLSX from "@e965/xlsx";
 import { Plus, Trash2, Save, Calendar, Clock, Edit2, Play, CheckCircle, XCircle, ChevronDown, ChevronUp, Trophy, Search, RotateCcw, Wand2, Info, Download, FileText, Image } from "lucide-react";
 import FixturePNGCard from "./FixturePNGCard";
 import { motion, AnimatePresence } from "framer-motion";
-import { LiveScoresAPI, DivisionsAPI, MatchEventsAPI, DisciplinaryAPI } from "../../lib/storage";
+import { LiveScoresAPI, DivisionsAPI, MatchEventsAPI, DisciplinaryAPI, PlayerStatsAPI } from "../../lib/storage";
 import { TeamAPI } from "../../services/teamApi";
 import { toast } from "sonner";
 import { cn } from "../../lib/utils";
@@ -14,6 +14,7 @@ import MatchEventsPanel from "./MatchEventsPanel";
 import GenerateFixturesModal from "./GenerateFixturesModal";
 import { useAuth } from "../../contexts/AuthContext";
 import { STANDINGS_TYPE_OPTIONS, getStandingsColumns, getStandingsLegend } from "../../lib/standingsColumns";
+import { getStatFieldsForSport } from "../../lib/sportStatFields";
 
 export default function LiveScoresTab({ eventId, onToast, disabled }) {
   const { user } = useAuth();
@@ -542,6 +543,81 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
     const filename = `Fixtures_${new Date().toISOString().split("T")[0]}.xlsx`;
     XLSX.writeFile(wb, filename);
     toast.success(`Exported ${source.length} matches to ${filename}`);
+  };
+
+  // ── Player Stats Export ─────────────────────────────────────────────────
+  const handleExportPlayerStats = async () => {
+    toast.info("Preparing player stats export…");
+    let allStats = [];
+    try {
+      allStats = await PlayerStatsAPI.getByEvent(eventId);
+    } catch {
+      toast.error("Failed to load player stats");
+      return;
+    }
+    if (!allStats.length) { toast.error("No player stats recorded yet"); return; }
+
+    const matchesById = {};
+    matches.forEach(m => { matchesById[m.id] = m; });
+
+    const wb = XLSX.utils.book_new();
+    const today = new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" });
+    let sheetsAdded = 0;
+
+    sports.forEach(sport => {
+      const sportStats = allStats.filter(s => s.sport_id === sport.id);
+      if (!sportStats.length) return;
+      const fields = getStatFieldsForSport(sport.standings_type);
+      const sportLabel = `${sport.sport_name}${sport.gender ? ` (${sport.gender})` : ""}`;
+      const safeName = sportLabel.replace(/[:\\/?*[\]]/g, "");
+
+      const matchRows = [
+        [`${sportLabel.toUpperCase()} — PLAYER STATS BY MATCH`],
+        [`Generated: ${today}`, "", `Total entries: ${sportStats.length}`],
+        [],
+        ["Player", "Team", "Match", "Date", "Played", ...fields.map(f => f.label)],
+      ];
+      sportStats.forEach(s => {
+        const m = matchesById[s.match_id];
+        matchRows.push([
+          s.player_name, s.team_name || "", m?.match_title || "", m?.match_date || "",
+          s.participated ? "Yes" : "No",
+          ...fields.map(f => s.stats?.[f.key] ?? 0),
+        ]);
+      });
+      const wsMatch = XLSX.utils.aoa_to_sheet(matchRows);
+      wsMatch["!cols"] = [22, 20, 20, 12, 8, ...fields.map(() => 10)].map(w => ({ wch: w }));
+      XLSX.utils.book_append_sheet(wb, wsMatch, `${safeName.slice(0, 25)} - By Match`);
+
+      const totalsMap = {};
+      sportStats.forEach(s => {
+        const key = s.player_accreditation_id;
+        if (!totalsMap[key]) totalsMap[key] = { player_name: s.player_name, team_name: s.team_name, matches_played: 0, stats: {} };
+        totalsMap[key].matches_played += s.participated ? 1 : 0;
+        fields.forEach(f => {
+          totalsMap[key].stats[f.key] = (totalsMap[key].stats[f.key] || 0) + (Number(s.stats?.[f.key]) || 0);
+        });
+      });
+      const totalsRows = [
+        [`${sportLabel.toUpperCase()} — SEASON TOTALS`],
+        [`Generated: ${today}`],
+        [],
+        ["Player", "Team", "Matches Played", ...fields.map(f => f.label)],
+      ];
+      Object.values(totalsMap)
+        .sort((a, b) => a.player_name.localeCompare(b.player_name))
+        .forEach(t => totalsRows.push([t.player_name, t.team_name || "", t.matches_played, ...fields.map(f => t.stats[f.key] || 0)]));
+      const wsTotals = XLSX.utils.aoa_to_sheet(totalsRows);
+      wsTotals["!cols"] = [22, 20, 14, ...fields.map(() => 10)].map(w => ({ wch: w }));
+      XLSX.utils.book_append_sheet(wb, wsTotals, `${safeName.slice(0, 25)} - Totals`);
+      sheetsAdded++;
+    });
+
+    if (!sheetsAdded) { toast.error("No player stats recorded yet"); return; }
+
+    const filename = `PlayerStats_${new Date().toISOString().split("T")[0]}.xlsx`;
+    XLSX.writeFile(wb, filename);
+    toast.success("Player stats exported");
   };
 
   // ── PDF Export ──────────────────────────────────────────────────────────
@@ -1286,6 +1362,10 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                       <button onClick={() => { setPngModal({ open: true, sportId: sports[0]?.id || "", leagueName: "", status: "" }); setExportMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-800 rounded-lg text-sm text-slate-200 transition-colors text-left">
                         <Image className="w-3.5 h-3.5 text-blue-400 shrink-0" /> <span>PNG / Social Media</span>
                       </button>
+                      <div className="h-px bg-white/5 my-1" />
+                      <button onClick={() => { handleExportPlayerStats(); setExportMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-800 rounded-lg text-sm text-slate-200 transition-colors text-left">
+                        <Download className="w-3.5 h-3.5 text-cyan-400 shrink-0" /> <span>Player Stats (.xlsx)</span>
+                      </button>
                       {filteredMatches.length !== matches.length && (
                         <>
                           <div className="h-px bg-white/5 my-1" />
@@ -1535,7 +1615,7 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                                     <span>{match.venue}</span>
                                   </div>
 
-                                  <MatchEventsPanel match={match} sportName={sport.sport_name} disabled={disabled} />
+                                  <MatchEventsPanel match={match} sportName={sport.sport_name} standingsType={sport.standings_type} disabled={disabled} />
                                 </div>
 
                                 {/* Quick Actions */}

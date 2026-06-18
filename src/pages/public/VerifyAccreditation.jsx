@@ -11,7 +11,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase";
 import { EventSettingsAPI, FormFieldSettingsAPI, BroadcastV2API, AthleteEventsAPI, GlobalSettingsAPI, HeatSheetMatrixAPI } from "../../lib/broadcastApi";
 import { AttendanceAPI } from "../../lib/attendanceApi";
-import { ConfigAPI, ZonesAPI, BookingsAPI, LiveScoresAPI, MatchEventsAPI } from "../../lib/storage";
+import { ConfigAPI, ZonesAPI, BookingsAPI, LiveScoresAPI, MatchEventsAPI, PlayerStatsAPI } from "../../lib/storage";
+import { getStatFieldsForSport, getSportStatLabel } from "../../lib/sportStatFields";
 import { computeExpiryStatus, formatEventDateTime } from "../../lib/expiryUtils";
 import { getCountryFlag, getCountryCode3, COUNTRIES, calculateAge, cn, getThumbnailUrl } from "../../lib/utils";
 import { toast } from "sonner";
@@ -173,6 +174,23 @@ export default function VerifyAccreditation() {
   const [isLiveScoresExpanded, setIsLiveScoresExpanded] = useState(false);
   const [isSportsLoaded, setIsSportsLoaded] = useState(false);
   const [isFetchingScores, setIsFetchingScores] = useState(false);
+
+  // Season Stats — sport-specific accumulated player stats (player_match_stats),
+  // lazy-loaded only for athletes since coaches/managers don't have totals.
+  const [seasonStats, setSeasonStats] = useState([]);
+  const [isStatsExpanded, setIsStatsExpanded] = useState(false);
+  const [isStatsLoaded, setIsStatsLoaded] = useState(false);
+  const [isFetchingStats, setIsFetchingStats] = useState(false);
+
+  useEffect(() => {
+    if (isStatsExpanded && !isStatsLoaded && !isFetchingStats && data?.id) {
+      setIsFetchingStats(true);
+      PlayerStatsAPI.getPlayerTotals(data.id)
+        .then(rows => setSeasonStats(rows || []))
+        .catch(() => setSeasonStats([]))
+        .finally(() => { setIsStatsLoaded(true); setIsFetchingStats(false); });
+    }
+  }, [isStatsExpanded, isStatsLoaded, isFetchingStats, data?.id]);
 
   const [selectedSportId, setSelectedSportId] = useState(null);
   const [filterOptions, setFilterOptions] = useState({ leagueNames: [], matchDates: [] });
@@ -1712,6 +1730,71 @@ export default function VerifyAccreditation() {
                                 </>
                               )}
                             </>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+            )}
+
+            {data.role?.toLowerCase() === "athlete" && (
+              <div className="w-full mb-6">
+                <div className="bg-slate-50 border border-slate-100 rounded-[2rem] shadow-sm overflow-hidden">
+                  <button
+                    onClick={() => setIsStatsExpanded(!isStatsExpanded)}
+                    className="w-full flex items-center justify-between p-6 bg-white hover:bg-slate-50 transition-colors border-b border-slate-100/50"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-cyan-50 rounded-xl">
+                        <Target className="w-6 h-6 text-cyan-600" />
+                      </div>
+                      <div className="text-left">
+                        <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">Season Stats</h2>
+                        <p className="text-[10px] font-bold text-cyan-600 uppercase tracking-wider">Accumulated Performance</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100">
+                      {isStatsExpanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+                    </div>
+                  </button>
+
+                  <AnimatePresence>
+                    {isStatsExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden bg-white"
+                      >
+                        <div className="p-6">
+                          {isFetchingStats ? (
+                            <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 text-cyan-500 animate-spin" /></div>
+                          ) : seasonStats.length === 0 ? (
+                            <p className="text-center text-[10px] font-bold text-slate-400 uppercase p-8">No stats recorded yet</p>
+                          ) : (
+                            <div className="space-y-4">
+                              {seasonStats.map(row => {
+                                const fields = getStatFieldsForSport(row.standings_type);
+                                return (
+                                  <div key={row.sport_id} className="bg-slate-50 border border-slate-100 rounded-2xl p-4">
+                                    <div className="flex items-center justify-between mb-3">
+                                      <span className="text-xs font-black text-slate-900 uppercase tracking-wide">{row.sport_name || getSportStatLabel(row.standings_type)}</span>
+                                      <span className="text-[10px] font-bold text-slate-400 uppercase">{row.matches_played} {row.matches_played === 1 ? "Match" : "Matches"}</span>
+                                    </div>
+                                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                                      {fields.map(f => (
+                                        <div key={f.key} className="bg-white border border-slate-200 rounded-xl p-2 text-center">
+                                          <p className="text-lg font-black text-cyan-600">{row.stats?.[f.key] ?? 0}</p>
+                                          <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wide">{f.short}</p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           )}
                         </div>
                       </motion.div>
