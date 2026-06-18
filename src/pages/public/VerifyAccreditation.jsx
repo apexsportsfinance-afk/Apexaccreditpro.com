@@ -825,6 +825,16 @@ export default function VerifyAccreditation() {
     } catch (e) { return []; }
   }, [globSettings, data?.event_id]);
 
+  // Whole-section toggle for the Event Gallery, mirroring the Live Scores
+  // Enabled/Disabled switch. Absent setting (pre-existing events) defaults
+  // to enabled so this stays backward compatible.
+  const galleryEnabled = useMemo(() => {
+    const eid = data?.event_id;
+    if (!eid || !globSettings) return true;
+    const v = globSettings[`event_${eid}_gallery_enabled`];
+    return v === undefined || v === null ? true : v !== "false";
+  }, [globSettings, data?.event_id]);
+
   const customFieldConfigs = useMemo(() => {
     const eid = data?.event_id;
     if (!eid || !globSettings) return [];
@@ -1556,10 +1566,12 @@ export default function VerifyAccreditation() {
         </div>
             )}
             
-            <QRProfileGallery 
-              eventId={data.event_id} 
-              matchedPhotoIds={data.documents?.matched_photos || []}
-            />
+            {galleryEnabled && (
+              <QRProfileGallery
+                eventId={data.event_id}
+                matchedPhotoIds={data.documents?.matched_photos || []}
+              />
+            )}
 
             {liveScoreSettings?.live_scores_enabled && (
               <div className="w-full mb-6">
