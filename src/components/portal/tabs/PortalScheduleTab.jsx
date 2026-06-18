@@ -116,6 +116,18 @@ export default function PortalScheduleTab({ teamId = null, eventId }) {
     return s ? `${s.sport_name}${s.gender ? ` (${s.gender})` : ""}` : "Standings";
   }, [sports, selectedSportId]);
 
+  // Standings has no logo of its own (get_team_standings only returns team
+  // names) - reuse the logo/country already present on the fixtures we've
+  // loaded for this event, so no extra query is needed.
+  const teamLogoMap = useMemo(() => {
+    const map = {};
+    matches.forEach((m) => {
+      if (m.team_a_id) map[m.team_a_id] = { logo_url: m.team_a_logo_url, country: m.team_a_country };
+      if (m.team_b_id) map[m.team_b_id] = { logo_url: m.team_b_logo_url, country: m.team_b_country };
+    });
+    return map;
+  }, [matches]);
+
   const handleExportStandingsExcel = () => {
     if (!standings.length) return;
     setStandingsExportOpen(false);
@@ -435,7 +447,12 @@ export default function PortalScheduleTab({ teamId = null, eventId }) {
                     {standings.map((row, i) => (
                       <tr key={row.team_id} className={row.team_id === teamId ? "bg-primary-500/5 font-bold text-main" : "text-main"}>
                         <td className="py-2 pr-4 text-muted">{i + 1}</td>
-                        <td className="py-2 pr-4">{row.team_name}</td>
+                        <td className="py-2 pr-4">
+                          <div className="flex items-center gap-2">
+                            <TeamBadge logoUrl={teamLogoMap[row.team_id]?.logo_url} country={teamLogoMap[row.team_id]?.country} name={row.team_name} size="sm" />
+                            <span>{row.team_name}</span>
+                          </div>
+                        </td>
                         {standingsColumns.map((col) => (
                           <td key={col.key} className={`py-2 pr-3 text-center ${col.highlight ? "font-black text-primary-500" : ""}`}>
                             {col.format ? col.format(row[col.key]) : row[col.key]}

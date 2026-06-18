@@ -1844,7 +1844,12 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                   {standings.map((row, i) => (
                     <tr key={row.team_id} className="text-white">
                       <td className="py-2 pr-4 text-slate-500">{i + 1}</td>
-                      <td className="py-2 pr-4 font-bold">{row.team_name}</td>
+                      <td className="py-2 pr-4 font-bold">
+                        <div className="flex items-center gap-2">
+                          <TeamBadge logoUrl={teamsById[row.team_id]?.logo_url} country={teamsById[row.team_id]?.country} name={row.team_name} size="sm" />
+                          <span>{row.team_name}</span>
+                        </div>
+                      </td>
                       {standingsColumns.map(col => (
                         <td key={col.key} className={cn("py-2 pr-3 text-center", col.highlight && "font-black text-amber-400")}>
                           {col.format ? col.format(row[col.key]) : row[col.key]}
