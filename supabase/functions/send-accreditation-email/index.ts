@@ -1,16 +1,46 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-// All SMTP settings are stored as Supabase function secrets (set via
-// `supabase secrets set`), not hardcoded, so credentials never live in git.
+// Credentials that require an actual mailbox/password change are kept as
+// Supabase function secrets (set via `supabase secrets set`), never in git.
 const SMTP_HOST = Deno.env.get("SMTP_HOST")!;
 const SMTP_PORT = Number(Deno.env.get("SMTP_PORT")!);
 const SMTP_USER = Deno.env.get("SMTP_USER")!;
 const SMTP_PASS = Deno.env.get("SMTP_PASS")!;
-// Visible sender shown to recipients. The SMTP login/envelope sender above
-// stays on the accreditations@ mailbox; only the From/Reply-To headers
-// change, since the mail server only has credentials for accreditations@.
-const SMTP_FROM = Deno.env.get("SMTP_FROM")!;
-const SMTP_REPLY_TO = Deno.env.get("SMTP_REPLY_TO")!;
+// Fallback visible sender, used only if the admin-editable DB row below is
+// missing. The SMTP login/envelope sender always stays on the
+// accreditations@ mailbox; only this From/Reply-To header changes.
+const FALLBACK_SMTP_FROM = Deno.env.get("SMTP_FROM")!;
+const FALLBACK_SMTP_REPLY_TO = Deno.env.get("SMTP_REPLY_TO")!;
+
+// Admin-editable sender name/email/reply-to, stored in the global_settings
+// table under key "smtp_sender_config" (set from Settings > SMTP Email
+// Config in the app). Read fresh on every send so changes apply instantly,
+// no redeploy needed.
+async function getSenderConfig(): Promise<{ from: string; replyTo: string }> {
+  try {
+    const url = `${Deno.env.get("SUPABASE_URL")}/rest/v1/global_settings?key=eq.smtp_sender_config&select=value`;
+    const res = await fetch(url, {
+      headers: {
+        apikey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+      },
+    });
+    const rows = await res.json();
+    const raw = rows?.[0]?.value;
+    if (raw) {
+      const cfg = JSON.parse(raw);
+      if (cfg?.fromEmail) {
+        return {
+          from: `${cfg.fromName || "Apex Sports Accreditations"} <${cfg.fromEmail}>`,
+          replyTo: cfg.replyTo || cfg.fromEmail,
+        };
+      }
+    }
+  } catch (e) {
+    console.warn("[SMTP] Failed to load sender config from DB, using fallback:", e);
+  }
+  return { from: FALLBACK_SMTP_FROM, replyTo: FALLBACK_SMTP_REPLY_TO };
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -45,7 +75,7 @@ async function readResponse(reader: ReadableStreamDefaultReader<Uint8Array>, dec
   return fullResponse.trim();
 }
 
-async function sendSmtpEmail(to: string, subject: string, htmlBody: string, pdfBase64?: string, pdfFileName?: string): Promise<void> {
+async function sendSmtpEmail(to: string, subject: string, htmlBody: string, from: string, replyTo: string, pdfBase64?: string, pdfFileName?: string): Promise<void> {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
 
@@ -93,8 +123,8 @@ async function sendSmtpEmail(to: string, subject: string, htmlBody: string, pdfB
     if (pdfBase64 && pdfFileName) {
       console.log(`[SMTP] Building email WITH PDF attachment: ${pdfFileName} (${pdfBase64.length} chars base64)`);
       message = [
-        `From: ${SMTP_FROM}`,
-        `Reply-To: ${SMTP_REPLY_TO}`,
+        `From: ${from}`,
+        `Reply-To: ${replyTo}`,
         `To: ${to}`,
         `Subject: ${subject}`,
         `MIME-Version: 1.0`,
@@ -122,8 +152,8 @@ async function sendSmtpEmail(to: string, subject: string, htmlBody: string, pdfB
       console.log(`[SMTP] Building email WITHOUT attachment`);
       const altBoundary = `alt_${boundary}`;
       message = [
-        `From: ${SMTP_FROM}`,
-        `Reply-To: ${SMTP_REPLY_TO}`,
+        `From: ${from}`,
+        `Reply-To: ${replyTo}`,
         `To: ${to}`,
         `Subject: ${subject}`,
         `MIME-Version: 1.0`,
@@ -307,9 +337,11 @@ Deno.serve(async (req: Request) => {
       htmlBody = buildGenericHtml(name || "Participant", eventName || "Event");
     }
 
-    console.log(`[SMTP] Sending ${type} email to: ${to} via ${SMTP_HOST}:${SMTP_PORT}${attachmentBase64 ? " (with PDF attachment)" : " (no attachment)"}${templateBody ? " (using custom template)" : ""}`);
+    const { from: senderFrom, replyTo: senderReplyTo } = await getSenderConfig();
 
-    await sendSmtpEmail(to, subject, htmlBody, attachmentBase64, attachmentFileName);
+    console.log(`[SMTP] Sending ${type} email to: ${to} via ${SMTP_HOST}:${SMTP_PORT} from ${senderFrom}${attachmentBase64 ? " (with PDF attachment)" : " (no attachment)"}${templateBody ? " (using custom template)" : ""}`);
+
+    await sendSmtpEmail(to, subject, htmlBody, senderFrom, senderReplyTo, attachmentBase64, attachmentFileName);
 
     console.log(`[SMTP] Email sent successfully to ${to}`);
     return new Response(
