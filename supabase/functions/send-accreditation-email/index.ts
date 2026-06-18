@@ -1,14 +1,16 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-const SMTP_HOST = "mail.apexsports.ae";
-const SMTP_PORT = 465;
-const SMTP_USER = "accreditations@apexsports.ae";
-const SMTP_PASS = "Swim2024$$";
+// All SMTP settings are stored as Supabase function secrets (set via
+// `supabase secrets set`), not hardcoded, so credentials never live in git.
+const SMTP_HOST = Deno.env.get("SMTP_HOST")!;
+const SMTP_PORT = Number(Deno.env.get("SMTP_PORT")!);
+const SMTP_USER = Deno.env.get("SMTP_USER")!;
+const SMTP_PASS = Deno.env.get("SMTP_PASS")!;
 // Visible sender shown to recipients. The SMTP login/envelope sender above
 // stays on the accreditations@ mailbox; only the From/Reply-To headers
 // change, since the mail server only has credentials for accreditations@.
-const SMTP_FROM = "Apex Sports Accreditations <events@apexsports.ae>";
-const SMTP_REPLY_TO = "events@apexsports.ae";
+const SMTP_FROM = Deno.env.get("SMTP_FROM")!;
+const SMTP_REPLY_TO = Deno.env.get("SMTP_REPLY_TO")!;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
