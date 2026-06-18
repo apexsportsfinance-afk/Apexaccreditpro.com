@@ -7,6 +7,7 @@ import TeamBadge from "../../ui/TeamBadge";
 import { TeamPortalAPI } from "../../../services/teamPortalApi";
 import { LiveScoresAPI, MatchEventsAPI, DivisionsAPI } from "../../../lib/storage";
 import { formatDate } from "../../../lib/utils";
+import { getStandingsColumns, getStandingsLegend } from "../../../lib/standingsColumns";
 
 const STATUS_VARIANTS = {
   Upcoming: "info",
@@ -18,8 +19,6 @@ const STATUS_VARIANTS = {
 };
 
 const STATUS_FILTER_OPTIONS = ["Upcoming", "Live", "Half Time / Break", "Finished", "Cancelled", "Postponed"];
-
-const STANDINGS_LEGEND = "P = Played · W = Won · D = Drawn · L = Lost · GF = Goals/Points For · GA = Goals/Points Against · GD = Goal/Point Difference · PTS = Total Points";
 
 export default function PortalScheduleTab({ teamId = null, eventId }) {
   const [view, setView] = useState("fixtures");
@@ -95,6 +94,9 @@ export default function PortalScheduleTab({ teamId = null, eventId }) {
       setStandingsLoading(false);
     }
   };
+
+  const selectedStandingsType = useMemo(() => sports.find((s) => s.id === selectedSportId)?.standings_type || "", [sports, selectedSportId]);
+  const standingsColumns = useMemo(() => getStandingsColumns(selectedStandingsType), [selectedStandingsType]);
 
   const displayedFixtures = useMemo(() => {
     return matches.filter((m) => {
@@ -309,14 +311,9 @@ export default function PortalScheduleTab({ teamId = null, eventId }) {
                     <tr className="border-b border-border text-muted text-xs uppercase tracking-widest">
                       <th className="py-2 pr-4">#</th>
                       <th className="py-2 pr-4">Team</th>
-                      <th className="py-2 pr-3 text-center" title="Played">P</th>
-                      <th className="py-2 pr-3 text-center" title="Won">W</th>
-                      <th className="py-2 pr-3 text-center" title="Drawn">D</th>
-                      <th className="py-2 pr-3 text-center" title="Lost">L</th>
-                      <th className="py-2 pr-3 text-center" title="Goals/Points For">GF</th>
-                      <th className="py-2 pr-3 text-center" title="Goals/Points Against">GA</th>
-                      <th className="py-2 pr-3 text-center" title="Goal/Point Difference">GD</th>
-                      <th className="py-2 pr-3 text-center" title="Total Points">PTS</th>
+                      {standingsColumns.map((col) => (
+                        <th key={col.key} className="py-2 pr-3 text-center" title={col.title}>{col.header}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/50">
@@ -324,20 +321,17 @@ export default function PortalScheduleTab({ teamId = null, eventId }) {
                       <tr key={row.team_id} className={row.team_id === teamId ? "bg-primary-500/5 font-bold text-main" : "text-main"}>
                         <td className="py-2 pr-4 text-muted">{i + 1}</td>
                         <td className="py-2 pr-4">{row.team_name}</td>
-                        <td className="py-2 pr-3 text-center">{row.played}</td>
-                        <td className="py-2 pr-3 text-center">{row.won}</td>
-                        <td className="py-2 pr-3 text-center">{row.drawn}</td>
-                        <td className="py-2 pr-3 text-center">{row.lost}</td>
-                        <td className="py-2 pr-3 text-center">{row.goals_for}</td>
-                        <td className="py-2 pr-3 text-center">{row.goals_against}</td>
-                        <td className="py-2 pr-3 text-center">{row.goal_diff}</td>
-                        <td className="py-2 pr-3 text-center font-black text-primary-500">{row.points}</td>
+                        {standingsColumns.map((col) => (
+                          <td key={col.key} className={`py-2 pr-3 text-center ${col.highlight ? "font-black text-primary-500" : ""}`}>
+                            {col.format ? col.format(row[col.key]) : row[col.key]}
+                          </td>
+                        ))}
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <p className="text-[11px] text-muted leading-relaxed">{STANDINGS_LEGEND}</p>
+              <p className="text-[11px] text-muted leading-relaxed">{getStandingsLegend(selectedStandingsType)}</p>
             </>
           )}
         </Card>

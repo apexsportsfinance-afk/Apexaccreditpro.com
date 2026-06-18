@@ -13,6 +13,7 @@ import TeamBadge from "../ui/TeamBadge";
 import MatchEventsPanel from "./MatchEventsPanel";
 import GenerateFixturesModal from "./GenerateFixturesModal";
 import { useAuth } from "../../contexts/AuthContext";
+import { STANDINGS_TYPE_OPTIONS, getStandingsColumns, getStandingsLegend } from "../../lib/standingsColumns";
 
 export default function LiveScoresTab({ eventId, onToast, disabled }) {
   const { user } = useAuth();
@@ -29,7 +30,7 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const [newSport, setNewSport] = useState({ sport_name: "", gender: "" });
+  const [newSport, setNewSport] = useState({ sport_name: "", gender: "", standings_type: "" });
   const [editingMatch, setEditingMatch] = useState(null);
 
   const [standingsSportId, setStandingsSportId] = useState("");
@@ -249,12 +250,23 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
   const handleAddSport = async () => {
     if (isSettingsDisabled || !newSport.sport_name.trim()) return;
     try {
-      const added = await LiveScoresAPI.saveSport({ event_id: eventId, sport_name: newSport.sport_name.trim(), gender: newSport.gender || null });
+      const added = await LiveScoresAPI.saveSport({ event_id: eventId, sport_name: newSport.sport_name.trim(), gender: newSport.gender || null, standings_type: newSport.standings_type || null });
       setSports([...sports, added]);
-      setNewSport({ sport_name: "", gender: "" });
+      setNewSport({ sport_name: "", gender: "", standings_type: "" });
       toast.success("Sport added");
     } catch (err) {
       toast.error("Failed to add sport");
+    }
+  };
+
+  const handleUpdateStandingsType = async (sportId, standingsType) => {
+    if (isSettingsDisabled) return;
+    try {
+      const updated = await LiveScoresAPI.saveSport({ id: sportId, standings_type: standingsType || null });
+      setSports(prev => prev.map(s => s.id === sportId ? updated : s));
+      toast.success("Standings type updated");
+    } catch (err) {
+      toast.error("Failed to update standings type");
     }
   };
 
@@ -920,13 +932,31 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                 <Plus className="w-4 h-4" />
               </button>
             </div>
+            <select
+              value={newSport.standings_type}
+              onChange={e => setNewSport({ ...newSport, standings_type: e.target.value })}
+              disabled={isSettingsDisabled}
+              title="Standings Type - determines which standings columns and ranking rules apply to this sport"
+              className="w-full bg-slate-800 border border-white/10 rounded-lg px-2 py-2 text-white text-sm outline-none"
+            >
+              {STANDINGS_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
             <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
               {sports.map(s => (
                 <div key={s.id} className="flex items-center justify-between bg-slate-800/50 p-2 rounded-lg border border-white/5">
-                  <div className="flex flex-col min-w-0">
+                  <div className="flex flex-col min-w-0 flex-1 mr-2">
                     <span className="text-white text-sm font-medium truncate">{s.sport_name}{s.gender ? ` (${s.gender})` : ""}</span>
                     <span className="text-[10px] text-slate-500 uppercase tracking-widest">{s.format || "Custom (Manual)"}</span>
                   </div>
+                  <select
+                    value={s.standings_type || ""}
+                    onChange={e => handleUpdateStandingsType(s.id, e.target.value)}
+                    disabled={isSettingsDisabled}
+                    title="Standings Type"
+                    className="shrink-0 bg-slate-900 border border-white/10 rounded-lg px-1.5 py-1 text-white text-[10px] outline-none max-w-[110px]"
+                  >
+                    {STANDINGS_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
                   <div className="flex items-center gap-1 shrink-0">
                     {!isSettingsDisabled && (
                       <button
@@ -1144,28 +1174,31 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                   </div>
                 </div>
 
-                {editingMatch && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-emerald-500 uppercase">Score A</label>
-                      <input 
-                        type="text" 
-                        value={matchForm.team_a_score} onChange={e => setMatchForm({...matchForm, team_a_score: e.target.value})}
-                        disabled={disabled}
-                        className="w-full bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2 text-emerald-400 font-black text-center text-lg outline-none focus:border-emerald-500"
-                      />
+                {editingMatch && (() => {
+                  const isVolleyball = sports.find(s => s.id === matchForm.sport_id)?.standings_type === "volleyball";
+                  return (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-emerald-500 uppercase">{isVolleyball ? "Sets Won A" : "Score A"}</label>
+                        <input
+                          type="text"
+                          value={matchForm.team_a_score} onChange={e => setMatchForm({...matchForm, team_a_score: e.target.value})}
+                          disabled={disabled}
+                          className="w-full bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2 text-emerald-400 font-black text-center text-lg outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-emerald-500 uppercase">{isVolleyball ? "Sets Won B" : "Score B"}</label>
+                        <input
+                          type="text"
+                          value={matchForm.team_b_score} onChange={e => setMatchForm({...matchForm, team_b_score: e.target.value})}
+                          disabled={disabled}
+                          className="w-full bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2 text-emerald-400 font-black text-center text-lg outline-none focus:border-emerald-500"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-emerald-500 uppercase">Score B</label>
-                      <input 
-                        type="text" 
-                        value={matchForm.team_b_score} onChange={e => setMatchForm({...matchForm, team_b_score: e.target.value})}
-                        disabled={disabled}
-                        className="w-full bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2 text-emerald-400 font-black text-center text-lg outline-none focus:border-emerald-500"
-                      />
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
@@ -1553,7 +1586,10 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
       </div>
 
       {/* Standings Section */}
-      {sports.length > 0 && (
+      {sports.length > 0 && (() => {
+        const selectedStandingsType = sports.find(s => s.id === standingsSportId)?.standings_type || "";
+        const standingsColumns = getStandingsColumns(selectedStandingsType);
+        return (
         <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-6 space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -1601,28 +1637,40 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                   className="overflow-hidden"
                 >
                   <div className="bg-slate-950/50 border border-white/10 rounded-xl p-4 space-y-5">
-                    {/* Points System */}
-                    <div className="space-y-2">
-                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Points System</h4>
-                      <div className="flex items-end gap-3 flex-wrap">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-500 uppercase">Win</label>
-                          <input type="number" value={pointsConfig.points_win} onChange={e => setPointsConfig(prev => ({ ...prev, points_win: e.target.value }))} className="w-20 bg-slate-800 border border-white/10 rounded-lg px-2 py-1.5 text-white text-sm outline-none" />
+                    {/* Points System - only meaningful for the Football/Default standings type.
+                        Basketball ranks by win%, Volleyball uses fixed FIVB match-point scoring. */}
+                    {(!selectedStandingsType || selectedStandingsType === "football") ? (
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Points System</h4>
+                        <div className="flex items-end gap-3 flex-wrap">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Win</label>
+                            <input type="number" value={pointsConfig.points_win} onChange={e => setPointsConfig(prev => ({ ...prev, points_win: e.target.value }))} className="w-20 bg-slate-800 border border-white/10 rounded-lg px-2 py-1.5 text-white text-sm outline-none" />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Draw</label>
+                            <input type="number" value={pointsConfig.points_draw} onChange={e => setPointsConfig(prev => ({ ...prev, points_draw: e.target.value }))} className="w-20 bg-slate-800 border border-white/10 rounded-lg px-2 py-1.5 text-white text-sm outline-none" />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Loss</label>
+                            <input type="number" value={pointsConfig.points_loss} onChange={e => setPointsConfig(prev => ({ ...prev, points_loss: e.target.value }))} className="w-20 bg-slate-800 border border-white/10 rounded-lg px-2 py-1.5 text-white text-sm outline-none" />
+                          </div>
+                          <Button onClick={handleSavePoints} loading={savingPoints} variant="primary" icon={Save}>
+                            Save
+                          </Button>
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-500 uppercase">Draw</label>
-                          <input type="number" value={pointsConfig.points_draw} onChange={e => setPointsConfig(prev => ({ ...prev, points_draw: e.target.value }))} className="w-20 bg-slate-800 border border-white/10 rounded-lg px-2 py-1.5 text-white text-sm outline-none" />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-500 uppercase">Loss</label>
-                          <input type="number" value={pointsConfig.points_loss} onChange={e => setPointsConfig(prev => ({ ...prev, points_loss: e.target.value }))} className="w-20 bg-slate-800 border border-white/10 rounded-lg px-2 py-1.5 text-white text-sm outline-none" />
-                        </div>
-                        <Button onClick={handleSavePoints} loading={savingPoints} variant="primary" icon={Save}>
-                          Save
-                        </Button>
+                        <p className="text-[11px] text-slate-500">Applies to standings for this sport only. Defaults to 3 / 1 / 0 if unset.</p>
                       </div>
-                      <p className="text-[11px] text-slate-500">Applies to standings for this sport only. Defaults to 3 / 1 / 0 if unset.</p>
-                    </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Points System</h4>
+                        <p className="text-[11px] text-slate-500">
+                          {selectedStandingsType === "basketball"
+                            ? "Basketball standings rank by Win% then point differential - no points config needed."
+                            : "Volleyball standings use fixed FIVB match-point scoring (3/2/1/0 by set margin) - no points config needed."}
+                        </p>
+                      </div>
+                    )}
 
                     {/* Divisions */}
                     <div className="space-y-2">
@@ -1707,14 +1755,9 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                   <tr className="border-b border-white/10 text-slate-500 text-xs uppercase tracking-widest">
                     <th className="py-2 pr-4">#</th>
                     <th className="py-2 pr-4">Team</th>
-                    <th className="py-2 pr-3 text-center" title="Played">P</th>
-                    <th className="py-2 pr-3 text-center" title="Won">W</th>
-                    <th className="py-2 pr-3 text-center" title="Drawn">D</th>
-                    <th className="py-2 pr-3 text-center" title="Lost">L</th>
-                    <th className="py-2 pr-3 text-center" title="Goals/Points For">GF</th>
-                    <th className="py-2 pr-3 text-center" title="Goals/Points Against">GA</th>
-                    <th className="py-2 pr-3 text-center" title="Goal/Point Difference">GD</th>
-                    <th className="py-2 pr-3 text-center" title="Total Points">Pts</th>
+                    {standingsColumns.map(col => (
+                      <th key={col.key} className="py-2 pr-3 text-center" title={col.title}>{col.header}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -1722,25 +1765,23 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                     <tr key={row.team_id} className="text-white">
                       <td className="py-2 pr-4 text-slate-500">{i + 1}</td>
                       <td className="py-2 pr-4 font-bold">{row.team_name}</td>
-                      <td className="py-2 pr-3 text-center">{row.played}</td>
-                      <td className="py-2 pr-3 text-center">{row.won}</td>
-                      <td className="py-2 pr-3 text-center">{row.drawn}</td>
-                      <td className="py-2 pr-3 text-center">{row.lost}</td>
-                      <td className="py-2 pr-3 text-center">{row.goals_for}</td>
-                      <td className="py-2 pr-3 text-center">{row.goals_against}</td>
-                      <td className="py-2 pr-3 text-center">{row.goal_diff}</td>
-                      <td className="py-2 pr-3 text-center font-black text-amber-400">{row.points}</td>
+                      {standingsColumns.map(col => (
+                        <td key={col.key} className={cn("py-2 pr-3 text-center", col.highlight && "font-black text-amber-400")}>
+                          {col.format ? col.format(row[col.key]) : row[col.key]}
+                        </td>
+                      ))}
                     </tr>
                   ))}
                 </tbody>
               </table>
               <p className="text-[11px] text-slate-500 leading-relaxed mt-2">
-                P = Played · W = Won · D = Drawn · L = Lost · GF = Goals/Points For · GA = Goals/Points Against · GD = Goal/Point Difference · Pts = Total Points
+                {getStandingsLegend(selectedStandingsType)}
               </p>
             </div>
           )}
         </div>
-      )}
+        );
+      })()}
 
       {/* Rename League Modal */}
       {renameLeagueModal.open && (
