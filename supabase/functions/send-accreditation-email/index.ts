@@ -7,8 +7,7 @@ const SMTP_PORT = Number(Deno.env.get("SMTP_PORT")!);
 const SMTP_USER = Deno.env.get("SMTP_USER")!;
 const SMTP_PASS = Deno.env.get("SMTP_PASS")!;
 // Fallback visible sender, used only if the admin-editable DB row below is
-// missing. The SMTP login/envelope sender always stays on the
-// accreditations@ mailbox; only this From/Reply-To header changes.
+// missing.
 const FALLBACK_SMTP_FROM = Deno.env.get("SMTP_FROM")!;
 const FALLBACK_SMTP_REPLY_TO = Deno.env.get("SMTP_REPLY_TO")!;
 

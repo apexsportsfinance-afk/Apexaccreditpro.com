@@ -61,7 +61,7 @@ export default function Settings() {
     host: "mail.apexsports.ae",
     port: "465",
     encryption: "SSL/TLS",
-    username: "accreditations@apexsports.ae"
+    username: "events@apexsports.ae"
   };
 
   const [senderConfig, setSenderConfig] = useState({ fromName: "", fromEmail: "", replyTo: "" });
@@ -533,7 +533,7 @@ export default function Settings() {
                     <span className="text-lg text-muted font-extralight">Password</span>
                     <div className="flex items-center gap-2">
                       <span className="text-lg text-main font-medium">
-                        {showPassword ? "Swim2024$$" : "••••••••••"}
+                        {showPassword ? "Stored as a secure Supabase secret" : "••••••••••"}
                       </span>
                       <button
                         onClick={() => setShowPassword(!showPassword)}
