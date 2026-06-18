@@ -32,9 +32,21 @@ export const LiveScoresAPI = {
     const data = await handleResponse(() => supabase.from("live_score_matches").select("*").eq("event_id", eventId).order("match_date", { ascending: true }).order("match_time", { ascending: true }));
     return data || [];
   },
-  getMatchesWithTeams: async (eventId, sportId) => {
-    const data = await handleResponse(() => supabase.rpc("get_live_scores_matches", { p_event_id: eventId, p_sport_id: sportId || null }));
+  getMatchesWithTeams: async (eventId, sportId, filters = {}) => {
+    const { status, leagueName, matchDate } = filters;
+    const data = await handleResponse(() => supabase.rpc("get_live_scores_matches", {
+      p_event_id: eventId,
+      p_sport_id: sportId || null,
+      p_status: status || null,
+      p_league_name: leagueName || null,
+      p_match_date: matchDate || null,
+    }));
     return data || [];
+  },
+  getFilterOptions: async (eventId, sportId) => {
+    const data = await handleResponse(() => supabase.rpc("get_live_scores_filter_options", { p_event_id: eventId, p_sport_id: sportId || null }));
+    const row = (data && data[0]) || {};
+    return { leagueNames: row.league_names || [], matchDates: row.match_dates || [] };
   },
   saveMatch: async (match) => {
     const dbMatch = { ...match };
@@ -149,6 +161,11 @@ export const MatchEventsAPI = {
   },
   getByEvent: async (eventId) => {
     const data = await handleResponse(() => supabase.from("match_events").select("*").eq("event_id", eventId).order("created_at", { ascending: true }));
+    return data || [];
+  },
+  getByMatchIds: async (matchIds) => {
+    if (!matchIds || matchIds.length === 0) return [];
+    const data = await handleResponse(() => supabase.from("match_events").select("*").in("match_id", matchIds).order("created_at", { ascending: true }));
     return data || [];
   },
   save: async (evt) => {

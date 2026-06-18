@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx";
+import * as XLSX from "@e965/xlsx";
 import { saveAs } from "file-saver";
 import { AccreditationsAPI } from "./storage";
 import { AttendanceAPI } from "./attendanceApi";
