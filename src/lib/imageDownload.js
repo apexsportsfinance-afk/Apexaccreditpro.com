@@ -1,4 +1,12 @@
 import { supabase } from "./supabase";
+import { resolveFileUrl } from "./storage/fileUrl";
+
+// Resolve a stored file reference (path or legacy URL) to a fetchable URL.
+// Data URLs and (flag-off) public URLs pass through unchanged; under the
+// private-storage flag a stored bucket URL becomes a short-lived signed URL so
+// the cross-origin fetch/download still succeeds.
+const toFetchableUrl = async (url) =>
+  !url || url.startsWith("data:") ? url : await resolveFileUrl(url);
 
 /**
  * Fetch a URL and return a blob
@@ -81,13 +89,14 @@ export const downloadSinglePhoto = async (accreditation, type = "photo") => {
     const blob = await response.blob();
     downloadBlob(blob, name);
   } else {
-    // Remote URL
+    // Remote URL — resolve to a signed URL first when private storage is on.
+    const remoteUrl = await toFetchableUrl(url);
     try {
-      const blob = await fetchAsBlob(url);
+      const blob = await fetchAsBlob(remoteUrl);
       downloadBlob(blob, name);
     } catch (err) {
       // Fallback: try opening in new tab if fetch fails (CORS)
-      window.open(url, "_blank");
+      window.open(remoteUrl, "_blank");
     }
   }
 };
@@ -117,7 +126,7 @@ export const downloadFullRecord = async (accreditation) => {
       } else {
         // Remote URL (handle potential CORS issues with fetch)
         try {
-          const response = await fetch(url);
+          const response = await fetch(await toFetchableUrl(url));
           if (!response.ok) throw new Error("Network response was not ok");
           const blob = await response.blob();
           zip.file(`${baseName}_${type}.${ext}`, blob);
@@ -208,7 +217,7 @@ export const bulkDownloadPhotos = async (accreditations, eventName = "event") =>
           }
         } else {
           // Remote URL
-          const response = await fetch(url);
+          const response = await fetch(await toFetchableUrl(url));
           const blob = await response.blob();
           zip.file(`${baseName}_${type}.${ext}`, blob);
           addedCount++;
