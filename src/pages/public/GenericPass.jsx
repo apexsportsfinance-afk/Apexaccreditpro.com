@@ -7,6 +7,7 @@ import { useToast } from "../../components/ui/Toast";
 import { downloadMultiTicketPDF } from "../../components/accreditation/cardExport";
 import * as QRCodeLib from "qrcode";
 import { SpectatorTicketCard } from "../../components/public/SpectatorTicketCard";
+import { usePublicAssetUrls } from "../../lib/storage/publicAssets";
 
 export default function GenericPass() {
   const [searchParams] = useSearchParams();
@@ -22,6 +23,12 @@ export default function GenericPass() {
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const toast = useToast();
+
+  // Event logo signs under the event-scoped branding allowlist (flag OFF: public URL).
+  const { urls: brandingUrls } = usePublicAssetUrls(
+    event?.logoUrl ? [event.logoUrl] : [],
+    { eventId, scope: "branding" }
+  );
 
   useEffect(() => {
     if (!eventId) {
@@ -180,8 +187,8 @@ export default function GenericPass() {
             <div className="bg-slate-900/40 border border-slate-800/50 rounded-[2.5rem] p-10 backdrop-blur-2xl shadow-2xl relative overflow-hidden group">
               {/* Event Context */}
               <div className="text-center mb-10">
-                {event.logoUrl && (
-                  <img src={event.logoUrl} alt="Logo" className="h-16 mx-auto mb-6 object-contain drop-shadow-2xl" />
+                {event.logoUrl && brandingUrls[event.logoUrl] && (
+                  <img src={brandingUrls[event.logoUrl]} alt="Logo" className="h-16 mx-auto mb-6 object-contain drop-shadow-2xl" />
                 )}
                 <h1 className="text-3xl font-black text-white italic uppercase tracking-tighter mb-2 leading-none">
                   Generic Pass

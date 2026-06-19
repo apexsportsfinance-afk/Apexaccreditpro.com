@@ -14,6 +14,7 @@ import { EventsAPI } from "../../lib/storage";
 import { TeamAPI } from "../../services/teamApi";
 import { COUNTRIES, UAE_EMIRATES, getDialCode, validatePhoneForCountry } from "../../lib/utils";
 import { uploadToStorage } from "../../lib/uploadToStorage";
+import { usePublicAssetUrls } from "../../lib/storage/publicAssets";
 
 function formatDateDisplay(dateStr) {
   if (!dateStr) return "";
@@ -44,6 +45,12 @@ export default function TeamRegister() {
     contact_phone: "",
     logo_url: ""
   });
+
+  // Event logo signs under the event-scoped branding allowlist (flag OFF: public URL).
+  const { urls: brandingUrls } = usePublicAssetUrls(
+    event?.logoUrl ? [event.logoUrl] : [],
+    { eventId: event?.id, scope: "branding" }
+  );
 
   useEffect(() => {
     const loadEvent = async () => {
@@ -229,9 +236,9 @@ export default function TeamRegister() {
             animate={{ opacity: 1, y: 0 }}
             className="text-center mb-8"
           >
-            {event.logoUrl ? (
+            {event.logoUrl && brandingUrls[event.logoUrl] ? (
               <div className="w-full max-w-[500px] mx-auto mb-8 bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-indigo-300/60 shadow-2xl shadow-indigo-500/20">
-                <img src={event.logoUrl} alt="Event Logo" className="w-full h-auto max-h-[200px] object-contain" />
+                <img src={brandingUrls[event.logoUrl]} alt="Event Logo" className="w-full h-auto max-h-[200px] object-contain" />
               </div>
             ) : (
               <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-cyan-400 via-blue-500 to-ocean-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-cyan-500/30">

@@ -2,6 +2,7 @@ import React, { memo, useState, useEffect, useRef } from "react";
 import * as QRCodeLib from "qrcode";
 import { getCountryName, getCountryCode3, calculateAge, COUNTRIES, isExpired } from "../../lib/utils";
 import { BadgeCustomFields } from "./BadgeCustomFieldsV2";
+import { usePublicAssetUrls } from "../../lib/storage/publicAssets";
 
 const CARD_FONT = '"Gill Sans MT", "Gill Sans", Calibri, sans-serif';
 const CARD_FONT_SIZE = 11;
@@ -224,6 +225,21 @@ const AquaticsHeader = memo(function AquaticsHeader({ event, bgColor }) {
 });
 
 export const MembershipCardInner = memo(function MembershipCardInner({ accreditation, event, zones = [], eventCategories = [], idSuffix = "", frontBackgroundUrl = "", customFieldConfigs = [], onlyFrontPage = false }) {
+  // Resolve the card's storage-backed images (photo + event branding) through
+  // the public-verify-assets edge function so they render — and html2canvas can
+  // capture them with crossOrigin — whether the bucket is public or private.
+  // Flag OFF: synchronous public URLs (unchanged).
+  const cardAssetValues = [
+    accreditation?.photoUrl,
+    event?.logoUrl,
+    event?.backTemplateUrl,
+    ...(Array.isArray(event?.sponsorLogos) ? event.sponsorLogos : []),
+  ].filter(Boolean);
+  const { urls: cardUrls } = usePublicAssetUrls(cardAssetValues, {
+    accreditationId: accreditation?.id,
+    eventId: event?.id,
+    scope: accreditation?.id ? "profile" : "branding",
+  });
   // Original simple role-based color logic
   const roleData = getRoleData(accreditation?.role);
   const finalColor = resolveCategoryColor(accreditation?.role, eventCategories) || roleData.hex;
@@ -366,8 +382,8 @@ export const MembershipCardInner = memo(function MembershipCardInner({ accredita
           
           {/* 1. HEADER ROW */}
           <div style={{ height: "45px", width: "100%", borderBottom: "1px solid #cbd5e1", backgroundColor: "#ffffff", display: "flex" }}>
-            {event?.logoUrl ? (
-              <img src={event.logoUrl} alt="Header" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }} crossOrigin="anonymous" />
+            {event?.logoUrl && cardUrls[event.logoUrl] ? (
+              <img src={cardUrls[event.logoUrl]} alt="Header" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }} crossOrigin="anonymous" />
             ) : (
               <div style={{ padding: "0 14px", display: "flex", alignItems: "center", width: "100%" }}>
                 <div style={{ fontSize: "14px", fontWeight: "bold", color: finalColor }}>{event?.name || "EVENT HEADER"}</div>
@@ -381,8 +397,8 @@ export const MembershipCardInner = memo(function MembershipCardInner({ accredita
             {/* 2. LEFT SIDE (Photo + ID/Badge) */}
             <div style={{ display: "flex", flexDirection: "column", width: "80px", flexShrink: 0 }}>
               <div style={{ width: "80px", height: "100px", borderRadius: "6px", overflow: "hidden", backgroundColor: "#f8fafc", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
-                {accreditation?.photoUrl ? (
-                  <img src={accreditation.photoUrl} alt="User" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center" }} crossOrigin="anonymous" />
+                {accreditation?.photoUrl && cardUrls[accreditation.photoUrl] ? (
+                  <img src={cardUrls[accreditation.photoUrl]} alt="User" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center" }} crossOrigin="anonymous" />
                 ) : (
                   <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <svg style={{ width: "32px", height: "32px", color: "#cbd5e1" }} viewBox="0 0 24 24" fill="currentColor">
@@ -446,7 +462,7 @@ export const MembershipCardInner = memo(function MembershipCardInner({ accredita
               {/* Bottom Logos */}
               <div style={{ display: "flex", alignItems: "center", height: "30px", marginTop: "auto", marginBottom: "-4px", width: "100%", gap: "6px", overflow: "hidden", flexShrink: 0 }}>
                 {event?.sponsorLogos && event.sponsorLogos.slice(0, 4).map((logo, index) => (
-                  logo ? <img key={index} src={logo} alt="Sponsor" style={{ maxHeight: "16px", maxWidth: "60px", objectFit: "contain" }} crossOrigin="anonymous" /> : null
+                  logo ? <img key={index} src={cardUrls[logo]} alt="Sponsor" style={{ maxHeight: "16px", maxWidth: "60px", objectFit: "contain" }} crossOrigin="anonymous" /> : null
                 ))}
               </div>
             </div>
@@ -503,8 +519,8 @@ export const MembershipCardInner = memo(function MembershipCardInner({ accredita
       >
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "8px", backgroundColor: finalColor, zIndex: 5 }} />
         
-        {event?.backTemplateUrl ? (
-          <img src={event.backTemplateUrl} alt="Back Template" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", backgroundColor: "white", position: "relative", zIndex: 10 }} crossOrigin="anonymous" />
+        {event?.backTemplateUrl && cardUrls[event.backTemplateUrl] ? (
+          <img src={cardUrls[event.backTemplateUrl]} alt="Back Template" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", backgroundColor: "white", position: "relative", zIndex: 10 }} crossOrigin="anonymous" />
         ) : (
           <div style={{ padding: "16px", display: "flex", flexDirection: "column", height: "100%", position: "relative", zIndex: 10, justifyContent: "space-between" }}>
             <div style={{ textAlign: "center", borderBottom: "1px solid #e2e8f0", paddingBottom: "8px" }}>

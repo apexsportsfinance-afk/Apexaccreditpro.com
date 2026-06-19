@@ -39,3 +39,10 @@ enable_confirmations = false
 
 [analytics]
 enabled = false
+
+# Public signed-URL issuer for anonymous verification surfaces. Must be callable
+# without a Supabase JWT (anon badge-verify / scanner / registration pages).
+# Security is enforced inside the function via a service-role-derived allowlist,
+# not by JWT — see supabase/functions/public-verify-assets/index.ts.
+[functions.public-verify-assets]
+verify_jwt = false

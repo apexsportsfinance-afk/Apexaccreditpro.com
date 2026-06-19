@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { createPortal } from "react-dom";
 import QRProfileGallery from "../../components/public/QRProfileGallery";
 import TeamBadge from "../../components/ui/TeamBadge";
+import { usePublicAssetUrls } from "../../lib/storage/publicAssets";
 
 // Helper function to calculate exact split time between PB and Record
 const parseTimeSeconds = (timeStr) => {
@@ -963,6 +964,32 @@ export default function VerifyAccreditation() {
     });
   }, [officialDocs, allocatedSports]);
 
+  // Resolve every storage asset this public page renders through the
+  // public-verify-assets edge function. Flag OFF (default): synchronous public
+  // URLs, byte-identical to today. Flag ON (private bucket): short-lived signed
+  // URLs the anonymous page can't mint itself. Read as `assetUrls[storedValue]`.
+  const profileAssetValues = useMemo(() => {
+    const vals = [data?.photo_url, data?.heat_sheet_url, data?.event_result_url];
+    [...visibleTechnicalDocs, ...visibleOfficialDocs, ...safetyDocs].forEach((d) => {
+      if (d?.url) vals.push(d.url);
+    });
+    return vals.filter(Boolean);
+  }, [data?.photo_url, data?.heat_sheet_url, data?.event_result_url, visibleTechnicalDocs, visibleOfficialDocs, safetyDocs]);
+  const { urls: assetUrls } = usePublicAssetUrls(profileAssetValues, {
+    accreditationId: data?.id,
+    scope: "profile",
+  });
+
+  // Team logos on the live-scores matches sign under the event-scoped allowlist.
+  const teamLogoValues = useMemo(
+    () => liveMatches.flatMap((m) => [m.team_a_logo_url, m.team_b_logo_url]).filter(Boolean),
+    [liveMatches]
+  );
+  const { urls: teamLogoUrls } = usePublicAssetUrls(teamLogoValues, {
+    eventId: data?.event_id,
+    scope: "live",
+  });
+
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
@@ -1225,8 +1252,8 @@ export default function VerifyAccreditation() {
                   <div className="flex items-start gap-4">
                     <div className="relative shrink-0">
                       <div className="w-20 h-24 border-2 border-slate-100 rounded-2xl overflow-hidden shadow-sm bg-slate-50">
-                        {data.photo_url ? (
-                          <img src={getThumbnailUrl(data.photo_url, 400)} alt="Profile" className="w-full h-full object-cover" />
+                        {data.photo_url && assetUrls[data.photo_url] ? (
+                          <img src={getThumbnailUrl(assetUrls[data.photo_url], 400)} alt="Profile" className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <User className="w-8 h-8 text-slate-300" />
@@ -1346,6 +1373,7 @@ export default function VerifyAccreditation() {
                       messages={filteredMessages.generalMessages.length > 0 ? filteredMessages.generalMessages : (filteredMessages.fallbackMessage ? [{ message: filteredMessages.fallbackMessage, type: "global", createdAt: eventSettings["message_updated_at"] }] : [])}
                       icon={<Globe className="w-5 h-5" />}
                       isGeneral
+                      accreditationId={data?.id}
                       onRead={recalculateUnread}
                     />
                   )}
@@ -1356,6 +1384,7 @@ export default function VerifyAccreditation() {
                       messages={filteredMessages.targetedMessages}
                       icon={<Search className="w-5 h-5" />}
                       isTargeted
+                      accreditationId={data?.id}
                       onRead={recalculateUnread}
                     />
                   )}
@@ -1366,6 +1395,7 @@ export default function VerifyAccreditation() {
                       messages={filteredMessages.personalMessages}
                       icon={<MessageSquare className="w-5 h-5" />}
                       isPersonal
+                      accreditationId={data?.id}
                       onRead={recalculateUnread}
                     />
                   )}
@@ -1701,7 +1731,7 @@ export default function VerifyAccreditation() {
                                           <div className="flex items-center justify-between gap-2">
                                             <div className="flex-1 flex items-center justify-end gap-2 text-right">
                                               <p className="text-xs font-bold text-slate-800 truncate">{match.team_a_name || 'TBA'}</p>
-                                              <TeamBadge logoUrl={match.team_a_logo_url} country={match.team_a_country} name={match.team_a_name} size="sm" />
+                                              <TeamBadge logoUrl={teamLogoUrls[match.team_a_logo_url]} country={match.team_a_country} name={match.team_a_name} size="sm" />
                                             </div>
                                             {showScore ? (
                                               <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-lg border border-slate-200 shadow-sm shrink-0">
@@ -1715,7 +1745,7 @@ export default function VerifyAccreditation() {
                                               </div>
                                             )}
                                             <div className="flex-1 flex items-center gap-2 text-left">
-                                              <TeamBadge logoUrl={match.team_b_logo_url} country={match.team_b_country} name={match.team_b_name} size="sm" />
+                                              <TeamBadge logoUrl={teamLogoUrls[match.team_b_logo_url]} country={match.team_b_country} name={match.team_b_name} size="sm" />
                                               <p className="text-xs font-bold text-slate-800 truncate">{match.team_b_name || 'TBA'}</p>
                                             </div>
                                           </div>
@@ -1819,8 +1849,8 @@ export default function VerifyAccreditation() {
             {/* -------------------------------------- */}
 
             <div className="grid grid-cols-2 gap-4 mt-6">
-              <DownloadButton url={data.heat_sheet_url} visible={showForQR("heat_sheet_pdf")} label="Heat Sheet" color="blue" />
-              <DownloadButton url={data.event_result_url} visible={showForQR("event_result_pdf")} label="Athlete Result" color="emerald" />
+              <DownloadButton url={assetUrls[data.heat_sheet_url]} visible={showForQR("heat_sheet_pdf")} label="Heat Sheet" color="blue" />
+              <DownloadButton url={assetUrls[data.event_result_url]} visible={showForQR("event_result_pdf")} label="Athlete Result" color="emerald" />
             </div>
 
             {visibleTechnicalDocs.length > 0 && (
@@ -1828,7 +1858,7 @@ export default function VerifyAccreditation() {
                 <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-3 px-2">Result Documents</h3>
                 <div className="grid grid-cols-2 gap-3">
                   {visibleTechnicalDocs.map(doc => (
-                    <DownloadButton key={doc.id || doc.url} url={doc.url} visible={true} label={doc.title || doc.name} color="blue" />
+                    <DownloadButton key={doc.id || doc.url} url={assetUrls[doc.url]} visible={true} label={doc.title || doc.name} color="blue" />
                   ))}
                 </div>
               </div>
@@ -1839,7 +1869,7 @@ export default function VerifyAccreditation() {
                 <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-3 px-2">Official Documents</h3>
                 <div className="grid grid-cols-2 gap-3">
                   {visibleOfficialDocs.map(doc => (
-                    <DownloadButton key={doc.id || doc.url} url={doc.url} visible={true} label={doc.title || doc.name} color="emerald" />
+                    <DownloadButton key={doc.id || doc.url} url={assetUrls[doc.url]} visible={true} label={doc.title || doc.name} color="emerald" />
                   ))}
                 </div>
               </div>
@@ -1850,7 +1880,7 @@ export default function VerifyAccreditation() {
                 <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-3 px-2">Safety Documents</h3>
                 <div className="grid grid-cols-2 gap-3">
                   {safetyDocs.map(doc => (
-                    <DownloadButton key={doc.id || doc.url} url={doc.url} visible={true} label={doc.title || doc.name} color="blue" />
+                    <DownloadButton key={doc.id || doc.url} url={assetUrls[doc.url]} visible={true} label={doc.title || doc.name} color="blue" />
                   ))}
                 </div>
               </div>
@@ -1935,10 +1965,16 @@ export default function VerifyAccreditation() {
   );
 }
 
-function ExpandableMessageGroup({ title, messages, icon, isPersonal, isTargeted, isGeneral, onRead }) {
+function ExpandableMessageGroup({ title, messages, icon, isPersonal, isTargeted, isGeneral, accreditationId, onRead }) {
   const [hasUnread, setHasUnread] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const latestMessage = messages && messages.length > 0 ? messages[0] : null;
+  // Broadcast attachments sign under the same profile-scoped allowlist.
+  const { urls: attachmentUrls } = usePublicAssetUrls(
+    latestMessage?.attachmentUrl ? [latestMessage.attachmentUrl] : [],
+    { accreditationId, scope: "profile" }
+  );
+  const attachmentHref = latestMessage?.attachmentUrl ? attachmentUrls[latestMessage.attachmentUrl] : null;
 
   useEffect(() => {
     if (!latestMessage) return;
@@ -2012,8 +2048,8 @@ function ExpandableMessageGroup({ title, messages, icon, isPersonal, isTargeted,
                     <span className="text-[9px] text-white/30 font-black uppercase block mb-1">Timestamp</span>
                     <span className="text-[10px] text-white/60 font-black">{latestMessage.createdAt ? new Date(latestMessage.createdAt).toLocaleString() : 'Recent'}</span>
                   </div>
-                  {latestMessage.attachmentUrl && (
-                    <a href={latestMessage.attachmentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-1 bg-white/10 rounded-lg text-white hover:bg-white/20 transition-all">
+                  {latestMessage.attachmentUrl && attachmentHref && (
+                    <a href={attachmentHref} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-1 bg-white/10 rounded-lg text-white hover:bg-white/20 transition-all">
                       <Paperclip className="w-3 h-3" />
                       <span className="text-[9px] font-black uppercase">View File</span>
                     </a>

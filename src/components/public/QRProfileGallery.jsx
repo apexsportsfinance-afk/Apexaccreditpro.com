@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Image as ImageIcon, X, ChevronDown, ChevronUp, Loader2, ChevronLeft, ChevronRight, ScanFace } from 'lucide-react';
 import { PhotoAPI } from '../../lib/photoApi';
 import { cn } from '../../lib/utils';
+import { usePublicAssetUrls } from '../../lib/storage/publicAssets';
 
 export default function QRProfileGallery({ eventId, matchedPhotoIds = [] }) {
   const [photos, setPhotos] = useState([]);
@@ -21,6 +22,11 @@ export default function QRProfileGallery({ eventId, matchedPhotoIds = [] }) {
       : photos.filter(p => p.album_name === activeAlbum);
 
   const currentPhotoIndex = selectedPhoto ? filteredPhotos.findIndex(p => p.id === selectedPhoto.id) : -1;
+
+  // Sign the public gallery photos through the event-scoped allowlist. Flag OFF:
+  // synchronous public URLs (unchanged). Read as `photoUrls[storedValue]`.
+  const photoAssetValues = photos.flatMap(p => [p.thumbnail_url, p.url]).filter(Boolean);
+  const { urls: photoUrls } = usePublicAssetUrls(photoAssetValues, { eventId, scope: 'gallery' });
 
   const handleNext = (e) => {
     e?.stopPropagation();
@@ -180,7 +186,7 @@ export default function QRProfileGallery({ eventId, matchedPhotoIds = [] }) {
                               className="aspect-square rounded-xl overflow-hidden cursor-pointer relative group bg-slate-100"
                             >
                               <img
-                                src={photo.thumbnail_url || photo.url}
+                                src={photoUrls[photo.thumbnail_url || photo.url]}
                                 alt={photo.title}
                                 loading="lazy"
                                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
@@ -247,7 +253,7 @@ export default function QRProfileGallery({ eventId, matchedPhotoIds = [] }) {
               onClick={(e) => e.stopPropagation()}
             >
               <img
-                src={selectedPhoto.url}
+                src={photoUrls[selectedPhoto.url]}
                 alt={selectedPhoto.title}
                 className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
               />

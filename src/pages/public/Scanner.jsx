@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useHardwareScanner } from "../../hooks/useHardwareScanner";
 import { useQrCamera } from "../../hooks/useQrCamera";
 import { useScannerSessions } from "../../hooks/useScannerSessions";
+import { usePublicAssetUrls } from "../../lib/storage/publicAssets";
 import {
   Camera,
   AlertCircle,
@@ -118,6 +119,20 @@ const playZoneMessage = (msgKey, athlete, fallbackText, fallbackVoice, activeZon
   }
   return fallbackText;
 };
+
+// Renders a scanned athlete's photo, resolving it through the public-verify-assets
+// edge function (scope=profile). Flag OFF: synchronous public URL (unchanged).
+// Flag ON: short-lived signed URL the anonymous scanner can't mint itself; falls
+// back to the supplied placeholder while resolving or if unavailable.
+function ScannerAthletePhoto({ athlete, placeholder }) {
+  const { urls } = usePublicAssetUrls(
+    athlete?.photoUrl ? [athlete.photoUrl] : [],
+    { accreditationId: athlete?.id, scope: "profile" }
+  );
+  const src = athlete?.photoUrl ? urls[athlete.photoUrl] : null;
+  if (src) return <img src={src} alt="" className="w-full h-full object-cover" />;
+  return placeholder;
+}
 
 export default function ScannerPage() {
   const [authorized, setAuthorized] = useState(false);
@@ -1310,13 +1325,11 @@ function ResultView({ config, result, onResume, onRedeem, isPublic, zoneConfig }
           <div className="flex flex-col items-center gap-4 mb-6 w-full">
             <div className="relative">
               <div className="w-40 h-40 rounded-full border-4 shadow-2xl overflow-hidden bg-slate-900 ring-4 ring-white/10" style={{ borderColor: isFlagged ? '#ef4444' : accentColor }}>
-                 {athlete.photoUrl ? (
-                   <img src={athlete.photoUrl} alt="" className="w-full h-full object-cover" />
-                 ) : (
+                 <ScannerAthletePhoto athlete={athlete} placeholder={
                    <div className="w-full h-full flex items-center justify-center bg-white/5">
                       <User className="w-16 h-16 text-white/20" />
                    </div>
-                 )}
+                 } />
               </div>
               <div className={`absolute -bottom-2 left-1/2 -translate-x-1/2 px-6 py-2 rounded-full border-2 shadow-2xl z-20 whitespace-nowrap ${isFlagged ? 'bg-red-600 border-white' : (result.isPermanentCompletion ? 'bg-emerald-600 border-white ring-4 ring-emerald-500/30' : 'bg-emerald-600 border-white')}`}>
                  <div className="flex flex-col items-center">
@@ -1424,13 +1437,11 @@ function ResultView({ config, result, onResume, onRedeem, isPublic, zoneConfig }
             <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 overflow-hidden border border-white">
               <div className="p-8 flex flex-col md:flex-row items-center gap-8">
                 <div className="w-32 h-32 rounded-3xl overflow-hidden bg-slate-50 border-4 border-slate-50 shadow-inner shrink-0">
-                  {athlete.photoUrl ? (
-                    <img src={athlete.photoUrl} alt="" className="w-full h-full object-cover" />
-                  ) : (
+                  <ScannerAthletePhoto athlete={athlete} placeholder={
                     <div className="w-full h-full flex items-center justify-center">
                       <User className="w-16 h-16 text-slate-200" />
                     </div>
-                  )}
+                  } />
                 </div>
                 
                 <div className="flex-1 text-center md:text-left">
@@ -1547,13 +1558,11 @@ function ResultView({ config, result, onResume, onRedeem, isPublic, zoneConfig }
           {/* PROFILE HEADER FOR VERIFICATION */}
           <div className="flex flex-col md:flex-row items-center gap-12">
              <div className="w-64 h-80 rounded-[3rem] border-8 shadow-2xl overflow-hidden bg-white/5 border-white/10 shrink-0" style={{ borderColor: accentColor }}>
-                {athlete.photoUrl ? (
-                  <img src={athlete.photoUrl} alt="" className="w-full h-full object-cover" />
-                ) : (
+                <ScannerAthletePhoto athlete={athlete} placeholder={
                   <div className="w-full h-full flex items-center justify-center bg-white/5">
                      <User className="w-32 h-32 text-white/10" />
                   </div>
-                )}
+                } />
              </div>
 
              <div className="flex-1 text-center md:text-left space-y-4">
