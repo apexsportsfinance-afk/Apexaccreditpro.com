@@ -70,6 +70,22 @@ export function getPublicFileUrl(filePath, opts = {}) {
 }
 
 /**
+ * Synchronous resolution for PUBLIC mode (today's behaviour): a bare path
+ * becomes a public URL, a stored absolute URL is returned verbatim. Returns
+ * null when private mode is on (signing requires an async round-trip — use
+ * resolveFileUrl / useResolvedFileUrl there). Lets render sites stay flicker-free
+ * and byte-identical to today while the flag is off.
+ * @param {string} value
+ * @param {object} [opts]
+ * @returns {string|null}
+ */
+export function resolveFileUrlSync(value, opts = {}) {
+  if (!value) return null;
+  if (isPrivateStorageEnabled()) return null;
+  return isAbsoluteUrl(value) ? value : getPublicFileUrl(value, opts);
+}
+
+/**
  * Resolve a stored file reference to a usable URL. Always async so every call
  * site has ONE contract regardless of public/private mode — making the eventual
  * cutover a flag flip rather than a code change.
@@ -91,7 +107,7 @@ export async function resolveFileUrl(value, opts = {}) {
   if (!isPrivateStorageEnabled()) {
     // Public mode (default): unchanged behaviour. A stored absolute URL is
     // returned verbatim; a bare path is turned into a public URL.
-    return isAbsoluteUrl(value) ? value : getPublicFileUrl(value, opts);
+    return resolveFileUrlSync(value, opts);
   }
 
   // Private mode: sign our own storage references; pass through anything else.
