@@ -9,6 +9,7 @@ import SessionManager from './SessionManager';
 import * as XLSX from '@e965/xlsx';
 import { useToast } from '../ui/Toast';
 import { supabase } from '../../lib/supabase';
+import StorageImage from '../ui/StorageImage';
 
 // Premium High-Luminance Attendance Gauge
 const AttendanceStatusGauge = ({ current, total, role }) => {
@@ -264,7 +265,7 @@ export default function AttendanceSheet({ event, onBack }) {
       render: (row) => (
         <div className="flex items-center gap-3 py-1">
           <div className="w-8 h-8 rounded-full bg-slate-800 border border-white/5 overflow-hidden ring-1 ring-white/10 shadow-lg group">
-            {row.photoUrl ? <img src={row.photoUrl} className="w-full h-full object-cover" alt="" /> : <Users className="w-4 h-4 text-slate-500 m-auto mt-2" />}
+            {row.photoUrl ? <StorageImage src={row.photoUrl} className="w-full h-full object-cover" alt="" /> : <Users className="w-4 h-4 text-slate-500 m-auto mt-2" />}
           </div>
           <span className="font-semibold text-slate-100 uppercase text-[12px] tracking-tight">{row.fullName}</span>
         </div>
