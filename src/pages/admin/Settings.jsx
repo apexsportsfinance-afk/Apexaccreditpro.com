@@ -54,21 +54,67 @@ export default function Settings() {
   const [events, setEvents] = useState([]);
   const [selectedEventId, setSelectedEventId] = useState(null);
 
+  // Server/auth fields require an actual mailbox credential change, so they
+  // stay static display (configured via Supabase function secrets). Only
+  // the visible sender identity below is admin-editable.
   const smtpConfig = {
     host: "mail.apexsports.ae",
     port: "465",
     encryption: "SSL/TLS",
-    username: "accreditations@apexsports.ae",
-    fromName: "Apex Sports Accreditations",
-    fromEmail: "accreditations@apexsports.ae"
+    username: "events@apexsports.ae"
   };
+
+  const [senderConfig, setSenderConfig] = useState({ fromName: "", fromEmail: "", replyTo: "" });
+  const [loadingSenderConfig, setLoadingSenderConfig] = useState(true);
+  const [savingSenderConfig, setSavingSenderConfig] = useState(false);
 
   useEffect(() => {
     loadEvents();
+    loadSenderConfig();
     if (isSuperAdmin) {
       loadSecuritySettings();
     }
   }, [isSuperAdmin]);
+
+  const loadSenderConfig = async () => {
+    try {
+      const { data } = await supabase
+        .from("global_settings")
+        .select("value")
+        .eq("key", "smtp_sender_config")
+        .single();
+      const cfg = data?.value ? JSON.parse(data.value) : {};
+      setSenderConfig({
+        fromName: cfg.fromName || "Apex Sports Accreditations",
+        fromEmail: cfg.fromEmail || "accreditations@apexsports.ae",
+        replyTo: cfg.replyTo || cfg.fromEmail || "accreditations@apexsports.ae"
+      });
+    } catch (err) {
+      console.warn("No sender config found, using defaults");
+      setSenderConfig({ fromName: "Apex Sports Accreditations", fromEmail: "accreditations@apexsports.ae", replyTo: "accreditations@apexsports.ae" });
+    } finally {
+      setLoadingSenderConfig(false);
+    }
+  };
+
+  const handleSaveSenderConfig = async () => {
+    if (!senderConfig.fromEmail || !senderConfig.fromEmail.includes("@")) {
+      toast.error("Please enter a valid From Email address");
+      return;
+    }
+    setSavingSenderConfig(true);
+    try {
+      const { error } = await supabase
+        .from("global_settings")
+        .upsert([{ key: "smtp_sender_config", value: JSON.stringify(senderConfig) }], { onConflict: "key" });
+      if (error) throw error;
+      toast.success("Sender settings saved! Takes effect on the next email send.");
+    } catch (err) {
+      toast.error("Failed to save sender settings: " + (err.message || "Unknown error"));
+    } finally {
+      setSavingSenderConfig(false);
+    }
+  };
 
   useEffect(() => {
     loadTemplates(selectedEventId);
@@ -487,7 +533,7 @@ export default function Settings() {
                     <span className="text-lg text-muted font-extralight">Password</span>
                     <div className="flex items-center gap-2">
                       <span className="text-lg text-main font-medium">
-                        {showPassword ? "Swim2024$$" : "••••••••••"}
+                        {showPassword ? "Stored as a secure Supabase secret" : "••••••••••"}
                       </span>
                       <button
                         onClick={() => setShowPassword(!showPassword)}
@@ -501,12 +547,56 @@ export default function Settings() {
                       </button>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between py-2.5 px-4 rounded-lg bg-base-alt border border-border">
-                    <span className="text-lg text-muted font-extralight">From Name</span>
-                    <span className="text-lg text-main font-medium">{smtpConfig.fromName}</span>
-                  </div>
                 </div>
               </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-700/50">
+              <h3 className="text-lg font-medium text-white mb-1 flex items-center gap-2">
+                <Mail className="w-4 h-4 text-violet-400" />
+                Sender Identity
+              </h3>
+              <p className="text-sm text-slate-500 font-extralight mb-3">
+                Controls the visible From and Reply-To address on outgoing accreditation emails. Applies instantly to the next email sent &mdash; no redeploy needed.
+              </p>
+              {loadingSenderConfig ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <Input
+                      label="From Name"
+                      value={senderConfig.fromName}
+                      onChange={(e) => setSenderConfig((prev) => ({ ...prev, fromName: e.target.value }))}
+                      placeholder="Apex Sports Accreditations"
+                    />
+                    <Input
+                      label="From Email"
+                      type="email"
+                      value={senderConfig.fromEmail}
+                      onChange={(e) => setSenderConfig((prev) => ({ ...prev, fromEmail: e.target.value }))}
+                      placeholder="events@apexsports.ae"
+                    />
+                  </div>
+                  <Input
+                    label="Reply-To Email"
+                    type="email"
+                    value={senderConfig.replyTo}
+                    onChange={(e) => setSenderConfig((prev) => ({ ...prev, replyTo: e.target.value }))}
+                    placeholder="events@apexsports.ae"
+                  />
+                  <Button
+                    onClick={handleSaveSenderConfig}
+                    loading={savingSenderConfig}
+                    icon={Save}
+                    variant="primary"
+                  >
+                    {savingSenderConfig ? "Saving..." : "Save Sender Settings"}
+                  </Button>
+                </div>
+              )}
             </div>
 
             <div className="pt-4 border-t border-slate-700/50">

@@ -288,7 +288,7 @@ export default function Zones() {
           >
             {row.code}
           </div>
-          <span className="font-mono text-lg text-white">{row.code}</span>
+          <span className="font-mono text-lg text-main">{row.code}</span>
         </div>
       )
     },
@@ -298,7 +298,7 @@ export default function Zones() {
       sortable: true,
       render: (_, row) => (
         <div className="flex flex-col">
-          <span className="text-lg text-slate-200">{row.name}</span>
+          <span className="text-lg text-main font-medium">{row.name}</span>
           {row.settings?.isHidden && (
             <span className="text-[10px] font-black uppercase tracking-widest text-amber-500 mt-1">
               Hidden Zone
@@ -316,7 +316,7 @@ export default function Zones() {
       key: "description",
       header: "Description",
       render: (_, row) => (
-        <span className="text-lg text-slate-400 font-extralight">{row.description || "—"}</span>
+        <span className="text-lg text-muted font-extralight">{row.description || "—"}</span>
       )
     },
     {
@@ -328,12 +328,12 @@ export default function Zones() {
             onClick={(e) => { e.stopPropagation(); handleOpenModal(row); }}
             className={cn(
               "p-2 rounded-lg transition-colors",
-              isViewer ? "opacity-30 cursor-not-allowed" : "hover:bg-slate-700"
+              isViewer ? "opacity-30 cursor-not-allowed" : "hover:bg-base-alt"
             )}
             title={isViewer ? "Viewing Only" : "Edit"}
             disabled={isViewer}
           >
-            <Edit className="w-4 h-4 text-slate-400" />
+            <Edit className="w-4 h-4 text-muted" />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); handleDelete(row); }}
@@ -469,7 +469,7 @@ export default function Zones() {
           <MessageSettingsPanel formData={formData} setFormData={setFormData} />
 
           <div>
-            <label className="block text-lg font-medium text-slate-300 mb-1.5">
+            <label className="block text-lg font-medium text-main mb-1.5">
               Zone Color
             </label>
             <div className="flex items-center gap-3">
@@ -477,9 +477,9 @@ export default function Zones() {
                 type="color"
                 value={formData.color}
                 onChange={(e) => setFormData((prev) => ({ ...prev, color: e.target.value }))}
-                className="w-12 h-10 rounded cursor-pointer border border-slate-700"
+                className="w-12 h-10 rounded cursor-pointer border border-border"
               />
-              <span className="text-lg text-slate-400">{formData.color}</span>
+              <span className="text-lg text-muted">{formData.color}</span>
               <div
                 className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-lg"
                 style={{ backgroundColor: formData.color }}
@@ -489,11 +489,11 @@ export default function Zones() {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-700/50">
-            <div className="flex items-center justify-between p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
+          <div className="pt-4 border-t border-border">
+            <div className="flex items-center justify-between p-4 bg-base-alt rounded-xl border border-border">
               <div className="flex-1">
-                <p className="text-sm font-bold text-white uppercase tracking-tight">Hidden Zone</p>
-                <p className="text-[10px] text-slate-400 font-extralight uppercase tracking-widest mt-0.5">
+                <p className="text-sm font-bold text-main uppercase tracking-tight">Hidden Zone</p>
+                <p className="text-[10px] text-muted font-extralight uppercase tracking-widest mt-0.5">
                   Does not show on participant QR profile
                 </p>
               </div>
@@ -502,7 +502,7 @@ export default function Zones() {
                 onClick={() => setFormData(p => ({ ...p, settings: { ...p.settings, isHidden: !p.settings?.isHidden } }))}
                 className={cn(
                   "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                  formData.settings?.isHidden ? "bg-amber-500" : "bg-slate-700"
+                  formData.settings?.isHidden ? "bg-amber-500" : "bg-border"
                 )}
               >
                 <span
@@ -515,8 +515,8 @@ export default function Zones() {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-700/50">
-            <label className="block text-lg font-bold text-white mb-3 uppercase tracking-tight">
+          <div className="pt-4 border-t border-border">
+            <label className="block text-lg font-bold text-main mb-3 uppercase tracking-tight">
               Scan Persistence
             </label>
             <div className="grid grid-cols-2 gap-3 mb-6">
@@ -526,7 +526,7 @@ export default function Zones() {
                 className={`py-4 px-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all flex flex-col items-center gap-2 ${
                   formData.settings?.scanMode !== "permanent"
                     ? "bg-primary-500/20 border-primary-500 text-primary-400 shadow-[0_0_15px_rgba(37,99,235,0.2)]"
-                    : "bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800"
+                    : "bg-base-alt border-border text-muted hover:bg-base"
                 }`}
               >
                 <Clock className="w-5 h-5 opacity-60" />
@@ -538,7 +538,7 @@ export default function Zones() {
                 className={`py-4 px-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all flex flex-col items-center gap-2 ${
                   formData.settings?.scanMode === "permanent"
                     ? "bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
-                    : "bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800"
+                    : "bg-base-alt border-border text-muted hover:bg-base"
                 }`}
               >
                 <ShieldCheck className="w-5 h-5 opacity-60" />
@@ -547,8 +547,8 @@ export default function Zones() {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-700/50">
-            <label className="block text-lg font-bold text-white mb-3 uppercase tracking-tight">
+          <div className="pt-4 border-t border-border">
+            <label className="block text-lg font-bold text-main mb-3 uppercase tracking-tight">
               Access Rules
             </label>
             <div className="grid grid-cols-3 gap-3 mb-4">
@@ -558,7 +558,7 @@ export default function Zones() {
                 className={`py-3 px-2 rounded-xl border text-[10px] font-bold uppercase tracking-widest transition-all ${
                   formData.settings?.accessMode === "general"
                     ? "bg-primary-500/20 border-primary-500 text-primary-400 shadow-[0_0_15px_rgba(37,99,235,0.2)]"
-                    : "bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800"
+                    : "bg-base-alt border-border text-muted hover:bg-base"
                 }`}
               >
                 General Access
@@ -569,7 +569,7 @@ export default function Zones() {
                 className={`py-3 px-2 rounded-xl border text-[10px] font-bold uppercase tracking-widest transition-all ${
                   formData.settings?.accessMode === "time_restricted"
                     ? "bg-amber-500/20 border-amber-500 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
-                    : "bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800"
+                    : "bg-base-alt border-border text-muted hover:bg-base"
                 }`}
               >
                 Time Restricted
@@ -580,7 +580,7 @@ export default function Zones() {
                 className={`py-3 px-2 rounded-xl border text-[10px] font-bold uppercase tracking-widest transition-all ${
                   formData.settings?.accessMode === "check_in_out"
                     ? "bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
-                    : "bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800"
+                    : "bg-base-alt border-border text-muted hover:bg-base"
                 }`}
               >
                 Check-In / Out
@@ -588,9 +588,9 @@ export default function Zones() {
             </div>
 
             {formData.settings?.accessMode === "time_restricted" && (
-              <div className="space-y-3 bg-slate-900/50 p-4 rounded-xl border border-slate-800 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="space-y-3 bg-base-alt p-4 rounded-xl border border-border animate-in fade-in slide-in-from-top-2 duration-300">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Defined Active Windows</span>
+                  <span className="text-[10px] font-black text-muted uppercase tracking-widest">Defined Active Windows</span>
                   <button
                     type="button"
                     onClick={addTimeSlot}
@@ -599,9 +599,9 @@ export default function Zones() {
                     <Plus className="w-3 h-3" /> Add Slot
                   </button>
                 </div>
-                
+
                 {(!formData.settings?.timeSlots || formData.settings.timeSlots.length === 0) ? (
-                  <p className="text-xs text-slate-500 italic py-2 text-center">No slots defined. Scanner will deny all access.</p>
+                  <p className="text-xs text-muted italic py-2 text-center">No slots defined. Scanner will deny all access.</p>
                 ) : (
                   formData.settings.timeSlots.map((slot, idx) => (
                     <div key={idx} className="flex items-center gap-3">
@@ -609,19 +609,19 @@ export default function Zones() {
                         type="time"
                         value={slot.start}
                         onChange={(e) => updateTimeSlot(idx, "start", e.target.value)}
-                        className="bg-slate-800 border-none rounded-lg text-white text-xs p-2 flex-1 outline-none focus:ring-1 focus:ring-primary-500"
+                        className="bg-base border border-border rounded-lg text-main text-xs p-2 flex-1 outline-none focus:ring-1 focus:ring-primary-500"
                       />
-                      <span className="text-slate-600 text-xs font-bold font-mono">TO</span>
+                      <span className="text-muted text-xs font-bold font-mono">TO</span>
                       <input
                         type="time"
                         value={slot.end}
                         onChange={(e) => updateTimeSlot(idx, "end", e.target.value)}
-                        className="bg-slate-800 border-none rounded-lg text-white text-xs p-2 flex-1 outline-none focus:ring-1 focus:ring-primary-500"
+                        className="bg-base border border-border rounded-lg text-main text-xs p-2 flex-1 outline-none focus:ring-1 focus:ring-primary-500"
                       />
                       <button
                         type="button"
                         onClick={() => removeTimeSlot(idx)}
-                        className="p-2 text-slate-500 hover:text-red-400 transition-colors"
+                        className="p-2 text-muted hover:text-red-400 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -652,8 +652,8 @@ export default function Zones() {
             <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0" />
             <div>
               <p className="text-lg font-semibold text-red-400">Delete this zone?</p>
-              <p className="text-lg text-slate-300 font-extralight mt-1">
-                Zone <span className="font-bold text-white">{deleteModal.zone?.code} - {deleteModal.zone?.name}</span> will be permanently removed.
+              <p className="text-lg text-muted font-extralight mt-1">
+                Zone <span className="font-bold text-main">{deleteModal.zone?.code} - {deleteModal.zone?.name}</span> will be permanently removed.
               </p>
             </div>
           </div>
@@ -685,7 +685,7 @@ export default function Zones() {
         title="Copy Zones from Event"
       >
         <form onSubmit={handleCopyZones} className="p-6 space-y-4">
-          <p className="text-slate-300 text-lg font-light mb-4 text-center">
+          <p className="text-muted text-lg font-light mb-4 text-center">
             Select a previous event to clone its venue access zones into the current event.
           </p>
           <Select
@@ -698,11 +698,11 @@ export default function Zones() {
           />
           
           {sourceEventId && sourceZones.length === 0 ? (
-            <p className="text-slate-400 italic text-center py-4 bg-slate-800/50 rounded-lg border border-slate-700">This event has no zones to copy.</p>
+            <p className="text-muted italic text-center py-4 bg-base-alt rounded-lg border border-border">This event has no zones to copy.</p>
           ) : sourceZones.length > 0 && (
             <div className="space-y-2 mt-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
               <div className="flex items-center justify-between mb-3 px-1">
-                <label className="text-sm font-semibold text-slate-300">
+                <label className="text-sm font-semibold text-main">
                   Select Zones ({selectedZonesToCopy.length}/{sourceZones.length})
                 </label>
                 <button 
@@ -718,9 +718,9 @@ export default function Zones() {
                   <label 
                     key={zone.id} 
                     className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
-                      selectedZonesToCopy.includes(zone.id) 
-                        ? 'border-primary-500/50 bg-primary-500/10' 
-                        : 'border-slate-700 bg-slate-800/50 hover:bg-slate-800'
+                      selectedZonesToCopy.includes(zone.id)
+                        ? 'border-primary-500/50 bg-primary-500/10'
+                        : 'border-border bg-base-alt hover:bg-base'
                     }`}
                   >
                     <input
@@ -733,7 +733,7 @@ export default function Zones() {
                           setSelectedZonesToCopy(prev => prev.filter(id => id !== zone.id));
                         }
                       }}
-                      className="w-4 h-4 rounded border-slate-600 text-primary-500 focus:ring-primary-500 focus:ring-offset-slate-900 bg-slate-900 cursor-pointer"
+                      className="w-4 h-4 rounded border-border text-primary-500 focus:ring-primary-500 bg-base cursor-pointer"
                     />
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div
@@ -743,9 +743,9 @@ export default function Zones() {
                         {zone.code}
                       </div>
                       <div className="flex flex-col flex-1 min-w-0">
-                        <span className="text-slate-200 font-medium truncate">{zone.name}</span>
+                        <span className="text-main font-medium truncate">{zone.name}</span>
                         {zone.description && (
-                          <span className="text-xs text-slate-400 truncate">{zone.description}</span>
+                          <span className="text-xs text-muted truncate">{zone.description}</span>
                         )}
                       </div>
                     </div>
@@ -755,7 +755,7 @@ export default function Zones() {
             </div>
           )}
 
-          <div className="flex gap-3 pt-4 border-t border-slate-800">
+          <div className="flex gap-3 pt-4 border-t border-border">
             <Button
               type="button"
               variant="secondary"

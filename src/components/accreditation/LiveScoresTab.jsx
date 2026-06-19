@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import * as XLSX from "xlsx";
+import * as XLSX from "@e965/xlsx";
 import { Plus, Trash2, Save, Calendar, Clock, Edit2, Play, CheckCircle, XCircle, ChevronDown, ChevronUp, Trophy, Search, RotateCcw, Wand2, Info, Download, FileText, Image } from "lucide-react";
 import FixturePNGCard from "./FixturePNGCard";
 import { motion, AnimatePresence } from "framer-motion";
-import { LiveScoresAPI, DivisionsAPI, MatchEventsAPI, DisciplinaryAPI } from "../../lib/storage";
+import { LiveScoresAPI, DivisionsAPI, AreasAPI, MatchEventsAPI, DisciplinaryAPI, PlayerStatsAPI } from "../../lib/storage";
 import { TeamAPI } from "../../services/teamApi";
 import { toast } from "sonner";
 import { cn } from "../../lib/utils";
@@ -13,6 +13,8 @@ import TeamBadge from "../ui/TeamBadge";
 import MatchEventsPanel from "./MatchEventsPanel";
 import GenerateFixturesModal from "./GenerateFixturesModal";
 import { useAuth } from "../../contexts/AuthContext";
+import { STANDINGS_TYPE_OPTIONS, getStandingsColumns, getStandingsLegend } from "../../lib/standingsColumns";
+import { getStatFieldsForSport } from "../../lib/sportStatFields";
 
 export default function LiveScoresTab({ eventId, onToast, disabled }) {
   const { user } = useAuth();
@@ -29,7 +31,7 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const [newSport, setNewSport] = useState({ sport_name: "", gender: "" });
+  const [newSport, setNewSport] = useState({ sport_name: "", gender: "", standings_type: "" });
   const [editingMatch, setEditingMatch] = useState(null);
 
   const [standingsSportId, setStandingsSportId] = useState("");
@@ -38,12 +40,22 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
 
   // Phase 3: divisions / configurable points
   const [standingsDivisionId, setStandingsDivisionId] = useState("all");
+  const [standingsAreaId, setStandingsAreaId] = useState("all");
   const [divisions, setDivisions] = useState([]);
+  const [areas, setAreas] = useState([]);
+  // Flat lists across ALL sports (not just the one selected in the
+  // standings filter) so every match card can show its Area/Group
+  // regardless of which sport it belongs to.
+  const [allDivisions, setAllDivisions] = useState([]);
+  const [allAreas, setAllAreas] = useState([]);
   const [pointsConfig, setPointsConfig] = useState({ points_win: 3, points_draw: 1, points_loss: 0 });
   const [savingPoints, setSavingPoints] = useState(false);
   const [teamDivisions, setTeamDivisions] = useState({});
   const [newDivisionName, setNewDivisionName] = useState("");
   const [newDivisionGender, setNewDivisionGender] = useState("");
+  const [newDivisionAreaId, setNewDivisionAreaId] = useState("");
+  const [newAreaName, setNewAreaName] = useState("");
+  const [newAreaCities, setNewAreaCities] = useState("");
   const [showDivisionSettings, setShowDivisionSettings] = useState(false);
 
   // Phase 4: competition format builder / fixture generation
@@ -68,7 +80,9 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
     match_time: "12:00",
     venue: "",
     status: "Upcoming",
-    notes: ""
+    notes: "",
+    division_id: "",
+    stage: "league"
   });
 
   const STATUS_OPTIONS = ["Upcoming", "Live", "Half Time / Break", "Finished", "Cancelled", "Postponed"];
@@ -99,8 +113,8 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
   }, [sports]);
 
   useEffect(() => {
-    if (eventId && standingsSportId) loadStandings(standingsSportId, standingsDivisionId);
-  }, [eventId, standingsSportId, standingsDivisionId, matches]);
+    if (eventId && standingsSportId) loadStandings(standingsSportId, standingsDivisionId, standingsAreaId);
+  }, [eventId, standingsSportId, standingsDivisionId, standingsAreaId, matches]);
 
   useEffect(() => {
     if (standingsSportId) loadSportExtras(standingsSportId);
@@ -119,6 +133,7 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
       if (spData) setSports(spData);
       if (mData) setMatches(mData);
       if (tData) setTeams(tData);
+      if (spData) loadAllDivisionsAndAreas(spData);
     } catch (err) {
       console.error(err);
       toast.error("Failed to load Live Scores data");
@@ -127,10 +142,20 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
     }
   };
 
-  const loadStandings = async (sportId, divisionId) => {
+  const loadAllDivisionsAndAreas = async (sportsList) => {
+    try {
+      const results = await Promise.all((sportsList || []).map(s => Promise.all([DivisionsAPI.getBySport(s.id), AreasAPI.getBySport(s.id)])));
+      setAllDivisions(results.flatMap(r => r[0]));
+      setAllAreas(results.flatMap(r => r[1]));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const loadStandings = async (sportId, divisionId, areaId) => {
     setStandingsLoading(true);
     try {
-      const data = await LiveScoresAPI.getStandings(eventId, sportId, divisionId !== "all" ? divisionId : null);
+      const data = await LiveScoresAPI.getStandings(eventId, sportId, divisionId !== "all" ? divisionId : null, areaId && areaId !== "all" ? areaId : null);
       setStandings(data || []);
     } catch (err) {
       console.error(err);
@@ -139,16 +164,19 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
     }
   };
 
-  // Load this sport's divisions, points config, and per-team division
-  // assignments (for the "Configure Divisions & Points" panel).
+  // Load this sport's areas, divisions, points config, and per-team division
+  // assignments (for the "Configure Areas, Divisions & Points" panel).
   const loadSportExtras = async (sportId) => {
     setStandingsDivisionId("all");
+    setStandingsAreaId("all");
     try {
-      const [divs, cfg] = await Promise.all([
+      const [divs, ars, cfg] = await Promise.all([
         DivisionsAPI.getBySport(sportId),
+        AreasAPI.getBySport(sportId),
         LiveScoresAPI.getPointsConfig(eventId, sportId)
       ]);
       setDivisions(divs);
+      setAreas(ars);
       setPointsConfig(cfg || { points_win: 3, points_draw: 1, points_loss: 0 });
 
       const sport = sports.find(s => s.id === sportId);
@@ -193,11 +221,13 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
         sport_id: standingsSportId,
         name: newDivisionName.trim(),
         gender: newDivisionGender || null,
+        area_id: newDivisionAreaId || null,
         display_order: divisions.length,
       });
       setDivisions([...divisions, saved]);
       setNewDivisionName("");
       setNewDivisionGender("");
+      setNewDivisionAreaId("");
       toast.success("Division added");
     } catch (err) {
       toast.error("Failed to add division");
@@ -218,6 +248,103 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
       if (standingsDivisionId === id) setStandingsDivisionId("all");
     } catch (err) {
       toast.error("Failed to delete division");
+    }
+  };
+
+  const handleDivisionAreaChange = async (divisionId, areaId) => {
+    if (isSettingsDisabled) return;
+    try {
+      const saved = await DivisionsAPI.save({ id: divisionId, area_id: areaId || null });
+      setDivisions(prev => prev.map(d => d.id === divisionId ? saved : d));
+    } catch (err) {
+      toast.error("Failed to update division's area");
+    }
+  };
+
+  const handleAddArea = async () => {
+    if (isSettingsDisabled || !standingsSportId || !newAreaName.trim()) return;
+    try {
+      const cities = newAreaCities.split(",").map(c => c.trim()).filter(Boolean);
+      const saved = await AreasAPI.save({
+        event_id: eventId,
+        sport_id: standingsSportId,
+        name: newAreaName.trim(),
+        cities,
+        display_order: areas.length,
+      });
+      setAreas([...areas, saved]);
+      setNewAreaName("");
+      setNewAreaCities("");
+      toast.success("Area added");
+    } catch (err) {
+      toast.error("Failed to add area");
+    }
+  };
+
+  const handleDeleteArea = async (id) => {
+    if (isSettingsDisabled) return;
+    if (!window.confirm("Delete this area/conference? Groups assigned to it will become unassigned.")) return;
+    try {
+      await AreasAPI.delete(id);
+      setAreas(areas.filter(a => a.id !== id));
+      setDivisions(prev => prev.map(d => d.area_id === id ? { ...d, area_id: null } : d));
+      if (standingsAreaId === id) setStandingsAreaId("all");
+    } catch (err) {
+      toast.error("Failed to delete area");
+    }
+  };
+
+  // Auto-assign already-registered teams to divisions based on their `city`,
+  // matched against each area's `cities` list. Splits each area's divisions
+  // into balanced groups the same way the fixture generator's auto-assign
+  // does. Admin can still hand-edit any team's division afterwards.
+  const handleAutoAssignByLocation = async () => {
+    if (isSettingsDisabled) return;
+    const sport = sports.find(s => s.id === standingsSportId);
+    if (!sport) return;
+    const usableAreas = areas.filter(a => (a.cities || []).length > 0);
+    if (usableAreas.length === 0) {
+      toast.error("Add at least one area with cities first");
+      return;
+    }
+    const cityToAreaId = {};
+    usableAreas.forEach(a => (a.cities || []).forEach(c => { cityToAreaId[c.toLowerCase()] = a.id; }));
+    const divisionsByArea = {};
+    divisions.forEach(d => {
+      if (!d.area_id) return;
+      if (!divisionsByArea[d.area_id]) divisionsByArea[d.area_id] = [];
+      divisionsByArea[d.area_id].push(d.id);
+    });
+
+    const counts = {};
+    const assignments = [];
+    const nextTeamDivisions = { ...teamDivisions };
+    Object.keys(teamDivisions).forEach(teamId => {
+      const team = teamsById[teamId];
+      if (!team?.city) return;
+      const areaId = cityToAreaId[team.city.toLowerCase()];
+      const candidateDivisionIds = areaId ? (divisionsByArea[areaId] || []) : [];
+      if (candidateDivisionIds.length === 0) return;
+      let best = candidateDivisionIds[0];
+      candidateDivisionIds.forEach(dId => {
+        counts[dId] = counts[dId] || 0;
+        if (counts[dId] < (counts[best] || 0)) best = dId;
+      });
+      counts[best] = (counts[best] || 0) + 1;
+      assignments.push({ teamId, sportName: sport.sport_name, divisionId: best });
+      nextTeamDivisions[teamId] = best;
+    });
+
+    if (assignments.length === 0) {
+      toast.error("No registered teams matched an area's cities");
+      return;
+    }
+    try {
+      await LiveScoresAPI.bulkSetTeamDivisions(assignments);
+      setTeamDivisions(nextTeamDivisions);
+      toast.success(`Assigned ${assignments.length} team${assignments.length === 1 ? "" : "s"} by location`);
+    } catch (err) {
+      toast.error("Failed to auto-assign teams by location");
     }
   };
 
@@ -249,12 +376,23 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
   const handleAddSport = async () => {
     if (isSettingsDisabled || !newSport.sport_name.trim()) return;
     try {
-      const added = await LiveScoresAPI.saveSport({ event_id: eventId, sport_name: newSport.sport_name.trim(), gender: newSport.gender || null });
+      const added = await LiveScoresAPI.saveSport({ event_id: eventId, sport_name: newSport.sport_name.trim(), gender: newSport.gender || null, standings_type: newSport.standings_type || null });
       setSports([...sports, added]);
-      setNewSport({ sport_name: "", gender: "" });
+      setNewSport({ sport_name: "", gender: "", standings_type: "" });
       toast.success("Sport added");
     } catch (err) {
       toast.error("Failed to add sport");
+    }
+  };
+
+  const handleUpdateStandingsType = async (sportId, standingsType) => {
+    if (isSettingsDisabled) return;
+    try {
+      const updated = await LiveScoresAPI.saveSport({ id: sportId, standings_type: standingsType || null });
+      setSports(prev => prev.map(s => s.id === sportId ? updated : s));
+      toast.success("Standings type updated");
+    } catch (err) {
+      toast.error("Failed to update standings type");
     }
   };
 
@@ -298,7 +436,7 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
       return;
     }
     try {
-      const payload = { ...matchForm, event_id: eventId, team_a_id: matchForm.team_a_id || null, team_b_id: matchForm.team_b_id || null, league_name: matchForm.league_name.trim() || null };
+      const payload = { ...matchForm, event_id: eventId, team_a_id: matchForm.team_a_id || null, team_b_id: matchForm.team_b_id || null, league_name: matchForm.league_name.trim() || null, division_id: matchForm.division_id || null };
       if (editingMatch) payload.id = editingMatch.id;
 
       const saved = await LiveScoresAPI.saveMatch(payload);
@@ -344,7 +482,9 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
       match_time: m.match_time || "",
       venue: m.venue || "",
       status: m.status || "Upcoming",
-      notes: m.notes || ""
+      notes: m.notes || "",
+      division_id: m.division_id || "",
+      stage: m.stage || "league"
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -365,7 +505,9 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
       match_time: "12:00",
       venue: "",
       status: "Upcoming",
-      notes: ""
+      notes: "",
+      division_id: "",
+      stage: "league"
     });
   };
 
@@ -426,6 +568,18 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
     }
   };
 
+  // Matches the stage badge shown in the Generate Fixtures preview (knockout/final/
+  // playoff/group render distinct colors there) — exports use the same labels.
+  const STAGE_LABELS = { knockout: "Knockout", final: "Final", playoff: "Playoff", group: "Group", league: "League" };
+  const getStageLabel = (m) => STAGE_LABELS[m.stage] || "League";
+
+  const getAreaGroupLabel = (m) => {
+    const division = m.division_id ? allDivisions.find(d => d.id === m.division_id) : null;
+    if (!division) return "";
+    const area = allAreas.find(a => a.id === division.area_id);
+    return area ? `${area.name} – ${division.name}` : division.name;
+  };
+
   const handleExportFixtures = async (exportAll = true) => {
     const source = exportAll ? matches : filteredMatches;
     if (source.length === 0) { toast.error("No matches to export"); return; }
@@ -475,7 +629,7 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
       ["FIXTURE SCHEDULE — FULL OVERVIEW"],
       [`Generated: ${today}`, "", "", exportAll ? `Total matches: ${matches.length}` : `Filtered view: ${filteredMatches.length} of ${matches.length} matches`],
       [],
-      ["#", "Sport", "League / Fixture", "Phase / Round", "Date", "Time", "Venue", "Team A", "Score A", "Score B", "Team B", "Status", "Goals / Scorers", "Cards"],
+      ["#", "Sport", "League / Fixture", "Area / Group", "Stage", "Phase / Round", "Date", "Time", "Venue", "Team A", "Score A", "Score B", "Team B", "Status", "Goals / Scorers", "Cards"],
     ];
     let num = 1;
     sports.forEach(sport => {
@@ -485,9 +639,9 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
       allRows.push([]);
       allRows.push([`▸ ${sportLabel.toUpperCase()}`]);
       buildGroups(sport.id, sm).forEach(({ label, items }) => {
-        if (label) allRows.push(["", `  ◦ ${label}`, "", `(${items.length} matches)`]);
+        if (label) allRows.push(["", `  ◦ ${label}`, "", "", "", `(${items.length} matches)`]);
         items.forEach(m => allRows.push([
-          num++, sportLabel, label || "", m.match_title || "",
+          num++, sportLabel, label || "", getAreaGroupLabel(m), getStageLabel(m), m.match_title || "",
           m.match_date || "", m.match_time || "", m.venue || "",
           m.team_a_name || "", m.team_a_score ?? "0", m.team_b_score ?? "0", m.team_b_name || "",
           m.status || "", fmtEvents(m.id), fmtCards(m.id)
@@ -495,7 +649,7 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
       });
     });
     const ws1 = XLSX.utils.aoa_to_sheet(allRows);
-    ws1["!cols"] = [4, 22, 24, 22, 12, 8, 20, 24, 8, 8, 24, 14, 40, 40].map(w => ({ wch: w }));
+    ws1["!cols"] = [4, 22, 24, 26, 12, 22, 12, 8, 20, 24, 8, 8, 24, 14, 40, 40].map(w => ({ wch: w }));
     XLSX.utils.book_append_sheet(wb, ws1, "All Fixtures");
 
     // ── One sheet per sport ───────────────────────────────────────────────
@@ -504,25 +658,32 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
         .sort((a, b) => `${a.match_date} ${a.match_time}`.localeCompare(`${b.match_date} ${b.match_time}`));
       if (sm.length === 0) return;
       const sportLabel = `${sport.sport_name}${sport.gender ? ` (${sport.gender})` : ""}`;
+      // Goal scorers / disciplinary cards only exist for football — basketball and
+      // volleyball record scoring/fouls via sport-specific Player Stats instead
+      // (see MatchEventsPanel's showLegacyEventsAndCards), so those columns would
+      // always be empty for those sports and are omitted here.
+      const hasLegacyEventsAndCards = !sport.standings_type;
       const rows = [
         [`${sportLabel.toUpperCase()} — FIXTURE SCHEDULE`],
         [`Generated: ${today}`, "", `Total: ${sm.length} matches`],
         [],
-        ["#", "League / Fixture", "Phase / Round", "Date", "Time", "Venue", "Team A", "Score A", "Score B", "Team B", "Status", "Goals / Scorers", "Cards"],
+        ["#", "League / Fixture", "Area / Group", "Stage", "Phase / Round", "Date", "Time", "Venue", "Team A", "Score A", "Score B", "Team B", "Status",
+          ...(hasLegacyEventsAndCards ? ["Goals / Scorers", "Cards"] : [])],
       ];
       let n = 1;
       buildGroups(sport.id, sm).forEach(({ label, items }) => {
         rows.push([]);
-        if (label) rows.push(["", `${label}`, "", `${items.length} matches`]);
+        if (label) rows.push(["", `${label}`, "", "", "", `${items.length} matches`]);
         items.forEach(m => rows.push([
-          n++, label || "", m.match_title || "",
+          n++, label || "", getAreaGroupLabel(m), getStageLabel(m), m.match_title || "",
           m.match_date || "", m.match_time || "", m.venue || "",
           m.team_a_name || "", m.team_a_score ?? "0", m.team_b_score ?? "0", m.team_b_name || "",
-          m.status || "", fmtEvents(m.id), fmtCards(m.id)
+          m.status || "",
+          ...(hasLegacyEventsAndCards ? [fmtEvents(m.id), fmtCards(m.id)] : []),
         ]));
       });
       const ws = XLSX.utils.aoa_to_sheet(rows);
-      ws["!cols"] = [4, 24, 22, 12, 8, 20, 24, 8, 8, 24, 14, 40, 40].map(w => ({ wch: w }));
+      ws["!cols"] = [4, 24, 26, 12, 22, 12, 8, 20, 24, 8, 8, 24, 14, ...(hasLegacyEventsAndCards ? [40, 40] : [])].map(w => ({ wch: w }));
       const sheetName = sportLabel.replace(/[:\\/?*[\]]/g, "").slice(0, 31);
       XLSX.utils.book_append_sheet(wb, ws, sheetName);
     });
@@ -530,6 +691,81 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
     const filename = `Fixtures_${new Date().toISOString().split("T")[0]}.xlsx`;
     XLSX.writeFile(wb, filename);
     toast.success(`Exported ${source.length} matches to ${filename}`);
+  };
+
+  // ── Player Stats Export ─────────────────────────────────────────────────
+  const handleExportPlayerStats = async () => {
+    toast.info("Preparing player stats export…");
+    let allStats = [];
+    try {
+      allStats = await PlayerStatsAPI.getByEvent(eventId);
+    } catch {
+      toast.error("Failed to load player stats");
+      return;
+    }
+    if (!allStats.length) { toast.error("No player stats recorded yet"); return; }
+
+    const matchesById = {};
+    matches.forEach(m => { matchesById[m.id] = m; });
+
+    const wb = XLSX.utils.book_new();
+    const today = new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" });
+    let sheetsAdded = 0;
+
+    sports.forEach(sport => {
+      const sportStats = allStats.filter(s => s.sport_id === sport.id);
+      if (!sportStats.length) return;
+      const fields = getStatFieldsForSport(sport.standings_type);
+      const sportLabel = `${sport.sport_name}${sport.gender ? ` (${sport.gender})` : ""}`;
+      const safeName = sportLabel.replace(/[:\\/?*[\]]/g, "");
+
+      const matchRows = [
+        [`${sportLabel.toUpperCase()} — PLAYER STATS BY MATCH`],
+        [`Generated: ${today}`, "", `Total entries: ${sportStats.length}`],
+        [],
+        ["Player", "Team", "Match", "Date", "Played", ...fields.map(f => f.label)],
+      ];
+      sportStats.forEach(s => {
+        const m = matchesById[s.match_id];
+        matchRows.push([
+          s.player_name, s.team_name || "", m?.match_title || "", m?.match_date || "",
+          s.participated ? "Yes" : "No",
+          ...fields.map(f => s.stats?.[f.key] ?? 0),
+        ]);
+      });
+      const wsMatch = XLSX.utils.aoa_to_sheet(matchRows);
+      wsMatch["!cols"] = [22, 20, 20, 12, 8, ...fields.map(() => 10)].map(w => ({ wch: w }));
+      XLSX.utils.book_append_sheet(wb, wsMatch, `${safeName.slice(0, 25)} - By Match`);
+
+      const totalsMap = {};
+      sportStats.forEach(s => {
+        const key = s.player_accreditation_id;
+        if (!totalsMap[key]) totalsMap[key] = { player_name: s.player_name, team_name: s.team_name, matches_played: 0, stats: {} };
+        totalsMap[key].matches_played += s.participated ? 1 : 0;
+        fields.forEach(f => {
+          totalsMap[key].stats[f.key] = (totalsMap[key].stats[f.key] || 0) + (Number(s.stats?.[f.key]) || 0);
+        });
+      });
+      const totalsRows = [
+        [`${sportLabel.toUpperCase()} — SEASON TOTALS`],
+        [`Generated: ${today}`],
+        [],
+        ["Player", "Team", "Matches Played", ...fields.map(f => f.label)],
+      ];
+      Object.values(totalsMap)
+        .sort((a, b) => a.player_name.localeCompare(b.player_name))
+        .forEach(t => totalsRows.push([t.player_name, t.team_name || "", t.matches_played, ...fields.map(f => t.stats[f.key] || 0)]));
+      const wsTotals = XLSX.utils.aoa_to_sheet(totalsRows);
+      wsTotals["!cols"] = [22, 20, 14, ...fields.map(() => 10)].map(w => ({ wch: w }));
+      XLSX.utils.book_append_sheet(wb, wsTotals, `${safeName.slice(0, 25)} - Totals`);
+      sheetsAdded++;
+    });
+
+    if (!sheetsAdded) { toast.error("No player stats recorded yet"); return; }
+
+    const filename = `PlayerStats_${new Date().toISOString().split("T")[0]}.xlsx`;
+    XLSX.writeFile(wb, filename);
+    toast.success("Player stats exported");
   };
 
   // ── PDF Export ──────────────────────────────────────────────────────────
@@ -581,6 +817,9 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
           .sort((a, b) => `${a.match_date} ${a.match_time}`.localeCompare(`${b.match_date} ${b.match_time}`));
         if (!sm.length) return;
         const sportLabel = `${sport.sport_name}${sport.gender ? ` (${sport.gender})` : ""}`;
+        // Goal scorers / disciplinary cards only exist for football — see the
+        // matching note in handleExportFixtures' Excel sheet for why.
+        const hasLegacyEventsAndCards = !sport.standings_type;
 
         buildGroups(sport.id, sm).forEach(({ label, items }) => {
           if (!first) doc.addPage();
@@ -602,9 +841,14 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
           let n = 1;
           autoTable(doc, {
             startY: 27,
-            head: [["#", "Phase / Round", "Date", "Time", "Venue", "Team A", "Score", "Team B", "Status", "Goals / Scorers", "Cards"]],
+            head: [[
+              "#", "Stage", "Area / Group", "Phase / Round", "Date", "Time", "Venue", "Team A", "Score", "Team B", "Status",
+              ...(hasLegacyEventsAndCards ? ["Goals / Scorers", "Cards"] : []),
+            ]],
             body: items.map(m => [
               n++,
+              getStageLabel(m),
+              getAreaGroupLabel(m),
               m.match_title || "",
               m.match_date  || "",
               (m.match_time || "").slice(0, 5),
@@ -613,25 +857,25 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
               `${m.team_a_score ?? 0} – ${m.team_b_score ?? 0}`,
               m.team_b_name || "TBA",
               m.status      || "",
-              fmtEv(m.id),
-              fmtC(m.id),
+              ...(hasLegacyEventsAndCards ? [fmtEv(m.id), fmtC(m.id)] : []),
             ]),
             theme: "grid",
-            styles: { fontSize: 7.5, cellPadding: 2, textColor: DARK, overflow: "linebreak" },
-            headStyles: { fillColor: DARK, textColor: GOLD, fontStyle: "bold", fontSize: 8 },
+            styles: { fontSize: 7, cellPadding: 1.5, textColor: DARK, overflow: "linebreak" },
+            headStyles: { fillColor: DARK, textColor: GOLD, fontStyle: "bold", fontSize: 7.5 },
             alternateRowStyles: { fillColor: LITE },
             columnStyles: {
-              0:  { cellWidth: 7,  halign: "center", overflow: "hidden" },
-              1:  { cellWidth: 30, overflow: "ellipsize" },
-              2:  { cellWidth: 20, overflow: "hidden" },
-              3:  { cellWidth: 16, halign: "center", overflow: "hidden" },
-              4:  { cellWidth: 20, overflow: "ellipsize" },
-              5:  { cellWidth: 36, overflow: "ellipsize" },
-              6:  { cellWidth: 15, halign: "center", fontStyle: "bold", overflow: "hidden" },
-              7:  { cellWidth: 36, overflow: "ellipsize" },
-              8:  { cellWidth: 18, overflow: "hidden" },
-              9:  { cellWidth: "auto" },
-              10: { cellWidth: "auto" },
+              0:  { cellWidth: 6,  halign: "center", overflow: "hidden" },
+              1:  { cellWidth: 14, halign: "center", fontStyle: "bold", overflow: "linebreak" },
+              2:  { cellWidth: 26, overflow: "linebreak" },
+              3:  { cellWidth: 24, overflow: "linebreak" },
+              4:  { cellWidth: 18, overflow: "hidden" },
+              5:  { cellWidth: 12, halign: "center", overflow: "hidden" },
+              6:  { cellWidth: 16, overflow: "linebreak" },
+              7:  { cellWidth: hasLegacyEventsAndCards ? 28 : 40, overflow: "linebreak" },
+              8:  { cellWidth: 14, halign: "center", fontStyle: "bold", overflow: "hidden" },
+              9:  { cellWidth: hasLegacyEventsAndCards ? 28 : 40, overflow: "linebreak" },
+              10: { cellWidth: hasLegacyEventsAndCards ? 16 : "auto", overflow: "hidden" },
+              ...(hasLegacyEventsAndCards ? { 11: { cellWidth: "auto" }, 12: { cellWidth: "auto" } } : {}),
             },
             didDrawPage: (data) => {
               doc.setFontSize(7);
@@ -920,13 +1164,31 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                 <Plus className="w-4 h-4" />
               </button>
             </div>
+            <select
+              value={newSport.standings_type}
+              onChange={e => setNewSport({ ...newSport, standings_type: e.target.value })}
+              disabled={isSettingsDisabled}
+              title="Standings Type - determines which standings columns and ranking rules apply to this sport"
+              className="w-full bg-slate-800 border border-white/10 rounded-lg px-2 py-2 text-white text-sm outline-none"
+            >
+              {STANDINGS_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
             <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
               {sports.map(s => (
                 <div key={s.id} className="flex items-center justify-between bg-slate-800/50 p-2 rounded-lg border border-white/5">
-                  <div className="flex flex-col min-w-0">
+                  <div className="flex flex-col min-w-0 flex-1 mr-2">
                     <span className="text-white text-sm font-medium truncate">{s.sport_name}{s.gender ? ` (${s.gender})` : ""}</span>
                     <span className="text-[10px] text-slate-500 uppercase tracking-widest">{s.format || "Custom (Manual)"}</span>
                   </div>
+                  <select
+                    value={s.standings_type || ""}
+                    onChange={e => handleUpdateStandingsType(s.id, e.target.value)}
+                    disabled={isSettingsDisabled}
+                    title="Standings Type"
+                    className="shrink-0 bg-slate-900 border border-white/10 rounded-lg px-1.5 py-1 text-white text-[10px] outline-none max-w-[110px]"
+                  >
+                    {STANDINGS_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
                   <div className="flex items-center gap-1 shrink-0">
                     {!isSettingsDisabled && (
                       <button
@@ -1083,6 +1345,39 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                   </datalist>
                 </div>
 
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Area / Group</label>
+                    <select
+                      value={matchForm.division_id}
+                      onChange={e => setMatchForm({...matchForm, division_id: e.target.value})}
+                      disabled={isSettingsDisabled && !editingMatch}
+                      className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
+                    >
+                      <option value="">Unassigned</option>
+                      {allDivisions.filter(d => d.sport_id === matchForm.sport_id).map(d => {
+                        const area = allAreas.find(a => a.id === d.area_id);
+                        return <option key={d.id} value={d.id}>{area ? `${area.name} – ${d.name}` : d.name}</option>;
+                      })}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Stage</label>
+                    <select
+                      value={matchForm.stage}
+                      onChange={e => setMatchForm({...matchForm, stage: e.target.value})}
+                      disabled={isSettingsDisabled && !editingMatch}
+                      className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
+                    >
+                      <option value="league">League</option>
+                      <option value="group">Group</option>
+                      <option value="knockout">Knockout</option>
+                      <option value="playoff">Playoff</option>
+                      <option value="final">Final</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-500 uppercase">Match Title / Phase</label>
                   <input
@@ -1144,28 +1439,31 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                   </div>
                 </div>
 
-                {editingMatch && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-emerald-500 uppercase">Score A</label>
-                      <input 
-                        type="text" 
-                        value={matchForm.team_a_score} onChange={e => setMatchForm({...matchForm, team_a_score: e.target.value})}
-                        disabled={disabled}
-                        className="w-full bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2 text-emerald-400 font-black text-center text-lg outline-none focus:border-emerald-500"
-                      />
+                {editingMatch && (() => {
+                  const isVolleyball = sports.find(s => s.id === matchForm.sport_id)?.standings_type === "volleyball";
+                  return (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-emerald-500 uppercase">{isVolleyball ? "Sets Won A" : "Score A"}</label>
+                        <input
+                          type="text"
+                          value={matchForm.team_a_score} onChange={e => setMatchForm({...matchForm, team_a_score: e.target.value})}
+                          disabled={disabled}
+                          className="w-full bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2 text-emerald-400 font-black text-center text-lg outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-emerald-500 uppercase">{isVolleyball ? "Sets Won B" : "Score B"}</label>
+                        <input
+                          type="text"
+                          value={matchForm.team_b_score} onChange={e => setMatchForm({...matchForm, team_b_score: e.target.value})}
+                          disabled={disabled}
+                          className="w-full bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2 text-emerald-400 font-black text-center text-lg outline-none focus:border-emerald-500"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-emerald-500 uppercase">Score B</label>
-                      <input 
-                        type="text" 
-                        value={matchForm.team_b_score} onChange={e => setMatchForm({...matchForm, team_b_score: e.target.value})}
-                        disabled={disabled}
-                        className="w-full bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2 text-emerald-400 font-black text-center text-lg outline-none focus:border-emerald-500"
-                      />
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
@@ -1252,6 +1550,10 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                       </button>
                       <button onClick={() => { setPngModal({ open: true, sportId: sports[0]?.id || "", leagueName: "", status: "" }); setExportMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-800 rounded-lg text-sm text-slate-200 transition-colors text-left">
                         <Image className="w-3.5 h-3.5 text-blue-400 shrink-0" /> <span>PNG / Social Media</span>
+                      </button>
+                      <div className="h-px bg-white/5 my-1" />
+                      <button onClick={() => { handleExportPlayerStats(); setExportMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-800 rounded-lg text-sm text-slate-200 transition-colors text-left">
+                        <Download className="w-3.5 h-3.5 text-cyan-400 shrink-0" /> <span>Player Stats (.xlsx)</span>
                       </button>
                       {filteredMatches.length !== matches.length && (
                         <>
@@ -1452,8 +1754,18 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                                       {match.status}
                                     </span>
                                     <span className="text-xs font-medium text-slate-400">{match.match_title}</span>
+                                    {(() => {
+                                      const matchDivision = match.division_id ? allDivisions.find(d => d.id === match.division_id) : null;
+                                      if (!matchDivision) return null;
+                                      const matchArea = allAreas.find(a => a.id === matchDivision.area_id);
+                                      return (
+                                        <span className="px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 text-[10px] font-bold">
+                                          {matchArea ? `${matchArea.name} – ${matchDivision.name}` : matchDivision.name}
+                                        </span>
+                                      );
+                                    })()}
                                   </div>
-                                  
+
                                   <div className="flex items-center justify-between sm:justify-start gap-4 mb-2">
                                     <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
                                       <TeamBadge
@@ -1502,7 +1814,7 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                                     <span>{match.venue}</span>
                                   </div>
 
-                                  <MatchEventsPanel match={match} sportName={sport.sport_name} disabled={disabled} />
+                                  <MatchEventsPanel match={match} sportName={sport.sport_name} standingsType={sport.standings_type} disabled={disabled} />
                                 </div>
 
                                 {/* Quick Actions */}
@@ -1553,7 +1865,18 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
       </div>
 
       {/* Standings Section */}
-      {sports.length > 0 && (
+      {sports.length > 0 && (() => {
+        const selectedStandingsType = sports.find(s => s.id === standingsSportId)?.standings_type || "";
+        const standingsColumns = getStandingsColumns(selectedStandingsType);
+        const selectedSport = sports.find(s => s.id === standingsSportId);
+        const selectedArea = standingsAreaId !== "all" ? areas.find(a => a.id === standingsAreaId) : null;
+        const selectedDivision = standingsDivisionId !== "all" ? divisions.find(d => d.id === standingsDivisionId) : null;
+        const standingsHeading = [
+          selectedSport ? `${selectedSport.sport_name}${selectedSport.gender ? ` ${selectedSport.gender}` : ""}` : null,
+          selectedArea?.name,
+          selectedDivision?.name,
+        ].filter(Boolean).join(" – ");
+        return (
         <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-6 space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -1567,13 +1890,23 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
               >
                 {sports.map(s => <option key={s.id} value={s.id}>{s.sport_name}{s.gender ? ` (${s.gender})` : ""}</option>)}
               </select>
+              {areas.length > 0 && (
+                <select
+                  value={standingsAreaId}
+                  onChange={e => setStandingsAreaId(e.target.value)}
+                  className="bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
+                >
+                  <option value="all">All Areas / Conferences</option>
+                  {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+              )}
               {divisions.length > 0 && (
                 <select
                   value={standingsDivisionId}
                   onChange={e => setStandingsDivisionId(e.target.value)}
                   className="bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
                 >
-                  <option value="all">All Divisions</option>
+                  <option value="all">All Groups / Divisions</option>
                   {divisions.map(d => <option key={d.id} value={d.id}>{d.name}{d.gender ? ` (${d.gender})` : ""}</option>)}
                 </select>
               )}
@@ -1583,11 +1916,12 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                   className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-bold uppercase transition-colors flex items-center gap-1.5"
                 >
                   {showDivisionSettings ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                  Divisions &amp; Points
+                  Areas, Groups &amp; Points
                 </button>
               )}
             </div>
           </div>
+          {standingsHeading && <p className="text-sm font-bold text-slate-300 -mt-2">{standingsHeading}</p>}
 
           {/* Divisions & Points configuration panel */}
           {!isSettingsDisabled && (
@@ -1601,37 +1935,100 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                   className="overflow-hidden"
                 >
                   <div className="bg-slate-950/50 border border-white/10 rounded-xl p-4 space-y-5">
-                    {/* Points System */}
+                    {/* Points System - only meaningful for the Football/Default standings type.
+                        Basketball ranks by win%, Volleyball uses fixed FIVB match-point scoring. */}
+                    {(!selectedStandingsType || selectedStandingsType === "football") ? (
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Points System</h4>
+                        <div className="flex items-end gap-3 flex-wrap">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Win</label>
+                            <input type="number" value={pointsConfig.points_win} onChange={e => setPointsConfig(prev => ({ ...prev, points_win: e.target.value }))} className="w-20 bg-slate-800 border border-white/10 rounded-lg px-2 py-1.5 text-white text-sm outline-none" />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Draw</label>
+                            <input type="number" value={pointsConfig.points_draw} onChange={e => setPointsConfig(prev => ({ ...prev, points_draw: e.target.value }))} className="w-20 bg-slate-800 border border-white/10 rounded-lg px-2 py-1.5 text-white text-sm outline-none" />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Loss</label>
+                            <input type="number" value={pointsConfig.points_loss} onChange={e => setPointsConfig(prev => ({ ...prev, points_loss: e.target.value }))} className="w-20 bg-slate-800 border border-white/10 rounded-lg px-2 py-1.5 text-white text-sm outline-none" />
+                          </div>
+                          <Button onClick={handleSavePoints} loading={savingPoints} variant="primary" icon={Save}>
+                            Save
+                          </Button>
+                        </div>
+                        <p className="text-[11px] text-slate-500">Applies to standings for this sport only. Defaults to 3 / 1 / 0 if unset.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Points System</h4>
+                        <p className="text-[11px] text-slate-500">
+                          {selectedStandingsType === "basketball"
+                            ? "Basketball standings rank by Win% then point differential - no points config needed."
+                            : "Volleyball standings use fixed FIVB match-point scoring (3/2/1/0 by set margin) - no points config needed."}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Areas / Conferences - a level above Groups/Divisions, e.g.
+                        "Eastern Conference" containing Groups A/B. Cities drive
+                        location-based auto-assignment below. */}
                     <div className="space-y-2">
-                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Points System</h4>
-                      <div className="flex items-end gap-3 flex-wrap">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-500 uppercase">Win</label>
-                          <input type="number" value={pointsConfig.points_win} onChange={e => setPointsConfig(prev => ({ ...prev, points_win: e.target.value }))} className="w-20 bg-slate-800 border border-white/10 rounded-lg px-2 py-1.5 text-white text-sm outline-none" />
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Areas / Conferences</h4>
+                      {areas.length > 0 && (
+                        <div className="space-y-1.5">
+                          {areas.map(a => (
+                            <div key={a.id} className="flex items-center justify-between bg-slate-800/50 p-2 rounded-lg border border-white/5">
+                              <span className="text-white text-sm font-medium">
+                                {a.name}
+                                {(a.cities || []).length > 0 && <span className="text-slate-500"> · {a.cities.join(", ")}</span>}
+                              </span>
+                              <button onClick={() => handleDeleteArea(a.id)} className="text-red-400 hover:text-red-300 p-1">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-500 uppercase">Draw</label>
-                          <input type="number" value={pointsConfig.points_draw} onChange={e => setPointsConfig(prev => ({ ...prev, points_draw: e.target.value }))} className="w-20 bg-slate-800 border border-white/10 rounded-lg px-2 py-1.5 text-white text-sm outline-none" />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-500 uppercase">Loss</label>
-                          <input type="number" value={pointsConfig.points_loss} onChange={e => setPointsConfig(prev => ({ ...prev, points_loss: e.target.value }))} className="w-20 bg-slate-800 border border-white/10 rounded-lg px-2 py-1.5 text-white text-sm outline-none" />
-                        </div>
-                        <Button onClick={handleSavePoints} loading={savingPoints} variant="primary" icon={Save}>
-                          Save
+                      )}
+                      <div className="flex gap-2 flex-wrap">
+                        <input
+                          type="text"
+                          placeholder="New Area Name (e.g. Eastern Conference)"
+                          value={newAreaName}
+                          onChange={e => setNewAreaName(e.target.value)}
+                          className="flex-1 min-w-[180px] bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Cities, comma separated (e.g. Ajman, Sharjah)"
+                          value={newAreaCities}
+                          onChange={e => setNewAreaCities(e.target.value)}
+                          className="flex-1 min-w-[220px] bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
+                        />
+                        <Button onClick={handleAddArea} className="bg-blue-600 hover:bg-blue-500 text-white px-3">
+                          <Plus className="w-4 h-4" />
                         </Button>
                       </div>
-                      <p className="text-[11px] text-slate-500">Applies to standings for this sport only. Defaults to 3 / 1 / 0 if unset.</p>
                     </div>
 
                     {/* Divisions */}
                     <div className="space-y-2">
-                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Divisions</h4>
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Groups / Divisions</h4>
                       {divisions.length > 0 && (
                         <div className="space-y-1.5">
                           {divisions.map(d => (
-                            <div key={d.id} className="flex items-center justify-between bg-slate-800/50 p-2 rounded-lg border border-white/5">
-                              <span className="text-white text-sm font-medium">{d.name}{d.gender ? <span className="text-slate-500"> · {d.gender}</span> : ""}</span>
+                            <div key={d.id} className="flex items-center justify-between gap-2 bg-slate-800/50 p-2 rounded-lg border border-white/5">
+                              <span className="text-white text-sm font-medium truncate">{d.name}{d.gender ? <span className="text-slate-500"> · {d.gender}</span> : ""}</span>
+                              {areas.length > 0 && (
+                                <select
+                                  value={d.area_id || ""}
+                                  onChange={e => handleDivisionAreaChange(d.id, e.target.value)}
+                                  className="bg-slate-900 border border-white/10 rounded-lg px-2 py-1 text-white text-xs outline-none"
+                                >
+                                  <option value="">No Area</option>
+                                  {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                                </select>
+                              )}
                               <button onClick={() => handleDeleteDivision(d.id)} className="text-red-400 hover:text-red-300 p-1">
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -1642,7 +2039,7 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                       <div className="flex gap-2 flex-wrap">
                         <input
                           type="text"
-                          placeholder="New Division Name (e.g. Men's Division A)"
+                          placeholder="New Group/Division Name (e.g. Group A)"
                           value={newDivisionName}
                           onChange={e => setNewDivisionName(e.target.value)}
                           className="flex-1 min-w-[200px] bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
@@ -1657,6 +2054,16 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                           <option value="Women">Women</option>
                           <option value="Mixed">Mixed</option>
                         </select>
+                        {areas.length > 0 && (
+                          <select
+                            value={newDivisionAreaId}
+                            onChange={e => setNewDivisionAreaId(e.target.value)}
+                            className="bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none"
+                          >
+                            <option value="">No Area</option>
+                            {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                          </select>
+                        )}
                         <Button onClick={handleAddDivision} className="bg-blue-600 hover:bg-blue-500 text-white px-3">
                           <Plus className="w-4 h-4" />
                         </Button>
@@ -1666,14 +2073,21 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                     {/* Team Division Assignments */}
                     {divisions.length > 0 && (
                       <div className="space-y-2">
-                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Team Assignments</h4>
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Team Assignments</h4>
+                          {areas.some(a => (a.cities || []).length > 0) && (
+                            <button type="button" onClick={handleAutoAssignByLocation} className="text-xs text-blue-400 hover:underline">
+                              Auto-assign by location
+                            </button>
+                          )}
+                        </div>
                         {Object.keys(teamDivisions).length === 0 ? (
                           <p className="text-xs text-slate-500">No teams registered for this sport yet.</p>
                         ) : (
                           <div className="space-y-1.5 max-h-56 overflow-y-auto pr-2">
                             {Object.keys(teamDivisions).map(teamId => (
                               <div key={teamId} className="flex items-center justify-between gap-2 bg-slate-800/50 p-2 rounded-lg border border-white/5">
-                                <span className="text-white text-sm font-medium truncate">{teamsById[teamId]?.name || "Unknown Team"}</span>
+                                <span className="text-white text-sm font-medium truncate">{teamsById[teamId]?.name || "Unknown Team"}{teamsById[teamId]?.city ? <span className="text-slate-500"> · {teamsById[teamId].city}</span> : ""}</span>
                                 <select
                                   value={teamDivisions[teamId] || ""}
                                   onChange={e => handleTeamDivisionChange(teamId, e.target.value)}
@@ -1707,40 +2121,38 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                   <tr className="border-b border-white/10 text-slate-500 text-xs uppercase tracking-widest">
                     <th className="py-2 pr-4">#</th>
                     <th className="py-2 pr-4">Team</th>
-                    <th className="py-2 pr-3 text-center" title="Played">P</th>
-                    <th className="py-2 pr-3 text-center" title="Won">W</th>
-                    <th className="py-2 pr-3 text-center" title="Drawn">D</th>
-                    <th className="py-2 pr-3 text-center" title="Lost">L</th>
-                    <th className="py-2 pr-3 text-center" title="Goals/Points For">GF</th>
-                    <th className="py-2 pr-3 text-center" title="Goals/Points Against">GA</th>
-                    <th className="py-2 pr-3 text-center" title="Goal/Point Difference">GD</th>
-                    <th className="py-2 pr-3 text-center" title="Total Points">Pts</th>
+                    {standingsColumns.map(col => (
+                      <th key={col.key} className="py-2 pr-3 text-center" title={col.title}>{col.header}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {standings.map((row, i) => (
                     <tr key={row.team_id} className="text-white">
                       <td className="py-2 pr-4 text-slate-500">{i + 1}</td>
-                      <td className="py-2 pr-4 font-bold">{row.team_name}</td>
-                      <td className="py-2 pr-3 text-center">{row.played}</td>
-                      <td className="py-2 pr-3 text-center">{row.won}</td>
-                      <td className="py-2 pr-3 text-center">{row.drawn}</td>
-                      <td className="py-2 pr-3 text-center">{row.lost}</td>
-                      <td className="py-2 pr-3 text-center">{row.goals_for}</td>
-                      <td className="py-2 pr-3 text-center">{row.goals_against}</td>
-                      <td className="py-2 pr-3 text-center">{row.goal_diff}</td>
-                      <td className="py-2 pr-3 text-center font-black text-amber-400">{row.points}</td>
+                      <td className="py-2 pr-4 font-bold">
+                        <div className="flex items-center gap-2">
+                          <TeamBadge logoUrl={teamsById[row.team_id]?.logo_url} country={teamsById[row.team_id]?.country} name={row.team_name} size="sm" />
+                          <span>{row.team_name}</span>
+                        </div>
+                      </td>
+                      {standingsColumns.map(col => (
+                        <td key={col.key} className={cn("py-2 pr-3 text-center", col.highlight && "font-black text-amber-400")}>
+                          {col.format ? col.format(row[col.key]) : row[col.key]}
+                        </td>
+                      ))}
                     </tr>
                   ))}
                 </tbody>
               </table>
               <p className="text-[11px] text-slate-500 leading-relaxed mt-2">
-                P = Played · W = Won · D = Drawn · L = Lost · GF = Goals/Points For · GA = Goals/Points Against · GD = Goal/Point Difference · Pts = Total Points
+                {getStandingsLegend(selectedStandingsType)}
               </p>
             </div>
           )}
         </div>
-      )}
+        );
+      })()}
 
       {/* Rename League Modal */}
       {renameLeagueModal.open && (
@@ -1898,12 +2310,18 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
 
       <GenerateFixturesModal
         isOpen={!!generateFixturesSport}
-        onClose={() => setGenerateFixturesSport(null)}
+        onClose={() => {
+          // The modal manages its own Areas/Groups/team-assignments for the
+          // sport it was opened for, writing directly to the same tables this
+          // tab's standings panel reads - refresh that panel's copy in case
+          // it's currently showing the same sport.
+          if (generateFixturesSport && generateFixturesSport.id === standingsSportId) loadSportExtras(standingsSportId);
+          loadAllDivisionsAndAreas(sports);
+          setGenerateFixturesSport(null);
+        }}
         sport={generateFixturesSport}
         eventId={eventId}
         teams={teams}
-        divisions={generateFixturesSport && generateFixturesSport.id === standingsSportId ? divisions : []}
-        teamDivisions={generateFixturesSport && generateFixturesSport.id === standingsSportId ? teamDivisions : {}}
         existingLeagues={generateFixturesSport ? getLeaguesForSport(generateFixturesSport.id) : []}
         existingSportMatchCount={generateFixturesSport ? matches.filter(m => m.sport_id === generateFixturesSport.id).length : 0}
         onGenerated={handleFixturesGenerated}

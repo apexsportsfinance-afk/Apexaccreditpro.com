@@ -18,7 +18,7 @@ import {
   Layers,
   Calendar
 } from "lucide-react";
-import * as XLSX from "xlsx";
+import * as XLSX from "@e965/xlsx";
 import Card, { CardHeader, CardContent } from "../../components/ui/Card";
 import EmptyState from "../../components/ui/EmptyState";
 import { useToast } from "../../components/ui/Toast";

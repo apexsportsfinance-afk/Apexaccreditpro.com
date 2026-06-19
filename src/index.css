@@ -930,10 +930,148 @@ html body #root input[class*="bg-"].pr-12 {
   border-color: #e2e8f0 !important; /* slate-200 */
 }
 
+/* ==========================================
+   GUARANTEED icon-padding fix, site-wide. Two reasons the earlier fixes above
+   miss cases: (1) Modal.jsx renders via createPortal straight into
+   document.body, outside #root — any fix scoped to "#root ..." silently
+   no-ops there, even though .dark still applies (that class lives on
+   <html>), leaving the "Luxury Black Fields" dark reset's padding:12px 18px
+   to win (e.g. EditTeamModal). (2) Several icon-padding sizes actually used
+   across the app (pl-10, pr-8, pr-10 — search inputs, filter dropdowns, etc.
+   in BroadcastHistory, BoxOfficeTab, Ticketing, AttendanceSheet,
+   GlobalBroadcastPanel, LiveScoresTab, Feedback, MedalRankings...) never had
+   a dedicated fix rule at all, so they hit the same overlap in dark mode
+   regardless of #root/portal.
+   Headless-browser-verified (computed padding-left, not just guessed):
+   the dark reset's *real* specificity is higher than a doubled class
+   suggests — it also matches via `input[type="text"]:not(.light-form *)`
+   and `input[class*="bg-"]:not(.light-form *)`, each of which is
+   .dark(class) + [type=text]-or-[class*=bg-](attr≈class) + :not(.light-form)
+   (class) + input(type) = (0,3,1), not (0,2,1). A doubled class only reaches
+   (0,2,1) and silently lost. Bare rules below are quadrupled (0,4,1) to
+   clear that with margin; #root-qualified ones only need an ID to win
+   outright against both the dark reset and the .light-form reset.
+   ========================================== */
+#root input.pl-9.pl-9.pl-9, #root select.pl-9.pl-9.pl-9,
+input.pl-9.pl-9.pl-9.pl-9, select.pl-9.pl-9.pl-9.pl-9 { padding-left: 2.25rem !important; }
+
+#root input.pl-10.pl-10.pl-10, #root select.pl-10.pl-10.pl-10,
+input.pl-10.pl-10.pl-10.pl-10, select.pl-10.pl-10.pl-10.pl-10 { padding-left: 2.5rem !important; }
+
+#root input.pl-11.pl-11.pl-11, #root select.pl-11.pl-11.pl-11,
+input.pl-11.pl-11.pl-11.pl-11, select.pl-11.pl-11.pl-11.pl-11 { padding-left: 2.75rem !important; }
+
+#root input.pl-12.pl-12.pl-12, #root select.pl-12.pl-12.pl-12,
+input.pl-12.pl-12.pl-12.pl-12, select.pl-12.pl-12.pl-12.pl-12 { padding-left: 3.25rem !important; }
+
+#root input.pl-14.pl-14.pl-14, #root select.pl-14.pl-14.pl-14,
+input.pl-14.pl-14.pl-14.pl-14, select.pl-14.pl-14.pl-14.pl-14 { padding-left: 3.5rem !important; }
+
+#root input.pr-8.pr-8.pr-8, #root select.pr-8.pr-8.pr-8,
+input.pr-8.pr-8.pr-8.pr-8, select.pr-8.pr-8.pr-8.pr-8 { padding-right: 2rem !important; }
+
+#root input.pr-10.pr-10.pr-10, #root select.pr-10.pr-10.pr-10,
+input.pr-10.pr-10.pr-10.pr-10, select.pr-10.pr-10.pr-10.pr-10 { padding-right: 2.5rem !important; }
+
+#root input.pr-12.pr-12.pr-12, #root select.pr-12.pr-12.pr-12,
+input.pr-12.pr-12.pr-12.pr-12, select.pr-12.pr-12.pr-12.pr-12 { padding-right: 3.25rem !important; }
+
+#root select.country-select.country-select.country-select,
+select.country-select.country-select.country-select.country-select { padding-left: 3rem !important; padding-right: 2.5rem !important; }
+
 /* Country/City selects with a left icon + custom chevron (Team forms) */
 #root select.country-select,
 #root .light-form select.country-select,
 .dark select.country-select {
   padding-left: 3rem !important;
   padding-right: 2.5rem !important;
+}
+
+/* ==========================================
+   LIGHT MODE CONTRAST SAFETY NET
+   Most components were built dark-first (hardcoded text-white,
+   text-slate-300/400/500, bg-slate-800/900 surfaces) and only the
+   --base/--main CSS variables were adapted for light mode. That leaves
+   white headings invisible on light cards and grey body text failing
+   WCAG AA contrast across the admin app. These rules only apply when
+   .dark is NOT present, and skip any element that itself also carries
+   a bg-* class (those are deliberate colored buttons/badges where white
+   text is correct and must stay untouched).
+   ========================================== */
+html:not(.dark) h1.text-white:not([class*="bg-"]),
+html:not(.dark) h2.text-white:not([class*="bg-"]),
+html:not(.dark) h3.text-white:not([class*="bg-"]),
+html:not(.dark) h4.text-white:not([class*="bg-"]),
+html:not(.dark) h5.text-white:not([class*="bg-"]),
+html:not(.dark) h6.text-white:not([class*="bg-"]),
+html:not(.dark) .font-h1.text-white:not([class*="bg-"]),
+html:not(.dark) .font-h2.text-white:not([class*="bg-"]),
+html:not(.dark) .font-h3.text-white:not([class*="bg-"]) {
+  color: var(--main) !important;
+  -webkit-text-fill-color: var(--main) !important;
+  background: none !important;
+  text-shadow: none !important;
+}
+
+html:not(.dark) p.text-white:not([class*="bg-"]),
+html:not(.dark) span.text-white:not([class*="bg-"]):not(button *),
+html:not(.dark) h3.font-semibold.text-white:not([class*="bg-"]) {
+  color: var(--main) !important;
+  -webkit-text-fill-color: var(--main) !important;
+}
+
+/* Muted/secondary copy authored for dark surfaces (text-slate-300/400/500)
+   is too light against the off-white light theme background; darken it. */
+html:not(.dark) .text-slate-200:not([class*="bg-"]),
+html:not(.dark) .text-gray-200:not([class*="bg-"]),
+html:not(.dark) .text-zinc-200:not([class*="bg-"]),
+html:not(.dark) .text-slate-300:not([class*="bg-"]),
+html:not(.dark) .text-gray-300:not([class*="bg-"]),
+html:not(.dark) .text-zinc-300:not([class*="bg-"]) {
+  color: #475569 !important;
+}
+
+html:not(.dark) .text-slate-400:not([class*="bg-"]),
+html:not(.dark) .text-gray-400:not([class*="bg-"]),
+html:not(.dark) .text-zinc-400:not([class*="bg-"]) {
+  color: #475569 !important;
+}
+
+html:not(.dark) .text-slate-500:not([class*="bg-"]),
+html:not(.dark) .text-gray-500:not([class*="bg-"]),
+html:not(.dark) .text-zinc-500:not([class*="bg-"]) {
+  color: #334155 !important;
+}
+
+html:not(.dark) .text-slate-600:not([class*="bg-"]),
+html:not(.dark) .text-gray-600:not([class*="bg-"]) {
+  color: #1e293b !important;
+}
+
+/* Dark-surface wrappers (bg-slate-800/900/950) used as page chrome
+   (tab bars, table shells, panels) outside of a colored button/badge
+   render as a washed-out grey blob in light mode and crush the
+   contrast of any text inside them; convert to the theme card surface. */
+html:not(.dark) [class*="bg-slate-800"]:not(button):not(.btn),
+html:not(.dark) [class*="bg-slate-900"]:not(button):not(.btn),
+html:not(.dark) [class*="bg-slate-950"]:not(button):not(.btn),
+html:not(.dark) [class*="bg-gray-800"]:not(button):not(.btn),
+html:not(.dark) [class*="bg-gray-900"]:not(button):not(.btn) {
+  background-color: var(--base-alt) !important;
+}
+
+html:not(.dark) [class*="border-slate-700"],
+html:not(.dark) [class*="border-slate-800"] {
+  border-color: var(--border) !important;
+}
+
+html:not(.dark) [class*="divide-slate-700"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border) !important;
+}
+
+/* Placeholder text authored for dark inputs */
+html:not(.dark) input::placeholder,
+html:not(.dark) textarea::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
 }

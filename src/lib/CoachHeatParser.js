@@ -1,5 +1,5 @@
 import jaroWinkler from 'jaro-winkler';
-import * as XLSX from 'xlsx';
+import * as XLSX from '@e965/xlsx';
 
 /**
  * HEATSHEET EVENT PARSERS

@@ -49,8 +49,8 @@ export default function QRSystem() {
   return (
     <div id="qrsystem_page" className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-white mb-2">QR System & Broadcast</h1>
-        <p className="text-lg text-slate-400 font-extralight">
+        <h1 className="text-3xl font-bold text-main mb-2">QR System & Broadcast</h1>
+        <p className="text-lg text-muted font-extralight">
           Manage global broadcasts, sport events, PDF slots, and field visibility
         </p>
       </div>
@@ -79,8 +79,8 @@ export default function QRSystem() {
                   <QrCode className="w-5 h-5 text-blue-400" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-semibold text-white">QR System V3</h2>
-                  <p className="text-lg text-slate-400 font-extralight">
+                  <h2 className="text-xl font-semibold text-main">QR System V3</h2>
+                  <p className="text-lg text-muted font-extralight">
                     {events.find(e => e.id === selectedEvent)?.name || "Selected Event"}
                   </p>
                 </div>
@@ -95,7 +95,7 @@ export default function QRSystem() {
         <Card>
           <CardContent className="py-12 text-center">
             <QrCode className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-            <p className="text-lg text-slate-500 font-extralight">Select an event to manage QR settings</p>
+            <p className="text-lg text-muted font-extralight">Select an event to manage QR settings</p>
           </CardContent>
         </Card>
       )}

@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { Calendar, Clock, MapPin, Trophy, ShieldAlert, Users } from "lucide-react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { Calendar, Clock, MapPin, Trophy, ShieldAlert, Users, Download, ChevronDown, FileText, Image as ImageIcon } from "lucide-react";
+import * as XLSX from "@e965/xlsx";
+import { toast } from "sonner";
 import Card from "../../ui/Card";
 import Badge from "../../ui/Badge";
 import EmptyState from "../../ui/EmptyState";
@@ -7,6 +9,9 @@ import TeamBadge from "../../ui/TeamBadge";
 import { TeamPortalAPI } from "../../../services/teamPortalApi";
 import { LiveScoresAPI, MatchEventsAPI, DivisionsAPI } from "../../../lib/storage";
 import { formatDate } from "../../../lib/utils";
+import { getStandingsColumns, getStandingsLegend } from "../../../lib/standingsColumns";
+
+const sanitizeFilename = (name) => (name || "Standings").replace(/[^a-z0-9]/gi, "_");
 
 const STATUS_VARIANTS = {
   Upcoming: "info",
@@ -18,8 +23,6 @@ const STATUS_VARIANTS = {
 };
 
 const STATUS_FILTER_OPTIONS = ["Upcoming", "Live", "Half Time / Break", "Finished", "Cancelled", "Postponed"];
-
-const STANDINGS_LEGEND = "P = Played · W = Won · D = Drawn · L = Lost · GF = Goals/Points For · GA = Goals/Points Against · GD = Goal/Point Difference · PTS = Total Points";
 
 export default function PortalScheduleTab({ teamId = null, eventId }) {
   const [view, setView] = useState("fixtures");
@@ -35,6 +38,16 @@ export default function PortalScheduleTab({ teamId = null, eventId }) {
   const [loading, setLoading] = useState(true);
   const [standingsLoading, setStandingsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [standingsExportOpen, setStandingsExportOpen] = useState(false);
+  const standingsExportMenuRef = useRef(null);
+  const standingsExportCardRef = useRef(null);
+
+  useEffect(() => {
+    if (!standingsExportOpen) return;
+    const handler = (e) => { if (standingsExportMenuRef.current && !standingsExportMenuRef.current.contains(e.target)) setStandingsExportOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [standingsExportOpen]);
 
   useEffect(() => {
     if (eventId) load();
@@ -96,6 +109,95 @@ export default function PortalScheduleTab({ teamId = null, eventId }) {
     }
   };
 
+  const selectedStandingsType = useMemo(() => sports.find((s) => s.id === selectedSportId)?.standings_type || "", [sports, selectedSportId]);
+  const standingsColumns = useMemo(() => getStandingsColumns(selectedStandingsType), [selectedStandingsType]);
+  const standingsSportLabel = useMemo(() => {
+    const s = sports.find((sp) => sp.id === selectedSportId);
+    return s ? `${s.sport_name}${s.gender ? ` (${s.gender})` : ""}` : "Standings";
+  }, [sports, selectedSportId]);
+
+  // Standings has no logo of its own (get_team_standings only returns team
+  // names) - reuse the logo/country already present on the fixtures we've
+  // loaded for this event, so no extra query is needed.
+  const teamLogoMap = useMemo(() => {
+    const map = {};
+    matches.forEach((m) => {
+      if (m.team_a_id) map[m.team_a_id] = { logo_url: m.team_a_logo_url, country: m.team_a_country };
+      if (m.team_b_id) map[m.team_b_id] = { logo_url: m.team_b_logo_url, country: m.team_b_country };
+    });
+    return map;
+  }, [matches]);
+
+  const handleExportStandingsExcel = () => {
+    if (!standings.length) return;
+    setStandingsExportOpen(false);
+    const today = new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" });
+    const rows = [
+      [`${standingsSportLabel.toUpperCase()} — STANDINGS`],
+      [`Generated: ${today}`],
+      [],
+      ["#", "Team", ...standingsColumns.map((c) => c.header)],
+    ];
+    standings.forEach((row, i) => {
+      rows.push([i + 1, row.team_name, ...standingsColumns.map((c) => (c.format ? c.format(row[c.key]) : row[c.key]))]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws["!cols"] = [4, 24, ...standingsColumns.map(() => 10)].map((w) => ({ wch: w }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Standings");
+    XLSX.writeFile(wb, `Standings_${sanitizeFilename(standingsSportLabel)}_${new Date().toISOString().split("T")[0]}.xlsx`);
+    toast.success("Standings exported");
+  };
+
+  const handleExportStandingsPDF = async () => {
+    if (!standings.length) return;
+    setStandingsExportOpen(false);
+    toast.info("Generating PDF…");
+    try {
+      const { jsPDF } = await import("jspdf");
+      const autoTable = (await import("jspdf-autotable")).default;
+      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      const today = new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" });
+      doc.setFontSize(16);
+      doc.setTextColor(15, 23, 42);
+      doc.text(`${standingsSportLabel.toUpperCase()} — STANDINGS`, 14, 18);
+      doc.setFontSize(9);
+      doc.setTextColor(120, 120, 120);
+      doc.text(`Generated: ${today}`, 14, 25);
+      autoTable(doc, {
+        startY: 30,
+        head: [["#", "Team", ...standingsColumns.map((c) => c.header)]],
+        body: standings.map((row, i) => [i + 1, row.team_name, ...standingsColumns.map((c) => (c.format ? c.format(row[c.key]) : row[c.key]))]),
+        theme: "grid",
+        headStyles: { fillColor: [15, 23, 42], textColor: [223, 197, 139], fontStyle: "bold" },
+        styles: { fontSize: 9, cellPadding: 2.5 },
+      });
+      doc.save(`Standings_${sanitizeFilename(standingsSportLabel)}_${new Date().toISOString().split("T")[0]}.pdf`);
+      toast.success("PDF exported");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to generate PDF");
+    }
+  };
+
+  const handleExportStandingsPNG = async () => {
+    if (!standings.length || !standingsExportCardRef.current) return;
+    setStandingsExportOpen(false);
+    toast.info("Generating image…");
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(standingsExportCardRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+      const a = document.createElement("a");
+      a.download = `Standings_${sanitizeFilename(standingsSportLabel)}_${new Date().toISOString().split("T")[0]}.png`;
+      a.href = canvas.toDataURL("image/png", 1.0);
+      a.click();
+      toast.success("Image exported");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to generate image");
+    }
+  };
+
   const displayedFixtures = useMemo(() => {
     return matches.filter((m) => {
       if (selectedSportId && m.sport_id !== selectedSportId) return false;
@@ -143,19 +245,45 @@ export default function PortalScheduleTab({ teamId = null, eventId }) {
             {teamId ? "Fixtures and the league table for your sport." : "Fixtures and league tables for every sport in this event."}
           </p>
         </div>
-        <div className="flex items-center gap-2 bg-base-alt/50 border border-border rounded-lg p-1">
-          <button
-            onClick={() => setView("fixtures")}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === "fixtures" ? "bg-primary-500 text-white" : "text-muted hover:text-main"}`}
-          >
-            Fixtures
-          </button>
-          <button
-            onClick={() => setView("standings")}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === "standings" ? "bg-primary-500 text-white" : "text-muted hover:text-main"}`}
-          >
-            Standings
-          </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 bg-base-alt/50 border border-border rounded-lg p-1">
+            <button
+              onClick={() => setView("fixtures")}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === "fixtures" ? "bg-primary-500 text-white" : "text-muted hover:text-main"}`}
+            >
+              Fixtures
+            </button>
+            <button
+              onClick={() => setView("standings")}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === "standings" ? "bg-primary-500 text-white" : "text-muted hover:text-main"}`}
+            >
+              Standings
+            </button>
+          </div>
+
+          {view === "standings" && standings.length > 0 && (
+            <div className="relative" ref={standingsExportMenuRef}>
+              <button
+                onClick={() => setStandingsExportOpen((p) => !p)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-base-alt border border-border text-muted hover:text-main rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" /> Export <ChevronDown className="w-3 h-3" />
+              </button>
+              {standingsExportOpen && (
+                <div className="absolute right-0 top-full mt-1.5 z-30 bg-base border border-border rounded-xl shadow-2xl p-2 min-w-[190px] space-y-0.5">
+                  <button onClick={handleExportStandingsExcel} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-base-alt rounded-lg text-sm text-main transition-colors text-left">
+                    <Download className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> <span>Excel (.xlsx)</span>
+                  </button>
+                  <button onClick={handleExportStandingsPDF} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-base-alt rounded-lg text-sm text-main transition-colors text-left">
+                    <FileText className="w-3.5 h-3.5 text-red-500 shrink-0" /> <span>PDF</span>
+                  </button>
+                  <button onClick={handleExportStandingsPNG} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-base-alt rounded-lg text-sm text-main transition-colors text-left">
+                    <ImageIcon className="w-3.5 h-3.5 text-blue-500 shrink-0" /> <span>JPG / PNG</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -241,6 +369,11 @@ export default function PortalScheduleTab({ teamId = null, eventId }) {
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge variant={STATUS_VARIANTS[m.status] || "info"}>{m.status}</Badge>
                     {m.match_title && <span className="text-xs text-muted">{m.match_title}</span>}
+                    {m.division_name && (
+                      <span className="text-xs font-semibold text-primary-500">
+                        {m.area_name ? `${m.area_name} – ${m.division_name}` : m.division_name}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center justify-center gap-3">
                     <div className="flex items-center justify-end gap-2 flex-1 min-w-0">
@@ -302,43 +435,41 @@ export default function PortalScheduleTab({ teamId = null, eventId }) {
               description="The league table will appear once matches between teams are marked Finished."
             />
           ) : (
-            <>
+            <div ref={standingsExportCardRef} className="bg-base p-2 space-y-3">
+              <p className="text-xs font-bold text-main uppercase tracking-wider">{standingsSportLabel} — Standings</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-border text-muted text-xs uppercase tracking-widest">
                       <th className="py-2 pr-4">#</th>
                       <th className="py-2 pr-4">Team</th>
-                      <th className="py-2 pr-3 text-center" title="Played">P</th>
-                      <th className="py-2 pr-3 text-center" title="Won">W</th>
-                      <th className="py-2 pr-3 text-center" title="Drawn">D</th>
-                      <th className="py-2 pr-3 text-center" title="Lost">L</th>
-                      <th className="py-2 pr-3 text-center" title="Goals/Points For">GF</th>
-                      <th className="py-2 pr-3 text-center" title="Goals/Points Against">GA</th>
-                      <th className="py-2 pr-3 text-center" title="Goal/Point Difference">GD</th>
-                      <th className="py-2 pr-3 text-center" title="Total Points">PTS</th>
+                      {standingsColumns.map((col) => (
+                        <th key={col.key} className="py-2 pr-3 text-center" title={col.title}>{col.header}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/50">
                     {standings.map((row, i) => (
                       <tr key={row.team_id} className={row.team_id === teamId ? "bg-primary-500/5 font-bold text-main" : "text-main"}>
                         <td className="py-2 pr-4 text-muted">{i + 1}</td>
-                        <td className="py-2 pr-4">{row.team_name}</td>
-                        <td className="py-2 pr-3 text-center">{row.played}</td>
-                        <td className="py-2 pr-3 text-center">{row.won}</td>
-                        <td className="py-2 pr-3 text-center">{row.drawn}</td>
-                        <td className="py-2 pr-3 text-center">{row.lost}</td>
-                        <td className="py-2 pr-3 text-center">{row.goals_for}</td>
-                        <td className="py-2 pr-3 text-center">{row.goals_against}</td>
-                        <td className="py-2 pr-3 text-center">{row.goal_diff}</td>
-                        <td className="py-2 pr-3 text-center font-black text-primary-500">{row.points}</td>
+                        <td className="py-2 pr-4">
+                          <div className="flex items-center gap-2">
+                            <TeamBadge logoUrl={teamLogoMap[row.team_id]?.logo_url} country={teamLogoMap[row.team_id]?.country} name={row.team_name} size="sm" />
+                            <span>{row.team_name}</span>
+                          </div>
+                        </td>
+                        {standingsColumns.map((col) => (
+                          <td key={col.key} className={`py-2 pr-3 text-center ${col.highlight ? "font-black text-primary-500" : ""}`}>
+                            {col.format ? col.format(row[col.key]) : row[col.key]}
+                          </td>
+                        ))}
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <p className="text-[11px] text-muted leading-relaxed">{STANDINGS_LEGEND}</p>
-            </>
+              <p className="text-[11px] text-muted leading-relaxed">{getStandingsLegend(selectedStandingsType)}</p>
+            </div>
           )}
         </Card>
       )}

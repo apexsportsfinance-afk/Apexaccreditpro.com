@@ -8,6 +8,7 @@ export function Select({
   placeholder,
   className,
   required = false,
+  light, // Extract light so it isn't passed to <select>
   ...props
 }) {
   return (

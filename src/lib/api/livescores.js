@@ -41,9 +41,21 @@ export const LiveScoresAPI = {
     const data = await handleResponse(() => supabase.from("live_score_matches").select("*").eq("event_id", eventId).order("match_date", { ascending: true }).order("match_time", { ascending: true }));
     return data || [];
   },
-  getMatchesWithTeams: async (eventId, sportId) => {
-    const data = await handleResponse(() => supabase.rpc("get_live_scores_matches", { p_event_id: eventId, p_sport_id: sportId || null }));
+  getMatchesWithTeams: async (eventId, sportId, filters = {}) => {
+    const { status, leagueName, matchDate } = filters;
+    const data = await handleResponse(() => supabase.rpc("get_live_scores_matches", {
+      p_event_id: eventId,
+      p_sport_id: sportId || null,
+      p_status: status || null,
+      p_league_name: leagueName || null,
+      p_match_date: matchDate || null,
+    }));
     return data || [];
+  },
+  getFilterOptions: async (eventId, sportId) => {
+    const data = await handleResponse(() => supabase.rpc("get_live_scores_filter_options", { p_event_id: eventId, p_sport_id: sportId || null }));
+    const row = (data && data[0]) || {};
+    return { leagueNames: row.league_names || [], matchDates: row.match_dates || [] };
   },
   saveMatch: async (match) => {
     const dbMatch = { ...match };
@@ -99,8 +111,8 @@ export const LiveScoresAPI = {
         .select()
     );
   },
-  getStandings: async (eventId, sportId, divisionId) => {
-    const data = await handleResponse(() => supabase.rpc("get_team_standings", { p_event_id: eventId, p_sport_id: sportId || null, p_division_id: divisionId || null }));
+  getStandings: async (eventId, sportId, divisionId, areaId) => {
+    const data = await handleResponse(() => supabase.rpc("get_team_standings", { p_event_id: eventId, p_sport_id: sportId || null, p_division_id: divisionId || null, p_area_id: areaId || null }));
     return data || [];
   },
   getPointsConfig: async (eventId, sportId) => {
@@ -117,6 +129,16 @@ export const LiveScoresAPI = {
   },
   setTeamSportDivision: async (teamId, sportName, divisionId) => {
     return handleResponse(() => supabase.from("team_sports").update({ division_id: divisionId || null }).eq("team_id", teamId).eq("sport_name", sportName).select());
+  },
+  // assignments: [{ teamId, sportName, divisionId }]. Low-volume admin action
+  // (auto-assign by location) - loops the single-team RPC rather than adding
+  // a new bulk endpoint.
+  bulkSetTeamDivisions: async (assignments) => {
+    const results = [];
+    for (const a of assignments) {
+      results.push(await LiveScoresAPI.setTeamSportDivision(a.teamId, a.sportName, a.divisionId));
+    }
+    return results;
   },
   getTeamIdsForSport: async (teamIds, sportName, gender) => {
     if (!teamIds || teamIds.length === 0) return [];
@@ -151,6 +173,23 @@ export const DivisionsAPI = {
   }
 };
 
+export const AreasAPI = {
+  getBySport: async (sportId) => {
+    const data = await handleResponse(() => supabase.from("competition_areas").select("*").eq("sport_id", sportId).order("display_order", { ascending: true }).order("name", { ascending: true }));
+    return data || [];
+  },
+  save: async (area) => {
+    if (area.id) {
+      return handleResponse(() => supabase.from("competition_areas").update(area).eq("id", area.id).select().single());
+    } else {
+      return handleResponse(() => supabase.from("competition_areas").insert([area]).select().single());
+    }
+  },
+  delete: async (id) => {
+    return handleResponse(() => supabase.from("competition_areas").delete().eq("id", id).select());
+  }
+};
+
 export const MatchEventsAPI = {
   getByMatch: async (matchId) => {
     const data = await handleResponse(() => supabase.from("match_events").select("*").eq("match_id", matchId).order("created_at", { ascending: true }));
@@ -158,6 +197,11 @@ export const MatchEventsAPI = {
   },
   getByEvent: async (eventId) => {
     const data = await handleResponse(() => supabase.from("match_events").select("*").eq("event_id", eventId).order("created_at", { ascending: true }));
+    return data || [];
+  },
+  getByMatchIds: async (matchIds) => {
+    if (!matchIds || matchIds.length === 0) return [];
+    const data = await handleResponse(() => supabase.from("match_events").select("*").in("match_id", matchIds).order("created_at", { ascending: true }));
     return data || [];
   },
   save: async (evt) => {
@@ -200,6 +244,43 @@ export const DisciplinaryAPI = {
   },
   delete: async (id) => {
     return handleResponse(() => supabase.from("player_disciplinary_records").delete().eq("id", id).select());
+  }
+};
+
+export const PlayerStatsAPI = {
+  getByMatch: async (matchId) => {
+    const data = await handleResponse(() => supabase.from("player_match_stats").select("*").eq("match_id", matchId).order("created_at", { ascending: true }));
+    return data || [];
+  },
+  getByMatchIds: async (matchIds) => {
+    if (!matchIds || matchIds.length === 0) return [];
+    const data = await handleResponse(() => supabase.from("player_match_stats").select("*").in("match_id", matchIds).order("created_at", { ascending: true }));
+    return data || [];
+  },
+  getByEvent: async (eventId) => {
+    const data = await handleResponse(() => supabase.from("player_match_stats").select("*").eq("event_id", eventId).order("created_at", { ascending: true }));
+    return data || [];
+  },
+  getPlayerTotals: async (accreditationId) => {
+    const data = await handleResponse(() => supabase.rpc("get_player_stat_totals", { p_accreditation_id: accreditationId }));
+    return data || [];
+  },
+  getTeamTotals: async (teamId) => {
+    const data = await handleResponse(() => supabase.rpc("get_team_stat_totals", { p_team_id: teamId }));
+    return data || [];
+  },
+  save: async (row) => {
+    const dbRow = { ...row };
+    if (!dbRow.id) { delete dbRow.id; dbRow.created_at = new Date().toISOString(); }
+    else { dbRow.updated_at = new Date().toISOString(); }
+    if (row.id) {
+      return handleResponse(() => supabase.from("player_match_stats").update(dbRow).eq("id", row.id).select().single());
+    } else {
+      return handleResponse(() => supabase.from("player_match_stats").upsert(dbRow, { onConflict: "match_id,player_accreditation_id" }).select().single());
+    }
+  },
+  delete: async (id) => {
+    return handleResponse(() => supabase.from("player_match_stats").delete().eq("id", id).select());
   }
 };
 

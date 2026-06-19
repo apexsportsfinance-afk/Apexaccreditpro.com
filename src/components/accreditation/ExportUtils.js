@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 import { autoTable } from "jspdf-autotable";
-import * as XLSX from "xlsx";
+import * as XLSX from "@e965/xlsx";
 import { calculateAge, getCountryCode3 } from "../../lib/utils";
 
 import { GlobalSettingsAPI } from "../../lib/broadcastApi";

@@ -6,7 +6,7 @@ import DataTable from '../ui/DataTable';
 import { AccreditationsAPI, ZonesAPI } from '../../lib/storage';
 import { AttendanceAPI } from '../../lib/attendanceApi';
 import SessionManager from './SessionManager';
-import * as XLSX from 'xlsx';
+import * as XLSX from '@e965/xlsx';
 import { useToast } from '../ui/Toast';
 import { supabase } from '../../lib/supabase';
 

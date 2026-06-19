@@ -233,10 +233,10 @@ export default function DataTable({
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-700/60 bg-slate-900/40 shadow-xl shadow-black/20">
+      <div className="overflow-x-auto rounded-xl border border-border bg-base-alt/40 shadow-xl shadow-black/20">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-slate-800/60 border-b border-slate-700/80">
+            <tr className="bg-base-alt border-b border-border">
               {selectable && (
                 <th className="w-10 px-4 py-3">
                   <input
@@ -270,7 +270,7 @@ export default function DataTable({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-700/40">
+          <tbody className="divide-y divide-border">
 
             {isLoading ? (
               Array.from({ length: 5 }).map((_, idx) => (
