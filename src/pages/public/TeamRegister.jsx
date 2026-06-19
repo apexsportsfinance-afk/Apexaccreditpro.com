@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Building2, MapPin, Phone, Mail, User, Upload, Loader2, ImageOff,
-  AlertCircle, CheckCircle, ArrowLeft, Droplets, Calendar, ChevronDown, Plus
+  AlertCircle, CheckCircle, ArrowLeft, Cpu, Calendar, ChevronDown, Plus
 } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
@@ -120,10 +120,10 @@ export default function TeamRegister() {
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <div className="relative">
-              <div className="animate-spin w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full shadow-lg shadow-cyan-500/20" />
-              <Droplets className="absolute -top-2 -right-2 w-6 h-6 text-cyan-400 animate-bounce" />
+              <div className="animate-spin w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full shadow-lg shadow-indigo-500/20" />
+              <Cpu className="absolute -top-2 -right-2 w-5 h-5 text-indigo-400 animate-pulse" />
             </div>
-            <p className="text-lg text-cyan-600 mt-4">Loading event...</p>
+            <p className="text-lg text-indigo-600 mt-4">Loading event...</p>
           </div>
         </div>
       </SwimmingBackground>
@@ -193,7 +193,7 @@ export default function TeamRegister() {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: "spring" }}
-              className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-500/30"
+              className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-400 to-indigo-500 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-500/30"
             >
               <CheckCircle className="w-10 h-10 text-white" />
             </motion.div>
@@ -230,7 +230,7 @@ export default function TeamRegister() {
             className="text-center mb-8"
           >
             {event.logoUrl ? (
-              <div className="w-full max-w-[500px] mx-auto mb-8 bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-cyan-300 shadow-2xl shadow-cyan-500/20">
+              <div className="w-full max-w-[500px] mx-auto mb-8 bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-indigo-300/60 shadow-2xl shadow-indigo-500/20">
                 <img src={event.logoUrl} alt="Event Logo" className="w-full h-auto max-h-[200px] object-contain" />
               </div>
             ) : (
@@ -242,11 +242,11 @@ export default function TeamRegister() {
             <h1 className="text-3xl lg:text-4xl text-main font-black drop-shadow-sm mb-2">
               {event.name}
             </h1>
-            <h2 className="text-xl lg:text-2xl text-cyan-100 font-bold drop-shadow-md">
+            <h2 className="text-xl lg:text-2xl text-cyan-700 font-bold drop-shadow-md">
               Team Registration
             </h2>
             {(event.location || event.startDate) && (
-              <p className="text-lg text-white/90 mt-4 font-medium drop-shadow-md flex items-center justify-center gap-2">
+              <p className="text-lg text-slate-600 mt-4 font-medium flex items-center justify-center gap-2">
                 <Calendar className="w-5 h-5" />
                 {event.location} • {formatDateDisplay(event.startDate)} to {formatDateDisplay(event.endDate)}
               </p>

@@ -10,8 +10,8 @@ import {
   CheckCircle,
   AlertCircle,
   ArrowLeft,
-  Waves,
-  Droplets,
+  Cpu,
+  Zap,
   Timer,
   AlertTriangle,
   Loader2,
@@ -152,162 +152,171 @@ export default function Register() {
 
   useEffect(() => {
     const loadEvent = async () => {
-      const eventData = await EventsAPI.getBySlug(slug);
-      
-      if (eventData) {
-        try {
-          const storedTerms = await GlobalSettingsAPI.get(`event_${eventData.id}_terms`);
-          if (storedTerms) {
-            eventData.termsAndConditions = storedTerms;
-          }
-        } catch(err) {
-          console.error("Failed to load custom terms:", err);
-        }
-      }
-
-      setEvent(eventData);
-      if (eventData) {
-        try {
-          const eventCats = await EventCategoriesAPI.getByEventId(eventData.id);
-          const allGlobalCats = await CategoriesAPI.getActive();
-          setGlobalCategories(allGlobalCats || []);
-          
-          if (eventCats.length > 0) {
-            setEventCategories(eventCats.map(ec => ec.category).filter(Boolean));
-          } else {
-            setEventCategories(allGlobalCats || []);
-          }
-          
-          // Identify Team roles based on parentId or names
+      try {
+        const eventData = await EventsAPI.getBySlug(slug);
+        
+        if (eventData) {
           try {
-            const allCategories = await CategoriesAPI.getAll();
-            const teamParent = allCategories.find(c => c.name.toLowerCase() === "team");
-            if (teamParent) {
-              const children = allCategories.filter(c => c.parentId === teamParent.id);
-              if (children.length > 0) {
-                setTeamRoles(children.map(c => c.name.toLowerCase()));
+            const storedTerms = await GlobalSettingsAPI.get(`event_${eventData.id}_terms`);
+            if (storedTerms) {
+              eventData.termsAndConditions = storedTerms;
+            }
+          } catch(err) {
+            console.error("Failed to load custom terms:", err);
+          }
+        }
+
+        setEvent(eventData);
+        if (eventData) {
+          try {
+            const eventCats = await EventCategoriesAPI.getByEventId(eventData.id);
+            const allGlobalCats = await CategoriesAPI.getActive();
+            setGlobalCategories(allGlobalCats || []);
+            
+            if (eventCats.length > 0) {
+              setEventCategories(eventCats.map(ec => ec.category).filter(Boolean));
+            } else {
+              setEventCategories(allGlobalCats || []);
+            }
+            
+            // Identify Team roles based on parentId or names
+            try {
+              const allCategories = await CategoriesAPI.getAll();
+              const teamParent = allCategories.find(c => c.name.toLowerCase() === "team");
+              if (teamParent) {
+                const children = allCategories.filter(c => c.parentId === teamParent.id);
+                if (children.length > 0) {
+                  setTeamRoles(children.map(c => c.name.toLowerCase()));
+                }
+              }
+            } catch (err) {
+              console.warn("Failed to dynamically identify team roles, using defaults", err);
+            }
+          } catch (err) {
+            console.error("Failed to load categories:", err);
+            setEventCategories([]);
+          }
+
+          try {
+            const evs = await SportEventsAPI.getByEventId(eventData.id);
+            setSportEvents(evs);
+          } catch { /* silent */ }
+
+          // Fetch standard club list for dropdown
+          try {
+            const clubData = await GlobalSettingsAPI.getClubs(eventData.id);
+            setClubs(clubData);
+          } catch (err) {
+            console.error("Failed to load clubs:", err);
+            setClubs([]);
+          }
+
+          // Fetch dynamic category allowlist restrictions
+          try {
+            const allowlistRaw = await GlobalSettingsAPI.get(`event_${eventData.id}_category_allowlist`);
+            if (allowlistRaw) {
+              setCategoryAllowlist(typeof allowlistRaw === 'string' ? JSON.parse(allowlistRaw) : allowlistRaw);
+            }
+          } catch (err) {
+            console.error("Failed to load allowlist:", err);
+          }
+          
+          // Fetch dynamic category sports restrictions
+          try {
+            const sportsRaw = await GlobalSettingsAPI.get(`event_${eventData.id}_category_sports`);
+            if (sportsRaw) {
+              setCategorySports(typeof sportsRaw === 'string' ? JSON.parse(sportsRaw) : sportsRaw);
+            }
+          } catch (err) {
+            console.error("Failed to load category sports:", err);
+          }
+
+          // Fetch dynamic category documents restrictions
+          try {
+            const docsRaw = await GlobalSettingsAPI.get(`event_${eventData.id}_category_documents`);
+            if (docsRaw) {
+              setCategoryDocuments(typeof docsRaw === 'string' ? JSON.parse(docsRaw) : docsRaw);
+            }
+          } catch (err) {
+            console.error("Failed to load category documents:", err);
+          }
+
+          // Fetch dynamic category custom fields allocations
+          try {
+            const fieldsRaw = await GlobalSettingsAPI.get(`event_${eventData.id}_category_custom_fields`);
+            if (fieldsRaw) {
+              setCategoryCustomFields(typeof fieldsRaw === 'string' ? JSON.parse(fieldsRaw) : fieldsRaw);
+            }
+          } catch (err) {
+            console.error("Failed to load category custom fields:", err);
+          }
+
+          // Fetch event sport category
+          try {
+            const sportRaw = await GlobalSettingsAPI.get(`event_${eventData.id}_sport`);
+            if (sportRaw) {
+              try {
+                const parsedSport = JSON.parse(sportRaw);
+                eventData.sportList = Array.isArray(parsedSport) ? parsedSport : [parsedSport];
+                eventData.sport = eventData.sportList.join(", ");
+              } catch(e) {
+                eventData.sportList = [sportRaw];
+                eventData.sport = sportRaw;
               }
             }
           } catch (err) {
-            console.warn("Failed to dynamically identify team roles, using defaults", err);
+            console.error("Failed to load sport:", err);
           }
-        } catch (err) {
-          console.error("Failed to load categories:", err);
-          setEventCategories([]);
-        }
-        try {
-          const evs = await SportEventsAPI.getByEventId(eventData.id);
-          setSportEvents(evs);
-        } catch { /* silent */ }
-      // Fetch standard club list for dropdown
-      try {
-        const clubData = await GlobalSettingsAPI.getClubs(eventData.id);
-        setClubs(clubData);
-      } catch (err) {
-        console.error("Failed to load clubs:", err);
-        setClubs([]);
-      }
-      // Fetch dynamic category allowlist restrictions
-      try {
-        const allowlistRaw = await GlobalSettingsAPI.get(`event_${eventData.id}_category_allowlist`);
-        if (allowlistRaw) {
-          setCategoryAllowlist(typeof allowlistRaw === 'string' ? JSON.parse(allowlistRaw) : allowlistRaw);
-        }
-      } catch (err) {
-        console.error("Failed to load allowlist:", err);
-      }
-      
-      // Fetch dynamic category sports restrictions
-      try {
-        const sportsRaw = await GlobalSettingsAPI.get(`event_${eventData.id}_category_sports`);
-        if (sportsRaw) {
-          setCategorySports(typeof sportsRaw === 'string' ? JSON.parse(sportsRaw) : sportsRaw);
-        }
-      } catch (err) {
-        console.error("Failed to load category sports:", err);
-      }
 
-      // Fetch dynamic category documents restrictions
-      try {
-        const docsRaw = await GlobalSettingsAPI.get(`event_${eventData.id}_category_documents`);
-        if (docsRaw) {
-          setCategoryDocuments(typeof docsRaw === 'string' ? JSON.parse(docsRaw) : docsRaw);
-        }
-      } catch (err) {
-        console.error("Failed to load category documents:", err);
-      }
-
-      // Fetch dynamic category custom fields allocations
-      try {
-        const fieldsRaw = await GlobalSettingsAPI.get(`event_${eventData.id}_category_custom_fields`);
-        if (fieldsRaw) {
-          setCategoryCustomFields(typeof fieldsRaw === 'string' ? JSON.parse(fieldsRaw) : fieldsRaw);
-        }
-      } catch (err) {
-        console.error("Failed to load category custom fields:", err);
-      }
-
-      // Fetch event sport category
-      try {
-        const sportRaw = await GlobalSettingsAPI.get(`event_${eventData.id}_sport`);
-        if (sportRaw) {
+          // Load custom fields
           try {
-            const parsedSport = JSON.parse(sportRaw);
-            eventData.sportList = Array.isArray(parsedSport) ? parsedSport : [parsedSport];
-            eventData.sport = eventData.sportList.join(", ");
-          } catch(e) {
-            eventData.sportList = [sportRaw];
-            eventData.sport = sportRaw;
+            const val = await GlobalSettingsAPI.get(`event_${eventData.id}_custom_fields`);
+            if (val) {
+              const parsed = JSON.parse(val);
+              if (Array.isArray(parsed)) setCustomFieldsConfig(parsed);
+            }
+          } catch (e) {
+            console.error("Failed to load custom fields config", e);
           }
+
+          // Load visibility settings
+          try {
+            const val = await GlobalSettingsAPI.get(`event_${eventData.id}_visibility`);
+            if (val) {
+              const parsed = JSON.parse(val);
+              if (parsed && typeof parsed === 'object') setVisibilityConfig(parsed);
+            }
+          } catch (e) {
+            console.error("Failed to load visibility settings", e);
+          }
+
+          // Load label overrides
+          try {
+            const val = await GlobalSettingsAPI.get(`event_${eventData.id}_label_overrides`);
+            if (val) setLabelOverrides(JSON.parse(val));
+          } catch (e) {
+            console.error("Failed to load label overrides", e);
+          }
+
+          // Load field config
+          try {
+            const val = await GlobalSettingsAPI.get(`event_${eventData.id}_field_config`);
+            if (val) setFieldConfig(JSON.parse(val));
+          } catch (e) {
+            console.error("Failed to load field config", e);
+          }
+
+          // Re-set event state with all properties including fetched ones
+          setEvent({ ...eventData });
         }
       } catch (err) {
-        console.error("Failed to load sport:", err);
+        // Top-level safety net: surface connection/fetch errors to the user
+        console.error("Critical error loading event:", err);
+        setErrors({ submit: `Failed to load event data: ${err.message || "Connection error. Please check your internet and try again."}` });
+      } finally {
+        // ALWAYS clear the loading state, no matter what happened above
+        setLoading(false);
       }
-
-      // Load custom fields
-      try {
-        const val = await GlobalSettingsAPI.get(`event_${eventData.id}_custom_fields`);
-        if (val) {
-          const parsed = JSON.parse(val);
-          if (Array.isArray(parsed)) setCustomFieldsConfig(parsed);
-        }
-      } catch (e) {
-        console.error("Failed to load custom fields config", e);
-      }
-
-      // Load visibility settings
-      try {
-        const val = await GlobalSettingsAPI.get(`event_${eventData.id}_visibility`);
-        if (val) {
-          const parsed = JSON.parse(val);
-          if (parsed && typeof parsed === 'object') setVisibilityConfig(parsed);
-        }
-      } catch (e) {
-        console.error("Failed to load visibility settings", e);
-      }
-
-      // Load label overrides
-      try {
-        const val = await GlobalSettingsAPI.get(`event_${eventData.id}_label_overrides`);
-        if (val) setLabelOverrides(JSON.parse(val));
-      } catch (e) {
-        console.error("Failed to load label overrides", e);
-      }
-
-      // Load field config
-      try {
-        const val = await GlobalSettingsAPI.get(`event_${eventData.id}_field_config`);
-        if (val) setFieldConfig(JSON.parse(val));
-      } catch (e) {
-        console.error("Failed to load field config", e);
-      }
-
-      // Re-set event state with all properties including fetched ones
-      setEvent({ ...eventData });
-      
-      // Removed auto-select sports logic per request
-      }
-      setLoading(false);
     };
     loadEvent();
   }, [slug]);
@@ -759,10 +768,10 @@ export default function Register() {
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <div className="relative">
-              <div className="animate-spin w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full shadow-lg shadow-cyan-500/20" />
-              <Droplets className="absolute -top-2 -right-2 w-6 h-6 text-cyan-400 animate-bounce" />
+              <div className="animate-spin w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full shadow-lg shadow-indigo-500/30" />
+              <Cpu className="absolute -top-2 -right-2 w-5 h-5 text-indigo-400 animate-pulse" />
             </div>
-            <p className="text-lg text-cyan-600 mt-4">Loading event...</p>
+            <p className="text-lg text-indigo-400 mt-4 font-semibold tracking-widest uppercase text-sm">Loading...</p>
           </div>
         </div>
       </SwimmingBackground>
@@ -879,10 +888,10 @@ export default function Register() {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: "spring" }}
-              className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center mx-auto mb-6 relative shadow-lg shadow-emerald-500/30"
+              className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-400 to-indigo-500 flex items-center justify-center mx-auto mb-6 relative shadow-lg shadow-emerald-500/30"
             >
               <CheckCircle className="w-10 h-10 text-white" />
-              <Droplets className="absolute -top-2 -right-2 w-6 h-6 text-cyan-400 animate-bounce" />
+              <Zap className="absolute -top-2 -right-2 w-5 h-5 text-yellow-400 animate-pulse" />
             </motion.div>
             <h1 className="text-2xl font-bold text-slate-800 mb-3" dir={language === 'ar' ? 'rtl' : 'ltr'}>{t("successTitle")}</h1>
             <p className="text-lg text-slate-600 mb-6" dir={language === 'ar' ? 'rtl' : 'ltr'}>
@@ -922,21 +931,13 @@ export default function Register() {
         <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
           <button
             onClick={toggleLanguage}
-            className="px-3 py-1.5 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/30 rounded-lg text-white font-bold transition-all flex items-center gap-2 shadow-lg"
+            className="px-3 py-1.5 bg-base-alt hover:bg-base border border-border rounded-lg text-main font-bold transition-all flex items-center gap-2 shadow-lg"
           >
             {language === "en" ? "العربية" : "English"}
           </button>
           <ThemeToggle />
         </div>
-        <div className="absolute top-20 right-10 opacity-20 pointer-events-none">
-          <Droplets className="w-12 h-12 text-cyan-500 animate-bounce" style={{ animationDuration: "3s" }} />
-        </div>
-        <div className="absolute bottom-40 left-10 opacity-15 pointer-events-none">
-          <Waves className="w-16 h-16 text-blue-400" />
-        </div>
-        <div className="absolute top-1/2 right-5 opacity-10 pointer-events-none">
-          <Timer className="w-20 h-20 text-cyan-400" />
-        </div>
+
 
         <div className="max-w-2xl mx-auto relative z-10">
           <motion.div
@@ -946,13 +947,12 @@ export default function Register() {
             dir={language === "ar" ? "rtl" : "ltr"}
           >
             {event.logoUrl ? (
-              <div className="w-full max-w-[500px] mx-auto mb-8 bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-cyan-300 shadow-2xl shadow-cyan-500/20 relative">
+              <div className="w-full max-w-[500px] mx-auto mb-8 bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-indigo-300/60 shadow-2xl shadow-indigo-500/20 relative">
                 <img
                   src={event.logoUrl}
                   alt="Event Logo"
                   className="w-full h-auto max-h-[200px] object-contain"
                 />
-                <Droplets className="absolute -top-4 -right-4 w-8 h-8 text-cyan-500 drop-shadow-lg" />
               </div>
             ) : (
               <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-cyan-400 via-blue-500 to-ocean-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-cyan-500/30 relative overflow-hidden">
@@ -964,10 +964,10 @@ export default function Register() {
             <h1 className="text-3xl lg:text-4xl text-main font-black drop-shadow-sm mb-2 transition-colors">
               {event.name}
             </h1>
-            <h2 className="text-xl lg:text-2xl text-cyan-100 font-bold drop-shadow-md">
+            <h2 className="text-xl lg:text-2xl text-cyan-700 font-bold drop-shadow-md">
               {t("formTitle")}
             </h2>
-            <p className="text-lg text-white/90 mt-4 font-medium drop-shadow-md">
+            <p className="text-lg text-slate-600 mt-4 font-medium">
               {event.location} • {formatDateDisplay(event.startDate)} to {formatDateDisplay(event.endDate)}
             </p>
           </motion.div>
@@ -988,17 +988,18 @@ export default function Register() {
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="p-4 bg-amber-50 border-2 border-amber-300 rounded-xl relative z-10"
+                className="p-4 bg-amber-50 border-l-4 border-2 border-amber-500 rounded-xl relative z-10 shadow-sm"
+                role="alert"
               >
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-6 h-6 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <AlertTriangle className="w-6 h-6 text-amber-700 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-lg font-semibold text-amber-700">Duplicate Registration Detected</p>
-                    <p className="text-lg text-amber-600 mt-1">{duplicateError.message}</p>
-                    <p className="text-lg text-amber-500 mt-2">
+                    <p className="text-lg font-bold text-amber-900">Duplicate Registration Detected</p>
+                    <p className="text-lg text-amber-900 mt-1">{duplicateError.message}</p>
+                    <p className="text-lg text-amber-900 mt-2">
                       Status: <span className="font-semibold capitalize">{duplicateError.status}</span>
                     </p>
-                    <p className="text-lg text-amber-500 mt-1">
+                    <p className="text-lg font-medium text-amber-800 mt-1">
                       If this is not you, please use a different name or contact the event organizers.
                     </p>
                   </div>
