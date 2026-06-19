@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { TeamPortalAPI } from '../../services/teamPortalApi';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
+import StorageImage from '../../components/ui/StorageImage';
 import { formatDate } from '../../lib/utils';
 
 export default function TeamPortalGateway() {
@@ -96,7 +97,7 @@ export default function TeamPortalGateway() {
             <div className="flex items-start justify-between mb-4">
               <div className="w-16 h-16 rounded-xl bg-base border border-border flex items-center justify-center shrink-0 overflow-hidden">
                 {team.logo_url ? (
-                  <img src={team.logo_url} alt={team.name} className="w-full h-full object-cover" />
+                  <StorageImage src={team.logo_url} alt={team.name} className="w-full h-full object-cover" />
                 ) : (
                   <Building2 className="w-8 h-8 text-muted" />
                 )}
