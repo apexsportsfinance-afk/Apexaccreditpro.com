@@ -46,3 +46,9 @@ enabled = false
 # not by JWT — see supabase/functions/public-verify-assets/index.ts.
 [functions.public-verify-assets]
 verify_jwt = false
+
+# Server-side scanner PIN check — anon scanner gate calls it without a JWT;
+# returns only a boolean, never the PIN. Requires the SCANNER_DEFAULT_PIN secret.
+# See supabase/functions/verify-scanner-pin/index.ts.
+[functions.verify-scanner-pin]
+verify_jwt = false
