@@ -102,8 +102,8 @@ export const LiveScoresAPI = {
         .select()
     );
   },
-  getStandings: async (eventId, sportId, divisionId) => {
-    const data = await handleResponse(() => supabase.rpc("get_team_standings", { p_event_id: eventId, p_sport_id: sportId || null, p_division_id: divisionId || null }));
+  getStandings: async (eventId, sportId, divisionId, areaId) => {
+    const data = await handleResponse(() => supabase.rpc("get_team_standings", { p_event_id: eventId, p_sport_id: sportId || null, p_division_id: divisionId || null, p_area_id: areaId || null }));
     return data || [];
   },
   getPointsConfig: async (eventId, sportId) => {
@@ -120,6 +120,16 @@ export const LiveScoresAPI = {
   },
   setTeamSportDivision: async (teamId, sportName, divisionId) => {
     return handleResponse(() => supabase.from("team_sports").update({ division_id: divisionId || null }).eq("team_id", teamId).eq("sport_name", sportName).select());
+  },
+  // assignments: [{ teamId, sportName, divisionId }]. Low-volume admin action
+  // (auto-assign by location) - loops the single-team RPC rather than adding
+  // a new bulk endpoint.
+  bulkSetTeamDivisions: async (assignments) => {
+    const results = [];
+    for (const a of assignments) {
+      results.push(await LiveScoresAPI.setTeamSportDivision(a.teamId, a.sportName, a.divisionId));
+    }
+    return results;
   },
   getTeamIdsForSport: async (teamIds, sportName, gender) => {
     if (!teamIds || teamIds.length === 0) return [];
@@ -151,6 +161,23 @@ export const DivisionsAPI = {
   },
   delete: async (id) => {
     return handleResponse(() => supabase.from("competition_divisions").delete().eq("id", id).select());
+  }
+};
+
+export const AreasAPI = {
+  getBySport: async (sportId) => {
+    const data = await handleResponse(() => supabase.from("competition_areas").select("*").eq("sport_id", sportId).order("display_order", { ascending: true }).order("name", { ascending: true }));
+    return data || [];
+  },
+  save: async (area) => {
+    if (area.id) {
+      return handleResponse(() => supabase.from("competition_areas").update(area).eq("id", area.id).select().single());
+    } else {
+      return handleResponse(() => supabase.from("competition_areas").insert([area]).select().single());
+    }
+  },
+  delete: async (id) => {
+    return handleResponse(() => supabase.from("competition_areas").delete().eq("id", id).select());
   }
 };
 

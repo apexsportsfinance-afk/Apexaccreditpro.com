@@ -5,17 +5,24 @@
 // ({ id, name }) plus format-specific options, and returns an array of
 // "fixture" objects:
 //
-//   { match_title, team_a_id, team_a_name, team_b_id, team_b_name, round_offset }
+//   { match_title, team_a_id, team_a_name, team_b_id, team_b_name, round_offset, stage, division_id }
 //
 // `round_offset` is a 0-based integer used purely for scheduling - the caller
 // (buildMatchRows) turns it into an actual match_date by adding
 // `round_offset * daysBetweenRounds` days to a chosen start date.
 //
+// `stage` is one of 'league' | 'group' | 'knockout' | 'playoff' | 'final' and
+// is what keeps standings correct once a bracket starts: get_team_standings()
+// only aggregates 'league'/'group' matches, so knockout/playoff/final results
+// never leak into the league/group table.
+//
 // For knockout-style formats, later rounds reference teams that aren't known
 // yet (e.g. "Winner of Semifinal 1"). Those are represented as
 // team_a_id/team_b_id = null with a descriptive team_a_name/team_b_name, the
 // same way a manually-entered "TBD" match would look. Admins can edit these
-// rows once real results are known.
+// rows once real results are known. Because their team_a_id/team_b_id stay
+// null until an admin links a real team, placeholders are never written to
+// `teams` and never counted in standings.
 // ==============================================================================
 
 export const FORMAT_OPTIONS = [
@@ -66,7 +73,7 @@ function ordinal(n) {
 
 // --- Round Robin (circle method) --------------------------------------------
 
-export function generateRoundRobin(teams, { doubleRound = false } = {}) {
+export function generateRoundRobin(teams, { doubleRound = false, stage = "league" } = {}) {
   if (teams.length < 2) return [];
   const list = [...teams];
   if (list.length % 2 !== 0) list.push({ id: null, name: "BYE" });
@@ -87,6 +94,7 @@ export function generateRoundRobin(teams, { doubleRound = false } = {}) {
         team_b_id: away.id || null,
         team_b_name: away.name,
         round_offset: round,
+        stage,
       });
     }
     // Rotate everyone except the fixed first team (classic circle method).
@@ -104,6 +112,7 @@ export function generateRoundRobin(teams, { doubleRound = false } = {}) {
         team_b_id: m.team_a_id,
         team_b_name: m.team_a_name,
         round_offset: numRounds + m.round_offset,
+        stage,
       });
     }
   }
@@ -141,7 +150,7 @@ function makeMatch(matchTitle, a, b) {
   return { created: false, winnerSlot: a || b || null, loserSlot: null };
 }
 
-function toMatchRow(m, roundOffset) {
+function toMatchRow(m, roundOffset, stage = "knockout") {
   return {
     match_title: m.matchTitle,
     team_a_id: m.teamA.id ?? null,
@@ -149,6 +158,7 @@ function toMatchRow(m, roundOffset) {
     team_b_id: m.teamB.id ?? null,
     team_b_name: m.teamB.tbd ? m.teamB.label : m.teamB.name,
     round_offset: roundOffset,
+    stage,
   };
 }
 
@@ -184,9 +194,23 @@ function buildBracketRounds(slots, totalRounds, prefix = "") {
   return { rounds, champion: current[0] || null };
 }
 
+// Builds a single "3rd Place Playoff" match from the losers of the semifinal
+// round (the round immediately before the final), at the same round_offset
+// as the final. Returns [] if there's no semifinal round (bracket too small)
+// or either semifinal didn't produce a real match.
+function buildThirdPlaceMatch(rounds, totalRounds, finalRoundOffset, titlePrefix = "") {
+  if (totalRounds < 2) return [];
+  const semifinalRound = rounds[totalRounds - 2];
+  const losers = semifinalRound.filter((m) => m.created).map((m) => m.loserSlot);
+  if (losers.length < 2) return [];
+  const m = makeMatch(`${titlePrefix}3rd Place Playoff`, losers[0], losers[1]);
+  if (!m.created) return [];
+  return [toMatchRow(m, finalRoundOffset, "playoff")];
+}
+
 // --- Single Elimination -------------------------------------------------------
 
-export function generateSingleElimination(teams, { prefix = "" } = {}) {
+export function generateSingleElimination(teams, { prefix = "", thirdPlaceMatch = false } = {}) {
   if (teams.length < 2) return [];
   const bracketSize = nextPowerOfTwo(teams.length);
   const totalRounds = Math.log2(bracketSize);
@@ -196,9 +220,14 @@ export function generateSingleElimination(teams, { prefix = "" } = {}) {
   const matches = [];
   rounds.forEach((round, ri) => {
     round.forEach((m) => {
-      if (m.created) matches.push(toMatchRow(m, ri));
+      if (m.created) matches.push(toMatchRow(m, ri, ri === rounds.length - 1 ? "final" : "knockout"));
     });
   });
+
+  if (thirdPlaceMatch) {
+    matches.push(...buildThirdPlaceMatch(rounds, totalRounds, totalRounds - 1, prefix));
+  }
+
   return matches;
 }
 
@@ -220,11 +249,15 @@ export function generateDoubleElimination(teams) {
   const matches = [];
   wb.rounds.forEach((round, ri) => {
     round.forEach((m) => {
-      if (m.created) matches.push(toMatchRow(m, ri));
+      if (m.created) matches.push(toMatchRow(m, ri, "knockout"));
     });
   });
 
-  if (totalRounds < 2) return matches; // 2-team bracket: WB final IS the final.
+  if (totalRounds < 2) {
+    // 2-team bracket: WB final IS the final - retag it.
+    matches.forEach((m) => { m.stage = "final"; });
+    return matches;
+  }
 
   const wbLosersByRound = wb.rounds.map((round) => round.map((m) => m.loserSlot));
   let lbSurvivors = wbLosersByRound[0].filter(Boolean);
@@ -242,7 +275,7 @@ export function generateDoubleElimination(teams) {
       idx++;
       m.matchTitle = consolCreated > 1 ? `LB Round ${lbRoundNum} - Match ${idx}` : `LB Round ${lbRoundNum}`;
       m.winnerSlot = { tbd: true, label: `Winner of ${m.matchTitle}` };
-      matches.push(toMatchRow(m, totalRounds + lbRoundNum - 1));
+      matches.push(toMatchRow(m, totalRounds + lbRoundNum - 1, "knockout"));
     });
     const consolWinners = consolMatches.map((m) => m.winnerSlot);
 
@@ -258,14 +291,14 @@ export function generateDoubleElimination(teams) {
       didx++;
       m.matchTitle = dropCreated > 1 ? `LB Round ${lbRoundNum} - Match ${didx}` : `LB Round ${lbRoundNum}`;
       m.winnerSlot = { tbd: true, label: `Winner of ${m.matchTitle}` };
-      matches.push(toMatchRow(m, totalRounds + lbRoundNum - 1));
+      matches.push(toMatchRow(m, totalRounds + lbRoundNum - 1, "knockout"));
     });
     lbSurvivors = dropMatches.map((m) => m.winnerSlot);
   }
 
   if (wb.champion && lbSurvivors[0]) {
     const gf = makeMatch("Grand Final", wb.champion, lbSurvivors[0]);
-    if (gf.created) matches.push(toMatchRow(gf, totalRounds + lbRoundNum));
+    if (gf.created) matches.push(toMatchRow(gf, totalRounds + lbRoundNum, "final"));
   }
 
   return matches;
@@ -273,7 +306,16 @@ export function generateDoubleElimination(teams) {
 
 // --- Groups + Knockout / Pool Play ---------------------------------------------
 
-export function generateGroups(teams, { numGroups = 2, advancePerGroup = 2, label = "Group", groups: customGroups = null } = {}) {
+export function generateGroups(teams, {
+  numGroups = 2,
+  advancePerGroup = 2,
+  label = "Group",
+  groups: customGroups = null,
+  groupDivisionIds = null,
+  groupNames = null,
+  thirdPlaceMatch = false,
+  bestThirdPlaceCount = 0,
+} = {}) {
   numGroups = Math.max(1, Math.min(numGroups, teams.length));
 
   let groups;
@@ -289,8 +331,10 @@ export function generateGroups(teams, { numGroups = 2, advancePerGroup = 2, labe
   groups.forEach((groupTeams, gi) => {
     if (groupTeams.length < 2) return;
     const groupLabel = String.fromCharCode(65 + gi);
-    generateRoundRobin(groupTeams).forEach((m) => {
-      matches.push({ ...m, match_title: `${label} ${groupLabel} - ${m.match_title}` });
+    const divisionId = groupDivisionIds ? groupDivisionIds[gi] || null : null;
+    const prefix = groupNames && groupNames[gi] ? groupNames[gi] : `${label} ${groupLabel}`;
+    generateRoundRobin(groupTeams, { stage: "group" }).forEach((m) => {
+      matches.push({ ...m, match_title: `${prefix} - ${m.match_title}`, division_id: divisionId });
       if (m.round_offset > maxRoundOffset) maxRoundOffset = m.round_offset;
     });
   });
@@ -303,10 +347,22 @@ export function generateGroups(teams, { numGroups = 2, advancePerGroup = 2, labe
         placeholders.push({ id: null, name: `${ordinal(pos)} - ${label} ${String.fromCharCode(65 + gi)}` });
       });
     }
+    for (let i = 1; i <= bestThirdPlaceCount; i++) {
+      placeholders.push({ id: null, name: `Best 3rd Place #${i}` });
+    }
     if (placeholders.length >= 2) {
-      generateSingleElimination(placeholders).forEach((m) => {
-        matches.push({ ...m, round_offset: maxRoundOffset + 1 + m.round_offset });
+      const bracketSize = nextPowerOfTwo(placeholders.length);
+      const totalRounds = Math.log2(bracketSize);
+      const slots = buildInitialSlots(placeholders, bracketSize);
+      const { rounds } = buildBracketRounds(slots, totalRounds);
+      rounds.forEach((round, ri) => {
+        round.forEach((m) => {
+          if (m.created) matches.push(toMatchRow(m, maxRoundOffset + 1 + ri, ri === rounds.length - 1 ? "final" : "knockout"));
+        });
       });
+      if (thirdPlaceMatch) {
+        buildThirdPlaceMatch(rounds, totalRounds, maxRoundOffset + 1 + totalRounds - 1).forEach((m) => matches.push(m));
+      }
     }
   }
 
@@ -318,7 +374,7 @@ export function generateGroups(teams, { numGroups = 2, advancePerGroup = 2, labe
 // existing competition_divisions assignments). Falls back to an even split
 // into `numConferences` groups by input order.
 
-export function generateConference(teams, { numConferences = 2, groups = null, crossoverFinal = true } = {}) {
+export function generateConference(teams, { numConferences = 2, groups = null, groupDivisionIds = null, groupNames = null, crossoverFinal = true } = {}) {
   let conferences = groups ? groups.filter((g) => g.length > 0) : [];
   if (conferences.length < 2) {
     const size = Math.max(2, numConferences);
@@ -331,8 +387,10 @@ export function generateConference(teams, { numConferences = 2, groups = null, c
   let maxRoundOffset = -1;
   conferences.forEach((confTeams, ci) => {
     if (confTeams.length < 2) return;
-    generateRoundRobin(confTeams).forEach((m) => {
-      matches.push({ ...m, match_title: `Conference ${ci + 1} - ${m.match_title}` });
+    const divisionId = groupDivisionIds ? groupDivisionIds[ci] || null : null;
+    const prefix = groupNames && groupNames[ci] ? groupNames[ci] : `Conference ${ci + 1}`;
+    generateRoundRobin(confTeams, { stage: "group" }).forEach((m) => {
+      matches.push({ ...m, match_title: `${prefix} - ${m.match_title}`, division_id: divisionId });
       if (m.round_offset > maxRoundOffset) maxRoundOffset = m.round_offset;
     });
   });
@@ -345,6 +403,7 @@ export function generateConference(teams, { numConferences = 2, groups = null, c
       team_b_id: null,
       team_b_name: "Conference 2 Champion",
       round_offset: maxRoundOffset + 1,
+      stage: "final",
     });
   }
 
@@ -363,15 +422,21 @@ export function generateFixtures(format, teams, options = {}) {
         advancePerGroup: options.advancePerGroup ?? 2,
         label: options.groupLabel || "Group",
         groups: options.manualGroups || null,
+        groupDivisionIds: options.groupDivisionIds || null,
+        groupNames: options.groupNames || null,
+        thirdPlaceMatch: !!options.thirdPlaceMatch,
+        bestThirdPlaceCount: options.bestThirdPlaceCount || 0,
       });
     case "Single Elimination":
-      return generateSingleElimination(teams);
+      return generateSingleElimination(teams, { thirdPlaceMatch: !!options.thirdPlaceMatch });
     case "Double Elimination":
       return generateDoubleElimination(teams);
     case "Conference":
       return generateConference(teams, {
         numConferences: options.numConferences || 2,
         groups: options.divisionGroups || null,
+        groupDivisionIds: options.groupDivisionIds || null,
+        groupNames: options.groupNames || null,
       });
     default:
       return [];
@@ -391,6 +456,8 @@ export function buildMatchRows(fixtures, { eventId, sportId, startDate, daysBetw
       sport_id: sportId,
       match_title: f.match_title,
       league_name: leagueName || null,
+      stage: f.stage || "league",
+      division_id: f.division_id || null,
       team_a_id: f.team_a_id || null,
       team_a_name: f.team_a_name,
       team_b_id: f.team_b_id || null,
