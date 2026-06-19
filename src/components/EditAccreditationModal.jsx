@@ -7,6 +7,8 @@ import Select from "./ui/Select";
 import SearchableSelect from "./ui/SearchableSelect";
 import MultiSearchableSelect from "./ui/MultiSearchableSelect";
 import Modal from "./ui/Modal";
+import StorageImage from "./ui/StorageImage";
+import StorageLink from "./ui/StorageLink";
 import { COUNTRIES, ROLES, validateFile, fileToBase64, ROLE_BADGE_PREFIXES, getBadgePrefix } from "../lib/utils";
 import { uploadToStorage } from "../lib/uploadToStorage";
 import { GlobalSettingsAPI } from "../lib/broadcastApi";
@@ -616,7 +618,7 @@ export default function EditAccreditationModal({
                             {url.toLowerCase().endsWith('.pdf') ? (
                               <FileText className="w-12 h-12 text-primary-400 opacity-50" />
                             ) : (
-                              <img src={url} alt={label} className="w-full h-full object-cover" />
+                              <StorageImage src={url} alt={label} className="w-full h-full object-cover" />
                             )}
                             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 px-2">
                               <label className="w-full cursor-pointer px-3 py-1.5 bg-primary-500 hover:bg-primary-600 text-white text-sm rounded-lg flex items-center justify-center gap-1.5 transition-colors">
@@ -624,7 +626,7 @@ export default function EditAccreditationModal({
                                 <input type="file" accept="image/*,application/pdf" onChange={handleUpload} className="hidden" />
                               </label>
                               <div className="flex gap-2 w-full">
-                                <a href={url} target="_blank" rel="noopener noreferrer" className="flex-1 p-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg flex items-center justify-center transition-colors"><Eye className="w-4 h-4" /></a>
+                                <StorageLink href={url} target="_blank" rel="noopener noreferrer" className="flex-1 p-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg flex items-center justify-center transition-colors"><Eye className="w-4 h-4" /></StorageLink>
                                 <button type="button" onClick={handleRemove} className="flex-1 p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center justify-center transition-colors"><X className="w-4 h-4" /></button>
                               </div>
                             </div>
