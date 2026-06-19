@@ -5,7 +5,7 @@ import { resolveFileUrl } from "./storage/fileUrl";
 // Data URLs and (flag-off) public URLs pass through unchanged; under the
 // private-storage flag a stored bucket URL becomes a short-lived signed URL so
 // the cross-origin fetch/download still succeeds.
-const toFetchableUrl = async (url) =>
+export const toFetchableUrl = async (url) =>
   !url || url.startsWith("data:") ? url : await resolveFileUrl(url);
 
 /**
@@ -20,7 +20,7 @@ const fetchAsBlob = async (url) => {
 /**
  * Detect file extension from base64 data URL or remote URL
  */
-const getExtFromUrl = (url) => {
+export const getExtFromUrl = (url) => {
   if (!url) return "jpg";
   if (url.startsWith("data:")) {
     if (url.includes("image/png")) return "png";
