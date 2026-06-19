@@ -1,8 +1,8 @@
-import { supabase } from "../supabase";
+import { supabase, supabaseUrl } from "../supabase";
 import { handleResponse } from "../apiHelpers";
 import { AuditAPI } from "./audit";
 
-const EDGE_URL = "https://dixelomafeobabahqeqg.supabase.co/functions/v1/manage-users";
+const EDGE_URL = `${supabaseUrl}/functions/v1/manage-users`;
 
 async function getSession() {
   const { data: { session } } = await supabase.auth.getSession();

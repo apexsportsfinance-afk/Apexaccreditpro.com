@@ -7,13 +7,10 @@ import Input from "../../components/ui/Input";
 import Badge from "../../components/ui/Badge";
 import { useToast } from "../../components/ui/Toast";
 import { useAuth } from "../../contexts/AuthContext";
-import { supabase } from "../../lib/supabase";
+import { supabase, supabaseUrl as SUPABASE_URL, supabaseAnonKey as SUPABASE_ANON_KEY } from "../../lib/supabase";
 import { uploadToStorage } from "../../lib/uploadToStorage";
 import { TicketingAPI, EventsAPI } from "../../lib/storage";
 import SearchableSelect from "../../components/ui/SearchableSelect";
-
-const SUPABASE_URL = "https://dixelomafeobabahqeqg.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpeGVsb21hZmVvYmFiYWhxZXFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzMzA4MzYsImV4cCI6MjA4NjkwNjgzNn0.YD1lj0T6kFoM2XyeYonIC3bmLiPkKBvmXEHEr5VMaGM";
 
 export default function Settings() {
   const { user, isSuperAdmin } = useAuth();

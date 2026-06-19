@@ -42,7 +42,7 @@ export default [
   },
   // Node-side scripts/servers
   {
-    files: ["server.js", "*.config.js", "scripts/**/*.js"],
+    files: ["server.js", "*.config.js", "scripts/**/*.{js,mjs}"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
