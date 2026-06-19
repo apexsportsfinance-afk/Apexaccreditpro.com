@@ -10,6 +10,7 @@ import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Badge from '../ui/Badge';
+import StorageImage from '../ui/StorageImage';
 import { cn } from '../../lib/utils';
 
 // Lazy-loaded: FaceMatchingManager statically imports the heavy face-api.js
@@ -299,8 +300,8 @@ export default function EventPhotosTab({ eventId, onToast, disabled }) {
                     exit={{ opacity: 0, scale: 0.9 }}
                     className={`group relative rounded-xl overflow-hidden aspect-square border ${photo.is_public ? 'border-gray-700' : 'border-red-900/50 opacity-60'}`}
                   >
-                    <img 
-                      src={photo.thumbnail_url || photo.url} 
+                    <StorageImage
+                      src={photo.thumbnail_url || photo.url}
                       alt={photo.title}
                       className="w-full h-full object-cover"
                       loading="lazy"

@@ -35,6 +35,7 @@ import { COUNTRIES, ROLES, validateFile, fileToBase64 } from "../../lib/utils";
 import { SportEventsAPI, GlobalSettingsAPI } from "../../lib/broadcastApi";
 import { uploadToStorage } from "../../lib/uploadToStorage";
 import { registerTranslations } from "../../lib/translations";
+import { usePublicAssetUrls } from "../../lib/storage/publicAssets";
 
 const DEFAULT_DOCUMENTS = [
   { id: "picture", label: "Picture", accept: "image/jpeg,image/png,image/webp" },
@@ -109,6 +110,12 @@ export default function Register() {
   const [globalCategories, setGlobalCategories] = useState([]); // Buffer for UUID-to-Name resolution
   const [event, setEvent] = useState(null);
   const [eventCategories, setEventCategories] = useState([]);
+
+  // Event logo signs under the event-scoped branding allowlist (flag OFF: public URL).
+  const { urls: brandingUrls } = usePublicAssetUrls(
+    event?.logoUrl ? [event.logoUrl] : [],
+    { eventId: event?.id, scope: "branding" }
+  );
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -946,10 +953,10 @@ export default function Register() {
             className="text-center mb-8"
             dir={language === "ar" ? "rtl" : "ltr"}
           >
-            {event.logoUrl ? (
+            {event.logoUrl && brandingUrls[event.logoUrl] ? (
               <div className="w-full max-w-[500px] mx-auto mb-8 bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-indigo-300/60 shadow-2xl shadow-indigo-500/20 relative">
                 <img
-                  src={event.logoUrl}
+                  src={brandingUrls[event.logoUrl]}
                   alt="Event Logo"
                   className="w-full h-auto max-h-[200px] object-contain"
                 />
