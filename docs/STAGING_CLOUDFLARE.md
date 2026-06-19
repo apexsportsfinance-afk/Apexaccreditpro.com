@@ -34,10 +34,16 @@ to do.
 ## Step 1 — Create the staging Supabase project (you, in Supabase dashboard)
 1. New project → name `apex-staging` (free tier is fine). Note its **Project URL**
    and **anon key** (Settings → API). These are your staging keys.
-2. Apply the schema (Supabase CLI, from the repo root):
+2. Apply the schema. **Read [`supabase/STAGING_SCHEMA.md`](../supabase/STAGING_SCHEMA.md) first** —
+   the migrations only contain *feature* tables; the **base** tables (`events`,
+   `accreditations`, `teams`, …) were created in the live dashboard, so `db push`
+   alone leaves a fresh project incomplete. Dump live schema (structure only, no
+   data) and apply it, then push migrations on top:
    ```bash
+   supabase db dump --linked --schema public -f supabase/schema.live.sql  # structure only
    supabase link --project-ref <STAGING_PROJECT_REF>   # the staging ref, NOT live
-   supabase db push                                     # applies supabase/migrations/
+   psql "<STAGING_DB_URL>" -f supabase/schema.live.sql # base schema
+   supabase db push                                    # applies supabase/migrations/ on top
    ```
 3. Seed **fake** data only (no real athlete PII). A handful of test events /
    accreditations is enough.
