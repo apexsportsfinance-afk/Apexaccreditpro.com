@@ -4,6 +4,7 @@ import { ChevronLeft, Building2, LayoutDashboard, Trophy, FileText, ShieldAlert,
 import { useAuth } from '../../contexts/AuthContext';
 import { TeamPortalAPI } from '../../services/teamPortalApi';
 import Button from '../../components/ui/Button';
+import StorageImage from '../../components/ui/StorageImage';
 
 // Portal Tabs
 import PortalOverviewTab from '../../components/portal/tabs/PortalOverviewTab';
@@ -106,7 +107,7 @@ export default function TeamPortalDashboard() {
         <div className="absolute top-0 left-0 w-1 h-full bg-primary-500"></div>
         
         {team.logo_url ? (
-          <img src={team.logo_url} alt={team.name} className="w-20 h-20 rounded-xl object-cover border border-border bg-base" />
+          <StorageImage src={team.logo_url} alt={team.name} className="w-20 h-20 rounded-xl object-cover border border-border bg-base" />
         ) : (
           <div className="w-20 h-20 rounded-xl bg-primary-500/10 flex items-center justify-center border border-border shrink-0">
             <Building2 className="w-8 h-8 text-primary-500" />

@@ -14,6 +14,7 @@ import CreateTeamModal from "../../../components/teams/CreateTeamModal";
 import AssignSportsModal from "../../../components/teams/AssignSportsModal";
 import DocumentRequirementsModal from "../../../components/teams/DocumentRequirementsModal";
 import PortalScheduleTab from "../../../components/portal/tabs/PortalScheduleTab";
+import StorageImage from "../../../components/ui/StorageImage";
 import { formatDate } from "../../../lib/utils";
 
 export default function TeamsDashboard() {
@@ -414,7 +415,7 @@ export default function TeamsDashboard() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         {team.logo_url ? (
-                          <img src={team.logo_url} alt={team.name} className="w-10 h-10 rounded-full object-cover border border-border" />
+                          <StorageImage src={team.logo_url} alt={team.name} className="w-10 h-10 rounded-full object-cover border border-border" />
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-primary-500/10 flex items-center justify-center border border-primary-500/20">
                             <Building2 className="w-5 h-5 text-primary-500" />

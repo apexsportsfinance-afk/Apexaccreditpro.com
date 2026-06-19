@@ -5,6 +5,7 @@ import Input from "../ui/Input";
 import Button from "../ui/Button";
 import { useToast } from "../ui/Toast";
 import { uploadToStorage } from "../../lib/uploadToStorage";
+import StorageImage from "../ui/StorageImage";
 import { COUNTRIES, UAE_EMIRATES, getDialCode, validatePhoneForCountry } from "../../lib/utils";
 
 export default function EditTeamModal({ isOpen, onClose, onSubmit, team }) {
@@ -188,7 +189,7 @@ export default function EditTeamModal({ isOpen, onClose, onSubmit, team }) {
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-lg border border-border bg-base-alt flex items-center justify-center overflow-hidden shrink-0">
                 {formData.logo_url ? (
-                  <img src={formData.logo_url} alt="Logo preview" className="w-full h-full object-cover" />
+                  <StorageImage src={formData.logo_url} alt="Logo preview" className="w-full h-full object-cover" />
                 ) : (
                   <ImageOff className="w-5 h-5 text-muted" />
                 )}

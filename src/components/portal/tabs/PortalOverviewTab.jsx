@@ -1,6 +1,7 @@
 import React from 'react';
 import { Building2 } from 'lucide-react';
 import Card from '../../ui/Card';
+import StorageImage from '../../ui/StorageImage';
 
 export default function PortalOverviewTab({ team }) {
   if (!team) return null;
@@ -16,7 +17,7 @@ export default function PortalOverviewTab({ team }) {
         <div className="flex flex-col md:flex-row items-start gap-8">
           <div className="shrink-0">
             {team.logo_url ? (
-              <img src={team.logo_url} alt={team.name} className="w-32 h-32 rounded-2xl object-cover border border-border bg-base" />
+              <StorageImage src={team.logo_url} alt={team.name} className="w-32 h-32 rounded-2xl object-cover border border-border bg-base" />
             ) : (
               <div className="w-32 h-32 rounded-2xl bg-base border border-border flex items-center justify-center">
                 <Building2 className="w-12 h-12 text-muted" />
