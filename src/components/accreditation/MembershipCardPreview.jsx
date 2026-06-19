@@ -191,8 +191,10 @@ const useZoneBadgePngs = (codes, zones = []) => {
   return badges;
 };
 
-const AquaticsHeader = memo(function AquaticsHeader({ event, bgColor }) {
-  const logoUrl = event?.logoUrl;
+// NOTE: not currently rendered in this file (the membership header is inlined in
+// MembershipCardInner). Kept for parity with AccreditationCardPreview; takes an
+// already-resolved logoUrl so it never reads a raw storage ref.
+const AquaticsHeader = memo(function AquaticsHeader({ logoUrl, bgColor }) {
   return (
     <div style={{ height: "100px", width: "100%", position: "relative", overflow: "hidden", flexShrink: 0 }}>
       {logoUrl ? (

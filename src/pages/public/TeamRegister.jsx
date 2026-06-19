@@ -34,6 +34,10 @@ export default function TeamRegister() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  // Local blob preview of the registrant's just-uploaded logo, so the preview
+  // renders instantly and works even when the bucket is private (the stored
+  // logo_url can't be anon-signed during registration).
+  const [logoPreview, setLogoPreview] = useState("");
 
   const [formData, setFormData] = useState({
     name: "",
@@ -70,6 +74,7 @@ export default function TeamRegister() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingLogo(true);
+    setLogoPreview(URL.createObjectURL(file));
     try {
       const { url } = await uploadToStorage(file, "team-logos");
       setFormData(prev => ({ ...prev, logo_url: url }));
@@ -83,6 +88,7 @@ export default function TeamRegister() {
   };
 
   const handleRegisterAnother = () => {
+    setLogoPreview("");
     setFormData({
       name: "",
       short_name: "",
@@ -373,8 +379,8 @@ export default function TeamRegister() {
                 <label className="text-sm font-medium text-main">Team Logo (Optional)</label>
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-lg border border-border bg-base-alt flex items-center justify-center overflow-hidden shrink-0">
-                    {formData.logo_url ? (
-                      <img src={formData.logo_url} alt="Logo preview" className="w-full h-full object-cover" />
+                    {logoPreview || formData.logo_url ? (
+                      <img src={logoPreview || formData.logo_url} alt="Logo preview" className="w-full h-full object-cover" />
                     ) : (
                       <ImageOff className="w-5 h-5 text-muted" />
                     )}
