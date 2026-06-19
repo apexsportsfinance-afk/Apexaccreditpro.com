@@ -144,13 +144,18 @@ async function patchRows() {
     console.warn("  no event found — run seed-staging.mjs first");
   }
 
-  // Point the first seeded accreditation at the photo + PDFs.
-  const { data: acc } = await supabase
+  // Point the first seeded accreditation (STG-11) at the photo + PDFs.
+  // NB: the accreditations table has first_name/last_name, NOT a `name` column —
+  // selecting `name` errors in PostgREST and silently yields null ("no accreditation
+  // found" even though rows exist). Order by badge_number so STG-11 is picked
+  // deterministically, matching the profile-scope smoke.
+  const { data: acc, error: accErr } = await supabase
     .from("accreditations")
-    .select("id, name")
-    .order("created_at", { ascending: true })
+    .select("id, badge_number, first_name, last_name")
+    .order("badge_number", { ascending: true })
     .limit(1)
     .maybeSingle();
+  if (accErr) console.warn(`  (accreditation lookup error: ${accErr.message})`);
   if (acc) {
     const { error } = await supabase
       .from("accreditations")
@@ -161,7 +166,7 @@ async function patchRows() {
       })
       .eq("id", acc.id);
     if (error) throw new Error(`patch accreditation: ${error.message}`);
-    console.log(`  accreditation "${acc.name}" (${acc.id}) -> photo/heat/result wired`);
+    console.log(`  accreditation ${acc.badge_number} "${acc.first_name} ${acc.last_name}" (${acc.id}) -> photo/heat/result wired`);
     console.log(`\n  ► Soak this record at: /verify/${acc.id}`);
   } else {
     console.warn("  no accreditation found — run seed-staging.mjs first");
