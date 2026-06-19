@@ -1,4 +1,6 @@
 import React from "react";
+import StorageImage from "../ui/StorageImage";
+import StorageLink from "../ui/StorageLink";
 import { FileText, Download } from "lucide-react";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
@@ -34,24 +36,24 @@ export default function RejectAccreditationModal({
           </h4>
           <div className="flex gap-4">
             {accreditation?.photoUrl && (
-              <a href={accreditation.photoUrl} target="_blank" rel="noopener noreferrer" className="w-16 h-16 rounded overflow-hidden border border-slate-700 hover:border-primary-500 transition-colors">
-                <img src={accreditation.photoUrl} alt="Photo" className="w-full h-full object-cover" />
-              </a>
+              <StorageLink href={accreditation.photoUrl} target="_blank" rel="noopener noreferrer" className="w-16 h-16 rounded overflow-hidden border border-slate-700 hover:border-primary-500 transition-colors">
+                <StorageImage src={accreditation.photoUrl} alt="Photo" className="w-full h-full object-cover" />
+              </StorageLink>
             )}
             {accreditation?.idDocumentUrl && (
-              <a href={accreditation.idDocumentUrl} target="_blank" rel="noopener noreferrer" className="w-16 h-16 rounded overflow-hidden border border-slate-700 hover:border-primary-500 transition-colors flex items-center justify-center bg-slate-900">
-                {accreditation.idDocumentUrl.toLowerCase().endsWith('.pdf') ? <FileText className="w-8 h-8 text-slate-500" /> : <img src={accreditation.idDocumentUrl} alt="ID" className="w-full h-full object-cover" />}
-              </a>
+              <StorageLink href={accreditation.idDocumentUrl} target="_blank" rel="noopener noreferrer" className="w-16 h-16 rounded overflow-hidden border border-slate-700 hover:border-primary-500 transition-colors flex items-center justify-center bg-slate-900">
+                {accreditation.idDocumentUrl.toLowerCase().endsWith('.pdf') ? <FileText className="w-8 h-8 text-slate-500" /> : <StorageImage src={accreditation.idDocumentUrl} alt="ID" className="w-full h-full object-cover" />}
+              </StorageLink>
             )}
             {accreditation?.eidUrl && (
-              <a href={accreditation.eidUrl} target="_blank" rel="noopener noreferrer" className="w-16 h-16 rounded overflow-hidden border border-slate-700 hover:border-primary-500 transition-colors flex items-center justify-center bg-slate-900">
-                {accreditation.eidUrl.toLowerCase().endsWith('.pdf') ? <FileText className="w-8 h-8 text-slate-500" /> : <img src={accreditation.eidUrl} alt="EID" className="w-full h-full object-cover" />}
-              </a>
+              <StorageLink href={accreditation.eidUrl} target="_blank" rel="noopener noreferrer" className="w-16 h-16 rounded overflow-hidden border border-slate-700 hover:border-primary-500 transition-colors flex items-center justify-center bg-slate-900">
+                {accreditation.eidUrl.toLowerCase().endsWith('.pdf') ? <FileText className="w-8 h-8 text-slate-500" /> : <StorageImage src={accreditation.eidUrl} alt="EID" className="w-full h-full object-cover" />}
+              </StorageLink>
             )}
             {accreditation?.medicalUrl && (
-              <a href={accreditation.medicalUrl} target="_blank" rel="noopener noreferrer" className="w-16 h-16 rounded overflow-hidden border border-slate-700 hover:border-primary-500 transition-colors flex items-center justify-center bg-slate-900">
-                {accreditation.medicalUrl.toLowerCase().endsWith('.pdf') ? <FileText className="w-8 h-8 text-slate-500" /> : <img src={accreditation.medicalUrl} alt="Med" className="w-full h-full object-cover" />}
-              </a>
+              <StorageLink href={accreditation.medicalUrl} target="_blank" rel="noopener noreferrer" className="w-16 h-16 rounded overflow-hidden border border-slate-700 hover:border-primary-500 transition-colors flex items-center justify-center bg-slate-900">
+                {accreditation.medicalUrl.toLowerCase().endsWith('.pdf') ? <FileText className="w-8 h-8 text-slate-500" /> : <StorageImage src={accreditation.medicalUrl} alt="Med" className="w-full h-full object-cover" />}
+              </StorageLink>
             )}
             {(!accreditation?.photoUrl && !accreditation?.idDocumentUrl && !accreditation?.eidUrl && !accreditation?.medicalUrl) && (
               <p className="text-sm text-slate-500">No documents attached</p>
