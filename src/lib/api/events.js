@@ -2,7 +2,7 @@ import { supabase } from "../supabase";
 import { handleResponse } from "../apiHelpers";
 import { AuditAPI } from "./audit";
 
-function mapEventToDB(event) {
+export function mapEventToDB(event) {
   const map = {};
   const fields = {
     name: 'name', slug: 'slug',
@@ -27,7 +27,7 @@ function mapEventToDB(event) {
   return map;
 }
 
-function mapEventFromDB(db) {
+export function mapEventFromDB(db) {
   if (!db) return null;
 
   let desc = db.description || "";
