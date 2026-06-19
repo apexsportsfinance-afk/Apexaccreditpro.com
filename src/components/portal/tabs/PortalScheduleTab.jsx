@@ -369,6 +369,11 @@ export default function PortalScheduleTab({ teamId = null, eventId }) {
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge variant={STATUS_VARIANTS[m.status] || "info"}>{m.status}</Badge>
                     {m.match_title && <span className="text-xs text-muted">{m.match_title}</span>}
+                    {m.division_name && (
+                      <span className="text-xs font-semibold text-primary-500">
+                        {m.area_name ? `${m.area_name} – ${m.division_name}` : m.division_name}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center justify-center gap-3">
                     <div className="flex items-center justify-end gap-2 flex-1 min-w-0">

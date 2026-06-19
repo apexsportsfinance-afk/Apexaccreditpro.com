@@ -22,12 +22,12 @@ const FOOTBALL_COLUMNS = [
 
 const BASKETBALL_COLUMNS = [
   { key: "played", header: "P", title: "Played" },
-  { key: "won", header: "W", title: "Won" },
-  { key: "lost", header: "L", title: "Lost" },
-  { key: "goals_for", header: "PF", title: "Points For" },
-  { key: "goals_against", header: "PA", title: "Points Against" },
-  { key: "goal_diff", header: "DIFF", title: "Point Difference" },
-  { key: "win_pct", header: "WIN%", title: "Win Percentage", highlight: true, format: (v) => `${Math.round((v || 0) * 100)}%` },
+  { key: "won", header: "W", title: "Wins" },
+  { key: "lost", header: "L", title: "Losses" },
+  { key: "goals_for", header: "Points Scored", title: "Total points scored by the team across all games" },
+  { key: "goals_against", header: "Points Against", title: "Total points scored against the team by opponents" },
+  { key: "goal_diff", header: "Point Diff", title: "Points Scored minus Points Against", format: (v) => (v > 0 ? `+${v}` : `${v}`) },
+  { key: "win_pct", header: "Win %", title: "Win Percentage", highlight: true, format: (v) => `${Math.round((v || 0) * 100)}%` },
 ];
 
 const VOLLEYBALL_COLUMNS = [
@@ -41,7 +41,7 @@ const VOLLEYBALL_COLUMNS = [
 ];
 
 const LEGENDS = {
-  basketball: "P = Played · W = Won · L = Lost · PF = Points For · PA = Points Against · DIFF = Point Difference · WIN% = Win Percentage (ranking: Win% then Point Difference)",
+  basketball: "P = Played · W = Wins · L = Losses · Points Scored = total points scored across all games · Points Against = total points conceded · Point Diff = Points Scored minus Points Against · Win % = Wins / Played (ranking: Win% → Wins → Point Diff → Points Scored → head-to-head/fair play if applicable → draw of lots)",
   volleyball: "P = Played · W = Won · L = Lost · SW = Sets Won · SL = Sets Lost · RATIO = Set Ratio · PTS = Match Points, FIVB scoring (ranking: Points then Set Ratio)",
   football: "P = Played · W = Won · D = Drawn · L = Lost · GF = Goals/Points For · GA = Goals/Points Against · GD = Goal/Point Difference · PTS = Total Points",
 };
