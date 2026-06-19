@@ -13,7 +13,18 @@ vi.mock("../supabase", () => {
   return { supabase: { storage: { from } } };
 });
 
-import { resolveFileUrl, getPublicFileUrl, isPrivateStorageEnabled } from "./fileUrl";
+import {
+  resolveFileUrl,
+  getPublicFileUrl,
+  isPrivateStorageEnabled,
+  parseStorageRef,
+} from "./fileUrl";
+
+const PUBLIC_URL =
+  "https://proj.supabase.co/storage/v1/object/public/accreditation-files/registrations/ab.jpg";
+const SIGN_URL =
+  "https://proj.supabase.co/storage/v1/object/sign/photos/events/x.png?token=abc";
+const EXTERNAL_URL = "https://flagcdn.com/w20/eg.png";
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -61,5 +72,51 @@ describe("resolveFileUrl", () => {
     expect(await resolveFileUrl("")).toBe(null);
     vi.stubEnv("VITE_PRIVATE_STORAGE", "true");
     expect(await resolveFileUrl(null)).toBe(null);
+  });
+
+  it("flag OFF: returns a stored absolute URL verbatim (legacy data unchanged)", async () => {
+    expect(await resolveFileUrl(PUBLIC_URL)).toBe(PUBLIC_URL);
+    expect(await resolveFileUrl(EXTERNAL_URL)).toBe(EXTERNAL_URL);
+  });
+
+  it("flag ON: signs a legacy stored PUBLIC url by its extracted bucket+path", async () => {
+    vi.stubEnv("VITE_PRIVATE_STORAGE", "true");
+    const url = await resolveFileUrl(PUBLIC_URL);
+    expect(url).toBe(
+      "https://signed.example/accreditation-files/registrations/ab.jpg?exp=3600",
+    );
+  });
+
+  it("flag ON: passes external (non-storage) URLs through untouched", async () => {
+    vi.stubEnv("VITE_PRIVATE_STORAGE", "true");
+    expect(await resolveFileUrl(EXTERNAL_URL)).toBe(EXTERNAL_URL);
+  });
+});
+
+describe("parseStorageRef", () => {
+  it("treats a bare value as an in-bucket path on the default bucket", () => {
+    expect(parseStorageRef("registrations/ab.jpg")).toEqual({
+      bucket: "accreditation-files",
+      path: "registrations/ab.jpg",
+    });
+  });
+
+  it("extracts bucket + path from a public storage URL", () => {
+    expect(parseStorageRef(PUBLIC_URL)).toEqual({
+      bucket: "accreditation-files",
+      path: "registrations/ab.jpg",
+    });
+  });
+
+  it("extracts bucket + path from a signed URL, dropping the query string", () => {
+    expect(parseStorageRef(SIGN_URL)).toEqual({
+      bucket: "photos",
+      path: "events/x.png",
+    });
+  });
+
+  it("returns null for external URLs and empty input", () => {
+    expect(parseStorageRef(EXTERNAL_URL)).toBe(null);
+    expect(parseStorageRef("")).toBe(null);
   });
 });
