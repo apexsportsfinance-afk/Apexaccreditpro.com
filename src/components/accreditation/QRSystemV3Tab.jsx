@@ -60,7 +60,7 @@ export default function QRSystemV3Tab({ eventId, onToast }) {
   return (
     <div id="qr-system-v3-tab" className="space-y-6">
       {/* Optimized Tab Navigation - High-Density Admin Layout */}
-      <div className="flex gap-1 bg-gray-900/50 backdrop-blur-md border border-white/5 rounded-xl p-1.5 shadow-2xl overflow-x-auto">
+      <div className="flex gap-1 bg-base-alt backdrop-blur-md border border-border rounded-xl p-1.5 shadow-2xl overflow-x-auto">
         {filteredTabs.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -70,8 +70,8 @@ export default function QRSystemV3Tab({ eventId, onToast }) {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center justify-center gap-2.5 flex-1 px-4 py-3 rounded-lg font-black uppercase tracking-widest text-[10px] transition-all duration-300 ${
                 isActive
-                  ? "bg-slate-700 text-white shadow-lg shadow-white/5 border border-white/10"
-                  : "text-gray-500 hover:text-gray-300 hover:bg-white/5"
+                  ? "bg-primary-600 text-white shadow-lg border border-primary-500/30"
+                  : "text-muted hover:text-main hover:bg-base"
               }`}
             >
               <Icon className={`w-4 h-4 transition-transform ${isActive ? 'scale-110' : ''}`} />

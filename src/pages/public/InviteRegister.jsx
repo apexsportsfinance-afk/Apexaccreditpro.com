@@ -3,8 +3,8 @@ import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Shield, User, Mail, Flag, Upload,
-  CheckCircle, AlertCircle, ArrowLeft, Waves,
-  Droplets, Timer, AlertTriangle, Loader2, Lock, Clock
+  CheckCircle, AlertCircle, ArrowLeft, Cpu,
+  AlertTriangle, Loader2, Lock, Clock
 } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
@@ -488,8 +488,11 @@ export default function InviteRegister() {
       <SwimmingBackground>
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full shadow-lg shadow-cyan-500/20 mx-auto" />
-            <p className="text-lg text-cyan-600 mt-4">
+            <div className="relative inline-block">
+              <div className="animate-spin w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full shadow-lg shadow-indigo-500/30 mx-auto" />
+              <Cpu className="absolute -top-2 -right-2 w-5 h-5 text-indigo-400 animate-pulse" />
+            </div>
+            <p className="text-lg text-indigo-600 mt-4">
               {isVerifying ? "Finalizing your registration..." : "Validating invite link..."}
             </p>
             {isVerifying && (
@@ -594,14 +597,14 @@ export default function InviteRegister() {
               Private Invite Registration
             </div>
 
-            <h1 className="text-2xl lg:text-3xl text-white font-bold drop-shadow-lg">
+            <h1 className="text-2xl lg:text-3xl text-main font-bold drop-shadow-lg">
               Accreditation Registration Form
             </h1>
-            <p className="text-xl text-white/90 mt-2 font-medium drop-shadow-md">
+            <p className="text-xl text-slate-600 mt-2 font-medium">
               {event?.name} • {formatDateDisplay(event?.startDate)}
             </p>
             {inviteLink?.label && (
-              <p className="text-sm text-white/60 mt-1">Invite: {inviteLink.label}</p>
+              <p className="text-sm text-slate-500 mt-1">Invite: {inviteLink.label}</p>
             )}
           </motion.div>
 
@@ -610,12 +613,12 @@ export default function InviteRegister() {
             className="bg-white/90 backdrop-blur-xl border border-cyan-300 rounded-2xl p-6 lg:p-8 space-y-6 shadow-2xl shadow-cyan-500/30">
 
             {duplicateError && (
-              <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-xl">
+              <div className="p-4 bg-amber-50 border-l-4 border-2 border-amber-500 rounded-xl shadow-sm" role="alert">
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-6 h-6 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <AlertTriangle className="w-6 h-6 text-amber-700 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-lg font-semibold text-amber-700">Duplicate Registration Detected</p>
-                    <p className="text-lg text-amber-600 mt-1">{duplicateError.message}</p>
+                    <p className="text-lg font-bold text-amber-900">Duplicate Registration Detected</p>
+                    <p className="text-lg text-amber-900 mt-1">{duplicateError.message}</p>
                   </div>
                 </div>
               </div>

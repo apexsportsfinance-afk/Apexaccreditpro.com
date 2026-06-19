@@ -986,3 +986,92 @@ select.country-select.country-select.country-select.country-select { padding-lef
   padding-left: 3rem !important;
   padding-right: 2.5rem !important;
 }
+
+/* ==========================================
+   LIGHT MODE CONTRAST SAFETY NET
+   Most components were built dark-first (hardcoded text-white,
+   text-slate-300/400/500, bg-slate-800/900 surfaces) and only the
+   --base/--main CSS variables were adapted for light mode. That leaves
+   white headings invisible on light cards and grey body text failing
+   WCAG AA contrast across the admin app. These rules only apply when
+   .dark is NOT present, and skip any element that itself also carries
+   a bg-* class (those are deliberate colored buttons/badges where white
+   text is correct and must stay untouched).
+   ========================================== */
+html:not(.dark) h1.text-white:not([class*="bg-"]),
+html:not(.dark) h2.text-white:not([class*="bg-"]),
+html:not(.dark) h3.text-white:not([class*="bg-"]),
+html:not(.dark) h4.text-white:not([class*="bg-"]),
+html:not(.dark) h5.text-white:not([class*="bg-"]),
+html:not(.dark) h6.text-white:not([class*="bg-"]),
+html:not(.dark) .font-h1.text-white:not([class*="bg-"]),
+html:not(.dark) .font-h2.text-white:not([class*="bg-"]),
+html:not(.dark) .font-h3.text-white:not([class*="bg-"]) {
+  color: var(--main) !important;
+  -webkit-text-fill-color: var(--main) !important;
+  background: none !important;
+  text-shadow: none !important;
+}
+
+html:not(.dark) p.text-white:not([class*="bg-"]),
+html:not(.dark) span.text-white:not([class*="bg-"]):not(button *),
+html:not(.dark) h3.font-semibold.text-white:not([class*="bg-"]) {
+  color: var(--main) !important;
+  -webkit-text-fill-color: var(--main) !important;
+}
+
+/* Muted/secondary copy authored for dark surfaces (text-slate-300/400/500)
+   is too light against the off-white light theme background; darken it. */
+html:not(.dark) .text-slate-200:not([class*="bg-"]),
+html:not(.dark) .text-gray-200:not([class*="bg-"]),
+html:not(.dark) .text-zinc-200:not([class*="bg-"]),
+html:not(.dark) .text-slate-300:not([class*="bg-"]),
+html:not(.dark) .text-gray-300:not([class*="bg-"]),
+html:not(.dark) .text-zinc-300:not([class*="bg-"]) {
+  color: #475569 !important;
+}
+
+html:not(.dark) .text-slate-400:not([class*="bg-"]),
+html:not(.dark) .text-gray-400:not([class*="bg-"]),
+html:not(.dark) .text-zinc-400:not([class*="bg-"]) {
+  color: #475569 !important;
+}
+
+html:not(.dark) .text-slate-500:not([class*="bg-"]),
+html:not(.dark) .text-gray-500:not([class*="bg-"]),
+html:not(.dark) .text-zinc-500:not([class*="bg-"]) {
+  color: #334155 !important;
+}
+
+html:not(.dark) .text-slate-600:not([class*="bg-"]),
+html:not(.dark) .text-gray-600:not([class*="bg-"]) {
+  color: #1e293b !important;
+}
+
+/* Dark-surface wrappers (bg-slate-800/900/950) used as page chrome
+   (tab bars, table shells, panels) outside of a colored button/badge
+   render as a washed-out grey blob in light mode and crush the
+   contrast of any text inside them; convert to the theme card surface. */
+html:not(.dark) [class*="bg-slate-800"]:not(button):not(.btn),
+html:not(.dark) [class*="bg-slate-900"]:not(button):not(.btn),
+html:not(.dark) [class*="bg-slate-950"]:not(button):not(.btn),
+html:not(.dark) [class*="bg-gray-800"]:not(button):not(.btn),
+html:not(.dark) [class*="bg-gray-900"]:not(button):not(.btn) {
+  background-color: var(--base-alt) !important;
+}
+
+html:not(.dark) [class*="border-slate-700"],
+html:not(.dark) [class*="border-slate-800"] {
+  border-color: var(--border) !important;
+}
+
+html:not(.dark) [class*="divide-slate-700"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border) !important;
+}
+
+/* Placeholder text authored for dark inputs */
+html:not(.dark) input::placeholder,
+html:not(.dark) textarea::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+}
