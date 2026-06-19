@@ -9,6 +9,7 @@ import { uploadToStorage } from "../../lib/uploadToStorage";
 import { ROLES } from "../../lib/utils";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
+import StorageLink from "../ui/StorageLink";
 import { cn } from "../../lib/utils";
 import BirthdayBroadcastPage from "./BirthdayBroadcastPage";
 
@@ -863,10 +864,10 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft, disabled })
             {currentAttachment && !attachmentFile && (
               <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-orange-500/10 border border-orange-500/20 rounded-lg">
                 <Paperclip className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
-                <a href={currentAttachment.url} target="_blank" rel="noopener noreferrer"
+                <StorageLink href={currentAttachment.url} target="_blank" rel="noopener noreferrer"
                   className="text-sm text-orange-300 hover:text-orange-200 truncate flex-1 font-medium">
                   {currentAttachment.name}
-                </a>
+                </StorageLink>
                 <span className="text-[10px] text-emerald-500 font-black uppercase tracking-widest flex-shrink-0">● Live</span>
               </div>
             )}
