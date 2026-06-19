@@ -22,6 +22,21 @@ the **risk of doing it** called out (so nothing here is a blind change).
 > **doc-reconciliation** checkpoint (stale security/dependency docs read as
 > misleading in due diligence).
 
+> **Progress update — 2026-06-19 (session 2, on `feat/institutional`, local-only,
+> nothing pushed; live untouched):**
+> - **Plan 3 / tests:** 113 → **127 Vitest tests**, 0 lint errors, CI gate green.
+> - **Phase 2 bundle diet — ✅ DONE & verified on staging:** QR route chunk
+>   **877 KB → 7 KB** (lazy tab panels + lazy face-api), recharts pulled off the
+>   Dashboard critical path, export libs (jspdf/html2canvas/xlsx) load only on the
+>   export action. (Roadmap §2 Phase-2 line — see below.)
+> - **Phase 1 staging — ✅ stood up & deploy verified:** isolated staging Supabase
+>   (`bieqfzwljxkmmldmlzyb`) + Cloudflare Pages (`apex-staging-2ft.pages.dev`),
+>   seeded; the served bundle is SHA-identical to the committed build with **0 live
+>   refs** (isolation pre-flight passes).
+> - **Phase 0 storage flip — 🟡 MIGRATION ACTIVE (not yet flipped):** resolver is now
+>   legacy-URL-safe; client render primitives built; 3 render batches migrated. See
+>   the Phase 0 Day-1 row for the detailed state and what remains.
+
 ---
 
 ## 0. The Valuation Bridge — what each gap is "costing" you today
@@ -138,7 +153,7 @@ and managed services only.**
 Goal: stop the bleeding and make the asset legally clean.
 | Task | Maps to DD | Risk |
 |------|-----------|------|
-| **[Day 1] Flip the storage bucket to PRIVATE + route file rendering through the signed-URL path** — ID/passport/medical docs are public *today*, protected only by unguessable filenames. **Staged foundation now in place:** `src/lib/storage/fileUrl.js` (`resolveFileUrl`, async, unified) + `VITE_PRIVATE_STORAGE` flag (default **off** = today's public behaviour) + tests. Remaining = (a) migrate the ~13 `getPublicUrl` call sites to `resolveFileUrl`, (b) flip the bucket private, (c) set the flag — all verified on **staging** (the sync→async change must be eyeballed in a running app). | #6, E07, E15 | **CRITICAL (live exposure)** — call-site sweep + flag-on done & soaked on staging |
+| **[Day 1] Flip the storage bucket to PRIVATE + route file rendering through the signed-URL path** — ID/passport/medical docs are public *today*, protected only by unguessable filenames. **🟡 MIGRATION ACTIVE (2026-06-19, `feat/institutional`, staging-gated, flag default-off so behaviour is unchanged until cutover):** (1) `resolveFileUrl` now normalises a stored **path OR a legacy public URL** (`parseStorageRef` extracts bucket+path from Supabase public/sign URLs; external URLs pass through) — this makes the cutover a **flag-flip, not a live data backfill**; (2) render primitives built & tested — `useResolvedFileUrl` hook + `<StorageImage>` + `<StorageLink>` (public mode byte-identical/flicker-free, private mode = signed URL); (3) **3 render batches migrated** — participant-photo thumbnails (6 files), Reject-modal photo/ID/EID/medical doc links, Approve/Edit document-preview loops. **Remaining** = (a) finish the render-site sweep (card previews + html2canvas export, team logos, doc tabs, the `getThumbnailUrl` image-transform case, bulk download), (b) a **public edge function** that signs verification assets for the **anonymous `VerifyAccreditation`** page (decided: edge-fn, no public carve-out), (c) flip the bucket private + set `VITE_PRIVATE_STORAGE=true` + soak on **staging** (upload test files first). | #6, E07, E15 | **CRITICAL (live exposure)** — sweep + flag-on soaked on staging |
 | **[Day 1] Wire monitoring: set `VITE_SENTRY_DSN` + `npm i @sentry/react`** into the existing seam (`src/lib/observability.js`) — turns "unmeasured" into a number; precondition for everything else | E11 | LOW |
 | **[Day 1] Run + log ONE restore drill** (PITR/backup → throwaway project → smoke test); record the date in `docs/DR_RUNBOOK.md` | E09 | LOW |
 | **[Day 1] Move the scanner PIN check server-side + rotate the PIN** — `VITE_SCANNER_PIN` is compiled into the public bundle (`Scanner.jsx:129`, `Events.jsx:571`, `:1333`) | E01, E05 | LOW-MED |
@@ -170,7 +185,7 @@ Goal: remove key-person risk; make change safe.
 | Introduce TypeScript **incrementally** (`allowJs`, type the data layer first) | #8 | MED |
 | Test harness (Vitest + Playwright); cover auth, payments, scanning, RLS | #3 | LOW to add |
 | Decompose the 7 God-files **after** tests exist (Events.jsx → feature modules) | #4 | MED-HIGH — do test-first |
-| Bundle diet: lazy-load face-api/TensorFlow; split the 868 KB QR chunk | E16 | LOW-MED |
+| Bundle diet: lazy-load face-api/TensorFlow; split the 868 KB QR chunk — **✅ DONE (2026-06-19):** QR route chunk **877 KB → 7 KB** (lazy tab panels + lazy face-api), recharts off the Dashboard critical path, export libs (jspdf/html2canvas/xlsx) load only on export | E16 | LOW-MED |
 **Exit gate:** ≥60% coverage on critical paths; no file >800 LOC on the hot paths; green typecheck on the data layer.
 
 ### Phase 3 — Compliance & commercial readiness (Weeks 12–24)
