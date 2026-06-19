@@ -1,6 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { UsersAPI } from "../lib/storage";
 import { supabase } from "../lib/supabase";
+import {
+  hasPermission as hasPermissionPure,
+  canAccessEvent as canAccessEventPure,
+  canAccessModule as canAccessModulePure,
+  hasExactModuleAccess as hasExactModuleAccessPure,
+} from "../lib/permissions";
 
 const AuthContext = createContext(null);
 
@@ -167,71 +173,19 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const hasPermission = (permission) => {
-    if (!user) return false;
-    const permissions = {
-      super_admin: ["all"],
-      admin: ["all"],
-      event_admin: ["view_events", "manage_accreditations", "view_reports"],
-      viewer: ["view_events", "view_accreditations"]
-    };
-    const userPermissions = permissions[user.role] || [];
-    return (
-      userPermissions.includes("all") || userPermissions.includes(permission)
-    );
-  };
+  // Authorization logic lives in src/lib/permissions.js (pure + unit-tested).
+  // These wrappers just bind the current user's state to those functions.
+  const hasPermission = (permission) =>
+    user ? hasPermissionPure(user.role, permission) : false;
 
-  const canAccessEvent = (eventId) => {
-    if (!user) return false;
-    if (user.role === "super_admin" || user.role === "admin") return true;
-    if (!user.allowedEventIds) return false;
-    return user.allowedEventIds.includes(eventId);
-  };
+  const canAccessEvent = (eventId) =>
+    user ? canAccessEventPure(user.role, user.allowedEventIds, eventId) : false;
 
-  const canAccessModule = (path) => {
-    if (!user) return false;
-    if (user.role === "super_admin" || user.role === "admin") return true;
+  const canAccessModule = (path) =>
+    user ? canAccessModulePure(user.role, user.allowedModules, user.hasTeamAccess, path) : false;
 
-    // Team Portal is only relevant once an admin has assigned the user to a team
-    // (it has its own API-level security and RLS checks beyond this)
-    if (path.startsWith("/portal/teams")) return !!user.hasTeamAccess;
-
-    if (!user.allowedModules) return false;
-    
-    // Exact match, parent match, or child match
-    return user.allowedModules.some(modulePath => {
-      if (path === modulePath || path.startsWith(modulePath + "/") || modulePath.startsWith(path + "/")) {
-        return true;
-      }
-
-      // Special case for dynamic event routes like /admin/events/:id
-      if (modulePath.startsWith("/admin/events/") && path.startsWith("/admin/events/")) {
-        const pathParts = path.split("/"); // e.g. ["", "admin", "events", "uuid", "subpage?"]
-        const modParts = modulePath.split("/"); // e.g. ["", "admin", "events", "audit-log"]
-        
-        // Allow access to the event detail wrapper
-        if (pathParts.length === 4) return true;
-        
-        // Allow access to the specific granular subpage
-        if (pathParts.length === 5 && pathParts[4] === modParts[3]) {
-          return true;
-        }
-      }
-      
-      return false;
-    });
-  };
-
-  const hasExactModuleAccess = (path) => {
-    if (!user) return false;
-    if (user.role === "super_admin" || user.role === "admin") return true;
-    if (!user.allowedModules) return false;
-    
-    // Must exactly match or be a parent of the path
-    return user.allowedModules.some(modulePath => 
-      path === modulePath || path.startsWith(modulePath + "/")
-    );
-  };
+  const hasExactModuleAccess = (path) =>
+    user ? hasExactModuleAccessPure(user.role, user.allowedModules, path) : false;
 
   const value = {
     user,

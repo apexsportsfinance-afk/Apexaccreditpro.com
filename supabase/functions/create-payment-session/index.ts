@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@12.0.0?target=deno'
+import { computeAccreditationLineItems, buildPriceMap, buildSpectatorLineItems } from '../_shared/pricing.ts'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2022-11-15',
@@ -79,22 +80,8 @@ serve(async (req) => {
         throw new Error('Invalid invite token')
       }
 
-      const serverAmount = link.requirePayment ? Number(link.paymentAmount) : 0
-      if (!serverAmount || serverAmount <= 0) {
-        throw new Error('This registration does not require payment')
-      }
-
-      lineItems = [{
-        price_data: {
-          currency: 'aed',
-          product_data: {
-            name: `Accreditation Fee - ${eventSlug}`,
-            description: `Registration fee for ${customerName}`,
-          },
-          unit_amount: Math.round(serverAmount * 100),
-        },
-        quantity: 1,
-      }]
+      // Pure price authority (extracted to ../_shared/pricing.ts, unit-tested).
+      lineItems = computeAccreditationLineItems(link, { eventSlug, customerName })
     } else if (type === 'spectator') {
       if (!Array.isArray(items) || items.length === 0) {
         throw new Error('No items provided')
@@ -108,32 +95,9 @@ serve(async (req) => {
         supabase.from('ticket_packages').select('id, price, is_full_event').eq('event_id', eventId),
       ])
 
-      const priceMap = new Map<string, { price: number; isFullEvent: boolean }>()
-      for (const t of ticketTypes || []) priceMap.set(t.id, { price: Number(t.price), isFullEvent: !!t.is_full_event })
-      for (const p of ticketPackages || []) priceMap.set(p.id, { price: Number(p.price), isFullEvent: !!p.is_full_event })
-
-      lineItems = items.map((item: any) => {
-        const dbItem = priceMap.get(item.id)
-        if (!dbItem) {
-          throw new Error(`Unknown ticket item: ${item.id}`)
-        }
-
-        const quantity = Math.max(1, Math.min(100, parseInt(item.quantity, 10) || 1))
-        const dayFactor = dbItem.isFullEvent ? 1 : Math.max(1, Math.min(60, parseInt(item.dayFactor, 10) || 1))
-        const unitAmount = Math.round(dbItem.price * dayFactor * 100)
-
-        return {
-          price_data: {
-            currency: 'aed',
-            product_data: {
-              name: item.name || 'Ticket',
-              description: item.description || '',
-            },
-            unit_amount: unitAmount,
-          },
-          quantity,
-        }
-      })
+      // Pure re-pricing from the authoritative map (extracted + unit-tested).
+      const priceMap = buildPriceMap(ticketTypes, ticketPackages)
+      lineItems = buildSpectatorLineItems(items, priceMap)
     } else {
       throw new Error('Invalid payment type')
     }

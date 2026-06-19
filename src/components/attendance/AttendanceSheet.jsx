@@ -3,7 +3,7 @@ import { Search, Download, Users, CheckCircle, XCircle, Loader2, Calendar, Activ
 import { Card, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
 import DataTable from '../ui/DataTable';
-import { AccreditationsAPI } from '../../lib/storage';
+import { AccreditationsAPI, ZonesAPI } from '../../lib/storage';
 import { AttendanceAPI } from '../../lib/attendanceApi';
 import SessionManager from './SessionManager';
 import * as XLSX from 'xlsx';

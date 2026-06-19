@@ -18,3 +18,16 @@ tmp
 server/uploads/
 _archive/
 supabase/.temp/
+
+# Terraform — never commit state or real var files (keep *.example)
+infra/terraform/**/.terraform/*
+infra/terraform/**/*.tfstate
+infra/terraform/**/*.tfstate.*
+infra/terraform/**/*.tfvars
+!infra/terraform/**/*.tfvars.example
+infra/terraform/**/.terraform.lock.hcl
+
+# Playwright
+/test-results/
+/playwright-report/
+/coverage/

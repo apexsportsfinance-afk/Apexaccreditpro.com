@@ -1,5 +1,5 @@
-import jsPDF from "jspdf";
-import "jspdf-autotable";
+import { jsPDF } from "jspdf";
+import { autoTable } from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { calculateAge, getCountryCode3 } from "../../lib/utils";
 
@@ -204,7 +204,7 @@ export const exportTableToPDF = async (data, columns, title = "Export") => {
   );
 
   // Generate table
-  doc.autoTable({
+  autoTable(doc, {
     head: [headers],
     body: rows,
     startY: 35,

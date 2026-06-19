@@ -101,7 +101,7 @@ function generateCsvBlob(clubData) {
  */
 async function generatePdfBlob(clubFull, clubData) {
   const { jsPDF } = await import("jspdf");
-  await import("jspdf-autotable");
+  const { autoTable } = await import("jspdf-autotable");
   
   const doc = new jsPDF("landscape");
   
@@ -121,7 +121,7 @@ async function generatePdfBlob(clubFull, clubData) {
     row["Clearances"]
   ]);
   
-  doc.autoTable({
+  autoTable(doc, {
     startY: 35,
     head: headers,
     body: body,

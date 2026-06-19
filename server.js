@@ -5,6 +5,7 @@ import path from 'path';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import fs from 'fs';
+import { createHash } from 'crypto';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -13,6 +14,62 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 
 const app = express();
+
+// Trust the platform proxy so client IPs (X-Forwarded-For) are read correctly
+// behind Vercel / Nginx for rate limiting.
+app.set('trust proxy', 1);
+
+// [APX-SEC] Security headers on the API tier (the frontend gets its own set
+// from vercel.json). Implemented inline to avoid an extra dependency; CSP is
+// owned by the frontend host.
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('X-DNS-Prefetch-Control', 'off');
+  res.removeHeader('X-Powered-By');
+  next();
+});
+
+// [APX-SEC] Minimal fixed-window in-memory rate limiter (no external dep).
+// For multi-instance deployments, front this with a shared store / WAF.
+function createRateLimiter({ windowMs, max, message }) {
+  const hits = new Map(); // ip -> { count, resetAt }
+  // Periodic sweep so the map can't grow unbounded.
+  setInterval(() => {
+    const now = Date.now();
+    for (const [ip, rec] of hits) if (rec.resetAt <= now) hits.delete(ip);
+  }, windowMs).unref?.();
+
+  return (req, res, next) => {
+    const ip = req.ip || req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
+    const now = Date.now();
+    let rec = hits.get(ip);
+    if (!rec || rec.resetAt <= now) {
+      rec = { count: 0, resetAt: now + windowMs };
+      hits.set(ip, rec);
+    }
+    rec.count += 1;
+    const remaining = Math.max(0, max - rec.count);
+    res.setHeader('RateLimit-Limit', String(max));
+    res.setHeader('RateLimit-Remaining', String(remaining));
+    if (rec.count > max) {
+      res.setHeader('Retry-After', String(Math.ceil((rec.resetAt - now) / 1000)));
+      return res.status(429).json(message);
+    }
+    next();
+  };
+}
+
+const verifyLimiter = createRateLimiter({
+  windowMs: 60 * 1000, max: 60,
+  message: { success: false, error: 'Rate limit exceeded. Slow down.' },
+});
+const uploadLimiter = createRateLimiter({
+  windowMs: 60 * 1000, max: 30,
+  message: { error: 'Too many uploads. Please wait and retry.' },
+});
 
 // [APX-SEC] CORS allow-list. Add production domains via the
 // CORS_ALLOWED_ORIGINS env var (comma-separated) instead of widening this.
@@ -30,7 +87,12 @@ app.use(cors({
     return callback(new Error('Not allowed by CORS'));
   }
 }));
-app.use(express.json({ limit: '50mb' }));
+// JSON bodies are small control payloads; large binaries go through multipart
+// upload routes with their own size caps. A 2mb cap blunts JSON-body DoS.
+app.use(express.json({ limit: '2mb' }));
+
+// Liveness probe for uptime monitoring / load balancers.
+app.get('/healthz', (req, res) => res.json({ status: 'ok', ts: Date.now() }));
 
 // Initialize Supabase Client for the API
 const supabase = createClient(
@@ -126,7 +188,7 @@ const uploadPhotos = multer({
 });
 
 // Upload Endpoint (requires an authenticated admin/staff session)
-app.post('/api/upload', requireAuth, (req, res) => {
+app.post('/api/upload', uploadLimiter, requireAuth, (req, res) => {
   const uploadSingle = upload.single('file');
   uploadSingle(req, res, function (err) {
     if (err) {
@@ -139,7 +201,7 @@ app.post('/api/upload', requireAuth, (req, res) => {
 });
 
 // Event Photos Upload Endpoint (supports multiple files, requires an authenticated admin/staff session)
-app.post('/api/upload/photos', requireAuth, (req, res) => {
+app.post('/api/upload/photos', uploadLimiter, requireAuth, (req, res) => {
   const uploadArray = uploadPhotos.array('photos', 50);
   uploadArray(req, res, function (err) {
     if (err) {
@@ -156,7 +218,9 @@ app.post('/api/upload/photos', requireAuth, (req, res) => {
 });
 
 // Bridge Results Proxy (Proxy to Python Medal Engine)
-app.post('/api/bridge/results', upload.array('files'), async (req, res) => {
+// [APX-SEC] Now requires an authenticated session + rate limiting. This
+// endpoint was previously open to the internet for unauthenticated uploads.
+app.post('/api/bridge/results', uploadLimiter, requireAuth, upload.array('files'), async (req, res) => {
   const files = req.files || [];
   try {
     const { competition_name } = req.body;
@@ -204,7 +268,7 @@ app.post('/api/bridge/results', upload.array('files'), async (req, res) => {
  * This is the endpoint used by third-party kiosks/apps.
  * It requires an 'x-api-key' header.
  */
-app.post('/api/v1/verify', async (req, res) => {
+app.post('/api/v1/verify', verifyLimiter, async (req, res) => {
   try {
     const apiKey = req.headers['x-api-key'];
     const { badgeId } = req.body;
@@ -218,14 +282,14 @@ app.post('/api/v1/verify', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid badgeId format' });
     }
 
-    // 1. Validate the API Key
-    const { data: keyData, error: keyError } = await supabase
-      .from('partner_api_keys')
-      .select('*, partner:partners(*)')
-      .eq('api_key', apiKey)
-      .eq('status', 'active')
-      .single();
+    // 1. Validate the API Key by HASH (never matches the plaintext credential).
+    //    The SECURITY DEFINER RPC also stamps last_used_at and keeps the
+    //    partner_api_keys table itself locked down to admins.
+    const apiKeyHash = createHash('sha256').update(String(apiKey)).digest('hex');
+    const { data: keyRows, error: keyError } = await supabase
+      .rpc('verify_partner_api_key', { p_key_hash: apiKeyHash });
 
+    const keyData = Array.isArray(keyRows) ? keyRows[0] : keyRows;
     if (keyError || !keyData) {
       return res.status(403).json({ success: false, error: 'Invalid or revoked API Key' });
     }
@@ -243,7 +307,9 @@ app.post('/api/v1/verify', async (req, res) => {
     }
 
     // 3. Filter data based on "Allowed Fields" allocated to this key
-    const allowedFields = keyData.allowed_fields || ["firstName", "lastName", "role", "badgeNumber"];
+    const allowedFields = Array.isArray(keyData.allowed_fields) && keyData.allowed_fields.length
+      ? keyData.allowed_fields
+      : ["firstName", "lastName", "role", "badgeNumber"];
     const filteredData = {};
     
     // Map of DB columns to JS property names (matching the UI allocation)
@@ -265,13 +331,12 @@ app.post('/api/v1/verify', async (req, res) => {
       }
     });
 
-    // 4. Update "Last Used" on the key for auditing
-    await supabase.from('partner_api_keys').update({ last_used_at: new Date() }).eq('id', keyData.id);
+    // 4. "Last Used" was already stamped atomically inside verify_partner_api_key.
 
     // 5. Return the clean, allocated data
     res.json({
       success: true,
-      partner: keyData.partner.name,
+      partner: keyData.partner_name,
       data: filteredData
     });
 

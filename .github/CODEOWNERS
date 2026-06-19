@@ -1,0 +1,15 @@
+# Code ownership — every PR requires review from the listed owner(s).
+# Replace @OWNER with the GitHub username/team before enabling "require review
+# from Code Owners" in branch protection.
+#
+# Default owner for everything in the repo:
+*                       @OWNER
+
+# Security-sensitive areas warrant extra scrutiny:
+/server.js              @OWNER
+/supabase/migrations/   @OWNER
+/supabase/functions/    @OWNER
+/src/contexts/AuthContext.jsx   @OWNER
+/src/lib/permissions.js @OWNER
+/infra/                 @OWNER
+/.github/               @OWNER

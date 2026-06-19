@@ -121,6 +121,15 @@ export default function Events() {
   const [copiedServiceCheckinSlug, setCopiedServiceCheckinSlug] = useState(null);
   const [shareModal, setShareModal] = useState({ open: false, slug: "" });
   const [deleteModal, setDeleteModal] = useState({ open: false, event: null });
+  // Clubs import feature state. (These declarations were missing, so the
+  // openClubsModal / handleClubsFileUpload handlers referenced undefined
+  // variables — a latent ReferenceError caught by ESLint. Declared here so the
+  // feature is valid and functional if wired to the UI.)
+  const [selectedEventForClubs, setSelectedEventForClubs] = useState(null);
+  const [parsedClubs, setParsedClubs] = useState([]);
+  const [clubsModalOpen, setClubsModalOpen] = useState(false);
+  const [parsingClubs, setParsingClubs] = useState(false);
+  const [savingClubs, setSavingClubs] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [availableCategories, setAvailableCategories] = useState([]);
   const [duplicateError, setDuplicateError] = useState(null);

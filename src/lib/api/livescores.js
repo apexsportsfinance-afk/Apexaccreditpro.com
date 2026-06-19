@@ -1,6 +1,15 @@
 import { supabase } from "../supabase";
 import { handleResponse } from "../apiHelpers";
 
+// [APX-SEC] SHA-256 hex digest via the Web Crypto API (browser + modern Node).
+async function sha256Hex(input) {
+  const bytes = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 export const LiveScoresAPI = {
   getSettings: async (eventId) => {
     const data = await handleResponse(() => supabase.from("live_score_settings").select("*").eq("event_id", eventId).maybeSingle());
@@ -218,8 +227,12 @@ export const PartnersAPI = {
   },
   generateKey: async (partnerId, label, permissions = [], allowedFields = []) => {
     const apiKey = `apex_live_${crypto.randomUUID().replace(/-/g, "")}`;
+    // [APX-SEC] Store a SHA-256 hash alongside the key so verification never
+    // string-matches the plaintext credential. The raw key is returned once for
+    // the admin to copy; it cannot be recovered from the hash afterwards.
+    const apiKeyHash = await sha256Hex(apiKey);
     const { data, error } = await supabase.from("partner_api_keys").insert({
-      partner_id: partnerId, label, api_key: apiKey,
+      partner_id: partnerId, label, api_key: apiKey, api_key_hash: apiKeyHash,
       permissions: permissions.length > 0 ? permissions : ["read_basic"],
       allowed_fields: allowedFields.length > 0 ? allowedFields : ["firstName", "lastName", "role", "badgeNumber"]
     }).select().single();

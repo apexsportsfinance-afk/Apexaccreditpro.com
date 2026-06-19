@@ -6,8 +6,11 @@ from pypdf import PdfReader
 from io import BytesIO
 
 app = Flask(__name__)
-# Allow CORS simply for the UI to talk to this local API
-CORS(app)
+# [APX-SEC] Scope CORS to the known local origins / app origin instead of the
+# wildcard default. Override in production via BRIDGE_ALLOWED_ORIGINS (comma-sep).
+_default_origins = "http://localhost:5180,http://localhost:5173,https://accreditation.apexsports.ae"
+_allowed_origins = [o.strip() for o in os.environ.get("BRIDGE_ALLOWED_ORIGINS", _default_origins).split(",") if o.strip()]
+CORS(app, origins=_allowed_origins)
 
 EVENT_HEADER_PATTERN = re.compile(r'(?:\(Event\s+|Event\s+)(\d+)\s+(Boys|Girls|Mixed)\s+(.*?)\s+(\d+\s+.*Meter.*)', re.IGNORECASE)
 INDIVIDUAL_RESULT_PATTERN = re.compile(r'^\s*([123])\s+(.+?)\s+(\d{1,2})\s+(.+?)\s+([\d:.]{4,})', re.IGNORECASE)
@@ -78,9 +81,12 @@ def upload_results():
                     if extracted:
                         text += extracted + "\n"
                 
-                # IMPORTANT DEBUGGING: Write to a file so we can see what's failing if it still fails
-                with open('last_extracted_pdf.txt', 'w', encoding='utf-8') as dbg:
-                    dbg.write(text)
+                # [APX-SEC] Do not persist extracted athlete data to disk.
+                # (Previously wrote last_extracted_pdf.txt — a PII leak.)
+                # Set BRIDGE_DEBUG=1 to opt back into local-only debug dumps.
+                if os.environ.get("BRIDGE_DEBUG") == "1":
+                    with open('last_extracted_pdf.txt', 'w', encoding='utf-8') as dbg:
+                        dbg.write(text)
 
                 parsed_medals = parse_hytek_text(text)
                 # Assign the competition name to each parsed medal so it's recorded correctly
@@ -100,4 +106,8 @@ def upload_results():
 
 if __name__ == '__main__':
     print("Starting HY-TEK Parsing Engine Bridge...")
-    app.run(host='0.0.0.0', port=5001)
+    # [APX-SEC] Bind to loopback by default so the bridge is not exposed on the
+    # network. The Node server proxies to it over localhost. Override with
+    # BRIDGE_HOST only behind a trusted network boundary.
+    host = os.environ.get("BRIDGE_HOST", "127.0.0.1")
+    app.run(host=host, port=5001)
