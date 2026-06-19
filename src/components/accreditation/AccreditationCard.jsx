@@ -1,5 +1,4 @@
 import React, { useState, useCallback } from "react";
-import html2canvas from "html2canvas";
 import AccreditationCardPreview, { CardInner } from "./AccreditationCardPreview";
 import MembershipCardPreview, { MembershipCardInner } from "./MembershipCardPreview";
 import { OUTPUT_TYPES } from "../../lib/constants";
@@ -17,6 +16,9 @@ const AccreditationCard = ({ accreditation, event, zones = [] }) => {
     const wPx = isMembership ? 324 : 320;
     const hPx = isMembership ? 204 : 454;
 
+    // Loaded on demand (only when exporting) to keep html2canvas (~198 KB) out of
+    // the page chunk until a download is triggered.
+    const html2canvas = (await import("html2canvas")).default;
     return await html2canvas(element, {
       scale: scale,
       useCORS: true,

@@ -1,6 +1,3 @@
-import { jsPDF } from "jspdf";
-import { autoTable } from "jspdf-autotable";
-import * as XLSX from "@e965/xlsx";
 import { calculateAge, getCountryCode3 } from "../../lib/utils";
 
 import { GlobalSettingsAPI } from "../../lib/broadcastApi";
@@ -145,6 +142,8 @@ export const exportToExcel = async (data, filename = "export", event = null, pas
     return rowData;
   });
 
+  // Loaded on demand — xlsx (~488 KB) only when the user exports a spreadsheet.
+  const XLSX = await import("@e965/xlsx");
   const worksheet = XLSX.utils.json_to_sheet(exportData);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Accreditations");
@@ -163,6 +162,10 @@ export const exportToExcel = async (data, filename = "export", event = null, pas
  */
 export const exportTableToPDF = async (data, columns, title = "Export") => {
   if (!data || data.length === 0) return;
+
+  // Loaded on demand — jspdf (~382 KB) + autotable only when exporting a PDF.
+  const { jsPDF } = await import("jspdf");
+  const { autoTable } = await import("jspdf-autotable");
 
   const doc = new jsPDF({
     orientation: "landscape",

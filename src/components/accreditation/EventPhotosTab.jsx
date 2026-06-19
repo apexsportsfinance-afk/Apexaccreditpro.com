@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UploadCloud, Image as ImageIcon, Trash2, Eye, EyeOff, Loader2, FolderPlus, Tag, Save } from 'lucide-react';
 import { PhotoAPI } from '../../lib/photoApi';
@@ -10,8 +10,12 @@ import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Badge from '../ui/Badge';
-import FaceMatchingManager from './FaceMatchingManager';
 import { cn } from '../../lib/utils';
+
+// Lazy-loaded: FaceMatchingManager statically imports the heavy face-api.js
+// (~hundreds of KB). Deferring it keeps face-api out of the QRSystem route chunk
+// — it loads only when the gallery actually has photos and this UI mounts.
+const FaceMatchingManager = lazy(() => import('./FaceMatchingManager'));
 
 const galleryVisibilityKey = (eventId) => `event_${eventId}_gallery_enabled`;
 
@@ -261,11 +265,13 @@ export default function EventPhotosTab({ eventId, onToast, disabled }) {
 
         {/* Face Matching Manager */}
         {photos.length > 0 && !disabled && (
-          <FaceMatchingManager 
-            eventId={eventId} 
-            galleryPhotos={photos.filter(p => p.is_public)} 
-            onToast={onToast} 
-          />
+          <Suspense fallback={<div className="flex justify-center p-6"><Loader2 className="w-6 h-6 text-blue-500 animate-spin" /></div>}>
+            <FaceMatchingManager
+              eventId={eventId}
+              galleryPhotos={photos.filter(p => p.is_public)}
+              onToast={onToast}
+            />
+          </Suspense>
         )}
 
         {/* Gallery Section */}

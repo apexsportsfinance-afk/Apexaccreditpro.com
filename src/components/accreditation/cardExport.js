@@ -1,11 +1,18 @@
-import html2canvas from "html2canvas";
-import { jsPDF } from "jspdf";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { toast } from "sonner";
 import { CardInner } from "./AccreditationCardPreview";
 import { MembershipCardInner } from "./MembershipCardPreview";
 import { OUTPUT_TYPES } from "../../lib/constants";
+
+// Dynamically loaded (memoized): html2canvas (~198 KB) and jspdf (~382 KB) are
+// only needed when the user actually exports/prints a card, not on page load.
+// Keeping them out of the static graph removes them from the importing page chunks
+// (e.g. Accreditations) until an export is triggered.
+let _html2canvas;
+let _jsPDF;
+const loadHtml2canvas = async () => (_html2canvas ||= (await import("html2canvas")).default);
+const loadJsPDF = async () => (_jsPDF ||= (await import("jspdf")).jsPDF);
 
 const CARD_W_PX = 320;
 const CARD_H_PX = 454;
@@ -256,6 +263,7 @@ const renderOffscreenCard = (accreditation, event, zones) =>
   });
 
 const captureEl = async (el, scale, wPx = CARD_W_PX, hPx = CARD_H_PX) => {
+  const html2canvas = await loadHtml2canvas();
   const customCanvas = document.createElement("canvas");
   customCanvas.width = wPx * scale;
   customCanvas.height = hPx * scale;
@@ -294,6 +302,7 @@ export const buildPDF = async (accreditation, event, zones, scale, sizeKey) => {
   const size = isMembership ? PDF_SIZES.cr80 || { width: 85.6, height: 54 } : (PDF_SIZES[sizeKey] || PDF_SIZES.a6);
   const isLandscape = size.width > size.height;
 
+  const jsPDF = await loadJsPDF();
   const pdf = new jsPDF({
     orientation: isLandscape ? "landscape" : "portrait",
     unit: "mm",
@@ -578,6 +587,7 @@ export const bulkDownloadPDFs = async (
 export const downloadMultiTicketPDF = async (elementIds, fileName) => {
   if (!elementIds || elementIds.length === 0) return;
 
+  const [jsPDF, html2canvas] = await Promise.all([loadJsPDF(), loadHtml2canvas()]);
   const pdf = new jsPDF({
     orientation: "landscape",
     unit: "mm",

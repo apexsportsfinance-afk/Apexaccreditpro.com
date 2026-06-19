@@ -22,13 +22,7 @@ import {
   Search,
   MoreHorizontal
 } from "lucide-react";
-import {
-  AreaChart, Area,
-  LineChart, Line,
-  XAxis, YAxis, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Cell,
-  PieChart, Pie, Legend
-} from "recharts";
+import LazyChart from "../../components/dashboard/LazyChart";
 import StatsCard from "../../components/ui/StatsCard";
 import Card, { CardHeader, CardContent } from "../../components/ui/Card";
 import Badge from "../../components/ui/Badge";
@@ -352,18 +346,7 @@ export default function Dashboard() {
         </div>
         {data && data.length > 0 && (
           <div className="h-10 mt-6 -mx-1 opacity-50">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data.map((v, i) => ({ v, i }))}>
-                <Area
-                  type="monotone"
-                  dataKey="v"
-                  stroke={changeType === "positive" ? "#10b981" : "#6366f1"}
-                  fill={changeType === "positive" ? "#10b981" : "#6366f1"}
-                  fillOpacity={0.15}
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            <LazyChart kind="spark-area" data={data} positive={changeType === "positive"} />
           </div>
         )}
       </CardContent>
@@ -447,11 +430,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="h-8 -mx-1 opacity-20 group-hover:opacity-40 transition-opacity">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={(data || [0, 0, 0, 0, 0]).map((v, i) => ({ v, i }))} barSize={3}>
-                    <Bar dataKey="v" radius={[1, 1, 0, 0]} fill="currentColor" className={color} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <LazyChart kind="spark-bar" data={data} colorClass={color} />
               </div>
             </CardContent>
           </Card>
@@ -557,33 +536,7 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-5 items-center gap-8 h-full">
                   {/* Visual Chart - Left Column (Centered Circular Gauge) */}
                   <div className="md:col-span-2 h-[220px] relative group/chart flex items-center justify-center">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={subAdminRoleDist}
-                          innerRadius={70}
-                          outerRadius={100}
-                          paddingAngle={5}
-                          dataKey="value"
-                          stroke="none"
-                        >
-                          {subAdminRoleDist.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                        </Pie>
-                        <Tooltip
-                          content={({ active, payload }) => {
-                            if (active && payload && payload.length) {
-                              return (
-                                <div className="bg-slate-900 border border-white/10 px-3 py-2 rounded-lg shadow-2xl">
-                                  <p className="text-[10px] font-black text-white uppercase">{payload[0].name}</p>
-                                  <p className="text-xl font-bold text-indigo-400">{payload[0].value}</p>
-                                </div>
-                              );
-                            }
-                            return null;
-                          }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
+                    <LazyChart kind="donut-census" data={subAdminRoleDist} />
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                       <p className="text-4xl font-black text-white leading-none group-hover/chart:text-indigo-400 transition-all duration-300 transform group-hover/chart:scale-110">{eventAccreditations.length}</p>
                       <p className="text-[10px] font-black text-indigo-400/40 uppercase tracking-[0.3em] mt-2">Active</p>
@@ -727,11 +680,7 @@ export default function Dashboard() {
                   </div>
                   {data && data.length > 0 && (
                     <div className="h-8 -mx-1 mt-2 opacity-20 group-hover:opacity-40 transition-opacity">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={data.map((v, i) => ({ v, i }))} barSize={3}>
-                          <Bar dataKey="v" radius={[1, 1, 0, 0]} fill="currentColor" className={color} />
-                        </BarChart>
-                      </ResponsiveContainer>
+                      <LazyChart kind="spark-bar" data={data} colorClass={color} />
                     </div>
                   )}
                 </CardContent>
@@ -747,15 +696,7 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent className="flex-1 p-6 flex flex-col items-center justify-center relative">
                 <div className="h-60 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={pieData} innerRadius={70} outerRadius={95} paddingAngle={4} dataKey="value" stroke="none">
-                        {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} opacity={0.8} className="hover:opacity-100 transition-opacity cursor-pointer" />)}
-                      </Pie>
-                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '10px', fontWeight: 'bold' }} />
-                      <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', paddingTop: '20px' }} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <LazyChart kind="donut-spread" data={pieData} />
                   <div className="absolute top-[42%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
                     <p className="text-4xl font-bold text-white tracking-tighter leading-none">{stats.totalAccreditations}</p>
                     <p className="text-[10px] font-bold text-indigo-400/60 uppercase tracking-[0.2em] mt-1.5">Total Hub</p>
@@ -875,14 +816,7 @@ export default function Dashboard() {
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Attendance Velocity</h3>
               </CardHeader>
               <CardContent className="flex-1 p-4 min-h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={attendanceData}>
-                    <defs><linearGradient id="colorVelocity" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} /><stop offset="95%" stopColor="#6366f1" stopOpacity={0} /></linearGradient></defs>
-                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: '700' }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: '700' }} width={30} />
-                    <Area type="monotone" dataKey="checkins" stroke="#6366f1" strokeWidth={2.5} fillOpacity={1} fill="url(#colorVelocity)" />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <LazyChart kind="area-velocity" data={attendanceData} />
               </CardContent>
             </Card>
           </div>

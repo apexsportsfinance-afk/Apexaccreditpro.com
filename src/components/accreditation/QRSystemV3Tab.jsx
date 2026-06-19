@@ -1,19 +1,24 @@
-import React, { useState } from "react";
-import { MessageSquare, Calendar, Settings, FileText, ClipboardList, Files, ShieldAlert } from "lucide-react";
-import GlobalBroadcastPanel from "./GlobalBroadcastPanel";
-import SportEventsManager from "./SportEventsManager";
-import FormFieldSettings from "./FormFieldSettings";
-import EventPdfSlots from "./EventPdfSlots";
-import OfficialDocumentsTab from "./OfficialDocumentsTab";
-import EmergencyDocumentsTab from "./EmergencyDocumentsTab";
-import TechnicalDocumentsTab from "./TechnicalDocumentsTab";
-import FeedbackSetupTab from "./FeedbackSetupTab";
-import BookingSetupTab from "./BookingSetupTab";
-import ZoneScannerTab from "./ZoneScannerTab";
-import LiveScoresTab from "./LiveScoresTab";
-import EventPhotosTab from "./EventPhotosTab";
-import { Activity, Image as ImageIcon } from "lucide-react";
+import React, { useState, lazy, Suspense } from "react";
+import { MessageSquare, Calendar, Settings, FileText, ClipboardList, Files, ShieldAlert, Activity, Image as ImageIcon, Loader2 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
+
+// Tab panels are lazy-loaded: only the OPEN tab's chunk (and its heavy deps —
+// xlsx in SportEventsManager/LiveScoresTab, framer-motion, face-api via
+// EventPhotosTab, etc.) is fetched. Previously all panels were static imports,
+// so the QR System route chunk bundled every panel up front. Only one tab renders
+// at a time, so a single Suspense boundary below streams each panel in on first open.
+const GlobalBroadcastPanel = lazy(() => import("./GlobalBroadcastPanel"));
+const SportEventsManager = lazy(() => import("./SportEventsManager"));
+const FormFieldSettings = lazy(() => import("./FormFieldSettings"));
+const EventPdfSlots = lazy(() => import("./EventPdfSlots"));
+const OfficialDocumentsTab = lazy(() => import("./OfficialDocumentsTab"));
+const EmergencyDocumentsTab = lazy(() => import("./EmergencyDocumentsTab"));
+const TechnicalDocumentsTab = lazy(() => import("./TechnicalDocumentsTab"));
+const FeedbackSetupTab = lazy(() => import("./FeedbackSetupTab"));
+const BookingSetupTab = lazy(() => import("./BookingSetupTab"));
+const ZoneScannerTab = lazy(() => import("./ZoneScannerTab"));
+const LiveScoresTab = lazy(() => import("./LiveScoresTab"));
+const EventPhotosTab = lazy(() => import("./EventPhotosTab"));
 
 const TABS = [
   { id: "broadcast", label: "Broadcast Message", icon: MessageSquare },
@@ -83,6 +88,7 @@ export default function QRSystemV3Tab({ eventId, onToast }) {
 
       {/* Dynamic Tab Content Engine */}
       <div className="transition-all duration-500">
+        <Suspense fallback={<div className="flex justify-center p-12"><Loader2 className="w-8 h-8 text-primary-500 animate-spin" /></div>}>
         {activeTab === "broadcast" && (
           <GlobalBroadcastPanel eventId={eventId} onToast={onToast} disabled={isViewer} />
         )}
@@ -119,6 +125,7 @@ export default function QRSystemV3Tab({ eventId, onToast }) {
         {activeTab === "live_scores" && (
           <LiveScoresTab eventId={eventId} onToast={onToast} disabled={isViewer} />
         )}
+        </Suspense>
       </div>
     </div>
   );
