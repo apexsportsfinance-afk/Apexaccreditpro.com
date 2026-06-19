@@ -1,4 +1,5 @@
 import React from "react";
+import StorageImage from "../ui/StorageImage";
 import { User, Plus, FileText, Eye, Download, Check } from "lucide-react";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
@@ -47,7 +48,7 @@ export default function ApproveAccreditationModal({
         <div className="flex items-center gap-4 bg-slate-800/50 border border-slate-700 rounded-lg p-4">
           <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-cyan-500/30 flex-shrink-0 bg-slate-900">
             {accreditation?.photoUrl ? (
-              <img src={accreditation.photoUrl} alt="" className="w-full h-full object-cover" />
+              <StorageImage src={accreditation.photoUrl} alt="" className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-slate-600">
                 <User className="w-10 h-10" />

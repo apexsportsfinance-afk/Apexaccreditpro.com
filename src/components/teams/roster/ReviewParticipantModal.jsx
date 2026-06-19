@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import StorageImage from '../../ui/StorageImage';
 import { User, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import Modal from '../../ui/Modal';
 import Button from '../../ui/Button';
@@ -100,7 +101,7 @@ export default function ReviewParticipantModal({ isOpen, onClose, participant, o
         {/* Participant Profile */}
         <div className="flex items-start gap-4 p-5 bg-base-alt/50 border border-border rounded-xl">
           {acc?.photo_url ? (
-            <img src={acc.photo_url} alt="" className="w-20 h-20 rounded-xl object-cover border border-border shadow-sm bg-base" />
+            <StorageImage src={acc.photo_url} alt="" className="w-20 h-20 rounded-xl object-cover border border-border shadow-sm bg-base" />
           ) : (
             <div className="w-20 h-20 rounded-xl bg-base border border-border flex items-center justify-center shrink-0 shadow-sm">
               <User className="w-8 h-8 text-muted" />
