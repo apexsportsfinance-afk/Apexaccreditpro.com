@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@e965/xlsx": "^0.20.3",
+    "@sentry/react": "^10.59.0",
     "@supabase/supabase-js": "^2.97.0",
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.16",

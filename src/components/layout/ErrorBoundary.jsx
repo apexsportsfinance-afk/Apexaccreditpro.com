@@ -1,4 +1,5 @@
 import React from "react";
+import { captureError } from "../../lib/observability";
 
 export class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -12,6 +13,9 @@ export class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error("ErrorBoundary caught an error", error, errorInfo);
+    // Report render-time crashes through the observability seam (Sentry once a
+    // DSN is set; console otherwise). This is the highest-signal error class.
+    captureError(error, { componentStack: errorInfo?.componentStack });
     this.setState({ errorInfo });
   }
 

@@ -1,13 +1,11 @@
-// Observability shim — a single, dependency-free seam for error/event capture.
+// Observability shim — a single seam for error/event capture.
 //
-// Today it routes to the console. It's the integration point for Sentry (or
-// similar) without scattering vendor calls across the app. To enable Sentry:
-//   1. npm i @sentry/react
-//   2. set VITE_SENTRY_DSN in the environment
-//   3. uncomment the dynamic-import block in initObservability()
+// It's the integration point for Sentry without scattering vendor calls across
+// the app. Sentry is loaded LAZILY (dynamic import) and ONLY when
+// VITE_SENTRY_DSN is set, so with no DSN the vendor code is never fetched and
+// the seam falls back to the console — zero runtime cost, no build coupling.
 //
-// Keeping this dependency-free means the app builds and runs whether or not the
-// monitoring vendor is installed — no build-time coupling.
+// To turn it on: set VITE_SENTRY_DSN in the environment (and redeploy). That's it.
 
 const DSN = import.meta.env?.VITE_SENTRY_DSN;
 const ENV = import.meta.env?.MODE || "development";
@@ -15,15 +13,20 @@ const ENV = import.meta.env?.MODE || "development";
 let backend = null; // set to the Sentry client once initialized
 
 export async function initObservability() {
-  if (!DSN) return; // no-op until configured
-  // --- Enable after installing @sentry/react ---
-  // try {
-  //   const Sentry = await import("@sentry/react");
-  //   Sentry.init({ dsn: DSN, environment: ENV, tracesSampleRate: 0.1 });
-  //   backend = Sentry;
-  // } catch (e) {
-  //   console.warn("Observability init skipped:", e?.message);
-  // }
+  if (!DSN) return; // no-op until a DSN is configured
+  try {
+    const Sentry = await import("@sentry/react");
+    Sentry.init({
+      dsn: DSN,
+      environment: ENV,
+      // Conservative trace sampling — errors are always captured; traces are a
+      // 10% sample to keep cost/volume sane. Tune once real traffic is seen.
+      tracesSampleRate: 0.1,
+    });
+    backend = Sentry;
+  } catch (e) {
+    console.warn("Observability init skipped:", e?.message);
+  }
 }
 
 /** Report a handled error with optional context. */
