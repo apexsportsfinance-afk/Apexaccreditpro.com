@@ -45,6 +45,11 @@ ever cloned it — has them.
 2. Make a full mirror backup: `git clone --mirror <url> apex-backup.git`.
 3. Confirm who has clones (they must re-clone after — old clones can re-introduce the data).
 
+**Turnkey script:** `scripts/purge-git-history.sh` does steps 2–3 below safely
+(it makes a mirror backup first, runs the purge, verifies, and refuses to run
+without `I_UNDERSTAND_THIS_REWRITES_HISTORY=yes`). It deliberately stops short of
+the force-push so that destructive remote step stays a conscious manual action.
+
 **Purge (using `git filter-repo`)**
 ```bash
 pip install git-filter-repo
