@@ -21,6 +21,25 @@
   |---------------------|--------|----|
   | _pending_ | _pending_ | _pending_ |
 
+## Restore drill — Phase 0 (run ONCE now, then quarterly) ⏱️ ~20 min
+The exit gate just needs **one logged drill**. Minimal version (does not touch
+production data — restores into a NEW throwaway project):
+1. Supabase dashboard → the project to test (staging `bieqfzwljxkmmldmlzyb` is
+   fine for the drill) → **Database → Backups**.
+2. Take/!pick the latest daily backup → **Restore to a new project** (or, if PITR
+   is on, restore to a timestamp). Name it e.g. `apex-dr-drill-<date>`.
+3. When it finishes, grab the new project's URL + anon key and smoke it:
+   `node scripts/seed-staging.mjs` is NOT needed — just confirm the restored data
+   is present: open SQL editor → `select count(*) from accreditations;` (expect
+   the row count from the backup) and `select count(*) from auth.users;`.
+4. Optionally point a local `.env.drill` at it and run the app login once.
+5. **Delete the throwaway project** (cost hygiene).
+6. **Fill the log table above** with today's date, "PASS/FAIL", and your name.
+   That date is exactly what closes the Phase-0 restore-drill gate.
+
+> Note: I (the assistant) cannot run this — it needs dashboard access to your
+> Supabase account. The steps above are turnkey; it takes ~20 min.
+
 ## Full restore procedure (database)
 1. In the Supabase dashboard, open the project → Database → Backups / PITR.
 2. Restore to a new project or to a chosen timestamp.
