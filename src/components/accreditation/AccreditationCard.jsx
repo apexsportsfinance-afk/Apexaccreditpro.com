@@ -8,9 +8,28 @@ const AccreditationCard = ({ accreditation, event, zones = [] }) => {
   const [downloadingId, setDownloadingId] = useState(null);
   const toast = useToast();
 
+  // Under VITE_PRIVATE_STORAGE the card's photo/branding URLs are signed
+  // asynchronously via the public-verify-assets edge function; CardInner flags
+  // readiness with `data-assets-ready` on the front card. Wait for it before
+  // capturing so html2canvas doesn't grab the grey placeholder. The back card
+  // carries no such attribute → treated as ready immediately. Fail-open on
+  // timeout. Public mode: attribute is "true" from first paint (no-op).
+  const waitForCardAssets = (el, timeoutMs = 10000) =>
+    new Promise((resolve) => {
+      const start = Date.now();
+      const check = () => {
+        if (!el || el.getAttribute("data-assets-ready") !== "false") return resolve(true);
+        if (Date.now() - start > timeoutMs) return resolve(false);
+        setTimeout(check, 80);
+      };
+      check();
+    });
+
   const captureElement = async (elementId, scale = 3) => {
     const element = document.getElementById(elementId);
     if (!element) throw new Error(`Element #${elementId} not found`);
+
+    await waitForCardAssets(element, 10000);
 
     const isMembership = event?.outputType === OUTPUT_TYPES.MEMBERSHIP_CARD;
     const wPx = isMembership ? 324 : 320;

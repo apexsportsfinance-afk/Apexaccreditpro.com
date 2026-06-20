@@ -15,6 +15,31 @@ import { OUTPUT_TYPES } from "./constants";
 const imageCache = new Map();
 
 /**
+ * Wait for the card's storage-backed images (athlete photo + event branding) to
+ * resolve before capturing. Under VITE_PRIVATE_STORAGE the signed URLs arrive
+ * asynchronously from the public-verify-assets edge function, so CardInner /
+ * MembershipCardInner flag readiness via `data-assets-ready` on the front-card
+ * element (always "true" immediately in public mode → no behaviour change).
+ * Without this wait, html2canvas captures while the photo <img> is still the
+ * grey placeholder and the generated/emailed card PDF has no photo. Resolves
+ * anyway on timeout so a slow or failed edge-fn call can't hang generation.
+ * Mirror of the gate in components/accreditation/cardExport.js.
+ */
+const waitForCardAssets = (frontEl, timeoutMs = 10000) =>
+  new Promise((resolve) => {
+    const start = Date.now();
+    const check = () => {
+      if (!frontEl || frontEl.getAttribute("data-assets-ready") === "true") return resolve(true);
+      if (Date.now() - start > timeoutMs) {
+        console.warn("[pdfEmailHelper] card assets not ready within timeout, capturing as-is.");
+        return resolve(false);
+      }
+      setTimeout(check, 80);
+    };
+    check();
+  });
+
+/**
  * Generate a PDF blob for an accreditation card (offscreen render + capture)
  */
 export const generatePdfForAccreditation = async (accreditation, event, zones, pdfSize = "a6") => {
@@ -103,6 +128,11 @@ export const generatePdfForAccreditation = async (accreditation, event, zones, p
     container.remove();
     throw new Error("Card render failed");
   }
+
+  // Wait for the async signed-URL assets (photo + branding) to resolve under
+  // private storage before inlining/capturing — otherwise the photo is still a
+  // placeholder when html2canvas runs and the PDF has no photo.
+  await waitForCardAssets(frontEl, 10000);
 
   // Inline images with cache support
   const imgs = Array.from(container.querySelectorAll("img"));
@@ -284,6 +314,11 @@ export const generateImagesForAccreditation = async (accreditation, event, zones
     container.remove();
     throw new Error("Card render failed");
   }
+
+  // Wait for the async signed-URL assets (photo + branding) to resolve under
+  // private storage before inlining/capturing — otherwise the photo is still a
+  // placeholder when html2canvas runs and the image has no photo.
+  await waitForCardAssets(frontEl, 10000);
 
   // Inline images
   const imgs = Array.from(container.querySelectorAll("img"));
