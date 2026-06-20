@@ -5,8 +5,13 @@ import {
   getBadgePrefix,
   validatePhoneForCountry,
   getCountryCode3,
+  getCountryName,
+  getCountryFlag,
   validateFile,
   getDialCode,
+  isExpired,
+  getExpirationLabel,
+  formatDate,
   cn,
 } from "./utils";
 
@@ -66,11 +71,78 @@ describe("getCountryCode3", () => {
   it("passes through an unknown code unchanged", () => {
     expect(getCountryCode3("ZZ")).toBe("ZZ");
   });
+  it("resolves a known country by alpha-2 code, name, or IOC code", () => {
+    expect(getCountryCode3("ae")).toBe("UAE"); // alpha-2, case-insensitive
+    expect(getCountryCode3("United Arab Emirates")).toBe("UAE"); // by name
+    expect(getCountryCode3("UAE")).toBe("UAE"); // already an IOC code
+    expect(getCountryCode3("EGY")).toBe("EGY"); // IOC -> IOC
+  });
+});
+
+describe("getCountryName", () => {
+  it("returns empty string for empty input", () => {
+    expect(getCountryName("")).toBe("");
+  });
+  it("resolves a known country and passes unknown codes through", () => {
+    expect(getCountryName("AE")).toBe("United Arab Emirates");
+    expect(getCountryName("EGY")).toBe("Egypt");
+    expect(getCountryName("ZZ")).toBe("ZZ");
+  });
+});
+
+describe("getCountryFlag", () => {
+  it("returns null for empty or unknown codes and a flagcdn URL for known ones", () => {
+    expect(getCountryFlag("")).toBeNull();
+    expect(getCountryFlag("ZZ")).toBeNull();
+    expect(getCountryFlag("AE")).toBe("https://flagcdn.com/w80/ae.png");
+  });
 });
 
 describe("getDialCode", () => {
   it("returns empty string for an unknown country", () => {
     expect(getDialCode("Atlantis")).toBe("");
+  });
+  it("returns the international dial code for a known country", () => {
+    expect(getDialCode("United Arab Emirates")).toBe("+971");
+    expect(getDialCode("United States")).toBe("+1");
+  });
+});
+
+describe("isExpired", () => {
+  it("treats a missing date as not expired (open-ended accreditation)", () => {
+    expect(isExpired(null)).toBe(false);
+    expect(isExpired(undefined)).toBe(false);
+  });
+  it("is true only for past dates", () => {
+    expect(isExpired("2000-01-01")).toBe(true);
+    expect(isExpired("2999-01-01")).toBe(false);
+  });
+});
+
+describe("getExpirationLabel", () => {
+  it("labels a missing date as Never and a past date as Expired", () => {
+    expect(getExpirationLabel(null)).toBe("Never");
+    expect(getExpirationLabel("2000-01-01")).toBe("Expired");
+  });
+  it("buckets remaining time into months / days / hours", () => {
+    // Offsets are padded a little so execution time can't shave the value into
+    // the next-lower bucket; assertions check the bucket, not an exact count.
+    const inDays = (n) => new Date(Date.now() + n * 24 * 60 * 60 * 1000).toISOString();
+    expect(getExpirationLabel(inDays(90))).toMatch(/ mos$/);
+    expect(getExpirationLabel(inDays(5))).toMatch(/ days$/);
+    const inHours = (n) => new Date(Date.now() + n * 60 * 60 * 1000).toISOString();
+    expect(getExpirationLabel(inHours(5))).toMatch(/ hrs$/);
+  });
+});
+
+describe("formatDate", () => {
+  it("returns N/A for empty input", () => {
+    expect(formatDate("")).toBe("N/A");
+  });
+  it("formats with the short and long month patterns", () => {
+    // Noon local time (no trailing Z) so the calendar day is timezone-stable.
+    expect(formatDate("2026-03-09T12:00:00", "MMM dd, yyyy")).toBe("Mar 09, 2026");
+    expect(formatDate("2026-03-09T12:00:00", "MMMM dd, yyyy")).toBe("March 09, 2026");
   });
 });
 
