@@ -1,4 +1,4 @@
-import { resolveFileUrl, resolveFileUrlSync } from "./fileUrl";
+import { resolveFileUrl, resolveFileUrlSync, type FileUrlOptions } from "./fileUrl";
 
 // Imperative counterpart to <StorageImage>/<StorageLink> for "open/download this
 // stored file in a new tab" click handlers. Resolves a stored reference (bare
@@ -18,13 +18,7 @@ import { resolveFileUrl, resolveFileUrlSync } from "./fileUrl";
 // MUST be called directly from a user-gesture handler (onClick), like
 // window.open itself.
 
-/**
- * @param {string|null|undefined} value - stored path or URL
- * @param {object} [opts]
- * @param {string} [opts.bucket]
- * @param {number} [opts.expiresIn] - signed-URL lifetime (seconds), private mode
- */
-export function openStoredFile(value, opts = {}) {
+export function openStoredFile(value: string | null | undefined, opts: FileUrlOptions = {}): void {
   if (!value) return;
 
   // Public mode (default): identical to the previous window.open(value).

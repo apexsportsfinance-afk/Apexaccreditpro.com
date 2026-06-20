@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { resolveFileUrl, resolveFileUrlSync } from "./fileUrl";
+import { resolveFileUrl, resolveFileUrlSync, type FileUrlOptions } from "./fileUrl";
 
 /**
  * Resolve a stored file reference (bare path OR stored URL) into a usable URL,
@@ -10,21 +10,18 @@ import { resolveFileUrl, resolveFileUrlSync } from "./fileUrl";
  * render. Private mode (flag on): fetches a short-lived signed URL; `loading`
  * is true until it arrives. Re-resolves when the stored value changes and
  * ignores stale resolutions on unmount/value change.
- *
- * @param {string|null|undefined} value - stored path or URL
- * @param {object} [opts]
- * @param {string} [opts.bucket]
- * @param {number} [opts.expiresIn] - signed-URL lifetime (seconds), private mode
- * @returns {{ url: string|null, loading: boolean }}
  */
-export function useResolvedFileUrl(value, opts = {}) {
+export function useResolvedFileUrl(
+  value: string | null | undefined,
+  opts: FileUrlOptions = {}
+): { url: string | null; loading: boolean } {
   const { bucket, expiresIn } = opts;
 
   // Synchronous best-guess: real URL in public mode, null when signing is
   // required. Keeps the common (flag-off) path identical to today.
   const initial = resolveFileUrlSync(value, { bucket, expiresIn });
-  const [url, setUrl] = useState(initial);
-  const [loading, setLoading] = useState(Boolean(value) && initial === null);
+  const [url, setUrl] = useState<string | null>(initial);
+  const [loading, setLoading] = useState<boolean>(Boolean(value) && initial === null);
 
   useEffect(() => {
     if (!value) {

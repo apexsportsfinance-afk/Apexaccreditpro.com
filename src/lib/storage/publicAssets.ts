@@ -20,23 +20,32 @@ import { isPrivateStorageEnabled, parseStorageRef, resolveFileUrlSync } from "./
 
 const FN_NAME = "public-verify-assets";
 
+export type PublicAssetScope = "profile" | "branding" | "gallery" | "live";
+
+export interface PublicAssetOptions {
+  /** required for scope "profile" */
+  accreditationId?: string;
+  /** required for scope "branding"/"gallery"/"live" */
+  eventId?: string;
+  scope?: PublicAssetScope;
+  /** signed-URL lifetime (seconds), private mode */
+  expiresIn?: number;
+}
+
+type AssetUrlMap = Record<string, string | null>;
+
 /**
  * Resolve a batch of stored values (bare paths OR stored URLs) to usable URLs
  * for an anonymous surface. Keyed by the ORIGINAL value so call sites can read
  * `urls[value]` regardless of mode.
- *
- * @param {Array<string|null|undefined>} values
- * @param {object} [opts]
- * @param {string} [opts.accreditationId] - required for scope "profile"
- * @param {string} [opts.eventId] - required for scope "branding"/"gallery"/"live"
- * @param {"profile"|"branding"|"gallery"|"live"} [opts.scope]
- * @param {number} [opts.expiresIn] - signed-URL lifetime (seconds), private mode
- * @returns {Promise<Record<string, string|null>>}
  */
-export async function resolvePublicAssetUrls(values, opts = {}) {
+export async function resolvePublicAssetUrls(
+  values: Array<string | null | undefined>,
+  opts: PublicAssetOptions = {}
+): Promise<AssetUrlMap> {
   const { accreditationId, eventId, scope = "profile", expiresIn } = opts;
-  const list = [...new Set((values || []).filter(Boolean))];
-  const out = {};
+  const list = [...new Set((values || []).filter(Boolean) as string[])];
+  const out: AssetUrlMap = {};
   if (list.length === 0) return out;
 
   if (!isPrivateStorageEnabled()) {
@@ -48,7 +57,7 @@ export async function resolvePublicAssetUrls(values, opts = {}) {
 
   // Private mode: external URLs we don't own (flagcdn, data:, blob:) pass
   // through; our own storage refs are sent as normalized paths for signing.
-  const pathByValue = {};
+  const pathByValue: Record<string, string> = {};
   for (const v of list) {
     const ref = parseStorageRef(v);
     if (!ref) {
@@ -61,7 +70,7 @@ export async function resolvePublicAssetUrls(values, opts = {}) {
   const paths = [...new Set(Object.values(pathByValue))];
   if (paths.length === 0) return out;
 
-  let signed = {};
+  let signed: AssetUrlMap = {};
   try {
     const { data, error } = await supabase.functions.invoke(FN_NAME, {
       body: { accreditationId, eventId, scope, paths, expiresIn },
@@ -69,7 +78,7 @@ export async function resolvePublicAssetUrls(values, opts = {}) {
     if (error) throw error;
     signed = data?.urls || {};
   } catch (err) {
-    console.error("resolvePublicAssetUrls error:", err?.message || err);
+    console.error("resolvePublicAssetUrls error:", (err as Error)?.message || err);
   }
 
   for (const [v, p] of Object.entries(pathByValue)) {
@@ -79,10 +88,10 @@ export async function resolvePublicAssetUrls(values, opts = {}) {
 }
 
 /** Public-mode synchronous seed: real URLs (flag off) or {} (flag on). */
-function seedUrls(values) {
+function seedUrls(values: Array<string | null | undefined>): AssetUrlMap {
   if (isPrivateStorageEnabled()) return {};
-  const out = {};
-  for (const v of (values || []).filter(Boolean)) out[v] = resolveFileUrlSync(v);
+  const out: AssetUrlMap = {};
+  for (const v of (values || []).filter(Boolean) as string[]) out[v] = resolveFileUrlSync(v);
   return out;
 }
 
@@ -91,19 +100,18 @@ function seedUrls(values) {
  * keyed by the original stored value. In public mode it resolves synchronously
  * on first render (no flicker, no extra round-trip); in private mode it issues a
  * single edge-fn request for the whole batch and ignores stale resolutions.
- *
- * @param {Array<string|null|undefined>} values
- * @param {object} [opts] - same shape as resolvePublicAssetUrls opts
- * @returns {{ urls: Record<string, string|null>, loading: boolean }}
  */
-export function usePublicAssetUrls(values, opts = {}) {
+export function usePublicAssetUrls(
+  values: Array<string | null | undefined>,
+  opts: PublicAssetOptions = {}
+): { urls: AssetUrlMap; loading: boolean } {
   const { accreditationId, eventId, scope, expiresIn } = opts;
-  const [urls, setUrls] = useState(() => seedUrls(values));
+  const [urls, setUrls] = useState<AssetUrlMap>(() => seedUrls(values));
 
   // Stable dependency over the (de-duplicated) value list.
-  const key = [...new Set((values || []).filter(Boolean))].join("|");
+  const key = [...new Set((values || []).filter(Boolean) as string[])].join("|");
   const privateMode = isPrivateStorageEnabled();
-  const [loading, setLoading] = useState(privateMode && Boolean(key));
+  const [loading, setLoading] = useState<boolean>(privateMode && Boolean(key));
 
   useEffect(() => {
     if (!privateMode) {
