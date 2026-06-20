@@ -237,7 +237,7 @@ export const MembershipCardInner = memo(function MembershipCardInner({ accredita
     event?.backTemplateUrl,
     ...(Array.isArray(event?.sponsorLogos) ? event.sponsorLogos : []),
   ].filter(Boolean);
-  const { urls: cardUrls } = usePublicAssetUrls(cardAssetValues, {
+  const { urls: cardUrls, loading: cardAssetsLoading } = usePublicAssetUrls(cardAssetValues, {
     accreditationId: accreditation?.id,
     eventId: event?.id,
     scope: accreditation?.id ? "profile" : "branding",
@@ -348,6 +348,7 @@ export const MembershipCardInner = memo(function MembershipCardInner({ accredita
       <div
         id={`accreditation-front-card${idSuffix}`}
         data-accreditation-id={accreditation?.accreditationId || accreditation?.badgeNumber || accreditation?.id || ""}
+        data-assets-ready={cardAssetsLoading ? "false" : "true"}
         style={{
           width: "324px", height: "204px", minWidth: "324px", minHeight: "204px",
           maxWidth: "324px", maxHeight: "204px", backgroundColor: "#ffffff",

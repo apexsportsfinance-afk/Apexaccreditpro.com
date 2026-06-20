@@ -168,6 +168,32 @@ const waitForQR = (container, timeoutMs = 8000) =>
     check();
   });
 
+/**
+ * Wait for the card's storage-backed images (athlete photo + event branding) to
+ * resolve before capturing. Under VITE_PRIVATE_STORAGE these signed URLs arrive
+ * asynchronously from the public-verify-assets edge function, so the CardInner /
+ * MembershipCardInner components flag readiness via `data-assets-ready` on the
+ * front-card element (always "true" immediately in public mode). Without this
+ * wait, html2canvas captures while the photo <img> is still the grey placeholder
+ * and the exported/printed card has no photo. Resolves anyway on timeout so a
+ * slow or failed edge-fn call can't hang the export.
+ */
+const waitForAssets = (frontEl, timeoutMs = 10000) =>
+  new Promise((resolve) => {
+    const start = Date.now();
+    const check = () => {
+      if (!frontEl || frontEl.getAttribute("data-assets-ready") === "true") {
+        return resolve(true);
+      }
+      if (Date.now() - start > timeoutMs) {
+        console.warn("[cardExport] card assets not ready within timeout, exporting as-is.");
+        return resolve(false);
+      }
+      setTimeout(check, 80);
+    };
+    check();
+  });
+
 const renderOffscreenCard = (accreditation, event, zones) =>
   new Promise(async (resolve, reject) => {
     let frontBackgroundUrl = "";
@@ -248,6 +274,11 @@ const renderOffscreenCard = (accreditation, event, zones) =>
       if (!frontEl || frontEl.getBoundingClientRect().width === 0) {
         return setTimeout(poll, 100);
       }
+
+      // Wait for the async signed-URL assets (photo + branding) to resolve under
+      // private storage before capturing — otherwise the photo is still a
+      // placeholder when html2canvas runs.
+      await waitForAssets(frontEl, 10000);
 
       // Wait specifically for QR code to be generated before capturing
       await waitForQR(container, 8000);
