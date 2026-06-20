@@ -8,7 +8,10 @@ import reactHooks from "eslint-plugin-react-hooks";
 // step is informative without being a wall of red. Tighten over time.
 export default [
   {
-    ignores: ["dist/**", "node_modules/**", "dev-dist/**", "public/**", "**/*.min.js"],
+    // .ts/.tsx are type-checked via `npm run typecheck` (tsc); ESLint stays
+    // JS-only until typescript-eslint is wired in, so it never tries to parse
+    // TS syntax with the JS parser.
+    ignores: ["dist/**", "node_modules/**", "dev-dist/**", "public/**", "**/*.min.js", "**/*.ts", "**/*.tsx"],
   },
   js.configs.recommended,
   {
