@@ -1,5 +1,5 @@
 import { supabase } from "../supabase";
-import { getSignedFileUrl } from "./signedUrl";
+import { getSignedFileUrl, type SignedUrlOptions } from "./signedUrl";
 
 // Unified file-URL resolver for the storage privacy cutover.
 //
@@ -30,19 +30,26 @@ const DEFAULT_BUCKET = "accreditation-files";
 const STORAGE_URL_RE =
   /\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/(.+)$/;
 
+export interface StorageRef {
+  bucket: string;
+  path: string;
+}
+
+export interface FileUrlOptions extends SignedUrlOptions {}
+
 /** Whether a stored value is an absolute URL (vs a bare in-bucket path). */
-function isAbsoluteUrl(value) {
+function isAbsoluteUrl(value: string): boolean {
   return /^(?:https?:|data:|blob:)/i.test(value);
 }
 
 /**
  * Normalise a stored value (bare path OR full Supabase URL) to { bucket, path }.
  * Returns null when the value is an external/non-storage URL we don't own.
- * @param {string} value
- * @param {string} [defaultBucket]
- * @returns {{ bucket: string, path: string } | null}
  */
-export function parseStorageRef(value, defaultBucket = DEFAULT_BUCKET) {
+export function parseStorageRef(
+  value: string | null | undefined,
+  defaultBucket: string = DEFAULT_BUCKET
+): StorageRef | null {
   if (!value) return null;
   if (!isAbsoluteUrl(value)) {
     // Already a bare in-bucket path.
@@ -57,12 +64,15 @@ export function parseStorageRef(value, defaultBucket = DEFAULT_BUCKET) {
 }
 
 /** Whether the private-storage (signed-URL) mode is enabled via env flag. */
-export function isPrivateStorageEnabled() {
+export function isPrivateStorageEnabled(): boolean {
   return import.meta.env?.VITE_PRIVATE_STORAGE === "true";
 }
 
 /** Synchronous public URL — today's behaviour. Returns null for empty input. */
-export function getPublicFileUrl(filePath, opts = {}) {
+export function getPublicFileUrl(
+  filePath: string | null | undefined,
+  opts: FileUrlOptions = {}
+): string | null {
   if (!filePath) return null;
   const bucket = opts.bucket || DEFAULT_BUCKET;
   const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
@@ -75,11 +85,11 @@ export function getPublicFileUrl(filePath, opts = {}) {
  * null when private mode is on (signing requires an async round-trip — use
  * resolveFileUrl / useResolvedFileUrl there). Lets render sites stay flicker-free
  * and byte-identical to today while the flag is off.
- * @param {string} value
- * @param {object} [opts]
- * @returns {string|null}
  */
-export function resolveFileUrlSync(value, opts = {}) {
+export function resolveFileUrlSync(
+  value: string | null | undefined,
+  opts: FileUrlOptions = {}
+): string | null {
   if (!value) return null;
   if (isPrivateStorageEnabled()) return null;
   return isAbsoluteUrl(value) ? value : getPublicFileUrl(value, opts);
@@ -94,14 +104,11 @@ export function resolveFileUrlSync(value, opts = {}) {
  * flag OFF, behaviour is byte-identical to today (paths -> public URL, stored
  * URLs returned as-is). With the flag ON, our own storage references are signed;
  * external URLs are passed through unchanged.
- *
- * @param {string} value - stored path or URL
- * @param {object} [opts]
- * @param {string} [opts.bucket]
- * @param {number} [opts.expiresIn] - signed-URL lifetime (seconds), private mode
- * @returns {Promise<string|null>}
  */
-export async function resolveFileUrl(value, opts = {}) {
+export async function resolveFileUrl(
+  value: string | null | undefined,
+  opts: FileUrlOptions = {}
+): Promise<string | null> {
   if (!value) return null;
 
   if (!isPrivateStorageEnabled()) {
