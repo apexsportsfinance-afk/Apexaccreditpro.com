@@ -2,29 +2,40 @@
 // can be unit-tested in isolation. AuthContext delegates to these functions —
 // behavior is identical to the previous inline implementation.
 
-export const ROLE_PERMISSIONS = {
+export type Role = "super_admin" | "admin" | "event_admin" | "viewer" | (string & {});
+
+export const ROLE_PERMISSIONS: Record<string, string[]> = {
   super_admin: ["all"],
   admin: ["all"],
   event_admin: ["view_events", "manage_accreditations", "view_reports"],
   viewer: ["view_events", "view_accreditations"],
 };
 
-const isFullAdmin = (role) => role === "super_admin" || role === "admin";
+const isFullAdmin = (role: Role): boolean => role === "super_admin" || role === "admin";
 
-export function hasPermission(role, permission) {
+export function hasPermission(role: Role | null | undefined, permission: string): boolean {
   if (!role) return false;
   const userPermissions = ROLE_PERMISSIONS[role] || [];
   return userPermissions.includes("all") || userPermissions.includes(permission);
 }
 
-export function canAccessEvent(role, allowedEventIds, eventId) {
+export function canAccessEvent(
+  role: Role | null | undefined,
+  allowedEventIds: string[] | null | undefined,
+  eventId: string
+): boolean {
   if (!role) return false;
   if (isFullAdmin(role)) return true;
   if (!allowedEventIds) return false;
   return allowedEventIds.includes(eventId);
 }
 
-export function canAccessModule(role, allowedModules, hasTeamAccess, path) {
+export function canAccessModule(
+  role: Role | null | undefined,
+  allowedModules: string[] | null | undefined,
+  hasTeamAccess: boolean | null | undefined,
+  path: string
+): boolean {
   if (!role) return false;
   if (isFullAdmin(role)) return true;
 
@@ -62,7 +73,11 @@ export function canAccessModule(role, allowedModules, hasTeamAccess, path) {
   });
 }
 
-export function hasExactModuleAccess(role, allowedModules, path) {
+export function hasExactModuleAccess(
+  role: Role | null | undefined,
+  allowedModules: string[] | null | undefined,
+  path: string
+): boolean {
   if (!role) return false;
   if (isFullAdmin(role)) return true;
   if (!allowedModules) return false;

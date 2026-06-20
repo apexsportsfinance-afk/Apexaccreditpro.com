@@ -8,7 +8,34 @@
  *  - If no event dates but accreditation has expiry_date → use that
  *  - Otherwise → "Live" (no expiry data)
  */
-export function computeExpiryStatus(accreditation) {
+
+export interface ExpiryStatus {
+  status: "Valid" | "Expired";
+  label: string;
+  isExpired: boolean;
+  expiryDate?: string;
+}
+
+interface SelectedEvent {
+  date?: string | null;
+  event_date?: string | null;
+}
+
+export interface AccreditationLike {
+  force_live?: boolean | null;
+  selected_events?: SelectedEvent[] | null;
+  expiry_date?: string | null;
+}
+
+export interface EventDateTimeLike {
+  date?: string | null;
+  startTime?: string | null;
+  start_time?: string | null;
+  session?: string | number | null;
+  venue?: string | null;
+}
+
+export function computeExpiryStatus(accreditation?: AccreditationLike | null): ExpiryStatus {
   if (!accreditation) return { status: "Valid", label: "Valid Accreditation", isExpired: false };
 
   if (accreditation.force_live) {
@@ -21,11 +48,11 @@ export function computeExpiryStatus(accreditation) {
 
   const eventDates = events
     .map(e => e.date || e.event_date)
-    .filter(Boolean)
+    .filter((d): d is string => Boolean(d))
     .map(d => new Date(d));
 
   if (eventDates.length > 0) {
-    const latestDate = new Date(Math.max(...eventDates));
+    const latestDate = new Date(Math.max(...eventDates.map(d => d.getTime())));
     const todayUTC = new Date();
     todayUTC.setUTCHours(0, 0, 0, 0);
     const isExpired = latestDate < todayUTC;
@@ -54,14 +81,14 @@ export function computeExpiryStatus(accreditation) {
   return { status: "Valid", label: "Valid Accreditation", isExpired: false };
 }
 
-export function formatEventDateTime(ev) {
-  const parts = [];
+export function formatEventDateTime(ev: EventDateTimeLike): string {
+  const parts: string[] = [];
   if (ev.date) {
     const d = new Date(ev.date);
     parts.push(d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }));
   }
   if (ev.startTime || ev.start_time) {
-    parts.push(ev.startTime || ev.start_time);
+    parts.push(String(ev.startTime || ev.start_time));
   }
   if (ev.session) parts.push(`Session ${ev.session}`);
   if (ev.venue) parts.push(ev.venue);
