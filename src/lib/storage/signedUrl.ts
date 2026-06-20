@@ -14,15 +14,20 @@ import { supabase } from "../supabase";
 const DEFAULT_BUCKET = "accreditation-files";
 const DEFAULT_EXPIRY_SECONDS = 60 * 60; // 1 hour
 
+export interface SignedUrlOptions {
+  bucket?: string;
+  /** seconds */
+  expiresIn?: number;
+}
+
 /**
  * Create a short-lived signed URL for a stored file.
- * @param {string} filePath - path within the bucket (e.g. "passports/abc.jpg")
- * @param {object} [opts]
- * @param {string} [opts.bucket]
- * @param {number} [opts.expiresIn] - seconds
- * @returns {Promise<string|null>}
+ * @param filePath - path within the bucket (e.g. "passports/abc.jpg")
  */
-export async function getSignedFileUrl(filePath, opts = {}) {
+export async function getSignedFileUrl(
+  filePath: string | null | undefined,
+  opts: SignedUrlOptions = {}
+): Promise<string | null> {
   if (!filePath) return null;
   const bucket = opts.bucket || DEFAULT_BUCKET;
   const expiresIn = opts.expiresIn || DEFAULT_EXPIRY_SECONDS;
@@ -40,13 +45,16 @@ export async function getSignedFileUrl(filePath, opts = {}) {
 
 /**
  * Batch helper — sign many paths at once.
- * @param {string[]} filePaths
- * @param {object} [opts]
- * @returns {Promise<Record<string,string|null>>} map of path -> signed url
+ * @returns map of path -> signed url
  */
-export async function getSignedFileUrls(filePaths = [], opts = {}) {
+export async function getSignedFileUrls(
+  filePaths: string[] = [],
+  opts: SignedUrlOptions = {}
+): Promise<Record<string, string | null>> {
   const entries = await Promise.all(
-    filePaths.map(async (p) => [p, await getSignedFileUrl(p, opts)])
+    filePaths.map(
+      async (p): Promise<[string, string | null]> => [p, await getSignedFileUrl(p, opts)]
+    )
   );
   return Object.fromEntries(entries);
 }
