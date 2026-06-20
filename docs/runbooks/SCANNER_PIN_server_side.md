@@ -21,24 +21,25 @@ Checks the event PIN (global_settings) and a global fallback from the
 `SCANNER_DEFAULT_PIN` function secret. `verify_jwt=false` in config.toml.
 Deploying it changes nothing until the client is wired.
 
-## Why the client wiring is NOT done yet
-It touches a **core, customer-facing auth gate** with three code paths
-(handleAuth, the URL-kiosk bypass, and the admin PIN display/provisioning) and
-requires moving the default PIN from a client build var to a server secret.
-That deserves review + a staging soak, not a blind autonomous flip. Proposed
-plan below — approve and I'll implement it behind a flag (flag OFF = today's
-behaviour, zero regression).
-
-## Proposed client change (flag-gated: `VITE_SERVER_SCANNER_PIN`)
-1. Add `src/lib/scannerPin.js` → `verifyScannerPin(eventId, pin)`:
+## Client wiring — ✅ DONE (flag-gated: `VITE_SERVER_SCANNER_PIN`, default OFF)
+Implemented; flag OFF = today's behaviour, zero regression. What landed:
+1. `src/lib/scannerPin.js` → `verifyScannerPin(eventId, pin)` +
+   `isServerScannerPinEnabled()`:
    - flag OFF (default): current behaviour — `GlobalSettingsAPI.get` +
-     `VITE_SCANNER_PIN` client compare (unchanged).
+     `VITE_SCANNER_PIN` client compare (a settings-fetch error propagates so the
+     gate still shows "Connection Error").
    - flag ON: `supabase.functions.invoke('verify-scanner-pin', { body:{eventId,pin} })`
-     → returns `data.valid`; fail closed on error (no authorise on network failure).
-   - Unit-test both modes (mock invoke), mirroring publicAssets.test.js.
-2. Wire `Scanner.handleAuth` and the URL-kiosk path through the helper.
-3. Flag ON path no longer reads `VITE_SCANNER_PIN`, so it can be dropped from the
-   staging/prod build env once verified (admin display reads it too — gate that).
+     → returns `data.valid`; **fails closed** on any error (no authorise on
+     network/server failure).
+   - Unit-tested both modes (`src/lib/scannerPin.test.js`, 10 tests).
+2. `Scanner.handleAuth` and the URL-kiosk auto-auth both route through the helper.
+3. Admin PIN display (`Events.jsx`) shows "Server-managed" when the flag is on.
+   `getAthleteInfoLink` already tolerates an absent `VITE_SCANNER_PIN` (omits the
+   `&pin=`), so dropping the build var degrades the kiosk to manual entry safely.
+
+**Remaining to actually close the gate (cloud steps — your turn):** set the
+`SCANNER_DEFAULT_PIN` secret, flip `VITE_SERVER_SCANNER_PIN=true` on staging,
+soak, then remove `VITE_SCANNER_PIN` from the build so the PIN leaves the bundle.
 
 ## Env-secret migration
 - Set the function secret (NOT a VITE_ var — those are public):

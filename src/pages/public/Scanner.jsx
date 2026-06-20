@@ -3,6 +3,7 @@ import { useHardwareScanner } from "../../hooks/useHardwareScanner";
 import { useQrCamera } from "../../hooks/useQrCamera";
 import { useScannerSessions } from "../../hooks/useScannerSessions";
 import { usePublicAssetUrls } from "../../lib/storage/publicAssets";
+import { verifyScannerPin, isServerScannerPinEnabled } from "../../lib/scannerPin";
 import {
   Camera,
   AlertCircle,
@@ -204,15 +205,24 @@ export default function ScannerPage() {
 
     // APX-SEC: URL PIN is ONLY accepted for explicitly public info kiosks. Gate scanners REJECT url pins.
     const isPublicInfoKiosk = modeParam === 'info' && publicParam;
-    
-    if (isSessionValid || (isPublicInfoKiosk && urlPin === defaultPin && defaultPin)) {
+
+    const grantKioskSession = () => {
       setAuthorized(true);
-      // If we auto-logged in via URL for the public kiosk, set a fresh token
-      if (!isSessionValid && urlPin === defaultPin) {
-        localStorage.setItem("scanner_auth_token", JSON.stringify({ 
-          authorized: true, 
-          expires: Date.now() + (12 * 60 * 60 * 1000) // 12 hours 
-        }));
+      localStorage.setItem("scanner_auth_token", JSON.stringify({
+        authorized: true,
+        expires: Date.now() + (12 * 60 * 60 * 1000) // 12 hours
+      }));
+    };
+
+    if (isSessionValid) {
+      setAuthorized(true);
+    } else if (isPublicInfoKiosk && urlPin) {
+      // Verify the URL kiosk PIN server-side when enabled (PIN never leaves the
+      // server), else the original client-side compare against VITE_SCANNER_PIN.
+      if (isServerScannerPinEnabled()) {
+        verifyScannerPin(eventParam, urlPin).then((ok) => { if (ok) grantKioskSession(); });
+      } else if (urlPin === defaultPin && defaultPin) {
+        grantKioskSession();
       }
     }
 
@@ -272,20 +282,10 @@ export default function ScannerPage() {
     setPinError("");
 
     try {
-      let isValid = false;
-      
-      // 1. Check Event-Specific Dynamic PIN first
-      if (config.eventId) {
-        const customPin = await GlobalSettingsAPI.get(`event_${config.eventId}_scanner_pin`);
-        if (customPin && pinInput === customPin) {
-          isValid = true;
-        }
-      }
-
-      // 2. Fallback to Global PIN if event PIN is not matched/set
-      if (!isValid && defaultPin && pinInput === defaultPin) {
-        isValid = true;
-      }
+      // PIN check goes through the scannerPin helper: server-side (timing-safe,
+      // PIN never sent to the client) when VITE_SERVER_SCANNER_PIN is on, else
+      // the original client-side comparison (event PIN + global fallback).
+      const isValid = await verifyScannerPin(config.eventId, pinInput);
 
       if (isValid) {
         setAuthorized(true);

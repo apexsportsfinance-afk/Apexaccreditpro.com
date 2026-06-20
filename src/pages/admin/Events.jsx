@@ -1330,7 +1330,7 @@ export default function Events() {
                         <div className="flex items-center justify-between mb-1.5">
                           <label className="text-[10px] font-bold uppercase tracking-widest text-muted">Athlete Info Hub (Self-Service)</label>
                           <span className="text-[10px] font-mono font-bold text-emerald-600/70 dark:text-emerald-500/60 transition-colors group-hover:text-emerald-400">
-                             PIN: {import.meta.env.VITE_SCANNER_PIN || "Not Set"}
+                             PIN: {import.meta.env.VITE_SERVER_SCANNER_PIN === "true" ? "Server-managed" : (import.meta.env.VITE_SCANNER_PIN || "Not Set")}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 bg-base-alt border border-border rounded-xl px-3 py-2 group shadow-sm">
