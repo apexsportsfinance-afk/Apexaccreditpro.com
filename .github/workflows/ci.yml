@@ -26,8 +26,17 @@ jobs:
       - name: Audit (fail on high/critical)
         run: npm audit --audit-level=high
 
+      # Type-check the migrated .ts/.tsx (tsc is check-only; Vite does the build).
+      - name: Typecheck
+        run: npm run typecheck
+
       - name: Unit tests
         run: npm test
+
+      # Coverage gate: global ratchet + ≥60% bar on critical paths (see
+      # vitest.config.js thresholds).
+      - name: Coverage gate
+        run: npm run test:coverage
 
       - name: Production build
         run: npm run build
