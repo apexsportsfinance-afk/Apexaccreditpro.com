@@ -52,3 +52,10 @@ verify_jwt = false
 # See supabase/functions/verify-scanner-pin/index.ts.
 [functions.verify-scanner-pin]
 verify_jwt = false
+
+# Stripe calls this with a Stripe-Signature header, never a Supabase JWT, so the
+# gateway must not require one. Authenticity is enforced inside the function by
+# verifying the signature against STRIPE_WEBHOOK_SECRET. Without this, every
+# webhook is rejected at the gateway before the function runs.
+[functions.stripe-webhook]
+verify_jwt = false
