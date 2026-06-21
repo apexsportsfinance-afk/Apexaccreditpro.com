@@ -1,8 +1,33 @@
 import { supabase } from "../supabase";
 import { handleResponse } from "../apiHelpers";
 import { AuditAPI } from "./audit";
+import type { DbRow } from "./_types";
 
-function mapCategoryToDB(cat) {
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  badgeColor: string;
+  status: string;
+  parentId: string | null;
+  badgePrefix: string;
+  displayOrder: number;
+  defaultZoneCodes: string[] | null;
+  textColor: string;
+  fontSize: string;
+  fontWeight: string;
+}
+
+export interface EventCategory {
+  id: string;
+  eventId: string;
+  categoryId: string;
+  category: Category | null;
+  createdAt: string;
+}
+
+function mapCategoryToDB(cat: Partial<Category>): DbRow {
   return {
     name: cat.name,
     slug: cat.slug,
@@ -19,7 +44,7 @@ function mapCategoryToDB(cat) {
   };
 }
 
-function mapCategoryFromDB(db) {
+function mapCategoryFromDB(db: DbRow): Category {
   return {
     id: db.id,
     name: db.name,
@@ -38,25 +63,25 @@ function mapCategoryFromDB(db) {
 }
 
 export const CategoriesAPI = {
-  getAll: async () => {
+  getAll: async (): Promise<Category[]> => {
     const data = await handleResponse(
       () => supabase.from("categories").select("*").order("name", { ascending: true })
     );
     return (data || []).map(mapCategoryFromDB);
   },
-  getActive: async () => {
+  getActive: async (): Promise<Category[]> => {
     const data = await handleResponse(
       () => supabase.from("categories").select("*").eq("status", "active").order("name", { ascending: true })
     );
     return (data || []).map(mapCategoryFromDB);
   },
-  getById: async (id) => {
+  getById: async (id: string): Promise<Category | null> => {
     const data = await handleResponse(
       () => supabase.from("categories").select("*").eq("id", id).maybeSingle()
     );
     return data ? mapCategoryFromDB(data) : null;
   },
-  create: async (category) => {
+  create: async (category: Partial<Category>): Promise<Category> => {
     const dbCat = mapCategoryToDB(category);
     const data = await handleResponse(
       () => supabase.from("categories").insert([dbCat]).select().single()
@@ -64,7 +89,7 @@ export const CategoriesAPI = {
     AuditAPI.log("category_created", { categoryId: data.id, name: data.name });
     return mapCategoryFromDB(data);
   },
-  update: async (id, updates) => {
+  update: async (id: string, updates: Partial<Category>): Promise<Category> => {
     const dbUpdates = mapCategoryToDB(updates);
     delete dbUpdates.id;
     const data = await handleResponse(
@@ -73,11 +98,11 @@ export const CategoriesAPI = {
     AuditAPI.log("category_updated", { categoryId: id });
     return mapCategoryFromDB(data);
   },
-  delete: async (id) => {
+  delete: async (id: string): Promise<void> => {
     await handleResponse(() => supabase.from("categories").delete().eq("id", id));
     AuditAPI.log("category_deleted", { categoryId: id });
   },
-  isInUse: async (id) => {
+  isInUse: async (id: string): Promise<boolean> => {
     try {
       const category = await CategoriesAPI.getById(id);
       if (!category) return false;
@@ -95,14 +120,14 @@ export const CategoriesAPI = {
 };
 
 export const EventCategoriesAPI = {
-  getByEventId: async (eventId) => {
+  getByEventId: async (eventId: string): Promise<EventCategory[]> => {
     const data = await handleResponse(
       () => supabase
         .from("event_categories")
         .select("*, categories(*)")
         .eq("event_id", eventId)
     );
-    return (data || []).map(r => ({
+    return (data || []).map((r: DbRow) => ({
       id: r.id,
       eventId: r.event_id,
       categoryId: r.category_id,
@@ -110,7 +135,7 @@ export const EventCategoriesAPI = {
       createdAt: r.created_at
     }));
   },
-  setForEvent: async (eventId, categoryIds) => {
+  setForEvent: async (eventId: string, categoryIds: string[]): Promise<void> => {
     await handleResponse(
       () => supabase.from("event_categories").delete().eq("event_id", eventId)
     );

@@ -1,15 +1,27 @@
 import { supabase, supabaseUrl } from "../supabase";
 import { handleResponse } from "../apiHelpers";
 import { AuditAPI } from "./audit";
+import type { DbRow } from "./_types";
 
 const EDGE_URL = `${supabaseUrl}/functions/v1/manage-users`;
+
+export interface AppUser {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  avatar?: string;
+  createdAt?: string;
+  type?: string;
+  isAuthUser?: boolean;
+}
 
 async function getSession() {
   const { data: { session } } = await supabase.auth.getSession();
   return session;
 }
 
-async function edgeCall(session, body) {
+async function edgeCall(session: { access_token: string }, body: DbRow): Promise<DbRow> {
   const response = await fetch(EDGE_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session.access_token}` },
@@ -20,7 +32,7 @@ async function edgeCall(session, body) {
 }
 
 export const UsersAPI = {
-  getAll: async () => {
+  getAll: async (): Promise<AppUser[]> => {
     try {
       const session = await getSession();
       if (session?.access_token) {
@@ -36,7 +48,7 @@ export const UsersAPI = {
           clearTimeout(timeoutId);
           if (response.ok) {
             const data = await response.json();
-            if (data.users) return data.users.map(u => ({
+            if (data.users) return data.users.map((u: DbRow) => ({
               id: u.id, email: u.email, name: u.full_name || u.email,
               role: u.role || "viewer", createdAt: u.created_at, type: "Admin Staff", isAuthUser: true
             }));
@@ -51,13 +63,13 @@ export const UsersAPI = {
     }
 
     const data = await handleResponse(() => supabase.from("profiles").select("*").order("created_at", { ascending: false }));
-    return (data || []).map(u => ({
+    return (data || []).map((u: DbRow) => ({
       id: u.id, email: u.email, name: u.full_name || u.email,
       role: u.role || "viewer", avatar: u.avatar_url, createdAt: u.created_at, type: "Admin Staff"
     }));
   },
 
-  getCurrentUser: async () => {
+  getCurrentUser: async (): Promise<Partial<AppUser> | null> => {
     const session = await getSession();
     if (!session?.user) return null;
     return {
@@ -68,9 +80,9 @@ export const UsersAPI = {
     };
   },
 
-  authenticate: async (email, password) => {
+  authenticate: async (email: string, password: string): Promise<Partial<AppUser> | null> => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return null;
+    if (error || !data.user) return null;
     return {
       id: data.user.id, email: data.user.email,
       name: data.user.user_metadata?.name || email,
@@ -78,11 +90,11 @@ export const UsersAPI = {
     };
   },
 
-  logout: async () => {
+  logout: async (): Promise<void> => {
     await supabase.auth.signOut({ scope: "local" }).catch(() => {});
   },
 
-  create: async (userData) => {
+  create: async (userData: DbRow): Promise<DbRow> => {
     const session = await getSession();
     if (!session?.access_token) throw new Error("Not authenticated");
     const data = await edgeCall(session, { action: "create", ...userData });
@@ -90,7 +102,7 @@ export const UsersAPI = {
     return data.user;
   },
 
-  update: async (id, updates) => {
+  update: async (id: string, updates: DbRow): Promise<DbRow> => {
     const session = await getSession();
     if (!session?.access_token) throw new Error("Not authenticated");
     const data = await edgeCall(session, { action: "update", id, ...updates });
@@ -98,7 +110,7 @@ export const UsersAPI = {
     return data.user;
   },
 
-  delete: async (id) => {
+  delete: async (id: string): Promise<boolean> => {
     const session = await getSession();
     if (!session?.access_token) throw new Error("Not authenticated");
     await edgeCall(session, { action: "delete", id });
@@ -106,24 +118,24 @@ export const UsersAPI = {
     return true;
   },
 
-  getAccessMappings: async () => {
+  getAccessMappings: async (): Promise<Record<string, string[]>> => {
     const data = await handleResponse(() => supabase.from("global_settings").select("value").eq("key", "user_event_access").maybeSingle());
     try { return data?.value ? JSON.parse(data.value) : {}; } catch { return {}; }
   },
 
-  updateAccessMapping: async (userId, eventIds) => {
+  updateAccessMapping: async (userId: string, eventIds: string[]): Promise<boolean> => {
     const existing = await UsersAPI.getAccessMappings();
     if (eventIds?.length) existing[userId] = eventIds; else delete existing[userId];
     await handleResponse(() => supabase.from("global_settings").upsert({ key: "user_event_access", value: JSON.stringify(existing) }, { onConflict: 'key' }));
     return true;
   },
 
-  getModuleAccessMappings: async () => {
+  getModuleAccessMappings: async (): Promise<Record<string, string[]>> => {
     const data = await handleResponse(() => supabase.from("global_settings").select("value").eq("key", "user_module_access").maybeSingle());
     try { return data?.value ? JSON.parse(data.value) : {}; } catch { return {}; }
   },
 
-  updateModuleAccessMapping: async (userId, modules) => {
+  updateModuleAccessMapping: async (userId: string, modules: string[]): Promise<boolean> => {
     const existing = await UsersAPI.getModuleAccessMappings();
     if (modules?.length) existing[userId] = modules; else delete existing[userId];
     await handleResponse(() => supabase.from("global_settings").upsert({ key: "user_module_access", value: JSON.stringify(existing) }, { onConflict: 'key' }));

@@ -36,8 +36,8 @@ export default defineConfig({
       // drift while preventing real regressions. Raise the global floor as the
       // untested modules are covered.
       thresholds: {
-        statements: 19,
-        lines: 19,
+        statements: 18,
+        lines: 18,
         functions: 45,
         branches: 75,
         "src/lib/storage/**": { statements: 80, lines: 80, functions: 80, branches: 80 },

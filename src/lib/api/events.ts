@@ -1,10 +1,46 @@
 import { supabase } from "../supabase";
 import { handleResponse } from "../apiHelpers";
 import { AuditAPI } from "./audit";
+import type { DbRow } from "./_types";
 
-export function mapEventToDB(event) {
-  const map = {};
-  const fields = {
+export interface AppEvent {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  startDate: string | null;
+  endDate: string | null;
+  location: string | null;
+  ageCalculationYear: number | null;
+  registrationOpen: boolean;
+  reportingTimes: unknown;
+  headerArabic: string | null;
+  headerSubtitle: string | null;
+  logoUrl: string | null;
+  backTemplateUrl: string | null;
+  sponsorLogos: string[];
+  requiredDocuments: string[];
+  termsAndConditions: string;
+  timezone: string;
+  sportList: unknown[];
+  registrationClosedMessage: string;
+  outputType: string;
+}
+
+export interface Zone {
+  id: string;
+  eventId: string;
+  code: string;
+  name: string;
+  color: string;
+  description: string;
+  settings: Record<string, unknown>;
+  allowedRoles: string[];
+}
+
+export function mapEventToDB(event: Partial<AppEvent>): DbRow {
+  const map: DbRow = {};
+  const fields: Record<string, string> = {
     name: 'name', slug: 'slug',
     startDate: 'start_date', endDate: 'end_date', location: 'location',
     ageCalculationYear: 'age_calculation_year', registrationOpen: 'registration_open',
@@ -16,7 +52,8 @@ export function mapEventToDB(event) {
     sportList: 'sport_list',
     registrationClosedMessage: 'athlete_qr_broadcast_message'
   };
-  Object.keys(fields).forEach(key => { if (event[key] !== undefined) map[fields[key]] = event[key]; });
+  const src = event as DbRow;
+  Object.keys(fields).forEach(key => { if (src[key] !== undefined) map[fields[key]] = src[key]; });
 
   if (event.description !== undefined || event.outputType !== undefined) {
     const baseDesc = event.description || "";
@@ -27,10 +64,10 @@ export function mapEventToDB(event) {
   return map;
 }
 
-export function mapEventFromDB(db) {
+export function mapEventFromDB(db: DbRow): AppEvent | null {
   if (!db) return null;
 
-  let desc = db.description || "";
+  let desc: string = db.description || "";
   let ot = "Accreditation Pass";
   if (desc.includes("|||OT:")) {
     const parts = desc.split("|||OT:");
@@ -54,7 +91,7 @@ export function mapEventFromDB(db) {
   };
 }
 
-function mapZoneToDB(z) {
+function mapZoneToDB(z: Partial<Zone>): DbRow {
   const settingsString = z.settings && Object.keys(z.settings).length > 0
     ? ` | [SETTINGS]:${JSON.stringify(z.settings)}`
     : "";
@@ -68,9 +105,9 @@ function mapZoneToDB(z) {
   };
 }
 
-function mapZoneFromDB(db) {
-  let description = db.description || "";
-  let settings = db.settings || {};
+function mapZoneFromDB(db: DbRow): Zone {
+  let description: string = db.description || "";
+  let settings: Record<string, unknown> = db.settings || {};
 
   if (description.includes(" | [SETTINGS]:")) {
     const parts = description.split(" | [SETTINGS]:");
@@ -95,25 +132,25 @@ function mapZoneFromDB(db) {
 }
 
 export const EventsAPI = {
-  getAll: async () => {
+  getAll: async (): Promise<AppEvent[]> => {
     const data = await handleResponse(
       () => supabase.from("events").select("*").order("created_at", { ascending: false })
     );
-    return (data || []).map(mapEventFromDB);
+    return (data || []).map(mapEventFromDB) as AppEvent[];
   },
-  getAllMinimal: async () => {
+  getAllMinimal: async (): Promise<AppEvent[]> => {
     const data = await handleResponse(
       () => supabase.from("events").select("id, name, slug, description, start_date, end_date, location, registration_open, required_documents").order("created_at", { ascending: false })
     );
-    return (data || []).map(mapEventFromDB);
+    return (data || []).map(mapEventFromDB) as AppEvent[];
   },
-  getById: async (id) => {
+  getById: async (id: string): Promise<AppEvent | null> => {
     const data = await handleResponse(
       () => supabase.from("events").select("*").eq("id", id).maybeSingle()
     );
     return data ? mapEventFromDB(data) : null;
   },
-  getBySlug: async (slug) => {
+  getBySlug: async (slug: string): Promise<AppEvent | null> => {
     let data = await handleResponse(
       () => supabase.from("events").select("*").eq("slug", slug).maybeSingle()
     );
@@ -151,7 +188,7 @@ export const EventsAPI = {
 
     return data ? mapEventFromDB(data) : null;
   },
-  create: async (event) => {
+  create: async (event: Partial<AppEvent>): Promise<AppEvent | null> => {
     const dbEvent = mapEventToDB(event);
     const data = await handleResponse(
       () => supabase.from("events").insert([dbEvent]).select().single()
@@ -159,7 +196,7 @@ export const EventsAPI = {
     AuditAPI.log("event_created", { eventId: data.id, name: data.name });
     return mapEventFromDB(data);
   },
-  update: async (id, updates) => {
+  update: async (id: string, updates: Partial<AppEvent>): Promise<AppEvent | null> => {
     const dbUpdates = mapEventToDB(updates);
     delete dbUpdates.id;
     const data = await handleResponse(
@@ -168,7 +205,7 @@ export const EventsAPI = {
     AuditAPI.log("event_updated", { eventId: id });
     return mapEventFromDB(data);
   },
-  delete: async (id) => {
+  delete: async (id: string): Promise<void> => {
     await handleResponse(() => supabase.from("unified_scan_logs").delete().eq("event_id", id));
     await handleResponse(() => supabase.from("event_attendance").delete().eq("event_id", id));
     await handleResponse(() => supabase.from("event_sessions").delete().eq("event_id", id));
@@ -181,15 +218,15 @@ export const EventsAPI = {
 };
 
 export const ZonesAPI = {
-  getAll: async () => {
+  getAll: async (): Promise<Zone[]> => {
     const data = await handleResponse(() => supabase.from("zones").select("*"));
     return (data || []).map(mapZoneFromDB);
   },
-  getByEventId: async (eventId) => {
+  getByEventId: async (eventId: string): Promise<Zone[]> => {
     const data = await handleResponse(() => supabase.from("zones").select("*").eq("event_id", eventId));
     return (data || []).map(mapZoneFromDB);
   },
-  create: async (zone) => {
+  create: async (zone: Partial<Zone>): Promise<Zone> => {
     const dbZone = mapZoneToDB(zone);
     const data = await handleResponse(
       () => supabase.from("zones").insert([dbZone]).select().single()
@@ -197,7 +234,7 @@ export const ZonesAPI = {
     AuditAPI.log("zone_created", { zoneId: data.id, name: data.name });
     return mapZoneFromDB(data);
   },
-  update: async (id, updates) => {
+  update: async (id: string, updates: Partial<Zone>): Promise<Zone> => {
     const dbUpdates = mapZoneToDB(updates);
     delete dbUpdates.id;
     const data = await handleResponse(
@@ -206,7 +243,7 @@ export const ZonesAPI = {
     AuditAPI.log("zone_updated", { zoneId: id });
     return mapZoneFromDB(data);
   },
-  updateWithCascade: async (id, updates, oldCode) => {
+  updateWithCascade: async (id: string, updates: Partial<Zone>, oldCode?: string): Promise<Zone> => {
     const updatedZone = await ZonesAPI.update(id, updates);
     const newCode = updates.code;
 
@@ -222,8 +259,8 @@ export const ZonesAPI = {
     AuditAPI.log("zone_code_cascaded", { zoneId: id, oldCode, newCode });
     return updatedZone;
   },
-  delete: async (id) => {
-    const zone = await ZonesAPI.getById?.(id) || await handleResponse(() => supabase.from("zones").select("*").eq("id", id).maybeSingle());
+  delete: async (id: string): Promise<void> => {
+    const zone: DbRow | null = await (ZonesAPI as DbRow).getById?.(id) || await handleResponse(() => supabase.from("zones").select("*").eq("id", id).maybeSingle());
     if (!zone) return;
 
     const { code, event_id } = zone;
@@ -235,14 +272,14 @@ export const ZonesAPI = {
       .or(`zone_code.ilike.%${code}%`);
 
     if (accs && accs.length > 0) {
-      const updates = accs.map(acc => {
-        const codes = acc.zone_code?.split(',').map(c => c.trim()).filter(Boolean) || [];
+      const updates = accs.map((acc: DbRow) => {
+        const codes: string[] = acc.zone_code?.split(',').map((c: string) => c.trim()).filter(Boolean) || [];
         if (codes.includes(code)) {
-          const newCodes = codes.filter(c => c !== code);
+          const newCodes = codes.filter((c: string) => c !== code);
           return { id: acc.id, zone_code: newCodes.join(', ') };
         }
         return null;
-      }).filter(Boolean);
+      }).filter(Boolean) as { id: string; zone_code: string }[];
 
       for (const update of updates) {
         await supabase.from("accreditations").update({ zone_code: update.zone_code }).eq("id", update.id);

@@ -2,6 +2,50 @@ import { supabase } from "../supabase";
 import { handleResponse, sleep } from "../apiHelpers";
 import { OfflineDB } from "../offlineDb";
 import { AuditAPI } from "./audit";
+import type { DbRow } from "./_types";
+
+export interface Accreditation {
+  id: string;
+  eventId: string;
+  firstName: string;
+  lastName: string;
+  gender: string | null;
+  dateOfBirth: string | null;
+  nationality: string | null;
+  club: string | null;
+  role: string | null;
+  email: string | null;
+  photoUrl: string | null;
+  idDocumentUrl: string | null;
+  status: string;
+  zoneCode: string | null;
+  badgeNumber: string | null;
+  accreditationId: string | null;
+  remarks: string | null;
+  badgeColor: string;
+  paymentStatus: string;
+  paymentAmount: number | null;
+  stripeSessionId: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+  // Derived / metadata fields (parsed out of custom_message + documents).
+  eidUrl?: string | null;
+  medicalUrl?: string | null;
+  phone?: string | null;
+  customFields?: Record<string, unknown>;
+  documents?: Record<string, unknown>;
+  selectedSports?: unknown[];
+  // Input-only fields accepted by the *ToDB mapper.
+  forceLive?: boolean;
+  customMessage?: string | Record<string, unknown>;
+}
+
+export interface AccreditationStats {
+  total: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+}
 
 const ACCREDITATION_LIST_COLUMNS = [
   "id", "event_id", "first_name", "last_name", "gender", "date_of_birth",
@@ -11,9 +55,10 @@ const ACCREDITATION_LIST_COLUMNS = [
   "expires_at", "custom_message", "selected_sports", "created_at"
 ].join(",");
 
-function mapAccreditationToDB(acc) {
-  const map = {};
-  const fields = {
+function mapAccreditationToDB(acc: Partial<Accreditation>): DbRow {
+  const map: DbRow = {};
+  const src = acc as DbRow;
+  const fields: Record<string, string> = {
     eventId: 'event_id', firstName: 'first_name', lastName: 'last_name',
     gender: 'gender', dateOfBirth: 'date_of_birth', nationality: 'nationality',
     club: 'club', role: 'role', email: 'email', photoUrl: 'photo_url',
@@ -27,29 +72,29 @@ function mapAccreditationToDB(acc) {
   };
 
   Object.keys(fields).forEach(k => {
-    if (acc[k] !== undefined) {
-      if ((k === 'dateOfBirth' || k === 'gender' || k === 'nationality') && acc[k] === "") {
+    if (src[k] !== undefined) {
+      if ((k === 'dateOfBirth' || k === 'gender' || k === 'nationality') && src[k] === "") {
         map[fields[k]] = null;
       } else {
-        map[fields[k]] = acc[k];
+        map[fields[k]] = src[k];
       }
     }
   });
 
-  let meta = acc.customMessage ? (typeof acc.customMessage === 'string' ? JSON.parse(acc.customMessage) : { ...acc.customMessage }) : {};
-  if (acc.eidUrl) meta.eidUrl = acc.eidUrl;
-  if (acc.medicalUrl) meta.medicalUrl = acc.medicalUrl;
-  if (acc.phone) meta.phone = acc.phone;
-  if (acc.customFields) meta = { ...meta, ...(typeof acc.customFields === 'string' ? JSON.parse(acc.customFields) : acc.customFields) };
+  let meta: Record<string, unknown> = src.customMessage ? (typeof src.customMessage === 'string' ? JSON.parse(src.customMessage) : { ...src.customMessage }) : {};
+  if (src.eidUrl) meta.eidUrl = src.eidUrl;
+  if (src.medicalUrl) meta.medicalUrl = src.medicalUrl;
+  if (src.phone) meta.phone = src.phone;
+  if (src.customFields) meta = { ...meta, ...(typeof src.customFields === 'string' ? JSON.parse(src.customFields) : src.customFields) };
 
   if (Object.keys(meta).length > 0) map.custom_message = JSON.stringify(meta);
 
   return map;
 }
 
-function mapAccreditationFromDB(db) {
+function mapAccreditationFromDB(db: DbRow): Accreditation | null {
   if (!db) return null;
-  const acc = {
+  const acc: DbRow = {
     id: db.id, eventId: db.event_id, firstName: db.first_name, lastName: db.last_name,
     gender: db.gender, dateOfBirth: db.date_of_birth, nationality: db.nationality,
     club: db.club, role: db.role, email: db.email, photoUrl: db.photo_url,
@@ -98,16 +143,24 @@ function mapAccreditationFromDB(db) {
 
   acc.selectedSports = Array.isArray(db.selected_sports) ? db.selected_sports : [];
 
-  return acc;
+  return acc as Accreditation;
 }
 
+interface AccListOptions { limit?: number; offset?: number; }
+interface AccByEventOptions { status?: string | null; club?: string | null; }
+interface AccPaginatedOptions {
+  status?: string | null; role?: string | null; nationality?: string | null;
+  club?: string | null; searchTerm?: string; limit?: number; offset?: number;
+}
+interface AccSearchOptions { club?: string[]; role?: string[]; name?: string; limit?: number; offset?: number; }
+
 export const AccreditationsAPI = {
-  getStats: async (eventIds = null) => {
+  getStats: async (eventIds: string[] | null = null): Promise<AccreditationStats> => {
     if (eventIds !== null && Array.isArray(eventIds) && eventIds.length === 0) {
       return { total: 0, pending: 0, approved: 0, rejected: 0 };
     }
 
-    const buildQuery = (status = null) => {
+    const buildQuery = (status: string | null = null) => {
       let q = supabase.from("accreditations").select("id", { count: "exact", head: true });
       if (eventIds && eventIds.length > 0) q = q.in("event_id", eventIds);
       if (status) q = q.eq("status", status);
@@ -128,10 +181,10 @@ export const AccreditationsAPI = {
     };
   },
 
-  getCountsByEventIds: async (eventIds) => {
+  getCountsByEventIds: async (eventIds: string[]): Promise<Record<string, AccreditationStats>> => {
     if (!eventIds || eventIds.length === 0) return {};
 
-    const counts = {};
+    const counts: Record<string, AccreditationStats> = {};
     eventIds.forEach(id => { counts[id] = { total: 0, pending: 0, approved: 0, rejected: 0 }; });
 
     try {
@@ -148,7 +201,7 @@ export const AccreditationsAPI = {
         if (error) { console.error("Aggregation chunk error:", error); break; }
 
         if (data && data.length > 0) {
-          data.forEach(row => {
+          data.forEach((row: DbRow) => {
             const eid = row.event_id;
             if (counts[eid]) {
               counts[eid].total++;
@@ -159,7 +212,7 @@ export const AccreditationsAPI = {
           });
         }
 
-        hasMore = data && data.length >= 1000;
+        hasMore = !!(data && data.length >= 1000);
         if (hasMore) start += 1000;
       }
     } catch (err) {
@@ -169,7 +222,7 @@ export const AccreditationsAPI = {
     return counts;
   },
 
-  getRecent: async (limit = 5, eventIds = null) => {
+  getRecent: async (limit = 5, eventIds: string[] | null = null): Promise<DbRow[]> => {
     if (eventIds !== null && Array.isArray(eventIds) && eventIds.length === 0) return [];
 
     let q = supabase
@@ -181,14 +234,14 @@ export const AccreditationsAPI = {
     if (eventIds && eventIds.length > 0) q = q.in("event_id", eventIds);
 
     const data = await handleResponse(() => q);
-    return (data || []).map(r => ({
+    return (data || []).map((r: DbRow) => ({
       id: r.id, firstName: r.first_name, lastName: r.last_name,
       role: r.role, club: r.club, status: r.status,
       eventId: r.event_id, createdAt: r.created_at
     }));
   },
 
-  getAll: async (options = {}) => {
+  getAll: async (options: AccListOptions = {}): Promise<Accreditation[]> => {
     const { limit = 500, offset = 0 } = options;
     const data = await handleResponse(
       () => supabase
@@ -197,20 +250,20 @@ export const AccreditationsAPI = {
         .order("created_at", { ascending: false })
         .range(offset, offset + limit - 1)
     );
-    return (data || []).map(mapAccreditationFromDB);
+    return (data || []).map(mapAccreditationFromDB) as Accreditation[];
   },
 
-  getById: async (id) => {
+  getById: async (id: string): Promise<Accreditation | null> => {
     const data = await handleResponse(
       () => supabase.from("accreditations").select("*").eq("id", id).maybeSingle()
     );
     return data ? mapAccreditationFromDB(data) : null;
   },
 
-  getByEventId: async (eventId, options = {}) => {
+  getByEventId: async (eventId: string, options: AccByEventOptions = {}): Promise<Accreditation[]> => {
     const { status = null, club = null } = options;
     const PAGE_SIZE = 1000;
-    let allData = [];
+    let allData: DbRow[] = [];
     let hasMore = true;
     let start = 0;
 
@@ -229,18 +282,18 @@ export const AccreditationsAPI = {
         const { data, error } = await q;
         if (error) { console.error(`Error fetching accreditations for event ${eventId}:`, error); throw error; }
         if (data && data.length > 0) { allData = allData.concat(data); start += PAGE_SIZE; }
-        hasMore = data && data.length >= PAGE_SIZE;
+        hasMore = !!(data && data.length >= PAGE_SIZE);
       }
-      return allData.map(mapAccreditationFromDB);
+      return allData.map(mapAccreditationFromDB) as Accreditation[];
     } catch (error) {
       console.error(`Failed to fetch accreditations for event ${eventId}:`, error);
       throw error;
     }
   },
 
-  getDashboardDistribution: async (eventId) => {
+  getDashboardDistribution: async (eventId: string): Promise<DbRow[]> => {
     const PAGE_SIZE = 1000;
-    let allData = [];
+    let allData: DbRow[] = [];
     let hasMore = true;
     let start = 0;
 
@@ -258,7 +311,7 @@ export const AccreditationsAPI = {
         const { data, error } = await q;
         if (error) { console.error(`Error fetching dashboard distribution:`, error); throw error; }
         if (data && data.length > 0) { allData = allData.concat(data); start += PAGE_SIZE; }
-        hasMore = data && data.length >= PAGE_SIZE;
+        hasMore = !!(data && data.length >= PAGE_SIZE);
       }
       return allData;
     } catch (err) {
@@ -267,7 +320,7 @@ export const AccreditationsAPI = {
     }
   },
 
-  getPaginatedByEventId: async (eventId, options = {}) => {
+  getPaginatedByEventId: async (eventId: string, options: AccPaginatedOptions = {}): Promise<{ data: Accreditation[]; count: number }> => {
     const {
       status = null, role = null, nationality = null, club = null,
       searchTerm = "", limit = 50, offset = 0
@@ -293,10 +346,10 @@ export const AccreditationsAPI = {
     const { data, count, error } = await q;
     if (error) { console.error(`Failed paginated fetch:`, error); throw error; }
 
-    return { data: (data || []).map(mapAccreditationFromDB), count: count || 0 };
+    return { data: (data || []).map(mapAccreditationFromDB) as Accreditation[], count: count || 0 };
   },
 
-  search: async (eventId, { club = [], role = [], name = "", limit = 20, offset = 0 }) => {
+  search: async (eventId: string, { club = [], role = [], name = "", limit = 20, offset = 0 }: AccSearchOptions): Promise<Accreditation[]> => {
     let q = supabase
       .from("accreditations")
       .select(ACCREDITATION_LIST_COLUMNS)
@@ -309,10 +362,10 @@ export const AccreditationsAPI = {
     const data = await handleResponse(
       () => q.range(offset, offset + limit - 1).order("first_name", { ascending: true })
     );
-    return (data || []).map(mapAccreditationFromDB);
+    return (data || []).map(mapAccreditationFromDB) as Accreditation[];
   },
 
-  validateToken: async (token) => {
+  validateToken: async (token: string): Promise<Accreditation | null> => {
     if (!navigator.onLine) {
       try {
         const cachedData = await OfflineDB.getAccreditation(token);
@@ -330,7 +383,7 @@ export const AccreditationsAPI = {
 
     while (attempts < maxAttempts) {
       attempts++;
-      let result = null;
+      let result: Accreditation | null = null;
 
       if (isUUID) {
         const data = await handleResponse(
@@ -358,7 +411,7 @@ export const AccreditationsAPI = {
     return null;
   },
 
-  checkDuplicate: async (eventId, firstName, lastName, club, dateOfBirth) => {
+  checkDuplicate: async (eventId: string, firstName: string, lastName: string, club: string | null, dateOfBirth: string | null): Promise<{ isDuplicate: boolean; existingRecord?: Accreditation | null }> => {
     const data = await handleResponse(() => {
       let q = supabase
         .from("accreditations")
@@ -383,7 +436,7 @@ export const AccreditationsAPI = {
     return { isDuplicate: false };
   },
 
-  create: async (accreditation, submissionSecret) => {
+  create: async (accreditation: Partial<Accreditation>, submissionSecret: string): Promise<Accreditation | null> => {
     const VALID_SECRET = `apex_v1_${accreditation.eventId?.substring(0, 8)}`;
     if (submissionSecret !== VALID_SECRET) {
       throw new Error("SECURITY_ERROR: Submission must be performed via the official registration form.");
@@ -399,7 +452,7 @@ export const AccreditationsAPI = {
     return mapAccreditationFromDB(data);
   },
 
-  adminAdd: async (accreditation, adminUserId) => {
+  adminAdd: async (accreditation: Partial<Accreditation>, adminUserId?: string): Promise<Accreditation | null> => {
     const dbAccreditation = mapAccreditationToDB(accreditation);
     dbAccreditation.status = accreditation.status || "pending";
     if (adminUserId) {
@@ -413,7 +466,7 @@ export const AccreditationsAPI = {
     return mapAccreditationFromDB(data);
   },
 
-  update: async (id, updates) => {
+  update: async (id: string, updates: Partial<Accreditation>): Promise<Accreditation | null> => {
     const dbUpdates = mapAccreditationToDB(updates);
     delete dbUpdates.id;
     const data = await handleResponse(
@@ -423,7 +476,7 @@ export const AccreditationsAPI = {
     return mapAccreditationFromDB(data);
   },
 
-  adminEdit: async (id, updates, adminUserId) => {
+  adminEdit: async (id: string, updates: Partial<Accreditation>, adminUserId?: string): Promise<Accreditation | null> => {
     const dbUpdates = mapAccreditationToDB(updates);
     delete dbUpdates.id;
     if (adminUserId) {
@@ -440,9 +493,9 @@ export const AccreditationsAPI = {
     return mapAccreditationFromDB(data);
   },
 
-  approve: async (id, zoneCode, badgeNumber, role = null) => {
+  approve: async (id: string, zoneCode: string, badgeNumber: string, role: string | null = null): Promise<Accreditation | null> => {
     const accreditationId = `ACC-${new Date().getFullYear()}-${id.substring(0, 8).toUpperCase()}`;
-    const updateData = {
+    const updateData: DbRow = {
       status: "approved",
       zone_code: zoneCode,
       badge_number: badgeNumber,
@@ -460,7 +513,7 @@ export const AccreditationsAPI = {
     return mapAccreditationFromDB(data);
   },
 
-  reject: async (id, remarks) => {
+  reject: async (id: string, remarks: string): Promise<Accreditation | null> => {
     const data = await handleResponse(
       () => supabase.from("accreditations").update({ status: "rejected", remarks }).eq("id", id).select().single()
     );
@@ -468,7 +521,7 @@ export const AccreditationsAPI = {
     return mapAccreditationFromDB(data);
   },
 
-  bulkApprove: async (ids, zoneCode) => {
+  bulkApprove: async (ids: string[], zoneCode: string): Promise<void> => {
     if (!ids || ids.length === 0) return;
     const { getBadgePrefix } = await import("../utils");
     const { data: accRows } = await handleResponse(
@@ -477,12 +530,12 @@ export const AccreditationsAPI = {
 
     if (!accRows || accRows.length === 0) return;
 
-    const accMap = {};
-    (accRows || []).forEach(r => { accMap[r.id] = { role: r.role || "Unknown", eventId: r.event_id }; });
+    const accMap: Record<string, { role: string; eventId: string }> = {};
+    (accRows || []).forEach((r: DbRow) => { accMap[r.id] = { role: r.role || "Unknown", eventId: r.event_id }; });
 
     const sampleEventId = accRows[0].event_id;
-    const uniqueRoles = [...new Set((accRows || []).map(r => r.role || "Unknown"))];
-    const roleCountCache = {};
+    const uniqueRoles: string[] = [...new Set((accRows || []).map((r: DbRow) => r.role || "Unknown"))] as string[];
+    const roleCountCache: Record<string, number> = {};
 
     await Promise.all(uniqueRoles.map(async (role) => {
       const { data: existingBadges } = await handleResponse(
@@ -496,7 +549,7 @@ export const AccreditationsAPI = {
 
       let maxNum = 0;
       if (existingBadges && existingBadges.length > 0) {
-        existingBadges.forEach(b => {
+        existingBadges.forEach((b: DbRow) => {
           if (b.badge_number) {
             const parts = b.badge_number.split("-");
             const num = parseInt(parts[parts.length - 1], 10);
@@ -507,7 +560,7 @@ export const AccreditationsAPI = {
       roleCountCache[role] = maxNum;
     }));
 
-    const approvalParams = [];
+    const approvalParams: Array<{ id: string; zoneCode: string; badgeNumber: string; role: string }> = [];
     for (const id of ids) {
       const acc = accMap[id];
       if (!acc) continue;
@@ -527,7 +580,7 @@ export const AccreditationsAPI = {
     }
   },
 
-  bulkUpdate: async (ids, updates) => {
+  bulkUpdate: async (ids: string[], updates: Partial<Accreditation>): Promise<void> => {
     if (!ids || ids.length === 0) return;
     const dbUpdates = mapAccreditationToDB(updates);
     delete dbUpdates.id;
@@ -543,12 +596,12 @@ export const AccreditationsAPI = {
     AuditAPI.log("accreditations_bulk_updated", { count: ids.length });
   },
 
-  delete: async (id) => {
+  delete: async (id: string): Promise<void> => {
     await handleResponse(() => supabase.from("accreditations").delete().eq("id", id));
     AuditAPI.log("accreditation_deleted", { accreditationId: id });
   },
 
-  bulkDelete: async (ids) => {
+  bulkDelete: async (ids: string[]): Promise<void> => {
     if (!ids || ids.length === 0) return;
     const CHUNK_SIZE = 100;
     for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
