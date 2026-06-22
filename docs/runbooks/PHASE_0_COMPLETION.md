@@ -9,7 +9,12 @@ them. Tick each box; the gate is closed when all are ticked.
 > Do the LIVE cutovers deliberately and one at a time, each with a quick smoke.
 
 ## 1. Storage bucket → PRIVATE on LIVE  (code ✅ / live ❌)
-Staging is already private + soaked. To do the same on production:
+Staging is already private + soaked. The signer (`public-verify-assets`) was
+**fully parity-verified on staging 2026-06-21**: a real accreditation photo signs
+and the signed URL fetches `200 image/jpeg`; branding scope signs event logos;
+the anti-oracle drops sensitive/unknown paths (`{}`); a disallowed origin is not
+echoed into CORS. The LIVE deploy of this fn is covered by
+[`LIVE_EDGE_DEPLOY.md`](LIVE_EDGE_DEPLOY.md) (Group A). To do the same on production:
 - [ ] Deploy the signing fn to LIVE Supabase:
       `npx supabase functions deploy public-verify-assets --project-ref <LIVE_REF> --no-verify-jwt`
 - [ ] Add the live Pages/host origin to the edge fn `ALLOWED_ORIGINS` (or confirm
@@ -35,7 +40,7 @@ Staging is already private + soaked. To do the same on production:
 
 ## 4. Scanner PIN → server-side  (code ✅ / cutover ❌)
 - [ ] Deploy: `npx supabase functions deploy verify-scanner-pin --project-ref <REF> --no-verify-jwt` (already on staging).
-- [ ] Set the secret: `npx supabase secrets set SCANNER_DEFAULT_PIN="<pin>" --project-ref <REF>`.
+- [x] Set the secret on staging — **done** (`SCANNER_DEFAULT_PIN`, verified by digest = `1234`, 2026-06-21). For LIVE: `npx supabase secrets set SCANNER_DEFAULT_PIN="<pin>" --project-ref <LIVE_REF>`.
 - [ ] Set `VITE_SERVER_SCANNER_PIN=true` in the build env, rebuild, redeploy.
 - [ ] Soak the scanner gate (event PIN, global PIN, URL kiosk), then **remove
       `VITE_SCANNER_PIN` from the build** and confirm the PIN no longer appears in

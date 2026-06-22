@@ -136,18 +136,29 @@ export default function MedalRankings() {
       formData.append("competition_name", compNameInput);
       files.forEach(file => formData.append("files", file));
 
-      // 1. Send to Python Bridge (Proxied via Node/Vite for robustness)
-      console.log("Sending to results bridge...");
-      const API_URL = "/api/bridge/results";
-
-      const response = await fetch(API_URL, {
-        method: "POST",
-        body: formData
-      });
-
-      if (!response.ok) throw new Error("Could not connect to Python Bridge.");
-      
-      const data = await response.json();
+      // 1. Parse the result PDFs. Default path = the Python bridge
+      //    (/api/bridge/results). When VITE_EDGE_MEDAL_PARSER=true, route to the
+      //    parse-results Supabase Edge Function instead (same multipart contract)
+      //    — the laptop-free path. Cut over ONLY after the PDF-extraction parity
+      //    gate passes (scripts/parse-results-parity.mjs, docs/EDGE_MIGRATION.md).
+      let data;
+      if (import.meta.env.VITE_EDGE_MEDAL_PARSER === "true") {
+        console.log("Sending to parse-results edge function...");
+        const { data: edgeData, error: edgeErr } = await supabase.functions.invoke(
+          "parse-results",
+          { body: formData }
+        );
+        if (edgeErr) throw new Error("Could not reach the medal parser function.");
+        data = edgeData;
+      } else {
+        console.log("Sending to results bridge...");
+        const response = await fetch("/api/bridge/results", {
+          method: "POST",
+          body: formData,
+        });
+        if (!response.ok) throw new Error("Could not connect to Python Bridge.");
+        data = await response.json();
+      }
       if (!data.success || data.results.length === 0) {
         toast.error("No results found in PDF files.");
         return;

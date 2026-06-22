@@ -1,0 +1,3 @@
+# Real result PDFs are PII — never commit them.
+*.pdf
+*.PDF

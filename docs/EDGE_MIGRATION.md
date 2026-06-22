@@ -60,6 +60,18 @@ The risky part (the Hy-Tek regex parsing) is done and **unit-tested for parity**
   with PDF text extraction via `unpdf` (Deno) and the same multipart contract as
   the Python endpoint (`files[]` + `competition_name` → `{ success, results }`).
 
+### Staging status (verified 2026-06-21)
+- Deployed to staging (`bieqfzwljxkmmldmlzyb`) and **alive**: OPTIONS→200, POST
+  with no files→`400 "No files provided"`. (GET→401 is the gateway requiring a
+  JWT — correct; `parse-results` is admin-invoked, not public.)
+- **Regex parity 8/8 green** (`supabase/functions/_shared/hytekParser.test.ts`,
+  part of the vitest suite).
+- **NOT cut over** (correct): `src/pages/admin/MedalRankings.jsx:141` still POSTs
+  `/api/bridge/results`. ⚠️ That path 404s on the static Pages deploy (no
+  `server.js`), so it can't be exercised through the staging UI — test the
+  function with **direct POSTs of real PDFs**, not via the admin upload, until
+  cutover.
+
 ### Remaining parity gate (before cutover)
 The regex is proven; what's left is **PDF-extraction parity** (pypdf layout mode
 vs unpdf can differ in whitespace/column handling):
