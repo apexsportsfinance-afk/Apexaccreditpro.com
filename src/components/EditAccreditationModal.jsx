@@ -1,93 +1,19 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useBackground } from "../contexts/BackgroundContext";
-import { Upload, X, Check, User, Camera, AlertTriangle, Info, Plus, Clock, CalendarX, Calendar, FileText, Eye, Download, Image as ImageIcon } from "lucide-react";
+import { Upload, X, Check, User, Camera, AlertTriangle, Info, Plus, Clock, CalendarX, Calendar, FileText, Eye } from "lucide-react";
 import Button from "./ui/Button";
 import Input from "./ui/Input";
 import Select from "./ui/Select";
 import SearchableSelect from "./ui/SearchableSelect";
 import MultiSearchableSelect from "./ui/MultiSearchableSelect";
 import Modal from "./ui/Modal";
-import { COUNTRIES, ROLES, validateFile, fileToBase64, ROLE_BADGE_PREFIXES, getBadgePrefix } from "../lib/utils";
+import StorageImage from "./ui/StorageImage";
+import StorageLink from "./ui/StorageLink";
+import { COUNTRIES, ROLES, validateFile, getBadgePrefix } from "../lib/utils";
 import { uploadToStorage } from "../lib/uploadToStorage";
 import { GlobalSettingsAPI } from "../lib/broadcastApi";
-import { AccreditationsAPI, EventCategoriesAPI, CategoriesAPI } from "../lib/storage";
 import MedicalBookingSelector from "./ui/MedicalBookingSelector";
-
-function ZoneAccessSelector({ zones, selectedRole, selectedCodes, onToggle, onSelectAll, onClearAll }) {
-  const roleZones = useMemo(() => {
-    if (!selectedRole || zones.length === 0) return zones;
-    const filtered = zones.filter(z => {
-      const ar = z.allowedRoles || [];
-      return ar.length === 0 || ar.includes(selectedRole);
-    });
-    return filtered.length > 0 ? filtered : zones;
-  }, [zones, selectedRole]);
-
-  const hasRoleFilter = selectedRole && roleZones.length < zones.length;
-
-  return (
-    <>
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        {hasRoleFilter && (
-          <p className="text-lg text-cyan-400 font-extralight">
-            Showing {roleZones.length} zone(s) linked to role <span className="font-medium">{selectedRole}</span>
-          </p>
-        )}
-        <div className="flex gap-2 ml-auto">
-          <button type="button" onClick={() => onSelectAll(roleZones)} className="text-lg text-cyan-400 hover:text-cyan-300">
-            Select Shown
-          </button>
-          <span className="text-slate-600">|</span>
-          <button type="button" onClick={onClearAll} className="text-lg text-slate-400 hover:text-slate-300">
-            Clear
-          </button>
-          {hasRoleFilter && (
-            <>
-              <span className="text-slate-600">|</span>
-              <button type="button" onClick={() => onSelectAll(zones)} className="text-lg text-slate-500 hover:text-slate-300">
-                All zones
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-        {roleZones.map(zone => {
-          const isSelected = selectedCodes.includes(zone.code);
-          return (
-            <button
-              key={zone.id}
-              type="button"
-              onClick={() => onToggle(zone.code)}
-              className={`p-3 rounded-lg border-2 transition-all duration-200 text-left ${isSelected
-                  ? "border-primary-500 bg-primary-500/20"
-                  : "border-slate-700 hover:border-slate-600 bg-slate-800/50"
-                }`}
-            >
-              <div className="flex items-center gap-2">
-                <div
-                  className="w-8 h-8 rounded-md flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
-                  style={{ backgroundColor: zone.color || "#2563eb" }}
-                >
-                  {zone.code}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-lg font-medium truncate ${isSelected ? "text-white" : "text-slate-300"}`}>
-                    {zone.name}
-                  </p>
-                </div>
-                {isSelected && <Check className="w-4 h-4 text-primary-400 flex-shrink-0" />}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-      <p className="text-lg text-slate-500 font-extralight">
-        {selectedCodes.length} zone(s) selected
-      </p>
-    </>
-  );
-}
+import ZoneAccessSelector from "./ZoneAccessSelector";
 
 export default function EditAccreditationModal({
   isOpen,
@@ -616,7 +542,7 @@ export default function EditAccreditationModal({
                             {url.toLowerCase().endsWith('.pdf') ? (
                               <FileText className="w-12 h-12 text-primary-400 opacity-50" />
                             ) : (
-                              <img src={url} alt={label} className="w-full h-full object-cover" />
+                              <StorageImage src={url} alt={label} className="w-full h-full object-cover" />
                             )}
                             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 px-2">
                               <label className="w-full cursor-pointer px-3 py-1.5 bg-primary-500 hover:bg-primary-600 text-white text-sm rounded-lg flex items-center justify-center gap-1.5 transition-colors">
@@ -624,7 +550,7 @@ export default function EditAccreditationModal({
                                 <input type="file" accept="image/*,application/pdf" onChange={handleUpload} className="hidden" />
                               </label>
                               <div className="flex gap-2 w-full">
-                                <a href={url} target="_blank" rel="noopener noreferrer" className="flex-1 p-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg flex items-center justify-center transition-colors"><Eye className="w-4 h-4" /></a>
+                                <StorageLink href={url} target="_blank" rel="noopener noreferrer" className="flex-1 p-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg flex items-center justify-center transition-colors"><Eye className="w-4 h-4" /></StorageLink>
                                 <button type="button" onClick={handleRemove} className="flex-1 p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center justify-center transition-colors"><X className="w-4 h-4" /></button>
                               </div>
                             </div>

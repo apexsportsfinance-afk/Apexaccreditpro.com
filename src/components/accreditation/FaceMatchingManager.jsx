@@ -3,6 +3,7 @@ import { ScanFace, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import * as faceapi from 'face-api.js';
 import Button from '../ui/Button';
 import { AccreditationsAPI } from '../../lib/storage';
+import { resolveFileUrl } from '../../lib/storage/fileUrl';
 
 const MODELS_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
 
@@ -50,7 +51,7 @@ export default function FaceMatchingManager({ eventId, galleryPhotos, onToast })
       for (let i = 0; i < galleryPhotos.length; i++) {
         const photo = galleryPhotos[i];
         try {
-          const img = await faceapi.fetchImage(photo.url);
+          const img = await faceapi.fetchImage(await resolveFileUrl(photo.url));
           const detections = await faceapi.detectAllFaces(img).withFaceLandmarks().withFaceDescriptors();
           if (detections.length > 0) {
             galleryDescriptors.push({ photoId: photo.id, descriptors: detections.map(d => d.descriptor) });
@@ -71,7 +72,7 @@ export default function FaceMatchingManager({ eventId, galleryPhotos, onToast })
         setProgressPercent(50 + Math.floor((i / accWithPhotos.length) * 45));
 
         try {
-          const img = await faceapi.fetchImage(acc.photoUrl);
+          const img = await faceapi.fetchImage(await resolveFileUrl(acc.photoUrl));
           const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
           
           if (!detection) continue; // No face found in profile photo

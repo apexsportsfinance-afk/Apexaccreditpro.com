@@ -17,6 +17,7 @@ import TeamRosterReviewTab from "../../../components/teams/tabs/TeamRosterReview
 import TeamFacilityTab from "../../../components/teams/tabs/TeamFacilityTab";
 import TeamRulesTab from "../../../components/teams/tabs/TeamRulesTab";
 import PortalScheduleTab from "../../../components/portal/tabs/PortalScheduleTab";
+import StorageImage from "../../../components/ui/StorageImage";
 
 const STATUS_OPTIONS = ["pending", "active", "suspended", "completed", "rejected"];
 
@@ -153,7 +154,7 @@ export default function TeamDetail() {
       {/* Header Profile Section */}
       <div className="bg-base-alt border border-border rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center gap-6 shadow-sm">
         {team.logo_url ? (
-          <img src={team.logo_url} alt={team.name} className="w-24 h-24 rounded-full object-cover border-4 border-base" />
+          <StorageImage src={team.logo_url} alt={team.name} className="w-24 h-24 rounded-full object-cover border-4 border-base" />
         ) : (
           <div className="w-24 h-24 rounded-full bg-primary-500/10 flex items-center justify-center border-4 border-base shrink-0">
             <Building2 className="w-10 h-10 text-primary-500" />

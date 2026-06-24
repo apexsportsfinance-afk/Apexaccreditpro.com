@@ -1,4 +1,6 @@
 import React from "react";
+import StorageImage from "../ui/StorageImage";
+import StorageLink from "../ui/StorageLink";
 import { User, Plus, FileText, Eye, Download, Check } from "lucide-react";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
@@ -47,7 +49,7 @@ export default function ApproveAccreditationModal({
         <div className="flex items-center gap-4 bg-slate-800/50 border border-slate-700 rounded-lg p-4">
           <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-cyan-500/30 flex-shrink-0 bg-slate-900">
             {accreditation?.photoUrl ? (
-              <img src={accreditation.photoUrl} alt="" className="w-full h-full object-cover" />
+              <StorageImage src={accreditation.photoUrl} alt="" className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-slate-600">
                 <User className="w-10 h-10" />
@@ -134,18 +136,18 @@ export default function ApproveAccreditationModal({
                     <div key={docId} className="space-y-1">
                       <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest truncate">{label}</p>
                       {url ? (
-                        <a href={url} target="_blank" rel="noopener noreferrer" className="block relative group">
+                        <StorageLink href={url} target="_blank" rel="noopener noreferrer" className="block relative group">
                           <div className="w-full h-24 rounded-lg overflow-hidden border border-slate-700 bg-slate-900 group-hover:border-primary-500 transition-colors flex items-center justify-center">
                             {url.toLowerCase().endsWith('.pdf') ? (
                               <FileText className="w-8 h-8 text-slate-500" />
                             ) : (
-                              <img src={url} alt={label} className="w-full h-full object-cover" />
+                              <StorageImage src={url} alt={label} className="w-full h-full object-cover" />
                             )}
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                               <Eye className="w-4 h-4 text-white" />
                             </div>
                           </div>
-                        </a>
+                        </StorageLink>
                       ) : (
                         <div className="w-full h-24 rounded-lg border border-dashed border-slate-700 flex items-center justify-center text-slate-600 text-[10px] font-bold">
                           EMPTY

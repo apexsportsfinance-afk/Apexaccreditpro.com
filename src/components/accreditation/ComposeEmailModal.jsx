@@ -31,8 +31,11 @@ export default function ComposeEmailModal({
       // Try to load saved custom template
       const loadTemplate = async () => {
         const template = await getEmailTemplate("custom");
+        // Hoisted so both the template and fallback branches can personalize a
+        // single-recipient email. (Was previously scoped inside the `if`, which
+        // left `r` undefined in the `else` fallback below.)
+        const r = recipients.length === 1 ? recipients[0] : null;
         if (template && template.body) {
-          const r = recipients.length === 1 ? recipients[0] : null;
           const placeholderVars = {
             name: r ? `${r.firstName} ${r.lastName}` : "Participant",
             firstName: r?.firstName || "Participant",

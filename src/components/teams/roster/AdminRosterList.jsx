@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import StorageImage from '../../ui/StorageImage';
 import { Search, User, ShieldAlert, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { TeamAPI } from '../../../services/teamApi';
 import Button from '../../ui/Button';
@@ -210,7 +211,7 @@ export default function AdminRosterList({ teamId }) {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           {acc?.photo_url ? (
-                            <img src={acc.photo_url} alt="" className="w-8 h-8 rounded-full object-cover border border-border bg-base-alt" />
+                            <StorageImage src={acc.photo_url} alt="" className="w-8 h-8 rounded-full object-cover border border-border bg-base-alt" />
                           ) : (
                             <div className="w-8 h-8 rounded-full bg-primary-500/10 flex items-center justify-center shrink-0 border border-border">
                               <User className="w-4 h-4 text-primary-500" />

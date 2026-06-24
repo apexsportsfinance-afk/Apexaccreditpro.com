@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import StorageImage from '../../ui/StorageImage';
 import { Plus, Search, MoreVertical, Edit2, Trash2, User, AlertCircle, ShieldAlert } from 'lucide-react';
 import { TeamPortalAPI } from '../../../services/teamPortalApi';
 import Button from '../../ui/Button';
@@ -235,7 +236,7 @@ export default function TeamRosterList({ teamId, userRole }) {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           {acc?.photo_url ? (
-                            <img src={acc.photo_url} alt="" className="w-8 h-8 rounded-full object-cover border border-border bg-base-alt" />
+                            <StorageImage src={acc.photo_url} alt="" className="w-8 h-8 rounded-full object-cover border border-border bg-base-alt" />
                           ) : (
                             <div className="w-8 h-8 rounded-full bg-primary-500/10 flex items-center justify-center shrink-0 border border-border">
                               <User className="w-4 h-4 text-primary-500" />
@@ -353,7 +354,7 @@ export default function TeamRosterList({ teamId, userRole }) {
           </div>
           <div className="flex items-center gap-3">
             {participantToDelete?.accreditations?.photo_url ? (
-              <img src={participantToDelete.accreditations.photo_url} alt="" className="w-12 h-12 rounded-full object-cover" />
+              <StorageImage src={participantToDelete.accreditations.photo_url} alt="" className="w-12 h-12 rounded-full object-cover" />
             ) : (
               <div className="w-12 h-12 rounded-full bg-base-alt flex items-center justify-center">
                 <User className="w-6 h-6 text-muted" />

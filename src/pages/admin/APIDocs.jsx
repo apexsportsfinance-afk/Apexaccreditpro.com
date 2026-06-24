@@ -6,8 +6,8 @@ import {
   FileText, Download
 } from "lucide-react";
 import { useToast } from "../../components/ui/Toast";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
+import { jsPDF } from "jspdf";
+import { autoTable } from "jspdf-autotable";
 
 export default function APIDocs() {
   const { toast } = useToast();
@@ -47,7 +47,7 @@ export default function APIDocs() {
     // Authentication Table
     doc.setFontSize(16);
     doc.text("2. Authentication", 20, 80);
-    doc.autoTable({
+    autoTable(doc, {
       startY: 85,
       head: [['Header', 'Value', 'Description']],
       body: [
@@ -67,7 +67,7 @@ export default function APIDocs() {
     // Field Reference Table
     doc.setFontSize(16);
     doc.text("4. Field Reference", 20, finalY + 40);
-    doc.autoTable({
+    autoTable(doc, {
       startY: finalY + 45,
       head: [['Field', 'Description', 'Example']],
       body: [
@@ -86,7 +86,7 @@ export default function APIDocs() {
     const errorY = doc.lastAutoTable.finalY || 200;
     doc.setFontSize(16);
     doc.text("5. Error Handling", 20, errorY + 15);
-    doc.autoTable({
+    autoTable(doc, {
       startY: errorY + 20,
       head: [['Status', 'Error Message', 'Reason']],
       body: [

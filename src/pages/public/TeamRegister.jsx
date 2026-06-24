@@ -14,6 +14,7 @@ import { EventsAPI } from "../../lib/storage";
 import { TeamAPI } from "../../services/teamApi";
 import { COUNTRIES, UAE_EMIRATES, getDialCode, validatePhoneForCountry } from "../../lib/utils";
 import { uploadToStorage } from "../../lib/uploadToStorage";
+import { usePublicAssetUrls } from "../../lib/storage/publicAssets";
 
 function formatDateDisplay(dateStr) {
   if (!dateStr) return "";
@@ -33,6 +34,10 @@ export default function TeamRegister() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  // Local blob preview of the registrant's just-uploaded logo, so the preview
+  // renders instantly and works even when the bucket is private (the stored
+  // logo_url can't be anon-signed during registration).
+  const [logoPreview, setLogoPreview] = useState("");
 
   const [formData, setFormData] = useState({
     name: "",
@@ -44,6 +49,12 @@ export default function TeamRegister() {
     contact_phone: "",
     logo_url: ""
   });
+
+  // Event logo signs under the event-scoped branding allowlist (flag OFF: public URL).
+  const { urls: brandingUrls } = usePublicAssetUrls(
+    event?.logoUrl ? [event.logoUrl] : [],
+    { eventId: event?.id, scope: "branding" }
+  );
 
   useEffect(() => {
     const loadEvent = async () => {
@@ -63,6 +74,7 @@ export default function TeamRegister() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingLogo(true);
+    setLogoPreview(URL.createObjectURL(file));
     try {
       const { url } = await uploadToStorage(file, "team-logos");
       setFormData(prev => ({ ...prev, logo_url: url }));
@@ -76,6 +88,7 @@ export default function TeamRegister() {
   };
 
   const handleRegisterAnother = () => {
+    setLogoPreview("");
     setFormData({
       name: "",
       short_name: "",
@@ -229,9 +242,9 @@ export default function TeamRegister() {
             animate={{ opacity: 1, y: 0 }}
             className="text-center mb-8"
           >
-            {event.logoUrl ? (
+            {event.logoUrl && brandingUrls[event.logoUrl] ? (
               <div className="w-full max-w-[500px] mx-auto mb-8 bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-indigo-300/60 shadow-2xl shadow-indigo-500/20">
-                <img src={event.logoUrl} alt="Event Logo" className="w-full h-auto max-h-[200px] object-contain" />
+                <img src={brandingUrls[event.logoUrl]} alt="Event Logo" className="w-full h-auto max-h-[200px] object-contain" />
               </div>
             ) : (
               <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-cyan-400 via-blue-500 to-ocean-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-cyan-500/30">
@@ -366,8 +379,8 @@ export default function TeamRegister() {
                 <label className="text-sm font-medium text-main">Team Logo (Optional)</label>
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-lg border border-border bg-base-alt flex items-center justify-center overflow-hidden shrink-0">
-                    {formData.logo_url ? (
-                      <img src={formData.logo_url} alt="Logo preview" className="w-full h-full object-cover" />
+                    {logoPreview || formData.logo_url ? (
+                      <img src={logoPreview || formData.logo_url} alt="Logo preview" className="w-full h-full object-cover" />
                     ) : (
                       <ImageOff className="w-5 h-5 text-muted" />
                     )}

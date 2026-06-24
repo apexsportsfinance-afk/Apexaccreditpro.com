@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import StorageImage from '../../ui/StorageImage';
 import Modal from '../../ui/Modal';
 import Button from '../../ui/Button';
 import Input from '../../ui/Input';
@@ -41,7 +42,7 @@ export default function EditParticipantModal({ isOpen, onClose, participant, onS
           {/* Read-only Participant Preview */}
           <div className="flex items-center gap-4 p-4 bg-base-alt/50 border border-border rounded-xl">
             {acc?.photo_url ? (
-              <img src={acc.photo_url} alt="" className="w-12 h-12 rounded-full object-cover border border-border" />
+              <StorageImage src={acc.photo_url} alt="" className="w-12 h-12 rounded-full object-cover border border-border" />
             ) : (
               <div className="w-12 h-12 rounded-full bg-base-alt border border-border flex items-center justify-center shrink-0">
                 <User className="w-6 h-6 text-muted" />

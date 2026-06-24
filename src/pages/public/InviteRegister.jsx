@@ -20,6 +20,7 @@ import { COUNTRIES, ROLES, validateFile } from "../../lib/utils";
 import { SportEventsAPI, GlobalSettingsAPI } from "../../lib/broadcastApi";
 import { uploadToStorage } from "../../lib/uploadToStorage";
 import { validateInviteToken, redeemInviteToken } from "../../lib/inviteLinksApi";
+import { usePublicAssetUrls } from "../../lib/storage/publicAssets";
 
 const DEFAULT_DOCUMENTS = [
   { id: "picture", label: "Picture", accept: "image/jpeg,image/png,image/webp" },
@@ -61,6 +62,12 @@ export default function InviteRegister() {
   });
   const [termsModalOpen, setTermsModalOpen] = useState(false);
   const [hasViewedTerms, setHasViewedTerms] = useState(false);
+
+  // Event logo signs under the event-scoped branding allowlist (flag OFF: public URL).
+  const { urls: brandingUrls } = usePublicAssetUrls(
+    event?.logoUrl ? [event.logoUrl] : [],
+    { eventId: event?.id, scope: "branding" }
+  );
 
   useEffect(() => {
     const init = async () => {
@@ -581,9 +588,9 @@ export default function InviteRegister() {
       <div id="invite_register_page" className="min-h-screen relative py-8 px-4">
         <div className="max-w-2xl mx-auto relative z-10">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
-            {event?.logoUrl ? (
+            {event?.logoUrl && brandingUrls[event.logoUrl] ? (
               <div className="w-full max-w-[500px] mx-auto mb-6 bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-cyan-300 shadow-2xl shadow-cyan-500/20">
-                <img src={event.logoUrl} alt="Event Logo" className="w-full h-auto max-h-[200px] object-contain" />
+                <img src={brandingUrls[event.logoUrl]} alt="Event Logo" className="w-full h-auto max-h-[200px] object-contain" />
               </div>
             ) : (
               <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-cyan-400 via-blue-500 to-ocean-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-cyan-500/30">

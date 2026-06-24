@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import StorageImage from '../../ui/StorageImage';
 import { Search, X, Loader2, User, Check, AlertCircle } from 'lucide-react';
 import Modal from '../../ui/Modal';
 import Button from '../../ui/Button';
@@ -154,7 +155,7 @@ export default function AddParticipantModal({ isOpen, onClose, teamId, onSuccess
                   >
                     <div className="flex items-center gap-4">
                       {acc.photo_url ? (
-                        <img src={acc.photo_url} alt="" className="w-12 h-12 rounded-full object-cover border border-border" />
+                        <StorageImage src={acc.photo_url} alt="" className="w-12 h-12 rounded-full object-cover border border-border" />
                       ) : (
                         <div className="w-12 h-12 rounded-full bg-base border border-border flex items-center justify-center shrink-0">
                           <User className="w-6 h-6 text-muted" />
@@ -196,7 +197,7 @@ export default function AddParticipantModal({ isOpen, onClose, teamId, onSuccess
               <div className="absolute top-0 left-0 w-1 h-full bg-primary-500"></div>
               <div className="flex items-center gap-4">
                 {selectedAcc.photo_url ? (
-                  <img src={selectedAcc.photo_url} alt="" className="w-14 h-14 rounded-full object-cover border-2 border-base shadow-sm" />
+                  <StorageImage src={selectedAcc.photo_url} alt="" className="w-14 h-14 rounded-full object-cover border-2 border-base shadow-sm" />
                 ) : (
                   <div className="w-14 h-14 rounded-full bg-base border border-border flex items-center justify-center shadow-sm">
                     <User className="w-6 h-6 text-muted" />

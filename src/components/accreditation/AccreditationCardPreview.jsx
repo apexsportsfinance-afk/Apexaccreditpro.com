@@ -2,6 +2,7 @@ import React, { memo, useState, useEffect, useRef } from "react";
 import * as QRCodeLib from "qrcode";
 import { getCountryName, getCountryCode3, calculateAge, COUNTRIES, isExpired } from "../../lib/utils";
 import { BadgeCustomFields } from "./BadgeCustomFieldsV2";
+import { usePublicAssetUrls } from "../../lib/storage/publicAssets";
 
 const CARD_FONT = '"Gill Sans MT", "Gill Sans", Calibri, sans-serif';
 const CARD_FONT_SIZE = 11;
@@ -190,8 +191,7 @@ const useZoneBadgePngs = (codes, zones = []) => {
   return badges;
 };
 
-const AquaticsHeader = memo(function AquaticsHeader({ event, bgColor }) {
-  const logoUrl = event?.logoUrl;
+const AquaticsHeader = memo(function AquaticsHeader({ logoUrl, bgColor }) {
   return (
     <div style={{ height: "100px", width: "100%", position: "relative", overflow: "hidden", flexShrink: 0 }}>
       {logoUrl ? (
@@ -224,6 +224,23 @@ const AquaticsHeader = memo(function AquaticsHeader({ event, bgColor }) {
 });
 
 export const CardInner = memo(function CardInner({ accreditation, event, zones = [], eventCategories = [], idSuffix = "", frontBackgroundUrl = "", customFieldConfigs = [], onlyFrontPage = false }) {
+  // Resolve the card's storage-backed images (photo + event branding) through
+  // the public-verify-assets edge function so they render — and html2canvas can
+  // capture them with crossOrigin — whether the bucket is public or private.
+  // Flag OFF: synchronous public URLs (unchanged). With an accreditation id we
+  // use scope=profile (covers the photo); otherwise scope=branding.
+  const cardAssetValues = [
+    accreditation?.photoUrl,
+    event?.logoUrl,
+    event?.backTemplateUrl,
+    ...(Array.isArray(event?.sponsorLogos) ? event.sponsorLogos : []),
+  ].filter(Boolean);
+  const { urls: cardUrls, loading: cardAssetsLoading } = usePublicAssetUrls(cardAssetValues, {
+    accreditationId: accreditation?.id,
+    eventId: event?.id,
+    scope: accreditation?.id ? "profile" : "branding",
+  });
+
   // Original simple role-based color logic
   const roleData = getRoleData(accreditation?.role);
   const finalColor = resolveCategoryColor(accreditation?.role, eventCategories) || roleData.hex;
@@ -330,6 +347,7 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
       <div
         id={`accreditation-front-card${idSuffix}`}
         data-accreditation-id={accreditation?.accreditationId || accreditation?.badgeNumber || accreditation?.id || ""}
+        data-assets-ready={cardAssetsLoading ? "false" : "true"}
         style={{
           width: "320px", height: "454px", minWidth: "320px", minHeight: "454px",
           maxWidth: "320px", maxHeight: "454px", backgroundColor: "#ffffff",
@@ -366,7 +384,7 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
           />
         )}
 
-        <AquaticsHeader event={event} bgColor={finalColor} />
+        <AquaticsHeader logoUrl={cardUrls[event?.logoUrl]} bgColor={finalColor} />
         <div style={{ height: "6px", backgroundColor: "white", flexShrink: 0 }} />
 
         {/* ROLE BANNER */}
@@ -398,8 +416,8 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
           {/* LEFT: Photo + ID */}
           <div style={{ width: "110px", display: "flex", flexDirection: "column", alignItems: "flex-start", flexShrink: 0 }}>
             <div style={{ width: "100px", height: "120px", border: "2px solid #cbd5e1", padding: "2px", backgroundColor: "white", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)", flexShrink: 0 }}>
-              {accreditation?.photoUrl ? (
-                <img src={accreditation.photoUrl} alt="User" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", display: "block" }} crossOrigin="anonymous" />
+              {accreditation?.photoUrl && cardUrls[accreditation.photoUrl] ? (
+                <img src={cardUrls[accreditation.photoUrl]} alt="User" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", display: "block" }} crossOrigin="anonymous" />
               ) : (
                 <div style={{ width: "100%", height: "100%", background: "linear-gradient(to bottom right, #f1f5f9, #e2e8f0)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <svg style={{ width: "40px", height: "40px", color: "#cbd5e1" }} viewBox="0 0 24 24" fill="currentColor">
@@ -552,7 +570,7 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
             {event.sponsorLogos.slice(0, 6).map((logo, index) => (
               logo ? (
                 <div key={index} style={{ flex: 1, minWidth: 0, maxWidth: "65px", height: "38px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <img src={logo} alt="Sponsor" style={{ maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", margin: "auto" }} crossOrigin="anonymous" />
+                  <img src={cardUrls[logo]} alt="Sponsor" style={{ maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", margin: "auto" }} crossOrigin="anonymous" />
                 </div>
               ) : null
             ))}
@@ -589,8 +607,8 @@ export const CardInner = memo(function CardInner({ accreditation, event, zones =
           </svg>
         </div>
 
-        {event?.backTemplateUrl ? (
-          <img src={event.backTemplateUrl} alt="Back Template" style={{ maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", margin: "auto", display: "block", backgroundColor: "white" }} crossOrigin="anonymous" />
+        {event?.backTemplateUrl && cardUrls[event.backTemplateUrl] ? (
+          <img src={cardUrls[event.backTemplateUrl]} alt="Back Template" style={{ maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", margin: "auto", display: "block", backgroundColor: "white" }} crossOrigin="anonymous" />
         ) : (
           <div style={{ padding: "20px", display: "flex", flexDirection: "column", height: "100%", position: "relative", zIndex: 10 }}>
             <div style={{ textAlign: "center", marginBottom: "16px" }}>

@@ -17,6 +17,7 @@ import { supabase } from "../../lib/supabase";
 import { GlobalSettingsAPI } from "../../lib/broadcastApi";
 import { cn } from "../../lib/utils";
 import Button from "../ui/Button";
+import { openStoredFile } from "../../lib/storage/openStoredFile";
 
 const getFileIcon = (type) => {
   const t = (type || '').toLowerCase();
@@ -213,7 +214,7 @@ export default function EmergencyDocumentsTab({ eventId, onToast, disabled }) {
                 </div>
                 <div className="flex items-center gap-1">
                   <button 
-                    onClick={() => window.open(doc.url, '_blank')}
+                    onClick={() => openStoredFile(doc.url)}
                     className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
                   >
                     <Download className="w-3.5 h-3.5" />

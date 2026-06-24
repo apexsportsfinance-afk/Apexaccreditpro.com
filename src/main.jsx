@@ -2,8 +2,12 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import { initObservability } from "./lib/observability";
 
 console.log("🚀 main.jsx: Mounting application...");
+
+// Initialize the observability seam (no-op until VITE_SENTRY_DSN is configured).
+initObservability();
 
 // Auto-reload when Vercel deploys new chunks and the old chunk URL is no longer valid.
 // Without this, users on a stale tab get "Failed to fetch dynamically imported module"

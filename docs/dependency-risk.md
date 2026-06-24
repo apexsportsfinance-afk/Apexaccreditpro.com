@@ -1,4 +1,9 @@
-# Dependency Risk Notes (2026-06-12)
+# Dependency Risk Notes (2026-06-12, revised 2026-06-19)
+
+> **2026-06-19 reconciliation:** the original notes below were written against an
+> older `package.json`. They have been corrected to match the current pins
+> (`jspdf@^4.2.1`, `jspdf-autotable@^5.0.8`, `vite@^6.4.3`). Re-run `npm audit`
+> to confirm residual advisory status before the next due-diligence pass.
 
 `npm audit` after the latest `npm install` + `npm audit fix` (which removed the
 `react-router`/`react-router-dom` open-redirect issue and, via a `concurrently`
@@ -17,15 +22,19 @@ recorded here as accepted risk with mitigations and a follow-up upgrade path.
   `rect` from canvas captures (`pdfCapture.js`, `cardExport.js`,
   `exportUtils.js`). The vulnerable code paths are not reachable from this
   app's usage.
-- **Why not upgrade now**: the only fix is `jspdf@4.2.1` (a 2-major bump from
-  the current `2.5.2`). A prior jsPDF upgrade attempt caused a render-timing
-  regression in badge PDFs (see
-  `docs/history/2026-04-28-pdf-stability/`), and jsPDF 3.x/4.x changed several
-  APIs (`addImage`/font handling). Re-testing every badge/ticket/membership
-  card template against a 4.x API change is out of scope for this pass.
-- **Follow-up**: schedule a dedicated pass to upgrade to `jspdf@4.2.1` +
-  `jspdf-autotable@5.x`, visually diff every PDF template (badges, membership
-  cards, tickets, attendance sheets, audit/export reports) before shipping.
+- **Status: DONE.** `package.json` now pins `jspdf@^4.2.1` +
+  `jspdf-autotable@^5.0.8`, clearing the **critical** advisory. The prior
+  render-timing regression in badge PDFs (see
+  `docs/history/2026-04-28-pdf-stability/`) was resolved as part of that upgrade.
+- **Residual**: 2 *moderate* advisories remain in the `jspdf -> dompurify`
+  chain. **Risk-accepted** because `jsPDF.html()` is not called anywhere in
+  `src/` (badges/tickets/PDFs are built via `addImage`/`text`/`rect` from canvas
+  captures), so the HTML/AcroForm/JS-embedding code paths the advisories target
+  are unreachable.
+- **Follow-up**: re-evaluate the residual moderate `dompurify` advisories when an
+  upstream patch ships; keep the visual-diff PDF regression check (badges,
+  membership cards, tickets, attendance sheets, audit/export reports) in the
+  release process.
 
 ## 2. `esbuild` <= 0.24.2 / `vite` <= 6.4.1 (npm audit: moderate)
 
@@ -35,11 +44,12 @@ recorded here as accepted risk with mitigations and a follow-up upgrade path.
 - **Exploitability here**: only affects `vite` (the dev server)/`vite preview`
   running locally — not the production build artifact served by Vercel. Risk
   is limited to a developer's machine while `npm run dev` is running.
-- **Why not upgrade now**: fixing requires `vite@8`, a 4-major bump from the
-  current `^4.4.5`. `@vitejs/plugin-react@4`, `@vitejs/plugin-basic-ssl@1`, and
-  `vite-plugin-pwa@1.3.0` all have peer-dependency ranges tied to Vite 4/5 —
-  bumping Vite alone is very likely to break `npm run build` and the PWA
-  manifest generation.
+- **Update (2026-06-19)**: `package.json` now pins `vite@^6.4.3`,
+  `@vitejs/plugin-react@^4.7.0`, `@vitejs/plugin-basic-ssl@^2.3.0`, and
+  `vite-plugin-pwa@^1.3.0` — well past the `^4.4.5` baseline these notes were
+  originally written against. **Re-run `npm audit`** to confirm which (if any)
+  of these dev-server advisories still apply at `vite@6.4.3`; the mitigation
+  below (don't expose the dev server beyond localhost) holds regardless.
 - **Mitigation in the meantime**: don't expose the Vite dev server port
   (5173/5180) beyond localhost; this is already the case (CORS allow-lists
   added in this pass only widen *server.js*/Edge Function origins, not the
@@ -87,7 +97,7 @@ recorded here as accepted risk with mitigations and a follow-up upgrade path.
 |---|---|---|---|
 | `react-router(-dom)` | moderate | yes (in-range) | ✅ fixed via `npm audit fix` |
 | `concurrently`/`shell-quote` | critical | yes (major bump, dev-only) | ✅ upgraded `concurrently` |
-| `jspdf`/`dompurify` | critical | major bump only | documented, deferred (no reachable `.html()` usage) |
-| `vite`/`esbuild` | moderate | major bump only | documented, deferred (dev-server only) |
+| `jspdf`/`dompurify` | critical → moderate residual | ✅ done | **upgraded to `4.2.1` + `jspdf-autotable@5`**; residual moderate `dompurify` deferred (no reachable `.html()` usage) |
+| `vite`/`esbuild` | moderate | upgraded to `vite@6.4.3` | re-audit to confirm residual (dev-server only) |
 | `xlsx` | high | CDN tarball only | documented, deferred (admin-only feature) |
 | `face-api.js`/`tfjs-core`/`node-fetch` | low/high | downgrade only | documented, deferred (unreachable Node backend) |

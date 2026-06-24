@@ -1,19 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Settings as SettingsIcon, Save, Shield, Bell, Database, Info, Mail, Send, Eye, EyeOff, CheckCircle, XCircle, Loader2, RefreshCw, Server, FileText, RotateCcw, Lock, X } from "lucide-react";
+import { Save, Shield, Bell, Info, Mail, Send, Eye, EyeOff, CheckCircle, XCircle, Loader2, Server, FileText, RotateCcw, Lock, X } from "lucide-react";
 import Card, { CardHeader, CardContent } from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Badge from "../../components/ui/Badge";
 import { useToast } from "../../components/ui/Toast";
 import { useAuth } from "../../contexts/AuthContext";
-import { supabase } from "../../lib/supabase";
+import { supabase, supabaseUrl as SUPABASE_URL, supabaseAnonKey as SUPABASE_ANON_KEY } from "../../lib/supabase";
 import { uploadToStorage } from "../../lib/uploadToStorage";
 import { TicketingAPI, EventsAPI } from "../../lib/storage";
-import SearchableSelect from "../../components/ui/SearchableSelect";
-
-const SUPABASE_URL = "https://dixelomafeobabahqeqg.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpeGVsb21hZmVvYmFiYWhxZXFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzMzA4MzYsImV4cCI6MjA4NjkwNjgzNn0.YD1lj0T6kFoM2XyeYonIC3bmLiPkKBvmXEHEr5VMaGM";
+import SystemInfoTab from "./settings/SystemInfoTab";
+import NotificationsTab from "./settings/NotificationsTab";
 
 export default function Settings() {
   const { user, isSuperAdmin } = useAuth();
@@ -895,82 +893,10 @@ export default function Settings() {
           )}
 
           {activeTab === "system" && (
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-              <Card>
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-                  <Info className="w-5 h-5 text-cyan-400" />
-                </div>
-                <h2 className="text-xl font-semibold text-white">System Information</h2>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {/* System Info Items */}
-              {[
-                { label: "Platform", value: "ApexAccreditation v1.0" },
-                { label: "Database", value: "Supabase (PostgreSQL)" },
-                { label: "Authentication", value: "Supabase Auth" },
-                { label: "Storage", value: "Supabase Storage" },
-                { label: "Email Service", value: "SMTP (SSL/TLS)" },
-                { label: "Environment", value: "Production Ready" }
-              ].map((item) => (
-                <div key={item.label} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <span className="text-lg text-muted font-extralight">{item.label}</span>
-                  <span className="text-lg text-main font-medium">{item.value}</span>
-                </div>
-              ))}
-              
-              <div className="pt-4 mt-2 border-t border-border flex flex-col gap-2">
-                <Button 
-                  onClick={handleMigrateImages} 
-                  loading={migrating} 
-                  variant="secondary" 
-                  icon={Database}
-                  className="w-full text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
-                >
-                  {migrating ? "Migrating DB Images..." : "Migrate Database Images to Supabase Storage"}
-                </Button>
-                {migrationStatus && (
-                  <p className="text-center text-sm text-slate-400 mt-1">{migrationStatus}</p>
-                )}
-              </div>
-            </CardContent>
-              </Card>
-            </motion.div>
+            <SystemInfoTab migrating={migrating} migrationStatus={migrationStatus} onMigrate={handleMigrateImages} />
           )}
 
-          {activeTab === "notifications" && (
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-              <Card>
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                  <Bell className="w-5 h-5 text-amber-400" />
-                </div>
-                <h2 className="text-xl font-semibold text-white">Notifications</h2>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {[
-                { label: "Email on new registration", desc: "Receive email when someone registers" },
-                { label: "Email on approval", desc: "Confirm when accreditations are approved" },
-                { label: "Email on rejection", desc: "Notify applicants of rejection" }
-              ].map((item, i) => (
-                <div key={i} className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-lg text-white font-medium">{item.label}</p>
-                    <p className="text-lg text-slate-400 font-extralight">{item.desc}</p>
-                  </div>
-                  <div className="w-10 h-6 rounded-full bg-primary-600 flex items-center justify-end pr-1 cursor-pointer flex-shrink-0">
-                    <div className="w-4 h-4 rounded-full bg-white shadow" />
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-              </Card>
-            </motion.div>
-          )}
+          {activeTab === "notifications" && <NotificationsTab />}
           {activeTab === "security" && isSuperAdmin && (
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
               <Card className="border-red-500/20 bg-red-500/5">

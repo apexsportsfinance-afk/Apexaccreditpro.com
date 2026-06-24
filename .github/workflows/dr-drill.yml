@@ -1,0 +1,32 @@
+name: DR Drill Reminder
+
+# Monthly operational nudge: disaster-recovery is only real if restores are
+# actually tested. This surfaces the runbook checklist into the Actions summary
+# on the 1st of each month so a restore drill gets scheduled and logged.
+# (For automated backup *verification*, wire a job here that restores the latest
+# Supabase backup into a throwaway project and runs the smoke suite.)
+
+on:
+  schedule:
+    - cron: "0 9 1 * *" # 09:00 UTC, 1st of each month
+  workflow_dispatch:
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Emit DR checklist
+        run: |
+          {
+            echo "## 🛟 Monthly DR Drill"
+            echo ""
+            echo "Perform and **log** a restore drill this month (see docs/DR_RUNBOOK.md)."
+            echo ""
+            echo "- [ ] Confirm Supabase PITR / daily backups are enabled"
+            echo "- [ ] Restore latest backup into a throwaway project"
+            echo "- [ ] Re-deploy edge functions + set secrets"
+            echo "- [ ] Restore server/uploads from off-host copy"
+            echo "- [ ] Smoke test: login, create accreditation, scan badge, test payment"
+            echo "- [ ] Record the date + result in docs/DR_RUNBOOK.md (Last tested restore)"
+          } >> "$GITHUB_STEP_SUMMARY"

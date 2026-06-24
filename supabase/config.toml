@@ -1,0 +1,61 @@
+project_id = "dixelomafeobabahqeqg"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["https://127.0.0.1:3000"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+[analytics]
+enabled = false
+
+# Public signed-URL issuer for anonymous verification surfaces. Must be callable
+# without a Supabase JWT (anon badge-verify / scanner / registration pages).
+# Security is enforced inside the function via a service-role-derived allowlist,
+# not by JWT — see supabase/functions/public-verify-assets/index.ts.
+[functions.public-verify-assets]
+verify_jwt = false
+
+# Server-side scanner PIN check — anon scanner gate calls it without a JWT;
+# returns only a boolean, never the PIN. Requires the SCANNER_DEFAULT_PIN secret.
+# See supabase/functions/verify-scanner-pin/index.ts.
+[functions.verify-scanner-pin]
+verify_jwt = false
+
+# Stripe calls this with a Stripe-Signature header, never a Supabase JWT, so the
+# gateway must not require one. Authenticity is enforced inside the function by
+# verifying the signature against STRIPE_WEBHOOK_SECRET. Without this, every
+# webhook is rejected at the gateway before the function runs.
+[functions.stripe-webhook]
+verify_jwt = false

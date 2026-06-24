@@ -11,6 +11,7 @@ import {
   MapPin, Shield, User, Hash, ChevronRight
 } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { usePublicAssetUrls } from "../../lib/storage/publicAssets";
 
 export default function ServiceCheckin() {
   const { eventSlug } = useParams();
@@ -25,6 +26,13 @@ export default function ServiceCheckin() {
 
   const [eventData, setEventData] = useState(null);
   const [athlete, setAthlete] = useState(null);
+  // Athlete photo signs through the public-verify-assets edge function
+  // (scope=profile) so it renders whether the bucket is public or private,
+  // regardless of the staff session's storage RLS. Flag OFF: public URL.
+  const { urls: photoUrls } = usePublicAssetUrls(
+    athlete?.photo_url ? [athlete.photo_url] : [],
+    { accreditationId: athlete?.id, scope: "profile" }
+  );
   const [bookings, setBookings] = useState([]);
   const [bookingConfig, setBookingConfig] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -217,8 +225,8 @@ export default function ServiceCheckin() {
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-white/10 pb-8 gap-6">
                     <div className="flex items-center gap-6">
                       <div className="w-24 h-24 bg-black rounded-2xl border-2 border-white/10 flex items-center justify-center overflow-hidden shrink-0 shadow-xl">
-                        {athlete.photo_url ? (
-                          <img src={athlete.photo_url} alt="Profile" className="w-full h-full object-cover" />
+                        {athlete.photo_url && photoUrls[athlete.photo_url] ? (
+                          <img src={photoUrls[athlete.photo_url]} alt="Profile" className="w-full h-full object-cover" />
                         ) : (
                           <User className="w-10 h-10 text-slate-600" />
                         )}

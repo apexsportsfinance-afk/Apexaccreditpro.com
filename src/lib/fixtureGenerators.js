@@ -448,6 +448,11 @@ export function generateFixtures(format, teams, options = {}) {
 // `startDate` (YYYY-MM-DD).
 export function buildMatchRows(fixtures, { eventId, sportId, startDate, daysBetweenRounds = 7, venue = "", leagueName = "", status = "Upcoming" } = {}) {
   const base = startDate ? new Date(`${startDate}T00:00:00`) : new Date();
+  // Format from LOCAL date parts (not toISOString) so a fixture keeps its
+  // intended calendar date in non-UTC timezones. Previously toISOString() in
+  // e.g. Gulf time (UTC+4) shifted every match one day earlier.
+  const toLocalYmd = (d) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   return fixtures.map((f) => {
     const date = new Date(base);
     date.setDate(date.getDate() + (f.round_offset || 0) * daysBetweenRounds);
@@ -464,7 +469,7 @@ export function buildMatchRows(fixtures, { eventId, sportId, startDate, daysBetw
       team_b_name: f.team_b_name,
       team_a_score: "0",
       team_b_score: "0",
-      match_date: date.toISOString().split("T")[0],
+      match_date: toLocalYmd(date),
       match_time: "12:00",
       venue: venue || "",
       status,

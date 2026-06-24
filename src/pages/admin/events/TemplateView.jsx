@@ -7,6 +7,7 @@ import { useToast } from "../../../components/ui/Toast";
 import { EventsAPI } from "../../../lib/storage";
 import { GlobalSettingsAPI } from "../../../lib/broadcastApi";
 import { uploadToStorage } from "../../../lib/uploadToStorage";
+import StorageImage from "../../../components/ui/StorageImage";
 import { cn } from "../../../lib/utils";
 
 export default function TemplateView({ event, onClose, onSave }) {
@@ -210,7 +211,7 @@ export default function TemplateView({ event, onClose, onSave }) {
                 <div className="flex items-start gap-6">
                   {templateData.logoUrl ? (
                     <div className="relative group shrink-0">
-                      <img src={templateData.logoUrl} className="w-24 h-24 object-contain rounded-xl bg-white/5 p-2" alt="Logo" />
+                      <StorageImage src={templateData.logoUrl} className="w-24 h-24 object-contain rounded-xl bg-white/5 p-2" alt="Logo" />
                       <button 
                         onClick={() => setTemplateData(prev => ({ ...prev, logoUrl: "" }))}
                         className="absolute -top-2 -right-2 p-1.5 bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
@@ -238,7 +239,7 @@ export default function TemplateView({ event, onClose, onSave }) {
                 <div className="flex items-start gap-6">
                   {templateData.frontBackgroundUrl ? (
                     <div className="relative group shrink-0">
-                      <img src={templateData.frontBackgroundUrl} className="w-24 h-24 object-cover rounded-xl bg-white/5 p-2" alt="Front Bg" />
+                      <StorageImage src={templateData.frontBackgroundUrl} className="w-24 h-24 object-cover rounded-xl bg-white/5 p-2" alt="Front Bg" />
                       <button 
                         onClick={() => setTemplateData(prev => ({ ...prev, frontBackgroundUrl: "" }))}
                         className="absolute -top-2 -right-2 p-1.5 bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
@@ -300,7 +301,7 @@ export default function TemplateView({ event, onClose, onSave }) {
                 <div className="relative aspect-[3/4] max-w-[200px] border-2 border-dashed border-slate-700 rounded-2xl overflow-hidden group">
                   {templateData.backTemplateUrl ? (
                     <>
-                      <img src={templateData.backTemplateUrl} className="w-full h-full object-cover" alt="Back Template" />
+                      <StorageImage src={templateData.backTemplateUrl} className="w-full h-full object-cover" alt="Back Template" />
                       <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                         <Button variant="ghost" icon={Trash2} onClick={() => setTemplateData(prev => ({ ...prev, backTemplateUrl: "" }))}>Clear</Button>
                       </div>
@@ -324,7 +325,7 @@ export default function TemplateView({ event, onClose, onSave }) {
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {templateData.sponsorLogos.map((logo, i) => (
                     <div key={i} className="relative group h-24 bg-white rounded-xl flex items-center justify-center p-3 border border-slate-200 shadow-sm transition-shadow hover:shadow-md">
-                      <img src={logo} className="w-full h-full object-contain" alt="Sponsor" />
+                      <StorageImage src={logo} className="w-full h-full object-contain" alt="Sponsor" />
                       <button 
                          onClick={() => setTemplateData(prev => ({ ...prev, sponsorLogos: prev.sponsorLogos.filter((_, idx) => idx !== i) }))}
                          className="absolute -top-2 -right-2 p-1.5 bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-10"

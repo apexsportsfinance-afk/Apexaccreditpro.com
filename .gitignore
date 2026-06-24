@@ -15,8 +15,27 @@ tmp
 .gemini
 .venv
 .env.local
+.env.staging
 .vercel
 
 server/uploads/
 _archive/
 supabase/.temp/
+
+# Generated DB dumps (regenerable via pg_dump; not source). schema.live.sql is a
+# live schema snapshot used to mirror staging — see docs/STAGING_CLOUDFLARE.md.
+supabase/schema.live.sql
+supabase/*.dump.sql
+
+# Terraform — never commit state or real var files (keep *.example)
+infra/terraform/**/.terraform/*
+infra/terraform/**/*.tfstate
+infra/terraform/**/*.tfstate.*
+infra/terraform/**/*.tfvars
+!infra/terraform/**/*.tfvars.example
+infra/terraform/**/.terraform.lock.hcl
+
+# Playwright
+/test-results/
+/playwright-report/
+/coverage/

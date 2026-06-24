@@ -1,0 +1,20 @@
+# Copy to prod.tfvars and fill in. prod.tfvars is gitignored.
+# Secrets (supabase_access_token, vercel_api_token, cloudflare_api_token) come
+# from TF_VAR_* environment variables, NOT this file.
+
+environment     = "prod"
+region          = "eu-central-1"
+app_domain      = "accreditation.apexsports.ae"
+allowed_origins = ["https://accreditation.apexsports.ae"]
+
+# Non-secret resource identifiers
+supabase_project_ref = "your-prod-project-ref"
+supabase_url         = "https://your-prod-project-ref.supabase.co"
+cloudflare_zone_id   = "your-cloudflare-zone-id"
+vercel_git_repo      = "your-org/apexaccreditpro"
+
+# Secrets — DO NOT put here. Provide via environment:
+#   TF_VAR_supabase_anon_key, TF_VAR_scanner_pin,
+#   TF_VAR_supabase_access_token, TF_VAR_vercel_api_token,
+#   TF_VAR_cloudflare_api_token
+# function_secrets is also injected via TF_VAR_function_secrets (JSON map).

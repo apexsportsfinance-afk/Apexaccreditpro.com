@@ -74,8 +74,7 @@ import {
   getCountryFlag,
   printPdfBlob,
   isExpired,
-  getExpirationLabel,
-  getThumbnailUrl
+  getExpirationLabel
 } from "../../lib/utils";
 import {
   downloadCapturedPDF,
@@ -87,8 +86,31 @@ import {
 } from "../../lib/pdfCapture";
 import { exportToExcel, exportTableToPDF } from "../../components/accreditation/ExportUtils";
 import { bulkDownloadPDFs } from "../../components/accreditation/cardExport";
+import StorageImage from "../../components/ui/StorageImage";
+import { resolveFileUrl } from "../../lib/storage/fileUrl";
+import { openStoredFile } from "../../lib/storage/openStoredFile";
 import BulkOperations from "../../components/accreditation/BulkOperations";
 import { downloadSinglePhoto, downloadFullRecord, bulkDownloadPhotos } from "../../lib/imageDownload";
+
+// Open or download a stored accreditation PDF, resolving the stored reference
+// through the storage layer so it works in both public and private (signed-URL)
+// modes. Open-in-browser keeps the gesture via openStoredFile; download builds a
+// resolved anchor. Flag-off behaviour is unchanged.
+async function openOrDownloadStoredPdf(url, { openInBrowser, filename }) {
+  if (openInBrowser) {
+    openStoredFile(url);
+    return;
+  }
+  const resolved = await resolveFileUrl(url);
+  if (!resolved) return;
+  const link = document.createElement("a");
+  link.href = resolved;
+  link.target = "_blank";
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
 
 export default function Accreditations() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -678,19 +700,11 @@ export default function Accreditations() {
       const baseUrl = pdfAccreditation.documents.accreditation_pdf;
       const url = baseUrl.includes("?") ? `${baseUrl}&t=${Date.now()}` : `${baseUrl}?t=${Date.now()}`;
       
-      if (openInBrowser) {
-        window.open(url, '_blank');
-        toast.success("PDF opened from cache!");
-      } else {
-        const link = document.createElement('a');
-        link.href = url;
-        link.target = "_blank";
-        link.download = `${pdfAccreditation.firstName}_${pdfAccreditation.lastName}_Card.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success("Downloading cached PDF...");
-      }
+      await openOrDownloadStoredPdf(url, {
+        openInBrowser,
+        filename: `${pdfAccreditation.firstName}_${pdfAccreditation.lastName}_Card.pdf`,
+      });
+      toast.success(openInBrowser ? "PDF opened from cache!" : "Downloading cached PDF...");
       return;
     }
 
@@ -712,17 +726,10 @@ export default function Accreditations() {
         // Final action: download or open
         const url = updated.documents?.accreditation_pdf;
         if (url) {
-          if (openInBrowser) {
-            window.open(url, '_blank');
-          } else {
-            const link = document.createElement('a');
-            link.href = url;
-            link.target = "_blank";
-            link.download = `${updated.firstName}_${updated.lastName}_Card.pdf`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          }
+          openOrDownloadStoredPdf(url, {
+            openInBrowser,
+            filename: `${updated.firstName}_${updated.lastName}_Card.pdf`,
+          });
           toast.success(openInBrowser ? "PDF opened!" : "PDF downloaded!");
         }
       }
@@ -826,7 +833,7 @@ export default function Accreditations() {
             <div className="relative group">
               {row.photoUrl ? (
                 <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-border group-hover:border-primary-500 transition-colors">
-                  <img src={getThumbnailUrl(row.photoUrl, 100)} loading="lazy" alt="" className="w-full h-full object-cover" />
+                  <StorageImage src={row.photoUrl} loading="lazy" alt="" className="w-full h-full object-cover" />
                 </div>
               ) : (
                 <div className="w-10 h-10 rounded-full bg-base-alt flex items-center justify-center text-muted border-2 border-border">

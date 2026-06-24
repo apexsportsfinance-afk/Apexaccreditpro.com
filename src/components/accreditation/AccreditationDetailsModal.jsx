@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Modal from "../ui/Modal";
 import Badge from "../ui/Badge";
+import StorageImage from "../ui/StorageImage";
 import Button from "../ui/Button";
 import {
   getCountryCode3,
@@ -64,7 +65,7 @@ export default function AccreditationDetailsModal({
         <div className="p-6 space-y-6">
           <div className="flex items-start gap-6">
             {accreditation.photoUrl ? (
-              <img
+              <StorageImage
                 src={accreditation.photoUrl}
                 alt=""
                 className="w-32 h-40 rounded-lg object-cover border-2 border-primary-500/30"

@@ -23,8 +23,7 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: 'Missing signature' }), { status: 400, headers: RESPONSE_HEADERS })
     }
 
-    // 🕵️ Debug: Log first 7 chars of secret to check Live vs Test
-    console.log(`🔍 [Debug] Secret Prefix: ${webhookSecret?.substring(0, 10)}... [Signature: ${signature.substring(0, 10)}...]`);
+    // [APX-SEC] Never log any portion of the webhook signing secret.
 
     // ✅ THE DEFINITIVE FIX: Use clone() + arrayBuffer() for Supabase Edge
     const rawBody = new Uint8Array(await req.clone().arrayBuffer());
@@ -114,8 +113,10 @@ serve(async (req: Request) => {
     return new Response(JSON.stringify({ received: true }), { status: 200, headers: RESPONSE_HEADERS })
 
   } catch (err: any) {
-    console.error(`⚠️ [Error] Webhook Verification Failed: ${err.message}`)
-    // Return 200 to prevent Stripe from retrying an already failing signature
-    return new Response(JSON.stringify({ received: true, note: err.message }), { status: 200, headers: RESPONSE_HEADERS })
+    console.error(`⚠️ [Error] Webhook handling failed: ${err.message}`)
+    // [APX-SEC] Return 400 on verification/processing failure so Stripe RETRIES.
+    // Previously this returned 200, which permanently dropped events on any
+    // transient secret/config mismatch -> paid-but-unfulfilled orders.
+    return new Response(JSON.stringify({ received: false, error: err.message }), { status: 400, headers: RESPONSE_HEADERS })
   }
 })

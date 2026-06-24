@@ -5,6 +5,7 @@ import { GlobalSettingsAPI, HeatSheetMatrixAPI, AthleteEventsAPI } from "../../l
 import { parseCompetitionFile, matchAthleteEvents } from "../../lib/CoachHeatParser";
 import { calculateAge, cn } from "../../lib/utils";
 import Button from "../ui/Button";
+import { openStoredFile } from "../../lib/storage/openStoredFile";
 
 const SLOTS = [
   { key: "heat_sheet", label: "Heat Sheet", color: "blue" },
@@ -305,7 +306,7 @@ export default function EventPdfSlots({ eventId, onToast, disabled }) {
                     <div className="flex flex-wrap gap-2">
                       <Button 
                         size="sm" 
-                        onClick={() => window.open(slots[slot.key], '_blank')}
+                        onClick={() => openStoredFile(slots[slot.key])}
                         className={cn("rounded-lg gap-2 text-[10px] font-black uppercase", config.bg)}
                       >
                         <Download className="w-3.5 h-3.5" /> View
