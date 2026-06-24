@@ -3,7 +3,7 @@ import { Globe, Upload, Save, Trash2, Clock, Users, Search, Check, X, AlertCircl
 
 
 import { EventSettingsAPI, BroadcastV2API, SportEventsAPI, GlobalSettingsAPI } from "../../lib/broadcastApi";
-import { AccreditationsAPI } from "../../lib/storage";
+import { AccreditationsAPI, EventCategoriesAPI } from "../../lib/storage";
 import { supabase } from "../../lib/supabase";
 import { uploadToStorage } from "../../lib/uploadToStorage";
 import { ROLES } from "../../lib/utils";
@@ -353,7 +353,7 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft, disabled })
   const [successInfo, setSuccessInfo] = useState(null);
   const [currentAttachment, setCurrentAttachment] = useState(null); // { url, name, broadcastId }
   const [deletingAttachment, setDeletingAttachment] = useState(false);
-  const [availableRoles, setAvailableRoles] = useState(ROLES);
+  const [availableRoles, setAvailableRoles] = useState([]);
   const attachInputRef = useRef(null);
 
   // Load latest athlete broadcast attachment
@@ -452,27 +452,35 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft, disabled })
     if (eventId) fetchRegisteredClubs();
   }, [eventId]);
 
-  // Load unique roles available in this event
+  // Load ONLY the categories/roles saved & configured for this event during setup.
+  // (Do NOT merge with the global ROLES constant — that surfaces roles that were
+  //  never configured for the selected event.)
   useEffect(() => {
     const fetchAvailableRoles = async () => {
       try {
-        const { data } = await supabase
-          .from("accreditations")
-          .select("role")
-          .eq("event_id", eventId);
-        
-        const dbRoles = [...new Set((data || []).map(a => a.role).filter(Boolean))];
-        
-        // Merge with standard ROLES to ensure common ones are always there, or just use DB roles?
-        // User specifically wants roles based on the event.
-        if (dbRoles.length > 0) {
-          // Combine and unique
-          const combined = [...new Set([...ROLES, ...dbRoles])];
-          combined.sort((a, b) => a.localeCompare(b));
-          setAvailableRoles(combined);
+        // 1. Primary source: categories explicitly configured for this event.
+        const eventCategories = await EventCategoriesAPI.getByEventId(eventId);
+        let roles = [...new Set(
+          (eventCategories || [])
+            .map(ec => ec.category?.name)
+            .filter(Boolean)
+        )];
+
+        // 2. Fallback: if no categories were configured, derive the roles actually
+        //    present on this event's accreditations (still strictly event-specific).
+        if (roles.length === 0) {
+          const { data } = await supabase
+            .from("accreditations")
+            .select("role")
+            .eq("event_id", eventId);
+          roles = [...new Set((data || []).map(a => a.role).filter(Boolean))];
         }
+
+        roles.sort((a, b) => a.localeCompare(b));
+        setAvailableRoles(roles);
       } catch (err) {
         console.error("Failed to fetch roles:", err);
+        setAvailableRoles([]);
       }
     };
     if (eventId) fetchAvailableRoles();
@@ -680,6 +688,9 @@ function AthleteQRBroadcastPage({ eventId, onToast, draft, setDraft, disabled })
             <div>
               <label className="block text-gray-400 text-xs font-bold uppercase tracking-widest mb-2">Filter Roles</label>
               <div className="bg-gray-900 border border-gray-700 rounded-xl p-2 max-h-40 overflow-y-auto space-y-1">
+                {availableRoles.length === 0 && (
+                  <p className="text-xs text-gray-600 p-2">No categories configured for this event</p>
+                )}
                 {availableRoles.map(role => (
                   <label key={role} className="flex items-center gap-2 px-2 py-1 hover:bg-gray-800 rounded cursor-pointer transition-colors">
                     <input

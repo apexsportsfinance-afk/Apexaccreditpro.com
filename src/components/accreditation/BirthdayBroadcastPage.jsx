@@ -109,7 +109,9 @@ export default function BirthdayBroadcastPage({ eventId, onToast, draft, setDraf
       const selectedPeople = birthdayPeople.filter(p => selectedIds.has(p.id));
       const sendPromises = selectedPeople.map(person => {
         const personalizedMsg = replacePlaceholders(message, person);
-        return BroadcastV2API.sendToAthletes(eventId, personalizedMsg, [person.id], attachmentUrl, attachmentName);
+        // Tag as 'birthday' so the certificate stays separate from broadcast forms
+        // and never appears as an attachment in the Athlete QR Broadcast module.
+        return BroadcastV2API.sendToAthletes(eventId, personalizedMsg, [person.id], attachmentUrl, attachmentName, "birthday");
       });
 
       await Promise.all(sendPromises);
