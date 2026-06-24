@@ -22,22 +22,21 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   </React.StrictMode>
 );
 
-// APX-101: Global Offline Shield Registration
+// APX-FIX: Offline Shield REMOVED. A stale service worker (the Offline Shield,
+// plus an earlier Workbox PWA worker from the institutional build) kept serving
+// cached assets after deploys, which broke Supabase calls and admin login.
+//
+// We no longer register any worker. We DO proactively unregister any that exist
+// and purge their caches, so fresh tabs self-clean. Already-stuck tabs are
+// rescued by the kill-switch in /service-worker.js (the browser re-fetches that
+// script on navigation even when the page itself is served from cache).
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      // Auto-unregister any existing service workers on localhost to prevent local dev offline-locks
-      navigator.serviceWorker.getRegistrations().then((registrations) => {
-        for (let registration of registrations) {
-          registration.unregister();
-          console.log('🛡️ Unregistered Service Worker on localhost');
-        }
-      });
-      return;
-    }
-    
-    navigator.serviceWorker.register('/service-worker.js')
-      .then(reg => console.log('🛡️ Apex Offline Shield Active:', reg.scope))
-      .catch(err => console.error('🛡️ Offline Shield failed:', err));
-  });
+  navigator.serviceWorker.getRegistrations()
+    .then((registrations) => registrations.forEach((r) => r.unregister()))
+    .catch(() => {});
+  if (window.caches) {
+    caches.keys()
+      .then((keys) => keys.forEach((k) => caches.delete(k)))
+      .catch(() => {});
+  }
 }

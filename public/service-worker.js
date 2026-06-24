@@ -1,47 +1,42 @@
-const CACHE_NAME = 'apex-offline-v1';
-const OFFLINE_URL = '/offline.html';
+// APX-FIX (heatsheet-on-stable): SERVICE-WORKER KILL SWITCH.
+//
+// The previous "Offline Shield" worker — and an earlier Workbox PWA worker from
+// the institutional build — kept serving STALE cached assets after deploys,
+// which broke every Supabase call and rejected admin logins (the app was
+// running an old cached bundle against the live API).
+//
+// Browsers always re-fetch the worker script itself on navigation to check for
+// updates, even when the page is served from cache. So this replacement worker
+// is the one thing that can reach an already-stuck client: it takes control,
+// purges every cache, unregisters itself, and reloads open tabs so all clients
+// converge on the live network app. Paired with main.jsx no longer registering
+// a worker, this fully removes service-worker caching.
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll([OFFLINE_URL]);
-    })
-  );
+self.addEventListener('install', () => {
+  // Activate immediately instead of waiting for the old worker to release.
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
-  );
+  event.waitUntil((async () => {
+    // 1. Delete every cache (Offline Shield + Workbox precaches).
+    try {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    } catch (e) { /* best-effort */ }
+
+    // 2. Remove this registration so no worker controls the site anymore.
+    try { await self.registration.unregister(); } catch (e) { /* best-effort */ }
+
+    // 3. Reload any open tabs so they re-fetch the fresh app from the network.
+    try {
+      const clients = await self.clients.matchAll({ type: 'window' });
+      for (const client of clients) {
+        client.navigate(client.url);
+      }
+    } catch (e) { /* best-effort */ }
+  })());
 });
 
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-  // Bypass offline catch for localhost (development)
-  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
-    return;
-  }
-
-  // Only intercept navigation requests (page loads)
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request).catch(() => {
-        return caches.open(CACHE_NAME).then((cache) => {
-          return cache.match(OFFLINE_URL);
-        });
-      })
-    );
-  } else {
-    // For all other requests (JS, CSS, images), just fetch from network
-    event.respondWith(fetch(event.request));
-  }
-});
+// No fetch handler on purpose: never intercept requests — everything goes
+// straight to the network.
