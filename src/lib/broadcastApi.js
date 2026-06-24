@@ -570,50 +570,138 @@ export const HeatSheetMatrixAPI = {
  * Advanced Matching Events API (Replaces lane_matrix)
  */
 export const AthleteEventsAPI = {
-  upsertEvents: async (athleteEvents) => {
+  upsertEvents: async (athleteEvents, meetEventId = null) => {
     if (!athleteEvents || athleteEvents.length === 0) return 0;
 
-    let processedCount = 0;
-    console.log(`DIAC_DEBUG: Turbo Upsert starting for [${athleteEvents.length}] rows...`);
+    // APX-PERF: The previous implementation looped sequentially and ran a
+    // SELECT + (UPDATE|INSERT) per row — 2 network round-trips each, serial.
+    // For a meet with ~900 athlete-event rows that is ~1,800 round-trips and
+    // minutes of wait. This version does ONE bulk-fetch of existing rows, then
+    // batched bulk INSERTs for new rows and parallelised UPDATEs for the rest.
+    //
+    // APX-FIX: It also maps each matched record to the ACTUAL athlete_events
+    // columns. The matcher emits athlete_name/team_name/event_number and puts
+    // the event CODE into the uuid `event_id` column — none of which the table
+    // accepts, so EVERY insert was silently rejected and athlete_events stayed
+    // empty (heat/lane never reached the QR profile). Real columns are
+    // pdf_name / pdf_team / event_code / heat / lane / round / seed_time /
+    // session_name / race_time / call_room_time / rank / result_time / matched,
+    // and event_id is the meet's uuid (passed in as meetEventId).
+    const toRow = (r) => {
+      const heat = parseInt(r.heat, 10);
+      const lane = parseInt(r.lane, 10);
+      const rank = parseInt(r.rank, 10);
+      return {
+        accreditation_id: r.accreditation_id,
+        event_id: meetEventId || null,
+        pdf_name: r.athlete_name || r.athleteName || null,
+        pdf_team: r.team_name || r.teamName || null,
+        event_code: (r.event_code !== undefined && r.event_code !== null) ? String(r.event_code) : null,
+        event_name: r.event_name || null,
+        gender: r.gender || null,
+        heat: Number.isNaN(heat) ? null : heat,
+        lane: Number.isNaN(lane) ? null : lane,
+        round: r.round || 'Finals',
+        seed_time: r.seed_time || r.seedTime || null,
+        session_name: r.session_name || r.sessionName || null,
+        race_time: r.race_time || r.raceTime || null,
+        call_room_time: r.call_room_time || r.callRoomTime || null,
+        rank: Number.isNaN(rank) ? null : rank,
+        result_time: r.result_time || r.resultTime || null,
+        matched: true
+      };
+    };
 
-    // Process rows sequentially to avoid 409 Conflict race conditions on maybeSingle check
+    // 1. Map to real columns, drop invalid, dedupe by (accreditation|event|round)
+    const byKey = new Map();
     for (const record of athleteEvents) {
-      if (!record.accreditation_id || !record.event_code) continue;
-      try {
-        const round = record.round || 'Finals';
-        const { data: ex } = await supabase
-          .from("athlete_events")
-          .select("id, heat, lane, rank, result_time")
-          .eq("accreditation_id", record.accreditation_id)
-          .eq("event_code", record.event_code)
-          .eq("round", round)
-          .maybeSingle();
+      if (!record.accreditation_id || record.event_code === undefined || record.event_code === null) continue;
+      const row = toRow(record);
+      byKey.set(`${row.accreditation_id}|${row.event_code}|${row.round}`, row);
+    }
+    const rows = Array.from(byKey.values());
+    if (rows.length === 0) return 0;
 
-        if (ex) {
-          const { error: upErr } = await supabase
-            .from("athlete_events")
-            .update({
-              rank: (record.rank !== undefined && record.rank !== null) ? record.rank : ex.rank,
-              result_time: record.result_time || record.resultTime || ex.result_time,
-              heat: (record.heat !== undefined && record.heat !== null) ? record.heat : ex.heat,
-              lane: (record.lane !== undefined && record.lane !== null) ? record.lane : ex.lane,
-              session_name: record.session_name || record.sessionName || null,
-              race_time: record.race_time || record.raceTime || null,
-              call_room_time: record.call_room_time || record.callRoomTime || null,
-              updated_at: new Date().toISOString()
-            })
-            .eq("id", ex.id);
-          if (!upErr) processedCount++;
-        } else {
-          const { error: insErr } = await supabase
-            .from("athlete_events")
-            .insert({ ...record, round });
+    console.log(`DIAC_DEBUG: Bulk Upsert starting for [${rows.length}] de-duplicated rows...`);
+
+    // 2. Bulk-fetch existing rows for all involved accreditations (chunked .in())
+    const accIds = [...new Set(rows.map(r => r.accreditation_id))];
+    const existingByKey = new Map();
+    const IN_CHUNK = 200;
+    for (let i = 0; i < accIds.length; i += IN_CHUNK) {
+      const chunk = accIds.slice(i, i + IN_CHUNK);
+      const { data: exRows, error } = await supabase
+        .from("athlete_events")
+        .select("id, accreditation_id, event_code, round")
+        .in("accreditation_id", chunk);
+      if (error) { console.warn("[AthleteEvents] existing-row fetch warning:", error.message); continue; }
+      (exRows || []).forEach(ex => {
+        existingByKey.set(`${ex.accreditation_id}|${ex.event_code}|${ex.round || 'Finals'}`, ex);
+      });
+    }
+
+    // 3. Partition into fresh inserts vs updates of existing rows
+    const toInsert = [];
+    const toUpdate = [];
+    for (const row of rows) {
+      const ex = existingByKey.get(`${row.accreditation_id}|${row.event_code}|${row.round}`);
+      if (ex) toUpdate.push({ id: ex.id, row });
+      else toInsert.push(row);
+    }
+
+    let processedCount = 0;
+
+    // 4. Bulk INSERT new rows in batches (the common case after a meet wipe)
+    const BATCH = 200;
+    for (let i = 0; i < toInsert.length; i += BATCH) {
+      const batch = toInsert.slice(i, i + BATCH);
+      const { data, error } = await supabase
+        .from("athlete_events")
+        .insert(batch)
+        .select("id");
+      if (error) {
+        console.error("[AthleteEvents] Bulk insert failed, retrying row-by-row:", error.message);
+        for (const r of batch) {
+          const { error: insErr } = await supabase.from("athlete_events").insert(r);
           if (!insErr) processedCount++;
+          else console.warn("[AthleteEvents] row insert error:", insErr.message);
         }
-      } catch (err) {
-        console.warn("Event item upsert error:", err);
+      } else {
+        processedCount += data?.length || batch.length;
       }
     }
+
+    // 5. UPDATE existing rows in parallel batches (rare; only on re-upload w/o wipe)
+    const UPD_CONCURRENCY = 25;
+    for (let i = 0; i < toUpdate.length; i += UPD_CONCURRENCY) {
+      const slice = toUpdate.slice(i, i + UPD_CONCURRENCY);
+      const results = await Promise.all(slice.map(({ id, row }) =>
+        supabase
+          .from("athlete_events")
+          .update({
+            // `row` is already mapped to real columns by toRow()
+            pdf_name: row.pdf_name,
+            pdf_team: row.pdf_team,
+            event_name: row.event_name,
+            gender: row.gender,
+            heat: row.heat,
+            lane: row.lane,
+            seed_time: row.seed_time,
+            session_name: row.session_name,
+            race_time: row.race_time,
+            call_room_time: row.call_room_time,
+            rank: row.rank,
+            result_time: row.result_time,
+            matched: true,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", id)
+          .then(({ error }) => !error)
+      ));
+      processedCount += results.filter(Boolean).length;
+    }
+
+    console.log(`DIAC_DEBUG: Bulk Upsert finished. Inserted/updated: ${processedCount} (${toInsert.length} new, ${toUpdate.length} existing).`);
     return processedCount;
   },
 
