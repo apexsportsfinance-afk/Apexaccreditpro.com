@@ -5,7 +5,7 @@ import {
   MessageSquare, Globe, AlertTriangle, ChevronDown, ChevronUp,
   User, Bell, X,
   ChevronRight, Trophy, Search, Target,
-  Clock, RotateCcw, CheckCircle2, Trash2, Activity, Loader2
+  Clock, RotateCcw, CheckCircle2, Trash2, Activity, Loader2, Gift
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase";
@@ -339,7 +339,13 @@ export default function VerifyAccreditation() {
       .filter(m => m.type === "athlete")
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-    const allMessages = [...generalMessages, ...targetedMessages, ...personalMessages]
+    // Birthday certificates are kept in their own group so they are NOT
+    // overwritten when a new personal notification arrives.
+    const birthdayMessages = messages
+      .filter(m => m.type === "birthday")
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    const allMessages = [...generalMessages, ...targetedMessages, ...personalMessages, ...birthdayMessages]
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     // Legacy fallback
@@ -349,6 +355,7 @@ export default function VerifyAccreditation() {
       generalMessages,
       targetedMessages,
       personalMessages,
+      birthdayMessages,
       allMessages,
       fallbackMessage
     };
@@ -1103,23 +1110,27 @@ export default function VerifyAccreditation() {
                         key={m.id || i} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }}
                         className={cn(
                           "p-5 rounded-2xl border backdrop-blur-md",
-                          m.type === "athlete"
-                            ? "bg-indigo-500/5 border-indigo-500/20"
-                            : (m.targetRoles?.length > 0 || m.targetZones?.length > 0)
-                              ? "bg-blue-500/5 border-blue-500/20"
-                              : "bg-emerald-500/5 border-emerald-500/20"
+                          m.type === "birthday"
+                            ? "bg-pink-500/5 border-pink-500/20"
+                            : m.type === "athlete"
+                              ? "bg-indigo-500/5 border-indigo-500/20"
+                              : (m.targetRoles?.length > 0 || m.targetZones?.length > 0)
+                                ? "bg-blue-500/5 border-blue-500/20"
+                                : "bg-emerald-500/5 border-emerald-500/20"
                         )}
                       >
                         <div className="flex items-center justify-between mb-3">
                           <span className={cn(
                             "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded",
-                            m.type === "athlete"
-                              ? "bg-indigo-500/20 text-indigo-300"
-                              : (m.targetRoles?.length > 0 || m.targetZones?.length > 0)
-                                ? "bg-blue-500/20 text-blue-300"
-                                : "bg-emerald-500/20 text-emerald-300"
+                            m.type === "birthday"
+                              ? "bg-pink-500/20 text-pink-300"
+                              : m.type === "athlete"
+                                ? "bg-indigo-500/20 text-indigo-300"
+                                : (m.targetRoles?.length > 0 || m.targetZones?.length > 0)
+                                  ? "bg-blue-500/20 text-blue-300"
+                                  : "bg-emerald-500/20 text-emerald-300"
                           )}>
-                            {m.type === "athlete" ? "Personal" : (m.targetRoles?.length > 0 || m.targetZones?.length > 0 ? "Targeted" : "General")}
+                            {m.type === "birthday" ? "Birthday" : (m.type === "athlete" ? "Personal" : (m.targetRoles?.length > 0 || m.targetZones?.length > 0 ? "Targeted" : "General"))}
                           </span>
                           {m.createdAt && <span className="text-[10px] text-white/30 font-bold">{new Date(m.createdAt).toLocaleString()}</span>}
                         </div>
@@ -1395,6 +1406,17 @@ export default function VerifyAccreditation() {
                       messages={filteredMessages.personalMessages}
                       icon={<MessageSquare className="w-5 h-5" />}
                       isPersonal
+                      accreditationId={data?.id}
+                      onRead={recalculateUnread}
+                    />
+                  )}
+
+                  {filteredMessages.birthdayMessages.length > 0 && (
+                    <ExpandableMessageGroup
+                      title="Birthday Wishes"
+                      messages={filteredMessages.birthdayMessages}
+                      icon={<Gift className="w-5 h-5" />}
+                      isBirthday
                       accreditationId={data?.id}
                       onRead={recalculateUnread}
                     />

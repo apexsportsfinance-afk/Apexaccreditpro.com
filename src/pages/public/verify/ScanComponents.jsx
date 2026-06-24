@@ -4,7 +4,7 @@ import { ChevronDown, Paperclip, Download, AlertTriangle } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { usePublicAssetUrls } from "../../../lib/storage/publicAssets";
 
-export function ExpandableMessageGroup({ title, messages, icon, isPersonal, isTargeted, isGeneral, accreditationId, onRead }) {
+export function ExpandableMessageGroup({ title, messages, icon, isPersonal, isTargeted, isGeneral, isBirthday, accreditationId, onRead }) {
   const [hasUnread, setHasUnread] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const latestMessage = messages && messages.length > 0 ? messages[0] : null;
@@ -40,11 +40,13 @@ export function ExpandableMessageGroup({ title, messages, icon, isPersonal, isTa
     }
   };
 
-  const theme = isPersonal
-    ? { border: "border-indigo-500/20", text: "text-indigo-300", bg: "bg-indigo-500/5" }
-    : isTargeted
-      ? { border: "border-blue-500/20", text: "text-blue-300", bg: "bg-blue-500/5" }
-      : { border: "border-emerald-500/20", text: "text-emerald-300", bg: "bg-emerald-500/5" };
+  const theme = isBirthday
+    ? { border: "border-pink-500/20", text: "text-pink-300", bg: "bg-pink-500/5" }
+    : isPersonal
+      ? { border: "border-indigo-500/20", text: "text-indigo-300", bg: "bg-indigo-500/5" }
+      : isTargeted
+        ? { border: "border-blue-500/20", text: "text-blue-300", bg: "bg-blue-500/5" }
+        : { border: "border-emerald-500/20", text: "text-emerald-300", bg: "bg-emerald-500/5" };
 
   if (!latestMessage) return null;
 
