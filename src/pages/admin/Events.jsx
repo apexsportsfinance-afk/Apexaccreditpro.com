@@ -35,8 +35,17 @@ import {
   QrCode,
   Trash,
   CreditCard,
-  ShieldAlert
+  ShieldAlert,
+  ArrowUp,
+  ArrowDown,
+  Layers
 } from "lucide-react";
+import {
+  normalizeLayout,
+  STANDARD_FIELD_LABELS,
+  isCustomItem,
+  customIdOf,
+} from "../../lib/formLayout";
 
 import { extractTextFromPdf as parsePDFText } from "../../lib/pdfParser";
 import { OUTPUT_TYPES } from "../../lib/constants";
@@ -141,6 +150,7 @@ export default function Events() {
   const [mainGateModal, setMainGateModal] = useState({ open: false, eventId: null });
   const [mainGateConfig, setMainGateConfig] = useState(null);
   const [showCustomFields, setShowCustomFields] = useState(false);
+  const [showFormLayout, setShowFormLayout] = useState(false);
   const [formData, setFormData] = useState({
     outputType: OUTPUT_TYPES.ACCREDITATION_PASS,
     name: "",
@@ -165,7 +175,8 @@ export default function Events() {
       { id: "passport", label: "Passport", format: "JPEG, PNG, WEBP, PDF" }
     ],
     labelOverrides: {},
-    fieldConfig: {}
+    fieldConfig: {},
+    formLayout: []
   });
   const [localClosedMessage, setLocalClosedMessage] = useState("");
   const [isSavingMessage, setIsSavingMessage] = useState(false);
@@ -288,7 +299,8 @@ export default function Events() {
         { id: "passport", label: "Passport", format: "JPEG, PNG, WEBP, PDF" }
       ],
       labelOverrides: {},
-      fieldConfig: {}
+      fieldConfig: {},
+      formLayout: []
     });
     setEditingEvent(null);
   };
@@ -305,12 +317,13 @@ export default function Events() {
 
       // 2. Fetch all data in parallel
       try {
-        const [sportRes, customFieldsRes, visibilityRes, labelsRes, fieldConfigRes] = await Promise.all([
+        const [sportRes, customFieldsRes, visibilityRes, labelsRes, fieldConfigRes, formLayoutRes] = await Promise.all([
           GlobalSettingsAPI.get(`event_${event.id}_sport`).catch(() => null),
           GlobalSettingsAPI.get(`event_${event.id}_custom_fields`).catch(() => null),
           GlobalSettingsAPI.get(`event_${event.id}_visibility`).catch(() => null),
           GlobalSettingsAPI.get(`event_${event.id}_label_overrides`).catch(() => null),
-          GlobalSettingsAPI.get(`event_${event.id}_field_config`).catch(() => null)
+          GlobalSettingsAPI.get(`event_${event.id}_field_config`).catch(() => null),
+          GlobalSettingsAPI.get(`event_${event.id}_form_layout`).catch(() => null)
         ]);
 
         // Process Sports
@@ -366,6 +379,18 @@ export default function Events() {
           }
         }
         event.fieldConfig = fieldConfig;
+
+        // Process Form Layout (normalized against current custom fields)
+        let savedLayout = null;
+        if (formLayoutRes) {
+          try {
+            const parsed = JSON.parse(formLayoutRes);
+            if (Array.isArray(parsed)) savedLayout = parsed;
+          } catch (e) {
+            console.error("Parse form layout error", e);
+          }
+        }
+        event.formLayout = normalizeLayout(savedLayout, customFields);
       } catch (err) {
         console.error("Failed to load event settings", err);
       }
@@ -406,7 +431,8 @@ export default function Events() {
           });
         })(),
         labelOverrides: event.labelOverrides || {},
-        fieldConfig: event.fieldConfig || {}
+        fieldConfig: event.fieldConfig || {},
+        formLayout: event.formLayout || []
       });
     } else {
       resetForm();
@@ -482,10 +508,130 @@ export default function Events() {
   const updateCustomField = (id, field, value) => {
     setFormData(prev => ({
       ...prev,
-      customFields: (prev.customFields || []).map(cf => 
+      customFields: (prev.customFields || []).map(cf =>
         cf.id === id ? { ...cf, [field]: value } : cf
       )
     }));
+  };
+
+  /* ── Form Layout Builder helpers ──────────────────────────────── */
+  // Default placeholder labels for built-in section headers.
+  const SECTION_DEFAULT_LABEL = {
+    personalInfo: "Personal Information",
+    affiliation: "Affiliation",
+    additionalInfo: "Additional Information",
+    contact: "Contact",
+    documents: "Documents",
+  };
+  // Standard fields whose Show/Required toggles the registration form honors.
+  const LAYOUT_TOGGLEABLE = new Set([
+    "firstName", "lastName", "gender", "dateOfBirth", "nationality",
+    "category_role", "organization", "participatingSports",
+  ]);
+
+  // Always work against a normalized layout so newly added / removed custom
+  // fields are reflected immediately.
+  const layoutSections = () => normalizeLayout(formData.formLayout, formData.customFields);
+  const commitLayout = (sections) => setFormData(prev => ({ ...prev, formLayout: sections }));
+
+  const layoutItemLabel = (item) => {
+    if (isCustomItem(item)) {
+      const f = (formData.customFields || []).find(c => c.id === customIdOf(item));
+      return f?.label_en || f?.label_ar || "Custom Field";
+    }
+    return STANDARD_FIELD_LABELS[item] || item;
+  };
+
+  const moveLayoutSection = (idx, dir) => {
+    const s = layoutSections();
+    const j = idx + dir;
+    if (j < 0 || j >= s.length) return;
+    [s[idx], s[j]] = [s[j], s[idx]];
+    commitLayout(s);
+  };
+
+  const renameLayoutSection = (idx, title) => {
+    const s = layoutSections();
+    s[idx] = { ...s[idx], title };
+    commitLayout(s);
+  };
+
+  const addLayoutSection = () => {
+    const s = layoutSections();
+    s.push({ id: `sec_${Date.now()}`, builtin: false, title: "New Section", items: [] });
+    commitLayout(s);
+  };
+
+  const deleteLayoutSection = (idx) => {
+    const s = layoutSections();
+    if (s[idx].builtin) return;
+    const [removed] = s.splice(idx, 1);
+    if (removed.items.length) {
+      const target = s[Math.max(0, idx - 1)] || s[0];
+      if (target) target.items = [...target.items, ...removed.items];
+    }
+    commitLayout(s);
+  };
+
+  // Move an item within its section; at the edges, hop into the adjacent
+  // section so any field can be placed anywhere using only up/down.
+  const moveLayoutItem = (secIdx, itemIdx, dir) => {
+    const s = layoutSections();
+    const sec = s[secIdx];
+    const j = itemIdx + dir;
+    if (j >= 0 && j < sec.items.length) {
+      const items = [...sec.items];
+      [items[itemIdx], items[j]] = [items[j], items[itemIdx]];
+      s[secIdx] = { ...sec, items };
+      commitLayout(s);
+      return;
+    }
+    if (dir < 0 && secIdx > 0) {
+      const item = sec.items[itemIdx];
+      s[secIdx] = { ...sec, items: sec.items.filter((_, i) => i !== itemIdx) };
+      s[secIdx - 1] = { ...s[secIdx - 1], items: [...s[secIdx - 1].items, item] };
+      commitLayout(s);
+    } else if (dir > 0 && secIdx < s.length - 1) {
+      const item = sec.items[itemIdx];
+      s[secIdx] = { ...sec, items: sec.items.filter((_, i) => i !== itemIdx) };
+      s[secIdx + 1] = { ...s[secIdx + 1], items: [item, ...s[secIdx + 1].items] };
+      commitLayout(s);
+    }
+  };
+
+  const layoutItemRequired = (item) => {
+    if (isCustomItem(item)) {
+      const f = (formData.customFields || []).find(c => c.id === customIdOf(item));
+      return !!f?.required;
+    }
+    return formData.fieldConfig?.[item]?.required !== false;
+  };
+  const layoutItemShown = (item) => {
+    if (isCustomItem(item)) return true;
+    return formData.fieldConfig?.[item]?.show !== false;
+  };
+  const toggleLayoutItemRequired = (item) => {
+    if (isCustomItem(item)) {
+      updateCustomField(customIdOf(item), "required", !layoutItemRequired(item));
+      return;
+    }
+    setFormData(prev => {
+      const cur = prev.fieldConfig?.[item]?.required !== false;
+      return {
+        ...prev,
+        fieldConfig: { ...prev.fieldConfig, [item]: { ...(prev.fieldConfig?.[item] || {}), required: !cur } },
+      };
+    });
+  };
+  const toggleLayoutItemShown = (item) => {
+    if (isCustomItem(item)) return;
+    setFormData(prev => {
+      const cur = prev.fieldConfig?.[item]?.show !== false;
+      return {
+        ...prev,
+        fieldConfig: { ...prev.fieldConfig, [item]: { ...(prev.fieldConfig?.[item] || {}), show: !cur } },
+      };
+    });
   };
 
   const handleSubmit = (e) => {
@@ -523,6 +669,7 @@ export default function Events() {
           await GlobalSettingsAPI.set(`event_${savedEventId}_visibility`, JSON.stringify(formData.visibility || { affiliation: true, contact: true, documents: true, phone: "optional" }));
           await GlobalSettingsAPI.set(`event_${savedEventId}_label_overrides`, JSON.stringify(formData.labelOverrides || {}));
           await GlobalSettingsAPI.set(`event_${savedEventId}_field_config`, JSON.stringify(formData.fieldConfig || {}));
+          await GlobalSettingsAPI.set(`event_${savedEventId}_form_layout`, JSON.stringify(normalizeLayout(formData.formLayout, formData.customFields)));
         }
 
         handleCloseModal();
@@ -2022,6 +2169,123 @@ export default function Events() {
                     <PlusCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
                     <span className="font-semibold text-lg">Add Custom Requirement Field</span>
                   </button>
+                </div>
+              </motion.div>
+            )}
+          </div>
+
+          {/* Form Layout Builder */}
+          <div className="border-t border-slate-700 pt-6">
+            <button
+              type="button"
+              onClick={() => setShowFormLayout(!showFormLayout)}
+              className="w-full flex items-center justify-between group text-left"
+            >
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Layers className="w-5 h-5 text-sky-400 group-hover:rotate-12 transition-transform" />
+                  <span className="text-lg font-medium text-slate-300">Form Layout Builder</span>
+                </div>
+                <p className="text-sm text-slate-500">
+                  Rename sections, reorder fields, and arrange the full form. Add custom sections and place any field anywhere.
+                </p>
+              </div>
+              <div className={`p-1.5 rounded-lg bg-slate-800 text-slate-400 transition-all ${showFormLayout ? 'rotate-180 bg-sky-500/10 text-sky-500' : 'group-hover:bg-slate-700'}`}>
+                <ChevronDown className="w-5 h-5" />
+              </div>
+            </button>
+
+            {showFormLayout && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="overflow-hidden"
+              >
+                <div className="space-y-4 pt-6 pb-2">
+                  {layoutSections().map((section, sIdx, arr) => (
+                    <div key={section.id} className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-4 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex flex-col">
+                          <button type="button" disabled={sIdx === 0} onClick={() => moveLayoutSection(sIdx, -1)} className="p-0.5 text-slate-400 hover:text-sky-400 disabled:opacity-20 disabled:hover:text-slate-400" title="Move section up">
+                            <ArrowUp className="w-4 h-4" />
+                          </button>
+                          <button type="button" disabled={sIdx === arr.length - 1} onClick={() => moveLayoutSection(sIdx, 1)} className="p-0.5 text-slate-400 hover:text-sky-400 disabled:opacity-20 disabled:hover:text-slate-400" title="Move section down">
+                            <ArrowDown className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <input
+                          value={section.title}
+                          onChange={(e) => renameLayoutSection(sIdx, e.target.value)}
+                          placeholder={SECTION_DEFAULT_LABEL[section.id] || "Section Title"}
+                          className="flex-1 px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white font-semibold placeholder-slate-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all"
+                        />
+                        {!section.builtin ? (
+                          <button type="button" onClick={() => deleteLayoutSection(sIdx)} className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Delete section (fields move to the section above)">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <span className="text-[9px] uppercase tracking-widest text-slate-600 font-bold px-2">core</span>
+                        )}
+                      </div>
+
+                      <div className="space-y-1.5 pl-1">
+                        {section.items.length === 0 && (
+                          <p className="text-xs text-slate-600 italic px-2 py-1">No fields here — move one in with the arrows.</p>
+                        )}
+                        {section.items.map((item, iIdx) => {
+                          const isCustom = isCustomItem(item);
+                          const toggleable = isCustom || LAYOUT_TOGGLEABLE.has(item);
+                          return (
+                            <div key={item} className="flex items-center gap-2 bg-slate-900/40 border border-slate-800 rounded-lg px-2 py-1.5">
+                              <div className="flex flex-col">
+                                <button type="button" onClick={() => moveLayoutItem(sIdx, iIdx, -1)} className="p-0.5 text-slate-500 hover:text-sky-400 transition-colors" title="Move up (past the top edge moves to the section above)">
+                                  <ArrowUp className="w-3.5 h-3.5" />
+                                </button>
+                                <button type="button" onClick={() => moveLayoutItem(sIdx, iIdx, 1)} className="p-0.5 text-slate-500 hover:text-sky-400 transition-colors" title="Move down (past the bottom edge moves to the section below)">
+                                  <ArrowDown className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                              <span className={`flex-1 text-sm ${isCustom ? 'text-emerald-300' : 'text-slate-200'}`}>
+                                {layoutItemLabel(item)}
+                                {isCustom && <span className="ml-2 text-[9px] uppercase tracking-widest text-emerald-500/70 font-bold">custom</span>}
+                              </span>
+                              {toggleable ? (
+                                <div className="flex items-center gap-3">
+                                  {!isCustom && (
+                                    <label className="flex items-center gap-1 cursor-pointer" title="Visible on the registration form">
+                                      <span className="text-[9px] uppercase font-semibold text-slate-500">Show</span>
+                                      <input type="checkbox" checked={layoutItemShown(item)} onChange={() => toggleLayoutItemShown(item)} className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-0" />
+                                    </label>
+                                  )}
+                                  <label className="flex items-center gap-1 cursor-pointer" title="Required field">
+                                    <span className="text-[9px] uppercase font-semibold text-slate-500">Req</span>
+                                    <input type="checkbox" checked={layoutItemRequired(item)} onChange={() => toggleLayoutItemRequired(item)} className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-0" />
+                                  </label>
+                                </div>
+                              ) : (
+                                <span className="text-[9px] uppercase tracking-widest text-slate-600 font-bold" title={item === 'email' ? 'Email is always required' : 'Managed automatically / by Visibility settings'}>
+                                  {item === 'email' ? 'always' : 'auto'}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={addLayoutSection}
+                    className="w-full py-3 border-2 border-dashed border-slate-700 rounded-xl text-slate-400 hover:text-sky-400 hover:border-sky-500/50 hover:bg-sky-500/5 transition-all flex items-center justify-center gap-2 group"
+                  >
+                    <PlusCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    <span className="font-semibold text-lg">Add Custom Section</span>
+                  </button>
+                  <p className="text-[11px] text-slate-500 px-1 leading-relaxed">
+                    Tip: arrows move a field within its section; pushing past the top/bottom edge sends it into the section above/below. Custom fields appear here automatically once added above.
+                  </p>
                 </div>
               </motion.div>
             )}

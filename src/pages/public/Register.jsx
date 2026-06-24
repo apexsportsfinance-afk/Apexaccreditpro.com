@@ -30,11 +30,19 @@ import SwimmingBackground from "../../components/ui/SwimmingBackground";
 import MedicalBookingSelector from "../../components/ui/MedicalBookingSelector";
 import { useTheme } from "../../contexts/ThemeContext";
 import { EventsAPI, AccreditationsAPI, EventCategoriesAPI, CategoriesAPI } from "../../lib/storage";
-import { COUNTRIES, ROLES, validateFile, fileToBase64 } from "../../lib/utils";
+import { COUNTRIES, ROLES, validateFile, fileToBase64, cn } from "../../lib/utils";
 import { SportEventsAPI, GlobalSettingsAPI } from "../../lib/broadcastApi";
 import { uploadToStorage } from "../../lib/uploadToStorage";
 import { registerTranslations } from "../../lib/translations";
 import { usePublicAssetUrls } from "../../lib/storage/publicAssets";
+import {
+  normalizeLayout,
+  SECTION_TITLE_KEY,
+  FULL_WIDTH_FIELDS,
+  ADDITIONAL_INFO_DEFAULT_TITLE,
+  isCustomItem,
+  customIdOf,
+} from "../../lib/formLayout";
 
 const DEFAULT_DOCUMENTS = [
   { id: "picture", label: "Picture", accept: "image/jpeg,image/png,image/webp" },
@@ -155,6 +163,7 @@ export default function Register() {
   const [visibilityConfig, setVisibilityConfig] = useState({ affiliation: true, contact: true, documents: true, phone: "optional" });
   const [labelOverrides, setLabelOverrides] = useState({});
   const [fieldConfig, setFieldConfig] = useState({});
+  const [formLayout, setFormLayout] = useState(null);
 
   useEffect(() => {
     const loadEvent = async () => {
@@ -310,6 +319,17 @@ export default function Register() {
             if (val) setFieldConfig(JSON.parse(val));
           } catch (e) {
             console.error("Failed to load field config", e);
+          }
+
+          // Load custom form layout (section order / membership / titles)
+          try {
+            const val = await GlobalSettingsAPI.get(`event_${eventData.id}_form_layout`);
+            if (val) {
+              const parsed = JSON.parse(val);
+              if (Array.isArray(parsed)) setFormLayout(parsed);
+            }
+          } catch (e) {
+            console.error("Failed to load form layout", e);
           }
 
           // Re-set event state with all properties including fetched ones
@@ -768,6 +788,587 @@ export default function Register() {
     return ROLES.map((r) => ({ value: r, label: r }));
   };
 
+  /* ── Dynamic form layout rendering ──────────────────────────────
+     The form is rendered from an ordered, per-event layout (sections +
+     fields). Field visibility/required still come from fieldConfig; labels
+     from labelOverrides (via t()). When no layout is saved, normalizeLayout
+     returns the default structure, so existing events render identically. */
+  const SECTION_ICONS = {
+    personalInfo: User,
+    affiliation: Flag,
+    additionalInfo: Files,
+    contact: Mail,
+    documents: Upload,
+  };
+
+  const sectionTitle = (section) => {
+    if (section.title && section.title.trim()) return section.title;
+    const key = SECTION_TITLE_KEY[section.id];
+    if (key) return t(key);
+    if (section.id === "additionalInfo") return ADDITIONAL_INFO_DEFAULT_TITLE;
+    return "Section";
+  };
+
+  const renderCustomField = (field) => {
+    if (field.type === 'select') {
+      return (
+        <Select
+          label={language === "ar" ? field.label_ar : field.label_en}
+          name={`custom_${field.id}`}
+          value={formData.customFields[field.id] || ""}
+          onChange={handleInputChange}
+          error={errors[`custom_${field.id}`]}
+          required={field.required}
+          light
+          placeholder={language === "ar" ? "اختر خياراً..." : "Select an option..."}
+          options={(() => {
+            let opts = [];
+            if (Array.isArray(field.options)) {
+              opts = field.options;
+            } else if (typeof field.options === 'string') {
+              opts = field.options.split(",").map(o => o.trim()).filter(Boolean);
+            }
+            return opts.map(opt => ({
+              value: typeof opt === 'string' ? opt : (opt.value || opt.label || opt),
+              label: typeof opt === 'string' ? opt : (opt.label || opt.value || opt)
+            }));
+          })()}
+        />
+      );
+    }
+    if (field.type === 'multi_select') {
+      return (
+        <MultiSearchableSelect
+          label={language === "ar" ? field.label_ar : field.label_en}
+          value={formData.customFields[field.id] || []}
+          onChange={(val) => setFormData(prev => ({
+            ...prev,
+            customFields: { ...prev.customFields, [field.id]: val }
+          }))}
+          error={errors[`custom_${field.id}`]}
+          required={field.required}
+          light
+          placeholder={language === "ar" ? "اختر من القائمة..." : "Select options..."}
+          options={(() => {
+            let opts = [];
+            if (Array.isArray(field.options)) {
+              opts = field.options;
+            } else if (typeof field.options === 'string') {
+              opts = field.options.split(",").map(o => o.trim()).filter(Boolean);
+            }
+            return opts.map(opt => ({
+              value: typeof opt === 'string' ? opt : (opt.value || opt.label || opt),
+              label: typeof opt === 'string' ? opt : (opt.label || opt.value || opt)
+            }));
+          })()}
+        />
+      );
+    }
+    if (field.type === 'checkbox') {
+      return (
+        <label
+          htmlFor={`custom_${field.id}`}
+          className="flex items-start gap-3.5 p-4 bg-gradient-to-br from-slate-50 to-white hover:from-cyan-50 hover:to-white rounded-xl border border-slate-200 hover:border-cyan-200 transition-all cursor-pointer shadow-sm hover:shadow"
+        >
+          <input
+            type="checkbox"
+            name={`custom_${field.id}`}
+            id={`custom_${field.id}`}
+            checked={!!formData.customFields[field.id]}
+            onChange={(e) => setFormData(prev => ({
+              ...prev,
+              customFields: { ...prev.customFields, [field.id]: e.target.checked }
+            }))}
+            className="mt-0.5 w-6 h-6 rounded-md border-slate-300 text-cyan-600 focus:ring-cyan-500/50 shrink-0 cursor-pointer transition-colors"
+          />
+          <div className="flex flex-col">
+            <span className="text-[15px] text-slate-700 font-medium leading-relaxed select-none">
+              {language === "ar" ? field.label_ar : field.label_en}
+              {field.required && <span className="text-red-500 ml-1.5">*</span>}
+            </span>
+            {errors[`custom_${field.id}`] && (
+              <p className="text-sm text-red-500 font-bold mt-1.5 animate-pulse">{errors[`custom_${field.id}`]}</p>
+            )}
+          </div>
+        </label>
+      );
+    }
+    if (field.type === 'medical_booking') {
+      return (
+        <MedicalBookingSelector
+          field={field}
+          value={formData.customFields[field.id]}
+          onChange={handleInputChange}
+          eventId={event.id}
+          language={language}
+        />
+      );
+    }
+    return (
+      <Input
+        label={language === "ar" ? field.label_ar : field.label_en}
+        name={`custom_${field.id}`}
+        value={formData.customFields[field.id] || ""}
+        onChange={handleInputChange}
+        error={errors[`custom_${field.id}`]}
+        required={field.required}
+        light
+        placeholder={language === "ar" ? "أدخل التفاصيل..." : "Enter details..."}
+      />
+    );
+  };
+
+  const renderFormItem = (item, ctx) => {
+    switch (item) {
+      case 'firstName':
+        if (fieldConfig?.['firstName']?.show === false) return null;
+        return (
+          <Input
+            label={t("firstName")}
+            name="firstName"
+            value={formData.firstName}
+            onChange={handleInputChange}
+            error={errors.firstName}
+            required={fieldConfig?.['firstName']?.required !== false}
+            placeholder={t("placeholderFirstName")}
+            light
+          />
+        );
+      case 'lastName':
+        if (fieldConfig?.['lastName']?.show === false) return null;
+        return (
+          <Input
+            label={t("lastName")}
+            name="lastName"
+            value={formData.lastName}
+            onChange={handleInputChange}
+            error={errors.lastName}
+            required={fieldConfig?.['lastName']?.required !== false}
+            placeholder={t("placeholderLastName")}
+            light
+          />
+        );
+      case 'gender':
+        if (fieldConfig?.['gender']?.show === false) return null;
+        return (
+          <Select
+            label={t("gender")}
+            name="gender"
+            value={formData.gender}
+            onChange={handleInputChange}
+            error={errors.gender}
+            required={fieldConfig?.['gender']?.required !== false}
+            light
+            placeholder={t("placeholderGender")}
+            options={[
+              { value: "Male", label: t("male") },
+              { value: "Female", label: t("female") }
+            ]}
+          />
+        );
+      case 'dateOfBirth':
+        if (fieldConfig?.['dateOfBirth']?.show === false) return null;
+        return (
+          <Input
+            label={t("dateOfBirth")}
+            name="dateOfBirth"
+            type="date"
+            value={formData.dateOfBirth}
+            onChange={handleInputChange}
+            error={errors.dateOfBirth}
+            required={fieldConfig?.['dateOfBirth']?.required !== false}
+            light
+          />
+        );
+      case 'nationality':
+        if (fieldConfig?.['nationality']?.show === false) return null;
+        return (
+          <SearchableSelect
+            label={t("nationality")}
+            value={formData.nationality}
+            onChange={(e) => handleInputChange({ target: { name: "nationality", value: e.target.value } })}
+            error={errors.nationality}
+            required={fieldConfig?.['nationality']?.required !== false}
+            options={COUNTRIES.map((c) => ({ value: c.code, label: c.name }))}
+            placeholder={t("placeholderNationality")}
+            light
+            className="relative"
+          />
+        );
+      case 'category_role':
+        if (fieldConfig?.['category_role']?.show === false) return null;
+        return (
+          <div className="space-y-2">
+            <label className={`block text-sm font-semibold text-cyan-700 ${language === "ar" ? "text-right" : ""}`}>
+              {t("role")} {fieldConfig?.['category_role']?.required !== false && <span className="text-red-500">*</span>}
+            </label>
+            <Select
+              name="role"
+              value={formData.role}
+              onChange={handleInputChange}
+              error={errors.role}
+              options={getRoleOptions()}
+              placeholder={t("placeholderRole")}
+              light
+            />
+          </div>
+        );
+      case 'organization':
+        if (fieldConfig?.['organization']?.show === false) return null;
+        return (() => {
+          const normalizedRole = (formData.role || '').trim().toLowerCase();
+          const selectedCat = eventCategories.find(c => (c.name || '').trim().toLowerCase() === normalizedRole);
+          const catId = selectedCat ? selectedCat.id : null;
+
+          let restrictedOrgs = null;
+          if (categoryAllowlist && normalizedRole) {
+            if (catId && categoryAllowlist[catId]) restrictedOrgs = categoryAllowlist[catId];
+
+            if (!restrictedOrgs) {
+              for (const [key, value] of Object.entries(categoryAllowlist)) {
+                const gCat = globalCategories.find(g => g.id === key);
+                if (gCat && (gCat.name || '').trim().toLowerCase() === normalizedRole && Array.isArray(value) && value.length > 0) {
+                  restrictedOrgs = value;
+                  break;
+                }
+              }
+            }
+
+            if (!restrictedOrgs) {
+              const exactKey = Object.keys(categoryAllowlist).find(k => k.trim().toLowerCase() === normalizedRole);
+              if (exactKey) restrictedOrgs = categoryAllowlist[exactKey];
+            }
+          }
+
+          if (restrictedOrgs && restrictedOrgs.length > 0) {
+            if (restrictedOrgs.length === 1) {
+              return (
+                <Input
+                  label="Organization *"
+                  name="club"
+                  value={formData.club || restrictedOrgs[0]}
+                  onChange={handleInputChange}
+                  error={errors.club}
+                  required={fieldConfig?.['organization']?.required !== false}
+                  disabled
+                  light
+                />
+              );
+            }
+            return (
+              <SearchableSelect
+                label="Organization *"
+                value={formData.club}
+                onChange={(e) => handleInputChange({ target: { name: "club", value: e.target.value } })}
+                error={errors.club}
+                required={fieldConfig?.['organization']?.required !== false}
+                light
+                placeholder="Search and select..."
+                options={restrictedOrgs.map((c) => ({ value: c, label: c }))}
+              />
+            );
+          }
+
+          if (formData.role && (teamRoles.includes(formData.role.toLowerCase()) || formData.role.toLowerCase().includes("athlete") || formData.role.toLowerCase().includes("coach")) && clubs.length > 0) {
+            return (
+              <SearchableSelect
+                label="Organization *"
+                value={formData.club}
+                onChange={(e) => handleInputChange({ target: { name: "club", value: e.target.value } })}
+                error={errors.club}
+                required={fieldConfig?.['organization']?.required !== false}
+                options={clubs.map(c => {
+                  const name = typeof c === 'string' ? c : (c?.full || c?.short);
+                  return name ? { value: name, label: name } : null;
+                }).filter(Boolean)}
+                placeholder="Select organization, club or academy"
+                light
+              />
+            );
+          }
+
+          return (
+            <Input
+              label="Organization"
+              name="club"
+              value={formData.club}
+              onChange={handleInputChange}
+              error={errors.club}
+              required={fieldConfig?.['organization']?.required !== false}
+              placeholder="Enter organization, club or academy"
+              light
+            />
+          );
+        })();
+      case 'participatingSports': {
+        if (fieldConfig?.['participatingSports']?.show === false) return null;
+        const isTeamRole = formData.role && (teamRoles.includes(formData.role.toLowerCase()) || formData.role.toLowerCase().includes("athlete") || formData.role.toLowerCase().includes("coach"));
+        const normalizedRole = (formData.role || '').trim().toLowerCase();
+        const selectedCat = eventCategories.find(c => (c.name || '').trim().toLowerCase() === normalizedRole);
+        const catId = selectedCat ? selectedCat.id : null;
+
+        let restrictedSports = null;
+        if (categorySports && normalizedRole) {
+          if (catId && categorySports[catId]) restrictedSports = categorySports[catId];
+          if (!restrictedSports) {
+            const exactKey = Object.keys(categorySports).find(k => k.trim().toLowerCase() === normalizedRole);
+            if (exactKey) restrictedSports = categorySports[exactKey];
+          }
+        }
+
+        if ((isTeamRole || (restrictedSports && restrictedSports.length > 0)) && event?.sportList && event.sportList.length > 0) {
+          const availableSports = restrictedSports && restrictedSports.length > 0 ? restrictedSports : event.sportList;
+
+          if (availableSports.length === 1) {
+            return (
+              <div className="space-y-2">
+                <Input
+                  label="Participating Sports *"
+                  name="sportName"
+                  value={availableSports[0]}
+                  onChange={() => {}}
+                  disabled
+                  light
+                />
+              </div>
+            );
+          }
+
+          return (
+            <div className="space-y-2">
+              <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest px-1">{t("participatingSports")} *</label>
+              <MultiSearchableSelect
+                options={availableSports.map(s => ({ value: s, label: s }))}
+                value={formData.selectedSports || []}
+                onChange={(val) => setFormData(prev => ({ ...prev, selectedSports: val }))}
+                placeholder={t("placeholderSports")}
+                error={errors.sportName}
+                light
+              />
+              {errors.sportName && <p className="text-red-500 text-xs px-1">{errors.sportName}</p>}
+            </div>
+          );
+        }
+        return null;
+      }
+      case 'sportEvents':
+        if (!(formData.role && formData.role.toLowerCase().includes("athlete") && sportEvents.length > 0)) return null;
+        return (
+          <EventScheduleDropdown
+            sportEvents={sportEvents}
+            selectedSportEvents={selectedSportEvents}
+            setSelectedSportEvents={setSelectedSportEvents}
+          />
+        );
+      case 'email':
+        return (
+          <div className="flex flex-col h-full">
+            <Input
+              label={t("email")}
+              name="email"
+              type="email"
+              value={formData.email}
+              onChange={handleInputChange}
+              error={errors.email}
+              placeholder="e.g., example@domain.com"
+              icon={Mail}
+              required
+              light
+            />
+          </div>
+        );
+      case 'phone':
+        if (visibilityConfig.phone === "visible") {
+          return (
+            <div className="flex flex-col h-full space-y-1.5">
+              <label className={`block text-lg font-medium text-slate-700 mb-1.5 ${language === "ar" ? "text-right" : ""}`}>
+                {t("phone")}
+              </label>
+              <div className="flex gap-2">
+                <select
+                  name="countryCode"
+                  value={formData.countryCode}
+                  onChange={handleInputChange}
+                  className="w-[140px] px-3 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-700 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all outline-none font-medium"
+                >
+                  {COUNTRY_PHONE_CODES.map(c => (
+                    <option key={c.code} value={c.code}>{c.code} ({c.country})</option>
+                  ))}
+                </select>
+                <div className="flex-1 relative">
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    className={`w-full px-4 py-3 pl-11 rounded-xl border-2 transition-all outline-none text-slate-700 font-medium bg-white border-slate-200 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10`}
+                    placeholder="50 123 4567"
+                  />
+                  <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                </div>
+              </div>
+              {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
+            </div>
+          );
+        }
+        if (visibilityConfig.phone === "optional" || !visibilityConfig.phone) {
+          return (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 border-2 border-slate-100 hover:border-cyan-100 transition-colors cursor-pointer group">
+                <input
+                  type="checkbox"
+                  id="showPhone"
+                  name="showPhone"
+                  checked={formData.showPhone}
+                  onChange={(e) => setFormData(prev => ({ ...prev, showPhone: e.target.checked }))}
+                  className="w-5 h-5 rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
+                />
+                <label htmlFor="showPhone" className="text-lg font-medium text-slate-700 cursor-pointer flex-1">
+                  Include Phone Number / WhatsApp
+                </label>
+              </div>
+
+              {formData.showPhone && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  className="flex flex-col h-full space-y-1.5"
+                >
+                  <label className={`block text-lg font-medium text-slate-700 mb-1.5 ${language === "ar" ? "text-right" : ""}`}>
+                    {t("phone")}
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      name="countryCode"
+                      value={formData.countryCode}
+                      onChange={handleInputChange}
+                      className="w-[140px] px-3 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-700 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all outline-none font-medium"
+                    >
+                      {COUNTRY_PHONE_CODES.map(c => (
+                        <option key={c.code} value={c.code}>{c.code} ({c.country})</option>
+                      ))}
+                    </select>
+                    <div className="flex-1 relative">
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleInputChange}
+                        className={`w-full px-4 py-3 pl-11 rounded-xl border-2 transition-all outline-none text-slate-700 font-medium bg-white border-slate-200 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10`}
+                        placeholder="50 123 4567"
+                      />
+                      <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    </div>
+                  </div>
+                  {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
+                </motion.div>
+              )}
+            </div>
+          );
+        }
+        return null;
+      case 'documents':
+        return (
+          <div className="space-y-4">
+            {getRequiredDocuments().map((doc) => (
+              <div key={doc.id}>
+                <label className="block text-lg font-medium text-slate-700 mb-1.5">
+                  {doc.label} ({doc.format || (doc.accept.includes("pdf") ? "JPEG, PNG, PDF" : "JPEG, PNG")} - Max 5MB)
+                </label>
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept={doc.accept}
+                    onChange={(e) => handleDocumentFileChange(e, doc.id)}
+                    className="w-full text-lg text-slate-600 file:mr-4 file:py-3 file:px-6 file:rounded-lg file:border-0 file:text-lg file:font-medium file:bg-gradient-to-r file:from-cyan-500 file:to-blue-600 file:text-white hover:file:from-cyan-600 hover:file:to-blue-700 file:cursor-pointer cursor-pointer py-2"
+                  />
+                </div>
+                {uploadingDocs[doc.id] && (
+                  <p className="text-lg text-amber-500 mt-1 flex items-center gap-1">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Uploading...
+                  </p>
+                )}
+                {errors[`doc_${doc.id}`] && (
+                  <p className="text-lg text-red-500 mt-1">{errors[`doc_${doc.id}`]}</p>
+                )}
+                {formData.documents[doc.id] && (
+                  <p className="text-lg text-emerald-600 mt-1 flex items-center gap-1">
+                    <CheckCircle className="w-4 h-4" /> {doc.label} uploaded
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        );
+      default:
+        if (isCustomItem(item)) {
+          const id = customIdOf(item);
+          if (!ctx.filteredCustomIds.has(id)) return null;
+          const field = customFieldsConfig.find(f => f.id === id);
+          if (!field) return null;
+          return renderCustomField(field);
+        }
+        return null;
+    }
+  };
+
+  const renderFormSections = () => {
+    const sections = normalizeLayout(formLayout, customFieldsConfig);
+    const filteredCustomIds = new Set(getFilteredCustomFields().map(f => f.id));
+    const ctx = { filteredCustomIds };
+
+    // Legacy section-level gates preserved for built-in sections.
+    const sectionGated = (id) => {
+      if (id === 'personalInfo') return fieldConfig?.['personalInfo']?.show !== false;
+      if (id === 'affiliation') return visibilityConfig.affiliation !== false && fieldConfig?.['affiliation_info']?.show !== false;
+      if (id === 'contact') return visibilityConfig.contact !== false;
+      if (id === 'documents') return visibilityConfig.documents !== false;
+      return true;
+    };
+
+    let z = 1000;
+    let rendered = 0;
+    const out = [];
+
+    for (const section of sections) {
+      if (!sectionGated(section.id)) continue;
+
+      const children = [];
+      for (const item of section.items) {
+        const node = renderFormItem(item, ctx);
+        if (!node) continue;
+        const isFull = isCustomItem(item) || item === 'documents' || FULL_WIDTH_FIELDS.has(item);
+        children.push(
+          <div key={item} className={cn("relative", isFull && "md:col-span-2")} style={{ zIndex: z }}>
+            {node}
+          </div>
+        );
+        z -= 10;
+      }
+
+      if (children.length === 0) continue;
+
+      const Icon = SECTION_ICONS[section.id] || Files;
+      out.push(
+        <div
+          key={section.id}
+          className={cn("space-y-4 relative", rendered > 0 && "border-t border-cyan-100 pt-6")}
+        >
+          <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">
+            <Icon className={`${language === "ar" ? "ml-2" : ""}`} />
+            {sectionTitle(section)}
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {children}
+          </div>
+        </div>
+      );
+      rendered += 1;
+    }
+
+    return out;
+  };
+
   if (loading) {
     return (
       <SwimmingBackground>
@@ -1013,6 +1614,12 @@ export default function Register() {
               </motion.div>
             )}
 
+            {renderFormSections()}
+
+            {/* LEGACY fixed layout — superseded by renderFormSections(); kept
+                disabled for reference and stripped from the production bundle. */}
+            {false && (
+            <>
             {fieldConfig?.['personalInfo']?.show !== false && (
               <div className="space-y-4 relative z-[100]">
                 <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">
@@ -1545,6 +2152,8 @@ export default function Register() {
                   ))}
                 </div>
               </div>
+            )}
+            </>
             )}
 
             {visibilityConfig.termsLink !== false && (
