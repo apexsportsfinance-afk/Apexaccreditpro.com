@@ -616,7 +616,8 @@ export default function Register() {
     // Conditional validation for Affiliation
     if (visibilityConfig.affiliation !== false && fieldConfig?.['affiliation_info']?.show !== false) {
       if (isRequiredAndVisible('organization') && !formData.club.trim()) newErrors.club = "Organization is required";
-      if (isRequiredAndVisible('category_role') && !formData.role) newErrors.role = "Role is required";
+      // Skip the role requirement when the event is not category-driven.
+      if (visibilityConfig.usesCategories !== false && isRequiredAndVisible('category_role') && !formData.role) newErrors.role = "Role is required";
       
       const isTeamRole = formData.role && (teamRoles.includes(formData.role.toLowerCase()) || formData.role.toLowerCase().includes("athlete") || formData.role.toLowerCase().includes("coach"));
       const selectedCat = eventCategories.find(c => c.name === formData.role);
@@ -667,6 +668,9 @@ export default function Register() {
 
   const getFilteredCustomFields = () => {
     if (!customFieldsConfig || customFieldsConfig.length === 0) return [];
+    // When the event is not category-driven, show every custom field to
+    // everyone — no role selection or per-category allowlist gating.
+    if (visibilityConfig.usesCategories === false) return customFieldsConfig;
     if (!formData.role) return []; // Opt-in: don't show fields until role is selected
 
     const normalizedRole = formData.role.trim().toLowerCase();
@@ -996,6 +1000,8 @@ export default function Register() {
           />
         );
       case 'category_role':
+        // Hidden when the event is not category-driven (nothing to choose).
+        if (visibilityConfig.usesCategories === false) return null;
         if (fieldConfig?.['category_role']?.show === false) return null;
         return (
           <div className="space-y-2">
