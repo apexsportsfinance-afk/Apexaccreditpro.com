@@ -1919,6 +1919,23 @@ export default function Events() {
                   </div>
                 </label>
               </div>
+              <div className="flex items-center p-3 bg-slate-900/50 border border-slate-700 rounded-xl md:col-span-2">
+                <label className="flex items-center gap-3 cursor-pointer w-full">
+                  <input
+                    type="checkbox"
+                    checked={formData.visibility?.usesCategories !== false}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      visibility: { ...prev.visibility, usesCategories: e.target.checked }
+                    }))}
+                    className="w-5 h-5 rounded border-slate-700 bg-slate-900 text-primary-500"
+                  />
+                  <div>
+                    <span className="block text-sm font-semibold text-slate-200">Uses Categories / Roles</span>
+                    <span className="block text-xs text-slate-500">On: registrants pick a category and see only the fields allocated to it. Off: the Category/Role selector is hidden and every custom field shows for everyone — for single-purpose forms (e.g. one organisation type).</span>
+                  </div>
+                </label>
+              </div>
             </div>
           </div>
 
