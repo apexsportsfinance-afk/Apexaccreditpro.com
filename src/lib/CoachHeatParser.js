@@ -387,30 +387,46 @@ export async function matchAthleteEvents(parsedRows, accreditationRecords) {
   const bestMatches = [];
   const seenMatchKeys = new Set();
 
+  // APX-PERF: Precompute normalized name tokens / gender / club / age ONCE per
+  // accreditation instead of re-deriving them inside the inner loop for every
+  // parsed row. Turns O(rows × accs × stringwork) into O(accs + rows × accs).
+  const accIndex = accreditationRecords.map(acc => {
+    const cleanDbName = (acc.name || '').toLowerCase().replace(/[,.-]/g, ' ');
+    return {
+      acc,
+      cleanDbName,
+      dbTokens: cleanDbName.split(/\s+/).filter(t => t.length >= 2),
+      dbGen: (acc.gender || '').toLowerCase(),
+      dbClub: (acc.club_name || '').toLowerCase(),
+      dbAge: acc.age
+    };
+  });
+
   for (const row of parsedRows) {
     const pdfName = (row.athleteName || '').trim();
     if (!pdfName) continue;
 
+    // Precompute the parsed-row fields once per row as well
+    const rowGen = (row.gender || '').toLowerCase();
+    const cleanPdfName = pdfName.toLowerCase().replace(/[,.-]/g, ' ');
+    const pdfTokens = cleanPdfName.split(/\s+/).filter(t => t.length >= 2);
+    if (pdfTokens.length === 0) continue;
+    const pdfTeam = (row.teamName || row.team || '').toLowerCase();
+    const rowAge = row.age ? parseInt(row.age, 10) : null;
+
     let bestDBMatch = null;
     let highestScore = 0;
 
-    for (const acc of accreditationRecords) {
-      const rowGen = (row.gender || '').toLowerCase();
-      const dbGen = (acc.gender || '').toLowerCase();
-      
+    for (const entry of accIndex) {
+      const { acc, dbTokens, dbGen, dbClub, dbAge } = entry;
+
       if (rowGen !== 'mixed' && rowGen !== dbGen) {
          if (!(rowGen.startsWith(dbGen.charAt(0)) || dbGen.startsWith(rowGen.charAt(0)))) {
             continue;
          }
       }
 
-      const cleanPdfName = pdfName.toLowerCase().replace(/[,.-]/g, ' ');
-      const cleanDbName = (acc.name || '').toLowerCase().replace(/[,.-]/g, ' ');
-      
-      const pdfTokens = cleanPdfName.split(/\s+/).filter(t => t.length >= 2);
-      const dbTokens = cleanDbName.split(/\s+/).filter(t => t.length >= 2);
-      
-      if (pdfTokens.length === 0 || dbTokens.length === 0) continue;
+      if (dbTokens.length === 0) continue;
 
       let matchCount = 0;
       pdfTokens.forEach(pt => {
@@ -418,32 +434,25 @@ export async function matchAthleteEvents(parsedRows, accreditationRecords) {
           matchCount++;
         }
       });
-      
-      if (pdfName.length >= 2 && cleanDbName.includes(pdfTokens[0])) {
-        console.log(`APEX_DEBUG: Matching Candidate - PDF: [${pdfTokens.join()}] | DB: [${dbTokens.join()}] -> MatchCount: ${matchCount}`);
-      }
-      
+
       const avgRatio = matchCount / Math.max(pdfTokens.length, dbTokens.length);
       const minRatio = 0.2; // APEX: Turbo loose matching
 
-      if (avgRatio >= minRatio && matchCount >= 1) { 
+      if (avgRatio >= minRatio && matchCount >= 1) {
          let score = avgRatio * 20;
-         
-         const pdfTeam = (row.teamName || row.team || '').toLowerCase();
-         const dbClub = (acc.club_name || '').toLowerCase();
+
          if (pdfTeam && dbClub) {
             if (dbClub.includes(pdfTeam) || pdfTeam.includes(dbClub)) {
                score += 20;
             }
          }
 
-         const dbAge = acc.age;
-         if (row.age && dbAge) {
-            const ageDiff = Math.abs(parseInt(row.age, 10) - parseInt(dbAge, 10));
+         if (rowAge && dbAge) {
+            const ageDiff = Math.abs(rowAge - parseInt(dbAge, 10));
             if (ageDiff === 0) score += 5;
             else if (ageDiff > 1) score -= 15;
          }
-         
+
          const minScoreThreshold = 5; // APEX: Turbo loose matching
          if (score > highestScore && score >= minScoreThreshold) {
             highestScore = score;

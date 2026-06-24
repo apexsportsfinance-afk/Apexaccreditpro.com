@@ -174,7 +174,7 @@ export default function EventPdfSlots({ eventId, onToast, disabled }) {
               const distinctAthletes = new Set(matchedEvents.filter(e => e.matched).map(e => e.accreditation_id)).size;
 
               // 6. Upsert matched rows to athlete_events table
-              const count = await AthleteEventsAPI.upsertEvents(matchedEvents);
+              const count = await AthleteEventsAPI.upsertEvents(matchedEvents, eventId);
               
               if (verifiedMatches === 0) {
                 onToast?.(
