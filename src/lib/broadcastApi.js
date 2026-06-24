@@ -253,12 +253,12 @@ export const BroadcastV2API = {
         console.error("getForAthlete global query error:", globalError);
       }
 
-      // Get athlete-specific messages
+      // Get athlete-specific messages (regular athlete broadcasts + birthday certificates)
       const { data: athleteData, error: athleteError } = await supabase
         .from("broadcasts_v2")
         .select("*")
         .eq("event_id", eventId)
-        .eq("type", "athlete")
+        .in("type", ["athlete", "birthday"])
         .eq("athlete_id", athleteId)
         .is("deleted_at", null)
         .order("created_at", { ascending: false });
@@ -425,13 +425,17 @@ export const BroadcastV2API = {
   },
 
 
-  // Send targeted athlete broadcast
-  sendToAthletes: async (eventId, message, athleteIds, attachmentUrl = null, attachmentName = null) => {
+  // Send targeted athlete broadcast.
+  // `type` distinguishes a normal athlete QR broadcast ('athlete') from a fixed
+  // birthday certificate ('birthday'). Both are delivered to the participant's QR
+  // profile, but birthday rows are kept separate so they never surface as the
+  // "live attachment" of the Athlete QR Broadcast form.
+  sendToAthletes: async (eventId, message, athleteIds, attachmentUrl = null, attachmentName = null, type = 'athlete') => {
     if (!athleteIds || athleteIds.length === 0) return [];
 
     const broadcasts = athleteIds.map(athleteId => ({
       event_id: eventId,
-      type: 'athlete',
+      type,
       message,
       athlete_id: athleteId,
       attachment_url: attachmentUrl || null,
