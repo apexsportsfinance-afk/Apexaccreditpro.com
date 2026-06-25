@@ -658,7 +658,7 @@ export default function Register() {
       const val = formData.customFields[field.id];
       const isEmpty = val === undefined || val === null || val === "" || (Array.isArray(val) && val.length === 0) || (field.type === 'checkbox' && !val);
       if (field.required && isEmpty) {
-        newErrors[`custom_${field.id}`] = `${language === 'ar' ? field.label_ar : field.label_en} is required`;
+        newErrors[`custom_${field.id}`] = `${(language === 'ar' ? (field.label_ar || field.label_en) : (field.label_en || field.label_ar))} is required`;
       }
     });
 
@@ -814,10 +814,13 @@ export default function Register() {
   };
 
   const renderCustomField = (field) => {
+    // Fall back to the English label when the Arabic one is missing/empty,
+    // otherwise the question heading silently disappears in Arabic mode.
+    const fieldLabel = (language === "ar" ? (field.label_ar || field.label_en) : (field.label_en || field.label_ar));
     if (field.type === 'select') {
       return (
         <Select
-          label={language === "ar" ? field.label_ar : field.label_en}
+          label={fieldLabel}
           name={`custom_${field.id}`}
           value={formData.customFields[field.id] || ""}
           onChange={handleInputChange}
@@ -843,7 +846,7 @@ export default function Register() {
     if (field.type === 'multi_select') {
       return (
         <MultiSearchableSelect
-          label={language === "ar" ? field.label_ar : field.label_en}
+          label={fieldLabel}
           value={formData.customFields[field.id] || []}
           onChange={(val) => setFormData(prev => ({
             ...prev,
@@ -887,7 +890,7 @@ export default function Register() {
           />
           <div className="flex flex-col">
             <span className="text-[15px] text-slate-700 font-medium leading-relaxed select-none">
-              {language === "ar" ? field.label_ar : field.label_en}
+              {fieldLabel}
               {field.required && <span className="text-red-500 ml-1.5">*</span>}
             </span>
             {errors[`custom_${field.id}`] && (
@@ -910,7 +913,7 @@ export default function Register() {
     }
     return (
       <Input
-        label={language === "ar" ? field.label_ar : field.label_en}
+        label={fieldLabel}
         name={`custom_${field.id}`}
         value={formData.customFields[field.id] || ""}
         onChange={handleInputChange}
