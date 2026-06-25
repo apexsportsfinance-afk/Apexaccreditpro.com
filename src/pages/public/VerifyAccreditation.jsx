@@ -98,6 +98,121 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+// Collapsible event row for the QR profile heat sheet. The header stays compact
+// (truncated name + heat/lane); tapping the chevron reveals the full event name
+// and any available details, mirroring the broadcast ExpandableMessageGroup.
+function EventCard({ ev }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const displayName = ev.event_name || `Event ${ev.event_code}`;
+
+  const details = [
+    { label: "Round", value: ev.round },
+    { label: "Seed Time", value: ev.seed_time || ev.seedTime },
+    { label: "Race Time", value: ev.race_time || ev.result_time },
+    { label: "Call Room", value: ev.call_room_time },
+    { label: "Session", value: ev.session_name || ev.session_time },
+    { label: "Team", value: ev.team_name || ev.team },
+  ].filter((d) => d.value != null && d.value !== "" && d.value !== 0);
+
+  return (
+    <div className="bg-slate-50 border border-slate-100 rounded-2xl shadow-sm relative overflow-hidden group">
+      <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 z-10" />
+      <button
+        type="button"
+        onClick={() => setIsExpanded((v) => !v)}
+        aria-expanded={isExpanded}
+        className="w-full flex justify-between items-start gap-4 p-4 text-left outline-none hover:bg-slate-100/60 transition-colors"
+      >
+        <div className="flex gap-3 min-w-0">
+          <div className="flex flex-col items-center justify-center bg-white border border-slate-200 rounded-lg w-10 h-10 shrink-0 shadow-sm">
+            <span className="text-[10px] font-black text-slate-400 uppercase leading-none mb-0.5">Ev</span>
+            <span className="text-sm font-black text-slate-900 leading-none">{ev.event_code || ev.event_number}</span>
+          </div>
+          <div className="flex flex-col min-w-0 pt-0.5">
+            <span className="text-[11px] font-black text-slate-900 leading-tight inline-block uppercase tracking-tight truncate">{displayName}</span>
+          </div>
+        </div>
+        <div className="flex items-center shrink-0 gap-2">
+          <div className="px-3 py-1 bg-slate-900 text-[9px] font-black text-white rounded-full uppercase tracking-widest whitespace-nowrap shadow-sm">
+            H{ev.heat} • L{ev.lane}
+          </div>
+          <ChevronDown className={cn("w-4 h-4 text-slate-400 transition-transform duration-300", isExpanded ? "rotate-180" : "")} />
+        </div>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 pt-1 pl-5">
+              <p className="text-[11px] font-black text-slate-900 uppercase tracking-tight leading-snug mb-3">{displayName}</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                {details.map((d) => (
+                  <div key={d.label} className="flex flex-col">
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{d.label}</span>
+                    <span className="text-[11px] font-bold text-slate-700">{d.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// Top-level collapsible wrapper for the heat-sheet event list. Starts collapsed;
+// tapping the header reveals the events, each of which expands individually.
+function EventsAccordion({ events }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setIsExpanded((v) => !v)}
+        aria-expanded={isExpanded}
+        className="w-full flex items-center justify-between p-4 text-left outline-none hover:bg-slate-50 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-blue-50">
+            <Calendar className="w-4 h-4 text-blue-600" />
+          </div>
+          <div className="flex flex-col items-start">
+            <span className="text-[11px] font-black text-slate-900 uppercase tracking-[0.15em]">Events</span>
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{events.length} {events.length === 1 ? "Entry" : "Entries"}</span>
+          </div>
+        </div>
+        <ChevronDown className={cn("w-5 h-5 text-slate-400 transition-transform duration-300", isExpanded ? "rotate-180" : "")} />
+      </button>
+
+      <AnimatePresence initial={false}>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div className="p-4 pt-0 space-y-3">
+              {events.map((ev, idx) => (
+                <EventCard key={idx} ev={ev} />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function VerifyAccreditation() {
   const { id: rawId } = useParams();
   const id = (rawId || "").replace(/^\/+/, "").trim();
@@ -1340,33 +1455,7 @@ export default function VerifyAccreditation() {
 
                 {data.status !== 'rejected' && mergedEvents.length > 0 && (
                   <div className="mt-4 pt-4 border-t border-slate-100">
-                    <div className="space-y-3">
-                      {mergedEvents.map((ev, idx) => {
-                        const displayName = ev.event_name || `Event ${ev.event_code}`;
-                        const seedTime = ev.seed_time || ev.seedTime;
-                        return (
-                          <div key={idx} className="bg-slate-50 border border-slate-100 rounded-2xl p-4 shadow-sm relative overflow-hidden group">
-                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500" />
-                            <div className="flex justify-between items-start gap-4">
-                              <div className="flex gap-3 min-w-0">
-                                <div className="flex flex-col items-center justify-center bg-white border border-slate-200 rounded-lg w-10 h-10 shrink-0 shadow-sm">
-                                  <span className="text-[10px] font-black text-slate-400 uppercase leading-none mb-0.5">Ev</span>
-                                  <span className="text-sm font-black text-slate-900 leading-none">{ev.event_code || ev.event_number}</span>
-                                </div>
-                                <div className="flex flex-col min-w-0 pt-0.5">
-                                  <span className="text-[11px] font-black text-slate-900 leading-tight inline-block uppercase tracking-tight truncate">{displayName}</span>
-                                </div>
-                              </div>
-                              <div className="flex flex-col items-end shrink-0 gap-1.5">
-                                <div className="px-3 py-1 bg-slate-900 text-[9px] font-black text-white rounded-full uppercase tracking-widest whitespace-nowrap shadow-sm">
-                                  H{ev.heat} • L{ev.lane}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    <EventsAccordion events={mergedEvents} />
                   </div>
                 )}
               </div>
