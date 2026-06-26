@@ -82,7 +82,7 @@ export default function CallRoomControl() {
     if (!eventId) return;
     setBusy(true);
     try {
-      const list = await CallRoomAPI.startEvent(eventId, selectedEvent?.name, user?.email);
+      const { list, source, detail } = await CallRoomAPI.startEvent(eventId, selectedEvent?.name, user?.email);
       // Refetch immediately so the panel updates without waiting on Realtime.
       const fresh = await CallRoomAPI.getState(eventId);
       setState(fresh);
@@ -92,8 +92,14 @@ export default function CallRoomControl() {
           "No matched heats for this event yet. Confirm the heat sheet is uploaded under QR System → Hy-Tek Documents.",
           "warning"
         );
+      } else if (source === "file") {
+        toast.show("Call room started", `${list.length} heats loaded from the full heat-sheet file`, "success");
       } else {
-        toast.show("Call room started", `${list.length} heats loaded · Screen A on Heat ${list[0].heat}`, "success");
+        toast.show(
+          "Loaded from matched data only",
+          `${list.length} heats. Couldn't use the full heat-sheet file — reason: ${detail}. Only heats with accredited athletes are shown.`,
+          "warning"
+        );
       }
     } catch (e) {
       console.error(e);
