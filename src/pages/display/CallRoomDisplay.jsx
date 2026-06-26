@@ -18,6 +18,20 @@ export default function CallRoomDisplay() {
   const [eventLogo, setEventLogo] = useState(null);
   const [sponsors, setSponsors] = useState([]);
 
+  // The call-room screens are ALWAYS a dark, full-screen display, independent of
+  // the admin app's light/dark theme. Force the `dark` class on <html> so the
+  // global "light mode contrast safety net" CSS (which remaps bg-slate-*/
+  // text-white to light colours for the admin UI) can never invert this page
+  // when the device/browser is set to light mode.
+  useEffect(() => {
+    const root = document.documentElement;
+    const hadDark = root.classList.contains("dark");
+    root.classList.add("dark");
+    return () => {
+      if (!hadDark) root.classList.remove("dark");
+    };
+  }, []);
+
   // Branding (event logo + sponsor logos) loads once per screen; it doesn't
   // change between heats.
   useEffect(() => {
