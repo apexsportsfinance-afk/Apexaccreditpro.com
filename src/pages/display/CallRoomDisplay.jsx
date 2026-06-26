@@ -15,6 +15,24 @@ export default function CallRoomDisplay() {
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
+  const [eventLogo, setEventLogo] = useState(null);
+  const [sponsors, setSponsors] = useState([]);
+
+  // Branding (event logo + sponsor logos) loads once per screen; it doesn't
+  // change between heats.
+  useEffect(() => {
+    let active = true;
+    CallRoomAPI.getEventBranding(eventId)
+      .then((b) => {
+        if (!active) return;
+        setEventLogo(b?.logo_url || null);
+        setSponsors(Array.isArray(b?.sponsor_logos) ? b.sponsor_logos.filter(Boolean) : []);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [eventId]);
 
   useEffect(() => {
     let unsub = () => {};
@@ -80,7 +98,19 @@ export default function CallRoomDisplay() {
       </div>
 
       {/* Main heat card */}
-      <div className="flex-1 flex items-center justify-center p-6">
+      <div className="flex-1 flex flex-col items-center justify-center gap-6 p-6">
+        {/* Event logo — sits above the heat number, sized so it never rivals it */}
+        {eventLogo && (
+          <img
+            src={eventLogo}
+            alt="Event logo"
+            className="h-20 sm:h-24 w-auto max-w-[60vw] object-contain"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
+          />
+        )}
+
         {loading ? (
           <p className="text-2xl font-bold text-slate-600 uppercase tracking-widest animate-pulse">Loading…</p>
         ) : !state?.started ? (
@@ -120,11 +150,32 @@ export default function CallRoomDisplay() {
         )}
       </div>
 
-      {/* Footer: event name ticker */}
-      <div className="px-8 py-4 border-t border-slate-800 bg-slate-900/60 text-center">
-        <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-600 truncate">
-          {state?.event_name || "Apex Call Room Display"}
-        </p>
+      {/* Footer: sponsor logos (falls back to the event name).
+          Light strip behind sponsors so dark/colour logos stay visible. */}
+      <div
+        className={`px-8 py-5 border-t text-center ${
+          sponsors.length > 0 ? "bg-white/95 border-slate-300" : "bg-slate-900/60 border-slate-800"
+        }`}
+      >
+        {sponsors.length > 0 ? (
+          <div className="flex items-center justify-center gap-x-10 gap-y-4 flex-wrap">
+            {sponsors.map((src, i) => (
+              <img
+                key={`${src}-${i}`}
+                src={src}
+                alt="Sponsor"
+                className="h-10 sm:h-12 w-auto max-w-[180px] object-contain"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500 truncate">
+            {state?.event_name || "Apex Call Room Display"}
+          </p>
+        )}
       </div>
     </div>
   );

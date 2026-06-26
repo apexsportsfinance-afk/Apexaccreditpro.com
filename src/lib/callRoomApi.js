@@ -172,6 +172,21 @@ export const CallRoomAPI = {
     return data;
   },
 
+  // Event branding for the display header (logo). Read-only, anon-safe (public
+  // registration pages already read events). Returns null if unavailable.
+  getEventBranding: async (eventId) => {
+    const { data, error } = await supabase
+      .from("events")
+      .select("logo_url, sponsor_logos, name")
+      .eq("id", String(eventId))
+      .maybeSingle();
+    if (error) {
+      console.warn("[CallRoomAPI] event branding read:", error.message);
+      return null;
+    }
+    return data;
+  },
+
   // Start (or restart) the call room: rebuild the heat snapshot, reset to heat 0.
   startEvent: async (eventId, eventName, updatedBy = null) => {
     const { list, source, detail } = await CallRoomAPI.buildHeatList(eventId);
