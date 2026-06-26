@@ -21,7 +21,8 @@ import {
   MessageSquare,
   Book,
   Shield,
-  BookOpen
+  BookOpen,
+  MonitorPlay
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -41,6 +42,7 @@ export const navItems = [
   { to: "/admin/qr-system", icon: QrCode, label: "QR System" },
   { to: "/admin/broadcasts", icon: Radio, label: "Broadcast History" },
   { to: "/admin/medals", icon: Trophy, label: "Medal Rankings" },
+  { to: "/admin/call-room", icon: MonitorPlay, label: "Call Room Display" },
   { to: "/admin/feedback", icon: MessageSquare, label: "Feedback" },
   { to: "/admin/partners", icon: Settings, label: "Integrations", superOnly: true },
   { to: "/admin/api-docs", icon: Book, label: "API Documentation", superOnly: true },

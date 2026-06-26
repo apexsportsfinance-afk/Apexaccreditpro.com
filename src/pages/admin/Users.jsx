@@ -33,6 +33,7 @@ const MODULES = [
   { value: "/admin/qr-system/booking", label: "Booking Form (QR)" },
   { value: "/admin/broadcasts", label: "Broadcast History" },
   { value: "/admin/medals", label: "Medal Rankings" },
+  { value: "/admin/call-room", label: "Call Room Display" },
   { value: "/admin/feedback", label: "Feedback" },
   { value: "/admin/users", label: "Users" },
   { value: "/admin/audit", label: "Audit Log" },
