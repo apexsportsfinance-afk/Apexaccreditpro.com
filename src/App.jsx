@@ -20,6 +20,7 @@ const SpectatorPortal = lazy(() => import("./pages/public/SpectatorPortal"));
 const SpectatorTicket = lazy(() => import("./pages/public/SpectatorTicket"));
 const GenericPass = lazy(() => import("./pages/public/GenericPass"));
 const FeedbackForm = lazy(() => import("./pages/public/FeedbackForm"));
+const CallRoomDisplay = lazy(() => import("./pages/display/CallRoomDisplay"));
 
 const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
 const Events = lazy(() => import("./pages/admin/Events"));
@@ -40,6 +41,7 @@ const MedalRankings = lazy(() => import("./pages/admin/MedalRankings"));
 const Feedback = lazy(() => import("./pages/admin/Feedback"));
 const Partners = lazy(() => import("./pages/admin/Partners"));
 const APIDocs = lazy(() => import("./pages/admin/APIDocs"));
+const CallRoomControl = lazy(() => import("./pages/admin/CallRoomControl"));
 
 const StaffLayout = lazy(() => import("./components/layout/StaffLayout"));
 const StaffDashboard = lazy(() => import("./pages/staff/StaffDashboard"));
@@ -93,6 +95,7 @@ export default function App() {
               <Route path="/view-ticket/:id" element={<SpectatorTicket />} />
               <Route path="/generic-pass" element={<GenericPass />} />
               <Route path="/feedback/:slug" element={<FeedbackForm />} />
+              <Route path="/display/:eventId/:row" element={<CallRoomDisplay />} />
 
               <Route path="/admin" element={<AdminLayout />}>
                 <Route index element={<Navigate to="/admin/dashboard" replace />} />
@@ -108,6 +111,7 @@ export default function App() {
                 <Route path="broadcasts" element={<BroadcastHistory />} />
                 <Route path="users" element={<Users />} />
                 <Route path="medals" element={<MedalRankings />} />
+                <Route path="call-room" element={<CallRoomControl />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="audit" element={<AuditLog />} />
                 <Route path="feedback" element={<Feedback />} />
