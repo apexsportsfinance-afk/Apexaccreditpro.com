@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import * as XLSX from "@e965/xlsx";
-import { Plus, Trash2, Save, Calendar, Clock, Edit2, Play, CheckCircle, XCircle, ChevronDown, ChevronUp, Trophy, Search, RotateCcw, Wand2, Info, Download, FileText, Image } from "lucide-react";
+import { Plus, Trash2, Save, Calendar, Clock, Edit2, Play, CheckCircle, XCircle, ChevronDown, ChevronUp, Trophy, Search, RotateCcw, Wand2, Info, Download, FileText, Image, Network } from "lucide-react";
 import FixturePNGCard from "./FixturePNGCard";
 import { motion, AnimatePresence } from "framer-motion";
-import { LiveScoresAPI, DivisionsAPI, AreasAPI, MatchEventsAPI, DisciplinaryAPI, PlayerStatsAPI } from "../../lib/storage";
+import { LiveScoresAPI, DivisionsAPI, AreasAPI, MatchEventsAPI, DisciplinaryAPI, PlayerStatsAPI, EventsAPI } from "../../lib/storage";
+import { exportFixtureChartPdf } from "../../lib/fixtureChart";
 import { TeamAPI } from "../../services/teamApi";
 import { toast } from "sonner";
 import { cn } from "../../lib/utils";
@@ -24,6 +25,7 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
   const isSettingsDisabled = disabled || isScoreOperator;
 
   const [settings, setSettings] = useState({ event_id: eventId, live_scores_enabled: false });
+  const [eventInfo, setEventInfo] = useState(null);
   const [sports, setSports] = useState([]);
   const [matches, setMatches] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -123,13 +125,15 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [sData, spData, mData, tData] = await Promise.all([
+      const [sData, spData, mData, tData, evData] = await Promise.all([
         LiveScoresAPI.getSettings(eventId),
         LiveScoresAPI.getSports(eventId),
         LiveScoresAPI.getMatches(eventId),
-        TeamAPI.getTeamsByEvent(eventId)
+        TeamAPI.getTeamsByEvent(eventId),
+        EventsAPI.getById(eventId).catch(() => null),
       ]);
       if (sData) setSettings(sData);
+      if (evData) setEventInfo(evData);
       if (spData) setSports(spData);
       if (mData) setMatches(mData);
       if (tData) setTeams(tData);
@@ -895,6 +899,29 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
     }
   };
 
+  // ── Chart Export (visual bracket / flow PDF) ─────────────────────────────
+  // Additive, read-only: builds a tournament-bracket chart from the same match
+  // data the other exports use. Does not touch fixture logic or other exports.
+  const handleExportChart = async () => {
+    setExportMenuOpen(false);
+    if (!matches.length) { toast.error("No fixtures to chart"); return; }
+    toast.info("Generating fixture chart…");
+    try {
+      const pages = await exportFixtureChartPdf({
+        matches,
+        sports,
+        getLeaguesForSport,
+        teamsById,
+        eventName: eventInfo?.name || "",
+        eventLogoUrl: eventInfo?.logoUrl || "",
+      });
+      toast.success(`Fixture chart exported (${pages} page${pages !== 1 ? "s" : ""})`);
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.message || "Failed to generate chart");
+    }
+  };
+
   // ── PNG Export ──────────────────────────────────────────────────────────
   // Triggered after pngData state is set (card is then rendered in the DOM).
   useEffect(() => {
@@ -1550,6 +1577,9 @@ export default function LiveScoresTab({ eventId, onToast, disabled }) {
                       </button>
                       <button onClick={() => { setPngModal({ open: true, sportId: sports[0]?.id || "", leagueName: "", status: "" }); setExportMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-800 rounded-lg text-sm text-slate-200 transition-colors text-left">
                         <Image className="w-3.5 h-3.5 text-blue-400 shrink-0" /> <span>PNG / Social Media</span>
+                      </button>
+                      <button onClick={handleExportChart} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-800 rounded-lg text-sm text-slate-200 transition-colors text-left">
+                        <Network className="w-3.5 h-3.5 text-amber-400 shrink-0" /> <span>Chart (Bracket PDF)</span>
                       </button>
                       <div className="h-px bg-white/5 my-1" />
                       <button onClick={() => { handleExportPlayerStats(); setExportMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-800 rounded-lg text-sm text-slate-200 transition-colors text-left">
