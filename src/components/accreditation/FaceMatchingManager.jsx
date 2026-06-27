@@ -20,7 +20,7 @@ const MAX_EDGE = 1024;
 // matches) over recall, which matters for a per-person "My Photos" feature.
 const MATCH_THRESHOLD = 0.55;
 
-export default function FaceMatchingManager({ eventId, galleryPhotos, onToast }) {
+export default function FaceMatchingManager({ eventId, galleryPhotos, scopeLabel = 'All', onToast }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progressText, setProgressText] = useState('');
   const [progressPercent, setProgressPercent] = useState(0);
@@ -136,25 +136,23 @@ export default function FaceMatchingManager({ eventId, galleryPhotos, onToast })
           }
 
           if (matchedPhotoIds.length > 0) {
-            totalMatchesFound += matchedPhotoIds.length;
-            participantsMatched++;
-
-            // Save to database
+            // ADD to existing matches (union) instead of overwriting — so scanning
+            // one album never erases matches found in previously-scanned albums.
             const currentDocs = acc.documents || {};
-            await AccreditationsAPI.update(acc.id, {
-              documents: {
-                ...currentDocs,
-                matched_photos: matchedPhotoIds
-              }
-            });
-          } else {
-             // Clear any old matches if they exist
-             if (acc.documents && acc.documents.matched_photos) {
-                 const newDocs = { ...acc.documents };
-                 delete newDocs.matched_photos;
-                 await AccreditationsAPI.update(acc.id, { documents: newDocs });
-             }
+            const existing = Array.isArray(currentDocs.matched_photos) ? currentDocs.matched_photos : [];
+            const merged = Array.from(new Set([...existing, ...matchedPhotoIds]));
+            const newlyAdded = merged.length - existing.length;
+
+            if (newlyAdded > 0) {
+              totalMatchesFound += newlyAdded;
+              participantsMatched++;
+              await AccreditationsAPI.update(acc.id, {
+                documents: { ...currentDocs, matched_photos: merged }
+              });
+            }
           }
+          // No "else" clear: a participant not present in THIS album keeps the
+          // matches found in other albums.
 
         } catch (err) {
           console.warn(`Could not process participant ${acc.id}`, err);
@@ -191,12 +189,19 @@ export default function FaceMatchingManager({ eventId, galleryPhotos, onToast })
             <ScanFace className="w-5 h-5" /> Smart Face Matching (My Photos)
           </h4>
           <p className="text-sm text-indigo-200/70">
-            Scan uploaded gallery photos against participant profile photos. Matches will appear in the "My Photos" tab on their QR Profile.
+            Scans the photos currently in view against participant profile photos and <strong className="text-indigo-200">adds</strong> to existing matches. Results show in each athlete's "My Photos" tab.
+          </p>
+          <p className="text-xs text-indigo-300/90 mt-1 font-semibold">
+            {scopeLabel === 'All'
+              ? `Scanning all albums · ${galleryPhotos.length} photo${galleryPhotos.length === 1 ? '' : 's'}`
+              : `Scanning album "${scopeLabel}" · ${galleryPhotos.length} photo${galleryPhotos.length === 1 ? '' : 's'}`}
           </p>
           {stats && (
             <div className="mt-4 flex gap-4 text-xs font-medium text-emerald-400 bg-emerald-900/20 px-3 py-2 rounded-lg inline-flex items-center">
               <CheckCircle className="w-4 h-4" />
-              Found {stats.totalMatches} matches across {stats.participantsMatched} participants!
+              {stats.totalMatches > 0
+                ? `Added ${stats.totalMatches} new match${stats.totalMatches === 1 ? '' : 'es'} across ${stats.participantsMatched} participant${stats.participantsMatched === 1 ? '' : 's'}!`
+                : `No new matches in this scan — already up to date.`}
             </div>
           )}
         </div>
@@ -223,7 +228,7 @@ export default function FaceMatchingManager({ eventId, galleryPhotos, onToast })
               className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-500 text-white"
               icon={ScanFace}
             >
-              Run Face Matching
+              {scopeLabel === 'All' ? 'Run Face Matching' : 'Scan This Album'}
             </Button>
           )}
         </div>
