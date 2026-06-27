@@ -19,6 +19,7 @@ import { cn } from '../../lib/utils';
 const FaceMatchingManager = lazy(() => import('./FaceMatchingManager'));
 
 const galleryVisibilityKey = (eventId) => `event_${eventId}_gallery_enabled`;
+const galleryCaptionKey = (eventId) => `event_${eventId}_gallery_caption`;
 
 export default function EventPhotosTab({ eventId, onToast, disabled }) {
   const { user } = useAuth();
@@ -34,6 +35,7 @@ export default function EventPhotosTab({ eventId, onToast, disabled }) {
   // Scores "Enabled/Disabled" toggle. Absent setting defaults to enabled so
   // events that predate this control keep showing their gallery as before.
   const [galleryEnabled, setGalleryEnabled] = useState(true);
+  const [galleryCaption, setGalleryCaption] = useState('');
   const [savingVisibility, setSavingVisibility] = useState(false);
 
   useEffect(() => {
@@ -41,6 +43,9 @@ export default function EventPhotosTab({ eventId, onToast, disabled }) {
     GlobalSettingsAPI.get(galleryVisibilityKey(eventId))
       .then(v => setGalleryEnabled(v === null || v === undefined ? true : v !== 'false'))
       .catch(() => setGalleryEnabled(true));
+    GlobalSettingsAPI.get(galleryCaptionKey(eventId))
+      .then(v => setGalleryCaption(v || ''))
+      .catch(() => setGalleryCaption(''));
   }, [eventId]);
 
   const handleSaveVisibility = async () => {
@@ -48,9 +53,10 @@ export default function EventPhotosTab({ eventId, onToast, disabled }) {
     setSavingVisibility(true);
     try {
       await GlobalSettingsAPI.set(galleryVisibilityKey(eventId), String(galleryEnabled));
-      onToast("Gallery visibility saved!", "success");
+      await GlobalSettingsAPI.set(galleryCaptionKey(eventId), galleryCaption || '');
+      onToast("Gallery settings saved!", "success");
     } catch (err) {
-      onToast("Failed to save gallery visibility", "error");
+      onToast("Failed to save gallery settings", "error");
     } finally {
       setSavingVisibility(false);
     }
@@ -168,33 +174,55 @@ export default function EventPhotosTab({ eventId, onToast, disabled }) {
   return (
     <div className="space-y-6">
       <Card className="border-gray-800 bg-gray-900/50">
-        <CardContent className="flex items-center justify-between gap-4 py-6">
-          <div>
-            <h3 className="text-lg font-bold text-white">Event Photos Feature</h3>
-            <p className="text-sm text-gray-400">Enable or disable the Event Photos gallery tab on the public QR Profile.</p>
+        <CardContent className="py-6 space-y-5">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-bold text-white">Event Photos Feature</h3>
+              <p className="text-sm text-gray-400">Enable or disable the Event Photos gallery tab on the public QR Profile.</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <label className={cn("flex items-center gap-3 group", disabled ? "cursor-not-allowed" : "cursor-pointer")}>
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    checked={galleryEnabled}
+                    onChange={(e) => setGalleryEnabled(e.target.checked)}
+                    disabled={disabled}
+                    className="sr-only peer"
+                  />
+                  <div className={cn(
+                    "w-11 h-6 bg-gray-800 border border-white/10 rounded-full peer peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-400 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white peer-checked:after:bg-white",
+                    !disabled && "group-hover:border-white/20"
+                  )} />
+                </div>
+                <span className={cn("text-sm font-bold text-white uppercase tracking-widest", !disabled && "group-hover:text-emerald-400")}>
+                  {galleryEnabled ? "Enabled" : "Disabled"}
+                </span>
+              </label>
+              <Button onClick={handleSaveVisibility} disabled={disabled} loading={savingVisibility} variant="primary">
+                <Save className="w-4 h-4 mr-2" /> Save
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <label className={cn("flex items-center gap-3 group", disabled ? "cursor-not-allowed" : "cursor-pointer")}>
-              <div className="relative">
-                <input
-                  type="checkbox"
-                  checked={galleryEnabled}
-                  onChange={(e) => setGalleryEnabled(e.target.checked)}
-                  disabled={disabled}
-                  className="sr-only peer"
-                />
-                <div className={cn(
-                  "w-11 h-6 bg-gray-800 border border-white/10 rounded-full peer peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-400 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white peer-checked:after:bg-white",
-                  !disabled && "group-hover:border-white/20"
-                )} />
-              </div>
-              <span className={cn("text-sm font-bold text-white uppercase tracking-widest", !disabled && "group-hover:text-emerald-400")}>
-                {galleryEnabled ? "Enabled" : "Disabled"}
-              </span>
+
+          {/* Gallery message — shown to athletes above their photos (e.g. a social tag prompt) */}
+          <div className="border-t border-gray-800 pt-5">
+            <label className="text-sm font-bold text-white flex items-center gap-2">
+              <Tag className="w-4 h-4 text-purple-400" /> Gallery Message <span className="text-gray-500 font-normal">(optional)</span>
             </label>
-            <Button onClick={handleSaveVisibility} disabled={disabled} loading={savingVisibility} variant="primary">
-              <Save className="w-4 h-4 mr-2" /> Save Status
-            </Button>
+            <p className="text-xs text-gray-400 mt-1 mb-2">
+              Appears above the photos on the athlete's QR profile — great for a social-tag prompt. Leave blank to hide. Saved with the button above.
+            </p>
+            <textarea
+              value={galleryCaption}
+              onChange={(e) => setGalleryCaption(e.target.value)}
+              placeholder="📸 Loved your photos? Tag us @apexsports & @hamdansportscomplex!"
+              rows={2}
+              maxLength={200}
+              disabled={disabled}
+              className="w-full rounded-lg border border-gray-700 bg-gray-800/50 text-white text-sm px-4 py-2.5 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 resize-none disabled:opacity-50"
+            />
+            <p className="text-[11px] text-gray-500 mt-1 text-right">{galleryCaption.length}/200</p>
           </div>
         </CardContent>
       </Card>
