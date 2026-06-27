@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Image as ImageIcon, X, ChevronDown, ChevronUp, Loader2, ChevronLeft, ChevronRight, ScanFace } from 'lucide-react';
 import { PhotoAPI } from '../../lib/photoApi';
+import { GlobalSettingsAPI } from '../../lib/broadcastApi';
 import { cn } from '../../lib/utils';
 import { usePublicAssetUrls } from '../../lib/storage/publicAssets';
 
 export default function QRProfileGallery({ eventId, matchedPhotoIds = [] }) {
+  const [caption, setCaption] = useState('');
   const [photos, setPhotos] = useState([]);
   const [albums, setAlbums] = useState([]);
   const [activeAlbum, setActiveAlbum] = useState('All');
@@ -68,6 +70,14 @@ export default function QRProfileGallery({ eventId, matchedPhotoIds = [] }) {
       loadPhotos();
     }
   }, [eventId, isExpanded, hasLoaded]);
+
+  // Optional gallery message (e.g. a social-tag prompt) set per event in admin.
+  useEffect(() => {
+    if (!eventId) return;
+    GlobalSettingsAPI.get(`event_${eventId}_gallery_caption`)
+      .then(v => setCaption((v || '').trim()))
+      .catch(() => {});
+  }, [eventId]);
 
   const loadPhotos = async () => {
     if (hasLoaded) return;
@@ -143,6 +153,13 @@ export default function QRProfileGallery({ eventId, matchedPhotoIds = [] }) {
                   <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 text-purple-500 animate-spin" /></div>
                 ) : (
                   <>
+                    {/* Optional social-tag / promo message */}
+                    {caption && (
+                      <div className="rounded-2xl bg-gradient-to-r from-purple-50 to-fuchsia-50 border border-purple-100 px-5 py-4 text-center">
+                        <p className="text-sm font-bold text-purple-700 whitespace-pre-line leading-relaxed">{caption}</p>
+                      </div>
+                    )}
+
                     {/* Album filter pills */}
                     {albums.length > 1 && (
                       <div className="flex flex-wrap gap-2 pb-2">
