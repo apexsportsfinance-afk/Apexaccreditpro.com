@@ -112,7 +112,27 @@ export default function CallRoomDisplay() {
       </div>
 
       {/* Main heat card */}
-      <div className="flex-1 flex flex-col items-center justify-center gap-6 p-6">
+      <div className="relative flex-1 flex flex-col items-center justify-center gap-6 p-6">
+        {/* Swimmer roster for THIS screen's heat — lane + name, on the left.
+            Heat content stays centred; the panel overlays the empty left margin.
+            Shown on large (call-room TV) screens only. */}
+        {heat?.swimmers?.length > 0 && (
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[26%] max-w-[360px] pl-8 pr-4 hidden lg:flex flex-col gap-1 z-10">
+            <p className="text-[11px] font-black uppercase tracking-[0.3em] text-cyan-400 mb-3">In This Heat</p>
+            {heat.swimmers.map((s, i) => (
+              <div
+                key={`${s.lane}-${s.name}-${i}`}
+                className="flex items-center gap-3 py-1.5 border-b border-white/5 last:border-0"
+              >
+                <span className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/25 flex items-center justify-center text-cyan-300 font-black text-xs shrink-0">
+                  {s.lane || i + 1}
+                </span>
+                <span className="text-slate-100 font-semibold text-base xl:text-lg truncate">{s.name}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Event logo — sits above the heat number, sized so it never rivals it */}
         {eventLogo && (
           <img
