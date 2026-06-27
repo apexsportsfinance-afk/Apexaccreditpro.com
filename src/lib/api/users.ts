@@ -27,7 +27,18 @@ async function edgeCall(session: { access_token: string }, body: DbRow): Promise
     headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session.access_token}` },
     body: JSON.stringify(body)
   });
-  if (!response.ok) throw new Error(`Edge function error: ${response.status}`);
+  if (!response.ok) {
+    // Surface the function's actual message (e.g. "email already registered",
+    // "Password should be at least 6 characters") instead of a bare status code.
+    let detail = "";
+    try {
+      const errBody = await response.json();
+      detail = errBody?.error || errBody?.message || "";
+    } catch {
+      // non-JSON body; fall back to the status code below
+    }
+    throw new Error(detail || `Edge function error: ${response.status}`);
+  }
   return response.json();
 }
 
