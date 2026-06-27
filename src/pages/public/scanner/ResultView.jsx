@@ -222,7 +222,7 @@ function ResultView({ config, result, onResume, onRedeem, isPublic, zoneConfig }
     // For Info Mode, we use a cleaner, simpler white-card layout as requested
     if (isInfoMode) {
       return (
-        <div className="flex-1 flex flex-col p-4 md:p-8 overflow-y-auto custom-scrollbar bg-slate-100/50">
+        <div className="scanner-info-hub flex-1 flex flex-col p-4 md:p-8 overflow-y-auto custom-scrollbar bg-slate-100/50">
           <div className="max-w-4xl mx-auto w-full space-y-6">
             
             {/* CLEAN WHITE CARD HEADER */}
