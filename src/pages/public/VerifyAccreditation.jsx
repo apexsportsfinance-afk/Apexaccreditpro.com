@@ -661,8 +661,12 @@ export default function VerifyAccreditation() {
 
           if (mData && mData.length > 0) {
             const processed = mData.map(r => {
-              const ageMatch = r.age_group.match(/^(\d+\s*&\s*Over|\d+\s*-\s*\d+|\d+\s*Year\s*Olds)/i);
-              const ageCategory = ageMatch ? ageMatch[1] : r.age_group;
+              const ageMatch = (r.age_group || "").match(/^(\d+\s*&\s*Over|\d+\s*-\s*\d+|\d+\s*Year\s*Olds)/i);
+              const eventAgeCat = ageMatch ? ageMatch[1] : r.age_group;
+              // Prefer the swimmer's actual age; fall back to the event age group.
+              const ageCategory = (r.swimmer_age !== null && r.swimmer_age !== undefined && r.swimmer_age !== "")
+                ? `${r.swimmer_age} Year Olds`
+                : eventAgeCat;
               return { ...r, ageCategory };
             });
             setLiveMedals(processed);
@@ -1889,6 +1893,31 @@ export default function VerifyAccreditation() {
                     )}
                   </AnimatePresence>
                 </div>
+              </div>
+            )}
+
+            {/* Medal Rankings — opens the Live Results Center. Shown whenever the
+                event has imported results. (Previously the modal had no opener,
+                so medals never displayed for anyone.) */}
+            {liveMedals.length > 0 && (
+              <div className="w-full mb-6">
+                <button
+                  onClick={() => setShowMedalsModal(true)}
+                  className="w-full bg-white rounded-[2rem] p-6 shadow-xl flex items-center justify-between hover:bg-amber-50/40 transition-colors group"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="p-4 bg-amber-50 rounded-2xl group-hover:bg-amber-100 transition-colors">
+                      <Trophy className="w-8 h-8 text-amber-500" />
+                    </div>
+                    <div className="text-left">
+                      <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">Medal Rankings</h2>
+                      <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Tap to view live results</p>
+                    </div>
+                  </div>
+                  <div className="p-2 rounded-xl bg-slate-50 group-hover:bg-amber-50">
+                    <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-amber-500" />
+                  </div>
+                </button>
               </div>
             )}
 
