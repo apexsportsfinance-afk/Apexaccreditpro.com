@@ -207,14 +207,14 @@ select {
    ========================================== */
 
 /* 1. Master Canvas, Spacing & Depth Layouts */
-html.dark:not(#verify-accreditation-page *):not(.qr-print-preview *),
-.dark body:not(#verify-accreditation-page *):not(.qr-print-preview *),
-.dark #root:not(#verify-accreditation-page *):not(.qr-print-preview *),
-.dark main:not(#verify-accreditation-page *):not(.qr-print-preview *),
-.dark .bg-base:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark .bg-slate-950:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark div[class*="bg-slate-950"]:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark div[class*="bg-gray-950"]:not(#verify-accreditation-page *):not(.qr-print-preview *) {
+html.dark:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *),
+.dark body:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *),
+.dark #root:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *),
+.dark main:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *),
+.dark .bg-base:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark .bg-slate-950:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark div[class*="bg-slate-950"]:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark div[class*="bg-gray-950"]:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *) {
   background-color: #050608 !important;
   background-image: radial-gradient(circle at 50% 0%, #141926 0%, #050608 80%) !important;
   background-attachment: fixed !important;
@@ -225,28 +225,28 @@ html.dark:not(#verify-accreditation-page *):not(.qr-print-preview *),
 }
 
 /* Page Spacing & Layout Breathing Room */
-.dark .p-lg:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark .lg\:p-xl:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark .p-4:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark .p-6:not(#verify-accreditation-page *):not(.qr-print-preview *) {
+.dark .p-lg:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark .lg\:p-xl:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark .p-4:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark .p-6:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *) {
   padding: 38px !important;
 }
 
-.dark .mx-auto:not(#verify-accreditation-page *):not(.qr-print-preview *) {
+.dark .mx-auto:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *) {
   margin-top: 15px !important;
   margin-bottom: 45px !important;
 }
 
 /* F1/Tesla-grade Brushed Metallic Executive Headings */
-.dark h1:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark h2:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark h3:not(#verify-accreditation-page *):not(.qr-print-preview *),
-.dark .font-h1:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark .font-h2:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark .font-h3:not(#verify-accreditation-page *):not(.qr-print-preview *),
-.dark h1[class*="text-"]:not(#verify-accreditation-page *):not(.qr-print-preview *),
-.dark h2[class*="text-"]:not(#verify-accreditation-page *):not(.qr-print-preview *),
-.dark h3[class*="text-"]:not(#verify-accreditation-page *):not(.qr-print-preview *) {
+.dark h1:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark h2:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark h3:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *),
+.dark .font-h1:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark .font-h2:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark .font-h3:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *),
+.dark h1[class*="text-"]:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *),
+.dark h2[class*="text-"]:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *),
+.dark h3[class*="text-"]:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *) {
   background: linear-gradient(135deg, #ffffff 0%, #dcdcdc 55%, #dfc58b 100%) !important;
   -webkit-background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
@@ -256,45 +256,45 @@ html.dark:not(#verify-accreditation-page *):not(.qr-print-preview *),
   filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.5)) !important;
 }
 
-.dark h1:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark .font-h1:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark h1[class*="text-"]:not(#verify-accreditation-page *):not(.qr-print-preview *) {
+.dark h1:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark .font-h1:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark h1[class*="text-"]:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *) {
   font-size: 28px !important;
   letter-spacing: 0.15em !important;
 }
 
-.dark h2:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark .font-h2:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark h2[class*="text-"]:not(#verify-accreditation-page *):not(.qr-print-preview *) {
+.dark h2:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark .font-h2:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark h2[class*="text-"]:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *) {
   font-size: 20px !important;
   letter-spacing: 0.12em !important;
 }
 
-.dark h3:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark .font-h3:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark h3[class*="text-"]:not(#verify-accreditation-page *):not(.qr-print-preview *) {
+.dark h3:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark .font-h3:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark h3[class*="text-"]:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *) {
   font-size: 16px !important;
   letter-spacing: 0.1em !important;
 }
 
-.dark .text-muted:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark p[class*="text-slate-400"]:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark span[class*="text-slate-400"]:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark .text-meta:not(#verify-accreditation-page *):not(.qr-print-preview *) {
+.dark .text-muted:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark p[class*="text-slate-400"]:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark span[class*="text-slate-400"]:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark .text-meta:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *) {
   color: #8a8d9a !important;
   font-size: 13px !important;
   letter-spacing: 0.02em !important;
 }
 
 /* Layered Charcoal Surfaces & Premium Glassmorphic Cards */
-.dark .card:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark .bg-base-alt:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark div[class*="bg-base-alt"]:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark div[class*="bg-slate-900"]:not(#verify-accreditation-page *):not(.qr-print-preview *),
-.dark div[class*="bg-gray-900"]:not(#verify-accreditation-page *):not(.qr-print-preview *),
-.dark div[class*="bg-slate-800/50"]:not(#verify-accreditation-page *):not(.qr-print-preview *),
-.dark .apex-glass:not(#verify-accreditation-page *):not(.qr-print-preview *),
-.dark .panel:not(#verify-accreditation-page *):not(.qr-print-preview *) {
+.dark .card:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark .bg-base-alt:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark div[class*="bg-base-alt"]:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark div[class*="bg-slate-900"]:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *),
+.dark div[class*="bg-gray-900"]:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *),
+.dark div[class*="bg-slate-800/50"]:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *),
+.dark .apex-glass:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *),
+.dark .panel:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *) {
   background: rgba(13, 16, 22, 0.85) !important;
   backdrop-filter: blur(24px) !important;
   -webkit-backdrop-filter: blur(24px) !important;
@@ -628,14 +628,14 @@ html.dark:not(#verify-accreditation-page *):not(.qr-print-preview *),
 }
 
 /* 7. Luxury Gold Role Badges & Approved status */
-.dark span[class*="bg-sky-500"]:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark span[class*="bg-blue-"]:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark span[class*="bg-sky-"]:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark span[class*="bg-indigo-"]:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark span[class*="bg-cyan-"]:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark span[class*="bg-teal-"]:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark span[class*="bg-slate-700"]:not(#verify-accreditation-page *):not(.qr-print-preview *), 
-.dark .badge-role:not(#verify-accreditation-page *):not(.qr-print-preview *) {
+.dark span[class*="bg-sky-500"]:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark span[class*="bg-blue-"]:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark span[class*="bg-sky-"]:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark span[class*="bg-indigo-"]:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark span[class*="bg-cyan-"]:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark span[class*="bg-teal-"]:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark span[class*="bg-slate-700"]:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *), 
+.dark .badge-role:not(#verify-accreditation-page *):not(.qr-print-preview *):not(.scanner-info-hub *) {
   background: linear-gradient(135deg, #dfc58b 0%, #b89246 100%) !important;
   color: #000000 !important;
   font-weight: 900 !important;

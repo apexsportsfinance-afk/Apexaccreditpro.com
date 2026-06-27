@@ -185,14 +185,12 @@ export default function ScannerPage() {
 
     if (isSessionValid) {
       setAuthorized(true);
-    } else if (isPublicInfoKiosk && urlPin) {
-      // Verify the URL kiosk PIN server-side when enabled (PIN never leaves the
-      // server), else the original client-side compare against VITE_SCANNER_PIN.
-      if (isServerScannerPinEnabled()) {
-        verifyScannerPin(eventParam, urlPin).then((ok) => { if (ok) grantKioskSession(); });
-      } else if (urlPin === defaultPin && defaultPin) {
-        grantKioskSession();
-      }
+    } else if (isPublicInfoKiosk) {
+      // Public self-service info kiosk: open access, no PIN. Athletes walk up to
+      // the kiosk and scan their own badge to see their own heats/lanes — the
+      // same info already public on their /verify QR page, so there is nothing
+      // new to gate. (A PIN here only blocked walk-up self-service.)
+      grantKioskSession();
     }
 
     // Register Service Worker for PWA "Install" support (Disabled)
