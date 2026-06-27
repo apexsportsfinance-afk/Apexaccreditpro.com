@@ -21,7 +21,12 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const result = await login(email, password);
+      // Mobile keyboards / autofill often add a leading/trailing space (and
+      // sometimes capitalise), which makes correct credentials fail only on
+      // phones. Normalise before authenticating.
+      const cleanEmail = email.trim().toLowerCase();
+      const cleanPassword = password.trim();
+      const result = await login(cleanEmail, cleanPassword);
       if (result.success) {
         navigate("/admin");
       } else {
@@ -93,6 +98,11 @@ export default function Login() {
                 icon={Mail}
                 required
                 light
+                inputMode="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                autoComplete="email"
+                spellCheck={false}
               />
 
               <Input
@@ -104,6 +114,10 @@ export default function Login() {
                 icon={Lock}
                 required
                 light
+                autoCapitalize="none"
+                autoCorrect="off"
+                autoComplete="current-password"
+                spellCheck={false}
               />
             </div>
 
