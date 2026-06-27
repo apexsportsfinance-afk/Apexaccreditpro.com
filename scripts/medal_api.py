@@ -43,8 +43,12 @@ def parse_hytek_text(text):
                 if place > 3:
                     continue
 
+                age_token = res_match.group(3).strip()
                 results.append({
                     "swimmer_name": res_match.group(2).strip(),
+                    # The swimmer's actual age (from the result line), so rankings
+                    # can group by athlete age rather than the event's age group.
+                    "swimmer_age": int(age_token) if age_token.isdigit() else None,
                     "team": res_match.group(4).strip(),
                     "result_time": res_match.group(5).strip(),
                     "gender": current_event['gender'],

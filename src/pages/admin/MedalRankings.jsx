@@ -205,10 +205,16 @@ export default function MedalRankings() {
   const processedResults = useMemo(() => {
     return results.map(r => {
       // Split "10 Year Olds 100 LC Meter Butterfly" -> ["10 Year Olds", "100 LC Meter Butterfly"]
-      const ageMatch = r.age_group.match(/^(\d+\s*&\s*Over|\d+\s*-\s*\d+|\d+\s*Year\s*Olds)/i);
-      const ageCategory = ageMatch ? ageMatch[1] : r.age_group;
-      const eventName = r.age_group.replace(ageCategory, "").trim() || r.event_name;
-      
+      const ageMatch = (r.age_group || "").match(/^(\d+\s*&\s*Over|\d+\s*-\s*\d+|\d+\s*Year\s*Olds)/i);
+      const eventAgeCat = ageMatch ? ageMatch[1] : r.age_group;
+      const eventName = (r.age_group || "").replace(eventAgeCat, "").trim() || r.event_name;
+
+      // Prefer the swimmer's ACTUAL age over the event's age group. Falls back to
+      // the event age group for rows imported before swimmer_age existed.
+      const ageCategory = (r.swimmer_age !== null && r.swimmer_age !== undefined && r.swimmer_age !== "")
+        ? `${r.swimmer_age} Year Olds`
+        : eventAgeCat;
+
       return { ...r, ageCategory, eventName };
     });
   }, [results]);
