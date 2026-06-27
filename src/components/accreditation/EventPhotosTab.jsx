@@ -29,6 +29,7 @@ export default function EventPhotosTab({ eventId, onToast, disabled }) {
   const [albums, setAlbums] = useState(['General Event Photos', 'Opening Ceremony', 'Competition', 'Awards', 'VIP']);
   const [selectedAlbum, setSelectedAlbum] = useState('General Event Photos');
   const [newAlbumName, setNewAlbumName] = useState('');
+  const [galleryFilter, setGalleryFilter] = useState('All');
   const fileInputRef = useRef(null);
 
   // Whole-section visibility on the public QR Profile - mirrors the Live
@@ -163,6 +164,25 @@ export default function EventPhotosTab({ eventId, onToast, disabled }) {
     }
   };
 
+  // Delete every photo in the currently-selected album (filter must not be "All").
+  const deleteAlbum = async () => {
+    if (disabled || galleryFilter === 'All') return;
+    const inAlbum = photos.filter(p => p.album_name === galleryFilter);
+    if (inAlbum.length === 0) return;
+    if (!window.confirm(`Delete all ${inAlbum.length} photo${inAlbum.length === 1 ? '' : 's'} in "${galleryFilter}"? This cannot be undone.`)) return;
+    try {
+      for (const p of inAlbum) {
+        // eslint-disable-next-line no-await-in-loop
+        await PhotoAPI.deletePhotoRecord(p.id);
+      }
+      setPhotos(prev => prev.filter(p => p.album_name !== galleryFilter));
+      onToast(`Deleted ${inAlbum.length} photo${inAlbum.length === 1 ? '' : 's'} from "${galleryFilter}"`, "success");
+      setGalleryFilter('All');
+    } catch (err) {
+      onToast("Failed to delete some photos. Please refresh and retry.", "error");
+    }
+  };
+
   const handleAddAlbum = () => {
     if (newAlbumName && !albums.includes(newAlbumName)) {
       setAlbums([...albums, newAlbumName]);
@@ -170,6 +190,13 @@ export default function EventPhotosTab({ eventId, onToast, disabled }) {
       setNewAlbumName('');
     }
   };
+
+  // Albums that actually contain photos, for the View/Scan filter.
+  const populatedAlbums = [...new Set(photos.map(p => p.album_name).filter(Boolean))];
+  const visiblePhotos = galleryFilter === 'All'
+    ? photos
+    : photos.filter(p => p.album_name === galleryFilter);
+  const scanPhotos = visiblePhotos.filter(p => p.is_public);
 
   return (
     <div className="space-y-6">
@@ -292,12 +319,45 @@ export default function EventPhotosTab({ eventId, onToast, disabled }) {
           </div>
         </div>
 
-        {/* Face Matching Manager */}
-        {photos.length > 0 && !disabled && (
+        {/* Album filter — scopes BOTH the face-matching scan and the grid below */}
+        {populatedAlbums.length >= 1 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest mr-1">View / Scan:</span>
+            {['All', ...populatedAlbums].map(album => (
+              <button
+                key={album}
+                onClick={() => setGalleryFilter(album)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all border",
+                  galleryFilter === album
+                    ? "bg-indigo-600 text-white border-indigo-500"
+                    : "bg-gray-800/50 text-gray-400 border-gray-700 hover:border-gray-600"
+                )}
+              >
+                {album}{album !== 'All' ? ` (${photos.filter(p => p.album_name === album).length})` : ''}
+              </button>
+            ))}
+            {galleryFilter !== 'All' && !disabled && (
+              <button
+                onClick={deleteAlbum}
+                className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide text-rose-300 border border-rose-500/40 hover:bg-rose-500/10 transition-all"
+                title={`Delete all photos in "${galleryFilter}"`}
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Delete Album
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Face Matching Manager — scans only the photos currently in view
+            (the selected album) and ADDS to existing matches, so you never
+            reprocess folders you've already done. */}
+        {scanPhotos.length > 0 && !disabled && (
           <Suspense fallback={<div className="flex justify-center p-6"><Loader2 className="w-6 h-6 text-blue-500 animate-spin" /></div>}>
             <FaceMatchingManager
               eventId={eventId}
-              galleryPhotos={photos.filter(p => p.is_public)}
+              galleryPhotos={scanPhotos}
+              scopeLabel={galleryFilter}
               onToast={onToast}
             />
           </Suspense>
@@ -306,20 +366,22 @@ export default function EventPhotosTab({ eventId, onToast, disabled }) {
         {/* Gallery Section */}
         <div>
           <h4 className="text-white font-medium mb-4 flex justify-between items-center">
-            Uploaded Photos ({photos.length})
+            {galleryFilter === 'All'
+              ? `Uploaded Photos (${photos.length})`
+              : `${galleryFilter} — ${visiblePhotos.length} of ${photos.length} photos`}
           </h4>
-          
+
           {loading ? (
             <div className="flex justify-center p-12"><Loader2 className="w-8 h-8 text-blue-500 animate-spin" /></div>
-          ) : photos.length === 0 ? (
+          ) : visiblePhotos.length === 0 ? (
             <div className="text-center p-12 border border-gray-800 rounded-xl bg-gray-900/50">
               <ImageIcon className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-              <p className="text-gray-400">No photos uploaded for this event yet.</p>
+              <p className="text-gray-400">{photos.length === 0 ? "No photos uploaded for this event yet." : "No photos in this album."}</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
               <AnimatePresence>
-                {photos.map(photo => (
+                {visiblePhotos.map(photo => (
                   <motion.div
                     key={photo.id}
                     layout
