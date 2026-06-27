@@ -32,15 +32,32 @@ const finalizeHeatList = (entries) => {
     const sessionName = e.sessionName || "";
     const eventCode = e.eventCode !== null && e.eventCode !== undefined ? String(e.eventCode) : "";
     const key = `${sessionName}|${eventCode}|${heat}`;
-    if (!byKey.has(key)) {
-      byKey.set(key, {
+    let item = byKey.get(key);
+    if (!item) {
+      item = {
         eventCode,
         eventName: e.eventName || "",
         gender: e.gender || genderFromEventName(e.eventName),
         heat: String(heat),
         sessionName,
-      });
+        swimmers: [],
+      };
+      byKey.set(key, item);
     }
+    // Attach the swimmer (lane + name) for the side roster, de-duped.
+    const name = (e.name ?? "").toString().trim();
+    if (name) {
+      const lane =
+        e.lane !== null && e.lane !== undefined && String(e.lane).trim() !== ""
+          ? String(e.lane).trim()
+          : "";
+      if (!item.swimmers.some((s) => s.lane === lane && s.name === name)) {
+        item.swimmers.push({ lane, name });
+      }
+    }
+  }
+  for (const item of byKey.values()) {
+    item.swimmers.sort((a, b) => num(a.lane) - num(b.lane));
   }
   return [...byKey.values()].sort(
     (a, b) =>
@@ -88,6 +105,8 @@ export const CallRoomAPI = {
               heat: r.heat,
               sessionName: r.sessionName,
               gender: r.gender,
+              lane: r.lane,
+              name: r.athleteName,
             }))
           );
           console.log(`[CallRoomAPI] parsed ${rawRows?.length || 0} rows from "${name}" -> ${list.length} heats`);
@@ -126,13 +145,13 @@ export const CallRoomAPI = {
       fetchAllRows(() =>
         supabase
           .from("athlete_events")
-          .select("event_code, event_name, gender, heat, session_name")
+          .select("event_code, event_name, gender, heat, session_name, pdf_name, lane")
           .eq("event_id", id)
       ),
       fetchAllRows(() =>
         supabase
           .from("lane_matrix")
-          .select("event_code, event_name, heat, session_name")
+          .select("event_code, event_name, heat, session_name, athlete_name, lane")
           .eq("meet_id", id)
       ),
     ]);
@@ -145,12 +164,16 @@ export const CallRoomAPI = {
         heat: r.heat,
         sessionName: r.session_name,
         gender: r.gender,
+        lane: r.lane,
+        name: r.pdf_name,
       })),
       ...lmRows.map((r) => ({
         eventCode: r.event_code,
         eventName: r.event_name,
         heat: r.heat,
         sessionName: r.session_name,
+        lane: r.lane,
+        name: r.athlete_name,
       })),
     ]);
     console.log(`[CallRoomAPI] using matched-data fallback (${list.length} heats). File reason: ${fileDetail}`);
