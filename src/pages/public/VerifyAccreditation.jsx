@@ -298,15 +298,18 @@ export default function VerifyAccreditation() {
   const [isStatsLoaded, setIsStatsLoaded] = useState(false);
   const [isFetchingStats, setIsFetchingStats] = useState(false);
 
+  // Eager-load accumulated match stats so the Season Stats card can hide
+  // itself on sports that never record them (e.g. individual swimming).
+  // Only team/match sports populate player_match_stats.
   useEffect(() => {
-    if (isStatsExpanded && !isStatsLoaded && !isFetchingStats && data?.id) {
+    if (!isStatsLoaded && !isFetchingStats && data?.id && data?.role?.toLowerCase() === "athlete") {
       setIsFetchingStats(true);
       PlayerStatsAPI.getPlayerTotals(data.id)
         .then(rows => setSeasonStats(rows || []))
         .catch(() => setSeasonStats([]))
         .finally(() => { setIsStatsLoaded(true); setIsFetchingStats(false); });
     }
-  }, [isStatsExpanded, isStatsLoaded, isFetchingStats, data?.id]);
+  }, [isStatsLoaded, isFetchingStats, data?.id, data?.role]);
 
   const [selectedSportId, setSelectedSportId] = useState(null);
   const [filterOptions, setFilterOptions] = useState({ leagueNames: [], matchDates: [] });
@@ -1921,7 +1924,7 @@ export default function VerifyAccreditation() {
               </div>
             )}
 
-            {data.role?.toLowerCase() === "athlete" && (
+            {data.role?.toLowerCase() === "athlete" && seasonStats.length > 0 && (
               <div className="w-full mb-6">
                 <div className="bg-slate-50 border border-slate-100 rounded-[2rem] shadow-sm overflow-hidden">
                   <button
