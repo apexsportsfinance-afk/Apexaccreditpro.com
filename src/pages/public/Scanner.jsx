@@ -12,6 +12,8 @@ import {
   Users,
   Ticket,
   ChevronRight,
+  ChevronDown,
+  ScanLine,
   Clock,
   QrCode
 } from "lucide-react";
@@ -1038,29 +1040,48 @@ export default function ScannerPage() {
               {!scanning && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/50 backdrop-blur-md z-30 p-8 text-center bg-gradient-to-t from-[#020617] to-transparent">
                   <div className="flex-1 flex flex-col items-center justify-center w-full">
-                    <motion.div
-                      animate={{
-                        scale: [1, 1.02, 1],
-                      }}
-                      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                      className="w-48 h-48 bg-blue-500/5 rounded-[30px] border border-white/10 flex items-center justify-center mx-auto mb-6 relative backdrop-blur-md shadow-2xl overflow-hidden"
-                    >
-                      <img 
-                        src="/scan-instruction.png" 
-                        alt="Scan Instruction" 
-                        className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                    {/* Elegant animated scan emblem */}
+                    <div className="relative mx-auto mb-7 flex items-center justify-center">
+                      {/* Soft pulsing halo */}
+                      <motion.div
+                        animate={{ scale: [1, 1.25, 1], opacity: [0.25, 0.5, 0.25] }}
+                        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                        className="absolute w-44 h-44 bg-cyan-400/30 rounded-full blur-2xl"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-blue-600/20 to-transparent pointer-events-none" />
-                    </motion.div>
-                    <h2 className="text-2xl font-black text-white uppercase tracking-tighter leading-tight mb-2 drop-shadow-md">
-                      {isPublic ? "Scan Badge" : "SCAN ME"}
+                      {/* Glass tile */}
+                      <motion.div
+                        animate={{ scale: [1, 1.03, 1] }}
+                        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                        className="relative w-36 h-36 rounded-[2rem] bg-gradient-to-br from-white/10 to-white/5 border border-white/20 flex items-center justify-center backdrop-blur-xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.6)] ring-1 ring-cyan-400/20 overflow-hidden"
+                      >
+                        <ScanLine className="w-20 h-20 text-cyan-300 drop-shadow-[0_0_12px_rgba(34,211,238,0.6)]" strokeWidth={1.5} />
+                        {/* Sweeping scan line */}
+                        <motion.div
+                          animate={{ y: ["-60px", "60px", "-60px"] }}
+                          transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+                          className="absolute left-4 right-4 h-[3px] rounded-full bg-cyan-300 shadow-[0_0_20px_4px_rgba(34,211,238,0.8)]"
+                        />
+                      </motion.div>
+                    </div>
+
+                    <h2 className="text-3xl font-black text-white uppercase tracking-tight leading-tight mb-3 drop-shadow-md">
+                      {isPublic ? "Scan Your Badge" : "SCAN ME"}
                     </h2>
+
+                    {/* Blinking down arrow — directs the athlete to scan below */}
+                    <motion.div
+                      animate={{ y: [0, 10, 0], opacity: [0.35, 1, 0.35] }}
+                      transition={{ duration: 1.3, repeat: Infinity, ease: "easeInOut" }}
+                      className="flex flex-col items-center -space-y-3 text-cyan-300"
+                    >
+                      <ChevronDown className="w-9 h-9 drop-shadow-[0_0_10px_rgba(34,211,238,0.7)]" strokeWidth={3} />
+                      <ChevronDown className="w-9 h-9 opacity-60" strokeWidth={3} />
+                    </motion.div>
                   </div>
-                  {/* Camera trigger moved to fixed bottom */}
 
                   {/* Hardware Scanner Hint */}
                   <div className="w-full pb-8">
-                    <p className="text-white/20 text-[9px] uppercase tracking-widest">
+                    <p className="text-white/25 text-[9px] uppercase tracking-widest">
                       Hardware barcode scanner linked
                     </p>
                   </div>
