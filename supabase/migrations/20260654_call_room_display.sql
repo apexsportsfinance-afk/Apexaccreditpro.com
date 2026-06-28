@@ -35,17 +35,14 @@ CREATE POLICY "crs_read_public" ON public.call_room_state
   FOR SELECT USING (true);
 
 -- Only admins (the marshal) may start/advance/edit the call room.
+-- Use the server-controlled role check (public.profiles.role via is_admin())
+-- from 20260650_role_trust_hardening, NOT auth user_metadata — user_metadata
+-- is self-writable and would allow privilege escalation.
 DROP POLICY IF EXISTS "crs_write_admin" ON public.call_room_state;
 CREATE POLICY "crs_write_admin" ON public.call_room_state
   FOR ALL TO authenticated
-  USING (
-    (auth.jwt() -> 'user_metadata' ->> 'role')
-      IN ('super_admin','event_admin','media_admin','admin')
-  )
-  WITH CHECK (
-    (auth.jwt() -> 'user_metadata' ->> 'role')
-      IN ('super_admin','event_admin','media_admin','admin')
-  );
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
 
 -- -----------------------------------------------------------------------------
 -- Realtime: stream changes to subscribed display screens.
