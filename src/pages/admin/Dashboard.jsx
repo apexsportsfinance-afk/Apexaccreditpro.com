@@ -27,12 +27,14 @@ import StatsCard from "../../components/ui/StatsCard";
 import Card, { CardHeader, CardContent } from "../../components/ui/Card";
 import Badge from "../../components/ui/Badge";
 import { useAuth } from "../../contexts/AuthContext";
+import { useBranding } from "../../contexts/BrandingContext";
 import { EventsAPI, AccreditationsAPI, AuditAPI, ZonesAPI } from "../../lib/storage";
 import { AttendanceAPI } from "../../lib/attendanceApi";
 import { formatDate, cn } from "../../lib/utils";
 import LiveScoresWidget from "../../components/ui/LiveScoresWidget";
 
 export default function Dashboard() {
+  const branding = useBranding();
   const [stats, setStats] = useState({
     totalEvents: 0,
     totalAccreditations: 0,
@@ -596,7 +598,7 @@ export default function Dashboard() {
             <span className="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full font-black tracking-widest uppercase shadow-sm">v4.0</span>
           </h1>
           <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.25em] opacity-80 mt-1">
-            {selectedEventId === "all" ? "Apex Sports Global Intelligence" : "Event-Specific Operational Hub"}
+            {selectedEventId === "all" ? `${branding.isApex ? "Apex Sports" : branding.name} Global Intelligence` : "Event-Specific Operational Hub"}
           </p>
         </div>
 

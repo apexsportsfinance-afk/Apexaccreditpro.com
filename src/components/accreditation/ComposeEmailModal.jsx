@@ -4,6 +4,7 @@ import Button from "../ui/Button";
 import Modal from "../ui/Modal";
 import Input from "../ui/Input";
 import { useToast } from "../ui/Toast";
+import { useBranding } from "../../contexts/BrandingContext";
 import { sendCustomEmail } from "../../lib/email";
 import { getEmailTemplate } from "../../lib/email";
 import { generatePdfAttachment } from "../../lib/pdfEmailHelper";
@@ -17,6 +18,8 @@ export default function ComposeEmailModal({
   isBulk = false
 }) {
   const toast = useToast();
+  const branding = useBranding();
+  const emailBrand = branding.isApex ? "Apex Sports Accreditations" : branding.name;
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [attachPdf, setAttachPdf] = useState(true);
@@ -59,10 +62,10 @@ export default function ComposeEmailModal({
           // Fallback defaults
           if (r) {
             setSubject(`Your Accreditation - ${eventName}`);
-            setBody(`Dear ${r.firstName} ${r.lastName},\n\nPlease find your accreditation details attached.\n\nEvent: ${eventName}\nRole: ${r.role || "Participant"}\nBadge: ${r.badgeNumber || "N/A"}\n\nPlease present this at the venue for badge collection.\n\nBest regards,\nApex Sports Accreditations`);
+            setBody(`Dear ${r.firstName} ${r.lastName},\n\nPlease find your accreditation details attached.\n\nEvent: ${eventName}\nRole: ${r.role || "Participant"}\nBadge: ${r.badgeNumber || "N/A"}\n\nPlease present this at the venue for badge collection.\n\nBest regards,\n${emailBrand}`);
           } else {
             setSubject(`Your Accreditation - ${eventName}`);
-            setBody(`Dear Participant,\n\nPlease find your accreditation details attached.\n\nEvent: ${eventName}\n\nPlease present this at the venue for badge collection.\n\nBest regards,\nApex Sports Accreditations`);
+            setBody(`Dear Participant,\n\nPlease find your accreditation details attached.\n\nEvent: ${eventName}\n\nPlease present this at the venue for badge collection.\n\nBest regards,\n${emailBrand}`);
           }
         }
       };

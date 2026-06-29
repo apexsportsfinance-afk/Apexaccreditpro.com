@@ -14,8 +14,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon.png', 'apex-logo.png'],
       manifest: {
-        name: 'Apex Unified Scanner',
-        short_name: 'Apex Scanner',
+        name: 'Unified Scanner',
+        short_name: 'Scanner',
         description: 'Professional high-speed hardware scanner interface.',
         theme_color: '#020617',
         background_color: '#020617',

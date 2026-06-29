@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { CallRoomAPI, screenOffsetFromSlug } from "../../lib/callRoomApi";
+import { useBranding } from "../../contexts/BrandingContext";
 
 // Public, unauthenticated full-screen view for a single call-room screen.
 // URL: /display/:eventId/:row   (e.g. /display/<uuid>/row-a)
@@ -8,6 +9,7 @@ import { CallRoomAPI, screenOffsetFromSlug } from "../../lib/callRoomApi";
 // the row slug (row-a = 0, row-b = 1, ...). It subscribes to Realtime so the
 // marshal's "Next Heat" updates every screen instantly with no manual reload.
 export default function CallRoomDisplay() {
+  const branding = useBranding();
   const { eventId, row } = useParams();
   const offset = screenOffsetFromSlug(row);
   const rowLabel = String(row || "").replace(/^row-/i, "").toUpperCase() || "A";
@@ -207,7 +209,7 @@ export default function CallRoomDisplay() {
           </div>
         ) : (
           <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500 truncate">
-            {state?.event_name || "Apex Call Room Display"}
+            {state?.event_name || (branding.isApex ? "Apex Call Room Display" : `${branding.name} Call Room Display`)}
           </p>
         )}
       </div>

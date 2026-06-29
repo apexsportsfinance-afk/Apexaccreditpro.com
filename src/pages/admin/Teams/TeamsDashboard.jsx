@@ -8,6 +8,7 @@ import Badge from "../../../components/ui/Badge";
 import EmptyState from "../../../components/ui/EmptyState";
 import { useToast } from "../../../components/ui/Toast";
 import { useAuth } from "../../../contexts/AuthContext";
+import { useBranding } from "../../../contexts/BrandingContext";
 import { TeamAPI } from "../../../services/teamApi";
 import { EventsAPI } from "../../../lib/storage";
 import CreateTeamModal from "../../../components/teams/CreateTeamModal";
@@ -19,6 +20,7 @@ import { formatDate } from "../../../lib/utils";
 
 export default function TeamsDashboard() {
   const { isSuperAdmin, isEventAdmin } = useAuth();
+  const branding = useBranding();
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -187,7 +189,7 @@ export default function TeamsDashboard() {
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-main tracking-tight">Apex Team Portal</h1>
+          <h1 className="text-3xl font-bold text-main tracking-tight">{branding.isApex ? "Apex" : branding.name} Team Portal</h1>
           <p className="text-muted mt-1">Long-Term League Management</p>
         </div>
         

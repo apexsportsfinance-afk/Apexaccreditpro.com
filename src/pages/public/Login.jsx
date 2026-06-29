@@ -5,9 +5,11 @@ import { Shield, Mail, Lock, AlertCircle, Waves, Droplets } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import { useAuth } from "../../contexts/AuthContext";
+import { useBranding } from "../../contexts/BrandingContext";
 import SwimmingBackground from "../../components/ui/SwimmingBackground";
 
 export default function Login() {
+  const branding = useBranding();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -64,9 +66,9 @@ export default function Login() {
               <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-cyan-300/40 to-transparent animate-pulse" />
             </div>
             <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 via-blue-600 to-ocean-500 mb-2">
-              SwimAccredit
+              {branding.isApex ? "SwimAccredit" : branding.name}
             </h1>
-            <p className="text-lg text-cyan-600/70">Aquatics Accreditation Platform</p>
+            <p className="text-lg text-cyan-600/70">{branding.isApex ? "Aquatics Accreditation Platform" : (branding.tagline || "Accreditation Platform")}</p>
           </div>
 
           <form

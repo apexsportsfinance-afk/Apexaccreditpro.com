@@ -18,6 +18,7 @@ import Button from "../../components/ui/Button";
 import ThemeToggle from "../../components/ui/ThemeToggle";
 import SwimmingBackground from "../../components/ui/SwimmingBackground";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useBranding } from "../../contexts/BrandingContext";
 
 const features = [
   {
@@ -53,6 +54,7 @@ const SwimmerIcon = ({ className }) => (
 
 export default function Home() {
   const { theme } = useTheme();
+  const branding = useBranding();
 
   return (
     <SwimmingBackground variant="hero">
@@ -66,7 +68,7 @@ export default function Home() {
                   <Waves className="w-5 h-5 text-primary-500 dark:text-primary-400" />
                 </div>
                 <span className="text-xl font-bold text-main tracking-wide">
-                  ApexAccreditation
+                  {branding.isApex ? "ApexAccreditation" : branding.name}
                 </span>
               </div>
               <div className="flex items-center gap-4">
@@ -123,7 +125,7 @@ export default function Home() {
                 className="text-center max-w-3xl mx-auto"
               >
                 <h1 className="text-4xl lg:text-6xl font-extrabold text-main mb-6 leading-tight drop-shadow-sm dark:drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
-                  Apex Professional{" "}
+                  {branding.isApex ? "Apex Professional" : branding.name}{" "}
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-500 via-sky-500 to-blue-500 dark:from-cyan-300 dark:via-sky-300 dark:to-blue-300">
                     Accreditation Platform
                   </span>
@@ -303,11 +305,15 @@ export default function Home() {
                   <Waves className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-lg font-bold text-main tracking-wide">
-                  ApexAccreditation
+                  {branding.isApex ? "ApexAccreditation" : branding.name}
                 </span>
               </div>
               <p className="text-lg text-muted font-medium">
-                Developed by <span className="text-primary-500 font-semibold">Basit Ali Shah</span> Powered by <span className="text-primary-500 font-semibold">Apexsports Academy LLC</span>
+                {branding.isApex ? (
+                  <>Developed by <span className="text-primary-500 font-semibold">Basit Ali Shah</span> Powered by <span className="text-primary-500 font-semibold">Apexsports Academy LLC</span></>
+                ) : branding.hidePoweredBy ? null : (
+                  <>Powered by <span className="text-primary-500 font-semibold">Apex</span></>
+                )}
               </p>
             </div>
           </div>

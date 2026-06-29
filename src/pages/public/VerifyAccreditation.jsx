@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useBranding } from "../../contexts/BrandingContext";
 import {
   CheckCircle, XCircle, Download, Calendar,
   MessageSquare, Globe, AlertTriangle, ChevronDown, ChevronUp,
@@ -214,6 +215,7 @@ function EventsAccordion({ events }) {
 }
 
 export default function VerifyAccreditation() {
+  const branding = useBranding();
   const { id: rawId } = useParams();
   const id = (rawId || "").replace(/^\/+/, "").trim();
   const navigate = useNavigate();
@@ -2031,7 +2033,7 @@ export default function VerifyAccreditation() {
           </div>
         )}
 
-        <motion.p variants={itemVariants} className="mt-12 text-white/20 text-[10px] uppercase font-black tracking-[0.5em] text-center">Apex Sports Accreditation System</motion.p>
+        <motion.p variants={itemVariants} className="mt-12 text-white/20 text-[10px] uppercase font-black tracking-[0.5em] text-center">{branding.isApex ? "Apex Sports Accreditation System" : `${branding.name} Accreditation System`}</motion.p>
       </motion.div>
 
       <AnimatePresence>

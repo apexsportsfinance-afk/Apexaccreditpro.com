@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Flag as FlagIcon, Mail as MailIcon, Upload as UploadIcon, Search as SearchIcon, Loader2 as Loader2Icon, CheckCircle as CheckCircleIcon, Smartphone, User as UserIcon, Files } from "lucide-react";
 import TermsModal from "../../components/TermsModal";
+import { useBranding } from "../../contexts/BrandingContext";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
@@ -96,6 +97,7 @@ const formatEmiratesID = (value) => {
 };
 
 export default function Register() {
+  const branding = useBranding();
   const { slug } = useParams();
   const [language, setLanguage] = useState(localStorage.getItem("register_lang") || "en");
   
@@ -1472,7 +1474,7 @@ export default function Register() {
               <div className="bg-slate-50/50 px-8 py-4 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-[9px] items-center gap-1 font-black uppercase tracking-[0.3em] text-slate-400 flex">
                   <Shield className="w-3 h-3" />
-                  Apex Sports
+                  {branding.isApex ? "Apex Sports" : branding.name}
                 </span>
                 <div className="flex gap-1">
                   <div className="w-1 h-1 rounded-full bg-slate-200" />
