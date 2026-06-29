@@ -27,6 +27,7 @@ import { motion } from "framer-motion";
 import { EventsAPI, TicketingAPI } from "../../lib/storage";
 import { useToast } from "../../components/ui/Toast";
 import { useAuth } from "../../contexts/AuthContext";
+import { useBranding } from "../../contexts/BrandingContext";
 import Button from "../../components/ui/Button";
 import Card, { CardHeader, CardContent } from "../../components/ui/Card";
 import Input from "../../components/ui/Input";
@@ -38,6 +39,7 @@ import RevenueTab from "../../components/admin/RevenueTab";
 import { supabase } from "../../lib/supabase";
 
 export default function Ticketing() {
+  const branding = useBranding();
   const [events, setEvents] = useState([]);
   const [selectedEventId, setSelectedEventId] = useState("");
   const [orders, setOrders] = useState([]);
@@ -236,7 +238,8 @@ export default function Ticketing() {
       XLSX.utils.book_append_sheet(wb, ws, "Ticket Sales");
 
       // 3. Download
-      const fileName = `ApexTicketing_${selectedEvent?.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      const brandPrefix = (branding.isApex ? "Apex" : branding.name).replace(/\s+/g, '');
+      const fileName = `${brandPrefix}Ticketing_${selectedEvent?.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
       XLSX.writeFile(wb, fileName);
       toast.success("Export Complete!");
     } catch (err) {

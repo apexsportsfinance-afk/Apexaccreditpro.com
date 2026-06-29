@@ -7,6 +7,7 @@ const AdminLayout = lazy(() => import("./components/layout/AdminLayout"));
 import { LayoutProvider } from "./contexts/LayoutContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { BackgroundProvider } from "./contexts/BackgroundContext";
+import { BrandingProvider } from "./contexts/BrandingContext";
 import { Loader2 } from "lucide-react";
 
 const Home = lazy(() => import("./pages/public/Home"));
@@ -75,6 +76,7 @@ export default function App() {
       <GlobalNetworkBanner />
       <ScrollToTop />
       <ToastProvider>
+        <BrandingProvider>
         <AuthProvider>
           <ThemeProvider>
             <LayoutProvider>
@@ -139,6 +141,7 @@ export default function App() {
             </LayoutProvider>
           </ThemeProvider>
         </AuthProvider>
+        </BrandingProvider>
       </ToastProvider>
     </Router>
   );

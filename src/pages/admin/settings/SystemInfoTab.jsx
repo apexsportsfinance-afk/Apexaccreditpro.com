@@ -3,8 +3,10 @@ import { motion } from "framer-motion";
 import { Info, Database } from "lucide-react";
 import Card, { CardHeader, CardContent } from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
+import { useBranding } from "../../../contexts/BrandingContext";
 
 export default function SystemInfoTab({ migrating, migrationStatus, onMigrate }) {
+  const branding = useBranding();
   return (
     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
       <Card>
@@ -19,7 +21,7 @@ export default function SystemInfoTab({ migrating, migrationStatus, onMigrate })
         <CardContent className="space-y-3">
           {/* System Info Items */}
           {[
-            { label: "Platform", value: "ApexAccreditation v1.0" },
+            { label: "Platform", value: `${branding.isApex ? "ApexAccreditation" : branding.name} v1.0` },
             { label: "Database", value: "Supabase (PostgreSQL)" },
             { label: "Authentication", value: "Supabase Auth" },
             { label: "Storage", value: "Supabase Storage" },

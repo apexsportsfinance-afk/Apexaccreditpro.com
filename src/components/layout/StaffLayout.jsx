@@ -3,9 +3,11 @@ import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { LayoutDashboard, ScanLine, Search, Settings } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "../../lib/utils";
+import { useBranding } from "../../contexts/BrandingContext";
 
 export default function StaffLayout() {
   const location = useLocation();
+  const branding = useBranding();
 
   const navItems = [
     { name: "Dashboard", path: "/staff/dashboard", icon: LayoutDashboard },
@@ -21,7 +23,7 @@ export default function StaffLayout() {
         <div className="flex items-center justify-between">
           <div className="flex flex-col">
             <h1 className="text-xl font-black text-white uppercase tracking-tighter">
-              Apex Staff
+              {branding.isApex ? "Apex Staff" : `${branding.name} Staff`}
             </h1>
             <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest">
               Operations Active

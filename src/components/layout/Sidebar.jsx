@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useBranding } from "../../contexts/BrandingContext";
 import ThemeToggle from "../ui/ThemeToggle";
 import { cn } from "../../lib/utils";
 
@@ -53,6 +54,17 @@ export const navItems = [
 
 const Sidebar = memo(function Sidebar() {
   const { user, logout, isSuperAdmin, isViewer, canAccessModule } = useAuth();
+  const branding = useBranding();
+  // Apex default keeps the original asset + the dark-mode monochrome treatment.
+  // A real tenant uses its own logo (or name) and skips the invert filter, which
+  // is tuned for Apex's mono logo and would wreck a coloured org logo.
+  // Show an image for Apex (its logo asset) or a tenant that uploaded one;
+  // otherwise show the org's name/monogram as text in its brand colour so a
+  // logo-less tenant never falls back to the Apex logo.
+  const hasLogoImage = branding.isApex || !!branding.logoUrl;
+  const logoSrc = branding.isApex ? "/apex-logo.png" : branding.logoUrl;
+  const logoAlt = branding.isApex ? "Apex Sports Academy" : branding.name;
+  const monoFilter = branding.isApex ? "dark:brightness-0 dark:invert" : "";
   const [collapsed, setCollapsed] = useState(false);
   
   const filteredNavItems = navItems.filter(item => {
@@ -74,19 +86,27 @@ const Sidebar = memo(function Sidebar() {
       <div className="flex items-center gap-3 px-6 border-b border-border z-10 relative bg-base/50 backdrop-blur-md min-h-[76px]">
         {!collapsed ? (
           <div className="flex-1 flex items-center justify-start overflow-hidden">
-            <img 
-              src="/apex-logo.png" 
-              alt="Apex Sports Academy" 
-              className="w-full max-w-[170px] h-auto object-contain object-left dark:brightness-0 dark:invert opacity-95 transition-all duration-300 hover:opacity-100" 
-            />
+            {hasLogoImage ? (
+              <img
+                src={logoSrc}
+                alt={logoAlt}
+                className={cn("w-full max-w-[170px] h-auto object-contain object-left opacity-95 transition-all duration-300 hover:opacity-100", monoFilter)}
+              />
+            ) : (
+              <span className="text-xl font-extrabold tracking-wide truncate" style={{ color: branding.brandPrimary }}>{branding.name}</span>
+            )}
           </div>
         ) : (
           <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center overflow-hidden">
-            <img 
-              src="/apex-logo.png" 
-              alt="Apex" 
-              className="w-full h-auto object-cover object-[15%] dark:brightness-0 dark:invert opacity-90 transition-all duration-300 hover:opacity-100" 
-            />
+            {hasLogoImage ? (
+              <img
+                src={logoSrc}
+                alt={branding.isApex ? "Apex" : branding.name}
+                className={cn("w-full h-auto object-cover object-[15%] opacity-90 transition-all duration-300 hover:opacity-100", monoFilter)}
+              />
+            ) : (
+              <span className="text-lg font-black" style={{ color: branding.brandPrimary }}>{branding.logoText}</span>
+            )}
           </div>
         )}
         <button

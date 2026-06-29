@@ -1,4 +1,5 @@
 import React from "react";
+import { useBranding } from "../../contexts/BrandingContext";
 
 // Fully inline-styled card used for html2canvas PNG capture.
 // No Tailwind classes — inline styles only for reliable off-screen rendering.
@@ -52,6 +53,7 @@ const COL = "20px 1fr 54px 46px 1fr 62px 1fr 80px";
 const H_ALIGN = ["center","left","center","center","right","center","left","center"];
 
 export default function FixturePNGCard({ sport, leagueName, items, eventsMap = {}, cardsMap = {} }) {
+  const branding = useBranding();
   const sportLabel = sport ? `${sport.sport_name}${sport.gender ? ` (${sport.gender})` : ""}` : "";
   const today = new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" });
 
@@ -218,7 +220,7 @@ export default function FixturePNGCard({ sport, leagueName, items, eventsMap = {
         backgroundColor: C.surface,
       }}>
         <div style={{ color: C.muted, fontSize: 9.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.2em" }}>
-          Apex Sports Academy
+          {branding.isApex ? "Apex Sports Academy" : branding.name}
         </div>
         <div style={{ color: C.muted, fontSize: 9.5, letterSpacing: "0.04em" }}>{today}</div>
       </div>

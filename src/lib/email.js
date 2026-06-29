@@ -1,4 +1,17 @@
 import { supabase, supabaseUrl as SUPABASE_URL, supabaseAnonKey as SUPABASE_ANON_KEY } from "./supabase";
+import { getActiveBranding } from "../contexts/BrandingContext";
+
+// Per-org email branding (Layer 1): the resolved org's display name is sent to
+// the edge function, which uses it for the sender name + footer. Returns null
+// for Apex (the default) so the function keeps its original "Apex" wording.
+const emailBrandName = () => {
+  const b = getActiveBranding();
+  return b && !b.isApex ? b.name : null;
+};
+const emailTeamSignature = () => {
+  const b = getActiveBranding();
+  return b && !b.isApex ? `The ${b.name} Team` : "The Apex Sports Team";
+};
 
 // APX-PERF: Email template cache — avoids repeated identical DB queries during bulk operations
 const templateCache = new Map();
@@ -132,6 +145,7 @@ export const sendApprovalEmail = async ({
           zoneCode,
           reportingTimes,
           type: "approved",
+          brandName: emailBrandName(),
           templateBody: customBody || null,
           templateSubject: customSubject || null,
           pdfBase64: pdfBase64 || undefined,
@@ -203,6 +217,7 @@ export const sendRejectionEmail = async ({
           remarks,
           resubmitUrl,
           type: "rejected",
+          brandName: emailBrandName(),
           templateBody: customBody || null,
           templateSubject: customSubject || null
         })
@@ -237,6 +252,7 @@ export const sendCustomEmail = async ({
       name,
       customSubject: subject,
       customBody: body,
+      brandName: emailBrandName(),
       type: "custom"
     };
     if (pdfBase64) {
@@ -375,7 +391,7 @@ Your booking for <strong>${escapeHtml(eventName)}</strong> has been confirmed.<b
 - Reference ID: ${qrCodeId}<br/><br/>
 <strong>MOBILE TICKETS:</strong><br/>
 View and download your tickets here: <a href="${viewUrl}">${viewUrl}</a><br/><br/>
-Best regards,<br/>The Apex Sports Team
+Best regards,<br/>${emailTeamSignature()}
     `.trim();
 
     return sendCustomEmail({
