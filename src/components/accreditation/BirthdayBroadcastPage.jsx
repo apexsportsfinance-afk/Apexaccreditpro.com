@@ -6,8 +6,10 @@ import { AccreditationsAPI } from "../../lib/storage";
 import { uploadToStorage } from "../../lib/uploadToStorage";
 import { cn } from "../../lib/utils";
 import Button from "../ui/Button";
+import { useBranding } from "../../contexts/BrandingContext";
 
 export default function BirthdayBroadcastPage({ eventId, onToast, draft, setDraft, disabled }) {
+  const branding = useBranding();
   const { message = "", file: attachmentFile = null } = draft || {};
 
   const setMessage = (m) => setDraft({ message: m });
@@ -71,7 +73,7 @@ export default function BirthdayBroadcastPage({ eventId, onToast, draft, setDraf
         if (saved) {
           setMessage(saved);
         } else {
-          setMessage("Happy Birthday from the Apex Sports Team! 🎉 We hope you have a fantastic day at the event!");
+          setMessage(`Happy Birthday from the ${branding.isApex ? "Apex Sports" : branding.name} Team! 🎉 We hope you have a fantastic day at the event!`);
         }
       }
     } catch (err) {

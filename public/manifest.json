@@ -1,6 +1,6 @@
 {
-  "name": "Apex Unified Scanner",
-  "short_name": "Apex Scanner",
+  "name": "Unified Scanner",
+  "short_name": "Scanner",
   "description": "Professional high-speed hardware scanner interface.",
   "start_url": "/",
   "display": "standalone",

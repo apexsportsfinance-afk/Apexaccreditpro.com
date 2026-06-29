@@ -1,6 +1,7 @@
 import React from "react";
 import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useBranding } from "../contexts/BrandingContext";
 
 const Modal = ({ isOpen, onClose, title, children }) => {
   if (!isOpen) return null;
@@ -46,6 +47,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 };
 
 export default function TermsModal({ isOpen, onClose, onAccept, content }) {
+  const branding = useBranding();
   const renderCustomContent = (text) => {
     if (!text) return null;
     
@@ -98,7 +100,7 @@ export default function TermsModal({ isOpen, onClose, onAccept, content }) {
             <section className="space-y-3 font-light">
               <h4 className="text-lg font-black text-main uppercase tracking-tight">2. Media Release</h4>
               <p className="text-lg text-muted">
-                You permit the use of your name, likeness, and image in broadcasts, telecasts, and promotional materials (digital and print) related to the competition and Apex Sports events.
+                You permit the use of your name, likeness, and image in broadcasts, telecasts, and promotional materials (digital and print) related to the competition and {branding.isApex ? "Apex Sports" : branding.name} events.
               </p>
             </section>
 

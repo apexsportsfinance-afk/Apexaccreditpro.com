@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { useBranding } from "../../contexts/BrandingContext";
 import { 
   Star, 
   Send, 
@@ -47,6 +48,7 @@ const StarRating = ({ value, onChange, max = 5, label }) => (
 );
 
 export default function FeedbackForm() {
+  const branding = useBranding();
   const { slug } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
@@ -432,7 +434,7 @@ export default function FeedbackForm() {
           </Card>
           
           <div className="mt-8 text-center text-slate-500 text-sm italic">
-            ApexAccreditation Dynamic Event System
+            {branding.isApex ? "ApexAccreditation Dynamic Event System" : `${branding.name} Dynamic Event System`}
           </div>
         </div>
       </div>

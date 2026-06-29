@@ -4,8 +4,10 @@ import Card, { CardHeader, CardContent } from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import { useToast } from "../../../components/ui/Toast";
 import { GlobalSettingsAPI } from "../../../lib/broadcastApi";
+import { useBranding } from "../../../contexts/BrandingContext";
 
 export default function TermsView({ event, onSave }) {
+  const branding = useBranding();
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -73,7 +75,7 @@ export default function TermsView({ event, onSave }) {
               <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-amber-200/80 leading-relaxed font-light">
-                  <span className="font-bold text-amber-400">Note:</span> If left empty, the system will use the default Apex Sports terms. You can use standard text. New lines will be preserved.
+                  <span className="font-bold text-amber-400">Note:</span> If left empty, the system will use the default {branding.isApex ? "Apex Sports" : branding.name} terms. You can use standard text. New lines will be preserved.
                 </p>
               </div>
           
