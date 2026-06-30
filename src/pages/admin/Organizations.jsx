@@ -85,6 +85,7 @@ export default function Organizations() {
   const [linkEmail, setLinkEmail] = useState("");
   const [linkPassword, setLinkPassword] = useState("");
   const [linkRole, setLinkRole] = useState("admin");
+  const [members, setMembers] = useState([]);
 
   const isPlatform = user?.role === "super_admin";
 
@@ -111,8 +112,25 @@ export default function Organizations() {
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const toggleFeat = (k) => setForm((f) => ({ ...f, features: { ...f.features, [k]: !f.features[k] } }));
 
+  const loadMembers = async (slug) => {
+    if (!slug) { setMembers([]); return; }
+    const { data, error } = await supabase.rpc("admin_list_org_members", { p_org_slug: slug });
+    setMembers(error ? [] : (data || []));
+  };
+
+  const removeMember = async (email) => {
+    if (!window.confirm(`Remove ${email} from ${form.slug}? Their login is kept — just detached from this org.`)) return;
+    setBusy(true); setMsg(null);
+    const { error } = await supabase.rpc("admin_unlink_user", { p_email: email, p_org_slug: form.slug });
+    setBusy(false);
+    if (error) { setMsg({ ok: false, text: error.message }); return; }
+    setMsg({ ok: true, text: `Removed ${email} from ${form.slug}` });
+    loadMembers(form.slug);
+  };
+
   const selectOrg = (o) => {
     setMsg(null); setLinkName(""); setLinkEmail(""); setLinkPassword("");
+    loadMembers(o.slug);
     setForm({
       id: o.id, name: o.name || "", slug: o.slug || "", custom_domain: o.custom_domain || "",
       tagline: o.tagline || "", brand_primary: o.brand_primary || "#0a3d62",
@@ -123,7 +141,7 @@ export default function Organizations() {
     });
   };
 
-  const newOrg = () => { setMsg(null); setLinkName(""); setLinkEmail(""); setLinkPassword(""); setForm(blankForm()); };
+  const newOrg = () => { setMsg(null); setLinkName(""); setLinkEmail(""); setLinkPassword(""); setMembers([]); setForm(blankForm()); };
 
   const onLogo = async (e) => {
     const file = e.target.files?.[0];
@@ -203,6 +221,7 @@ export default function Organizations() {
       if (error) throw error;
       setMsg({ ok: true, text: `Login ready: ${email} → ${form.slug} as ${linkRole} ✓ (they can sign in now)` });
       setLinkName(""); setLinkEmail(""); setLinkPassword("");
+      loadMembers(form.slug);
     } catch (e) {
       setMsg({ ok: false, text: "Could not add login: " + (e?.message || e) });
     } finally {
@@ -348,6 +367,31 @@ export default function Organizations() {
               Creates their login and attaches it to <b>{form.slug || "this org"}</b> — no need to leave this page.
               Leave the password blank to attach an existing account instead.
             </p>
+
+            {form.id && (
+              <div className="mb-4">
+                <div className="text-[11px] text-muted mb-1">Current logins ({members.length})</div>
+                {members.length === 0 ? (
+                  <div className="text-[12px] text-muted">None yet.</div>
+                ) : (
+                  <div className="space-y-1">
+                    {members.map((m) => (
+                      <div key={m.user_id || m.email} className="flex items-center justify-between px-3 py-2 rounded-lg bg-base border border-border">
+                        <div className="text-sm text-main truncate">
+                          {m.full_name || m.email}
+                          <span className="text-[11px] text-muted"> · {m.email || "—"} · {m.app_role || "?"}</span>
+                        </div>
+                        <button onClick={() => removeMember(m.email)} disabled={busy}
+                          className="text-[12px] text-red-400 hover:text-red-300 disabled:opacity-50 shrink-0 ml-3">
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
               <div>
                 <label className={labelCls}>Full name</label>
