@@ -33,7 +33,6 @@ import { cn } from "../../lib/utils";
 
 export const navItems = [
   { to: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/staff", icon: Smartphone, label: "Staff App (Mobile)" },
   { to: "/admin/events", icon: Calendar, label: "Events" },
   { to: "/admin/teams", icon: Shield, label: "Admin Teams" },
   { to: "/admin/rules", icon: BookOpen, label: "Rules & Regulations" },
