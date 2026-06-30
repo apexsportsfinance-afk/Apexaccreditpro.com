@@ -2,20 +2,46 @@ import React, { useState, useEffect } from "react";
 import { Users, AlertTriangle, CheckCircle, Clock } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 
+// Relative "x ago" label. Date.now() is fine here (regular app code).
+function timeAgo(ts) {
+  if (!ts) return "";
+  const mins = Math.max(0, (Date.now() - new Date(ts).getTime()) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${Math.floor(mins)}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+const isDenied = (mode) => /deny|denied|reject|fail/i.test(mode || "");
+
 export default function StaffDashboard() {
-  const [stats, setStats] = useState({
-    totalScans: 0,
-    approved: 0,
-    denied: 0,
-  });
+  const [stats, setStats] = useState({ totalScans: 0, approved: 0, denied: 0 });
+  const [recent, setRecent] = useState([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    // Basic mock stats for now, in a real app we'd fetch this based on the active zone/event
-    setStats({
-      totalScans: 142,
-      approved: 135,
-      denied: 7
-    });
+    let active = true;
+    (async () => {
+      // Today's scans. unified_scan_logs.event_id means RLS scopes this to the
+      // user's own events automatically — a client sees only theirs (0 until they
+      // run events), Apex staff see Apex's. No mock data.
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      const { data, error } = await supabase
+        .from("unified_scan_logs")
+        .select("id, scan_mode, created_at, accreditations:athlete_id (first_name, last_name, badge_number)")
+        .gte("created_at", start.toISOString())
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (!active) return;
+      const rows = error ? [] : (data || []);
+      const denied = rows.filter((r) => isDenied(r.scan_mode)).length;
+      setStats({ totalScans: rows.length, approved: rows.length - denied, denied });
+      setRecent(rows.slice(0, 5));
+      setLoaded(true);
+    })();
+    return () => { active = false; };
   }, []);
 
   return (
@@ -72,23 +98,36 @@ export default function StaffDashboard() {
 
       <div className="mt-8 pt-8 border-t border-white/10">
         <h3 className="text-sm font-black text-white uppercase tracking-widest mb-4">Recent Activity</h3>
-        <div className="space-y-3">
-          {[1, 2, 3].map((_, i) => (
-            <div key={i} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
-              <div className="flex items-center gap-4">
-                <div className={`w-2 h-2 rounded-full ${i === 2 ? 'bg-red-500' : 'bg-emerald-500'}`} />
-                <div>
-                  <p className="text-sm font-bold text-white uppercase">Athlete #{1000 + i}</p>
-                  <p className="text-[10px] text-white/40 uppercase font-bold tracking-wider">Zone Access</p>
+        {loaded && recent.length === 0 ? (
+          <p className="text-white/30 text-sm font-medium">No scans yet today.</p>
+        ) : (
+          <div className="space-y-3">
+            {recent.map((r) => {
+              const a = r.accreditations;
+              const name = a
+                ? (`${a.first_name || ""} ${a.last_name || ""}`.trim() || `#${a.badge_number || ""}`)
+                : "Scan";
+              const denied = isDenied(r.scan_mode);
+              return (
+                <div key={r.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-2 h-2 rounded-full ${denied ? "bg-red-500" : "bg-emerald-500"}`} />
+                    <div>
+                      <p className="text-sm font-bold text-white uppercase">{name}</p>
+                      <p className="text-[10px] text-white/40 uppercase font-bold tracking-wider">
+                        {(r.scan_mode || "scan").replace(/_/g, " ")}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-white/30">
+                    <Clock className="w-3 h-3" />
+                    <span className="text-[10px] font-bold">{timeAgo(r.created_at)}</span>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 text-white/30">
-                <Clock className="w-3 h-3" />
-                <span className="text-[10px] font-bold">2m ago</span>
-              </div>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
