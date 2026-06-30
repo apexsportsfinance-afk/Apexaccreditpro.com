@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
-import { Building2, Plus, Save, Trash2, Link2, Loader2, ShieldAlert } from "lucide-react";
+import { UsersAPI } from "../../lib/api/users";
+import { Building2, Plus, Save, Trash2, Link2, Loader2, ShieldAlert, UserPlus } from "lucide-react";
 
 // =============================================================================
 // Organizations (Master Console) — PLATFORM-OWNER ONLY.
@@ -80,7 +81,9 @@ export default function Organizations() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null); // { ok: boolean, text: string }
   const [form, setForm] = useState(blankForm());
+  const [linkName, setLinkName] = useState("");
   const [linkEmail, setLinkEmail] = useState("");
+  const [linkPassword, setLinkPassword] = useState("");
   const [linkRole, setLinkRole] = useState("admin");
 
   const isPlatform = user?.role === "super_admin";
@@ -109,7 +112,7 @@ export default function Organizations() {
   const toggleFeat = (k) => setForm((f) => ({ ...f, features: { ...f.features, [k]: !f.features[k] } }));
 
   const selectOrg = (o) => {
-    setMsg(null); setLinkEmail("");
+    setMsg(null); setLinkName(""); setLinkEmail(""); setLinkPassword("");
     setForm({
       id: o.id, name: o.name || "", slug: o.slug || "", custom_domain: o.custom_domain || "",
       tagline: o.tagline || "", brand_primary: o.brand_primary || "#0a3d62",
@@ -120,7 +123,7 @@ export default function Organizations() {
     });
   };
 
-  const newOrg = () => { setMsg(null); setLinkEmail(""); setForm(blankForm()); };
+  const newOrg = () => { setMsg(null); setLinkName(""); setLinkEmail(""); setLinkPassword(""); setForm(blankForm()); };
 
   const onLogo = async (e) => {
     const file = e.target.files?.[0];
@@ -171,17 +174,40 @@ export default function Organizations() {
     setMsg({ ok: true, text: "Deleted ✓" });
   };
 
-  const linkUser = async () => {
+  // Create a client login (email + password) and attach it to this org — all
+  // here, no Users section / Supabase dashboard. Leaving the password blank
+  // attaches an EXISTING account instead. Reuses the super-admin-gated
+  // manage-users edge fn (create) + admin_link_user (role + org membership).
+  const addLogin = async () => {
     if (!form.slug) { setMsg({ ok: false, text: "Save / select an org first (need its slug)" }); return; }
-    if (!linkEmail.trim()) { setMsg({ ok: false, text: "Enter the user's email" }); return; }
+    const email = linkEmail.trim();
+    if (!email) { setMsg({ ok: false, text: "Enter the user's email" }); return; }
     setBusy(true); setMsg(null);
-    const { error } = await supabase.rpc("admin_link_user", {
-      p_email: linkEmail.trim(), p_org_slug: form.slug, p_app_role: linkRole, p_org_role: "org_admin",
-    });
-    setBusy(false);
-    if (error) { setMsg({ ok: false, text: error.message }); return; }
-    setMsg({ ok: true, text: `Linked ${linkEmail.trim()} to ${form.slug} as ${linkRole} ✓ (they must log out/in)` });
-    setLinkEmail("");
+    try {
+      if (linkPassword) {
+        try {
+          await UsersAPI.create({
+            email, password: linkPassword,
+            name: linkName.trim() || email.split("@")[0],
+            role: linkRole,
+          });
+        } catch (e) {
+          const m = (e?.message || "").toLowerCase();
+          // already exists -> fall through and just attach it
+          if (!/exist|already|registered|duplicate/.test(m)) throw e;
+        }
+      }
+      const { error } = await supabase.rpc("admin_link_user", {
+        p_email: email, p_org_slug: form.slug, p_app_role: linkRole, p_org_role: "org_admin",
+      });
+      if (error) throw error;
+      setMsg({ ok: true, text: `Login ready: ${email} → ${form.slug} as ${linkRole} ✓ (they can sign in now)` });
+      setLinkName(""); setLinkEmail(""); setLinkPassword("");
+    } catch (e) {
+      setMsg({ ok: false, text: "Could not add login: " + (e?.message || e) });
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -315,14 +341,17 @@ export default function Organizations() {
             </button>
           </div>
 
-          {/* Link a client login */}
+          {/* Add a client login — create + attach, all here */}
           <div className="mt-6 pt-5 border-t border-border">
-            <h3 className="text-base font-semibold text-main mb-1">Link a client login to this org</h3>
-            <p className="text-[11px] text-muted mb-3">Create their user first in Supabase → Authentication → Add user, then link by email.</p>
+            <h3 className="text-base font-semibold text-main mb-1">Add a client login for this org</h3>
+            <p className="text-[11px] text-muted mb-3">
+              Creates their login and attaches it to <b>{form.slug || "this org"}</b> — no need to leave this page.
+              Leave the password blank to attach an existing account instead.
+            </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
               <div>
-                <label className={labelCls}>User email</label>
-                <input className={inputCls} value={linkEmail} onChange={(e) => setLinkEmail(e.target.value)} placeholder="admin@uaeaquatics.ae" />
+                <label className={labelCls}>Full name</label>
+                <input className={inputCls} value={linkName} onChange={(e) => setLinkName(e.target.value)} placeholder="UAE Aquatics Admin" />
               </div>
               <div>
                 <label className={labelCls}>App role</label>
@@ -332,9 +361,17 @@ export default function Organizations() {
                   <option value="viewer">viewer</option>
                 </select>
               </div>
+              <div>
+                <label className={labelCls}>Email (their username)</label>
+                <input className={inputCls} value={linkEmail} onChange={(e) => setLinkEmail(e.target.value)} placeholder="admin@uaeaquatics.ae" />
+              </div>
+              <div>
+                <label className={labelCls}>Password</label>
+                <input className={inputCls} type="text" value={linkPassword} onChange={(e) => setLinkPassword(e.target.value)} placeholder="set a password (blank = attach existing)" />
+              </div>
             </div>
-            <button onClick={linkUser} disabled={busy} className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm disabled:opacity-60">
-              <Link2 className="w-4 h-4" /> Link user to this org
+            <button onClick={addLogin} disabled={busy} className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm disabled:opacity-60">
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />} Create / attach login
             </button>
           </div>
         </div>
