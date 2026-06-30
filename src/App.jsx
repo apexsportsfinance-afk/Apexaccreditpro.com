@@ -42,6 +42,7 @@ const MedalRankings = lazy(() => import("./pages/admin/MedalRankings"));
 const Feedback = lazy(() => import("./pages/admin/Feedback"));
 const Partners = lazy(() => import("./pages/admin/Partners"));
 const APIDocs = lazy(() => import("./pages/admin/APIDocs"));
+const Organizations = lazy(() => import("./pages/admin/Organizations"));
 const CallRoomControl = lazy(() => import("./pages/admin/CallRoomControl"));
 
 const StaffLayout = lazy(() => import("./components/layout/StaffLayout"));
@@ -119,6 +120,7 @@ export default function App() {
                 <Route path="feedback" element={<Feedback />} />
                 <Route path="partners" element={<Partners />} />
                 <Route path="api-docs" element={<APIDocs />} />
+                <Route path="organizations" element={<Organizations />} />
               </Route>
 
               {/* Team Portal Routes (Uses AdminLayout for Sidebar but distinct base path) */}
