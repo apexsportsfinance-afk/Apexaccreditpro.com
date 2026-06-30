@@ -83,13 +83,27 @@ export default function Organizations() {
 
   const newOrg = () => { setMsg(null); setLinkEmail(""); setForm(blankForm()); };
 
-  const onLogo = (e) => {
+  const onLogo = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 320 * 1024) { setMsg({ ok: false, text: "Logo too big (keep under ~300 KB)" }); e.target.value = ""; return; }
-    const r = new FileReader();
-    r.onload = () => set("logo_url", r.result);
-    r.readAsDataURL(file);
+    if (file.size > 3 * 1024 * 1024) { setMsg({ ok: false, text: "Logo too big (keep under 3 MB)" }); e.target.value = ""; return; }
+    setBusy(true); setMsg(null);
+    try {
+      const ext = (file.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
+      const base = (form.slug || "org").toLowerCase().replace(/[^a-z0-9-]/g, "") || "org";
+      const path = `${base}-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("org-logos").upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("org-logos").getPublicUrl(path);
+      set("logo_url", pub.publicUrl);
+      setMsg({ ok: true, text: "Logo uploaded ✓ — click Save to apply" });
+    } catch (err) {
+      setMsg({ ok: false, text: "Logo upload failed: " + (err?.message || err) });
+    } finally {
+      setBusy(false);
+      e.target.value = "";
+    }
   };
 
   const save = async () => {
@@ -220,7 +234,7 @@ export default function Organizations() {
                   : <div className="w-12 h-12 rounded-lg border border-border bg-base" />}
                 <input type="file" accept="image/*" onChange={onLogo} className="text-xs text-muted" />
               </div>
-              <p className="text-[11px] text-muted mt-1">Stored inline; keep under ~300 KB. Empty = name monogram.</p>
+              <p className="text-[11px] text-muted mt-1">Uploaded to storage (any reasonable size). Empty = name monogram.</p>
             </div>
           </div>
 
