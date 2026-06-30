@@ -13,14 +13,24 @@ import { Building2, Plus, Save, Trash2, Link2, Loader2, ShieldAlert } from "luci
 // =============================================================================
 
 const PLANS = ["basic", "standard", "premium", "full", "enterprise"];
+// The pages an org can be granted. Keys are real module paths so the app's
+// existing canAccessModule gate enforces them at the org level (even for a
+// client 'admin'). Platform-only pages (Settings/Audit/Integrations) are
+// deliberately excluded — they're never client features.
 const FEATURES = [
-  ["registration_forms", "Registration forms"], ["custom_form_builder", "Custom form builder"],
-  ["qr_accreditation", "QR accreditation"], ["broadcast_messages", "Broadcast messages"],
-  ["notifications", "Personal notifications"], ["booking_forms", "Booking forms"],
-  ["document_approval", "Document upload & approval"], ["reports_exports", "Reports & exports"],
-  ["gallery", "Gallery"], ["birthday_cards", "Birthday cards"],
-  ["heatsheet", "Heat sheet / profiles"], ["scanner_logs", "Check-in & scanner logs"],
-  ["finance_invoice", "Finance / invoices"], ["admin_dashboards", "Admin dashboards"],
+  ["/admin/dashboard", "Dashboard"],
+  ["/admin/events", "Events"],
+  ["/admin/accreditations", "Accreditations"],
+  ["/admin/teams", "Team Management"],
+  ["/admin/zones", "Zones"],
+  ["/admin/qr-system", "QR System"],
+  ["/admin/qr-system/booking", "Booking Form (QR)"],
+  ["/admin/ticketing", "Spectator Portal"],
+  ["/admin/broadcasts", "Broadcast History"],
+  ["/admin/medals", "Medal Rankings"],
+  ["/admin/call-room", "Call Room Display"],
+  ["/admin/feedback", "Feedback"],
+  ["/admin/users", "Users (their org)"],
 ];
 
 const allFeaturesOn = () => Object.fromEntries(FEATURES.map(([k]) => [k, true]));
@@ -76,7 +86,11 @@ export default function Organizations() {
       id: o.id, name: o.name || "", slug: o.slug || "", custom_domain: o.custom_domain || "",
       tagline: o.tagline || "", brand_primary: o.brand_primary || "#0a3d62",
       brand_dark: o.brand_dark || "#06243b", plan: o.plan || "basic",
-      hide_powered_by: !!o.hide_powered_by, features: { ...allFeaturesOn(), ...(o.features || {}) },
+      hide_powered_by: !!o.hide_powered_by,
+      // Use the org's saved module config if present; otherwise default all-on
+      // (legacy/empty features = "everything enabled" = current behaviour).
+      features: (o.features && Object.keys(o.features).some((k) => k.startsWith("/admin")))
+        ? { ...o.features } : allFeaturesOn(),
       logo_url: o.logo_url || "",
     });
   };
@@ -183,7 +197,7 @@ export default function Organizations() {
                     className={`w-full text-left flex items-center justify-between px-4 py-3 rounded-lg border bg-base ${active ? "border-primary-500" : "border-border hover:border-primary-500/60"}`}>
                     <div>
                       <div className="text-main font-medium">{o.name}</div>
-                      <div className="text-xs text-muted">{o.custom_domain || "no domain"} · {on}/{FEATURES.length} features</div>
+                      <div className="text-xs text-muted">{o.custom_domain || "no domain"} · {on}/{FEATURES.length} pages</div>
                     </div>
                     <span className="text-[11px] px-2 py-0.5 rounded-full border border-border text-muted">{o.plan || "basic"}</span>
                   </button>
@@ -238,7 +252,7 @@ export default function Organizations() {
             </div>
           </div>
 
-          <label className={labelCls}>Features for this organisation</label>
+          <label className={labelCls}>Pages this organisation can access</label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-1.5">
             {FEATURES.map(([k, l]) => (
               <label key={k} className="flex items-center gap-2 text-sm text-main">
