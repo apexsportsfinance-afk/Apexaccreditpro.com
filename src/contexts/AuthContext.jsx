@@ -26,11 +26,17 @@ export const useAuth = () => {
 // existing clients aren't locked out until features are explicitly configured.
 function orgAllowsModule(features, path) {
   if (!features || typeof features !== "object") return true;
-  const moduleKeys = Object.keys(features).filter((k) => k.startsWith("/admin"));
-  if (moduleKeys.length === 0) return true;
-  return moduleKeys.some(
-    (k) => features[k] && (path === k || path.startsWith(k + "/") || k.startsWith(path + "/"))
-  );
+  const keys = Object.keys(features).filter((k) => k.startsWith("/admin"));
+  if (keys.length === 0) return true; // not configured -> unrestricted (fail-open)
+  // 1) an explicit on/off for this exact path wins (e.g. a sub-tab toggled off)
+  if (path in features) return !!features[path];
+  // 2) otherwise inherit the nearest configured ancestor (parent off => child off)
+  const ancestors = keys.filter((k) => path.startsWith(k + "/")).sort((a, b) => b.length - a.length);
+  if (ancestors.length) return !!features[ancestors[0]];
+  // 3) a page with any enabled descendant stays reachable (so its nav shows)
+  if (keys.some((k) => features[k] && k.startsWith(path + "/"))) return true;
+  // 4) anything this org's config doesn't model -> allow (only restrict what's set)
+  return true;
 }
 
 export const AuthProvider = ({ children }) => {
@@ -221,6 +227,12 @@ export const AuthProvider = ({ children }) => {
   const hasExactModuleAccess = (path) =>
     user ? hasExactModuleAccessPure(user.role, user.allowedModules, path) : false;
 
+  // Pure org-feature check for a single path (page OR sub-tab). Platform users
+  // (super_admin / Apex staff) are unrestricted; a client is limited to its org's
+  // enabled features. Used by pages to gate their internal tabs.
+  const orgAllows = (path) =>
+    user ? (user.isPlatform || orgAllowsModule(user.orgFeatures, path)) : true;
+
   const value = {
     user,
     loading,
@@ -231,6 +243,7 @@ export const AuthProvider = ({ children }) => {
     canAccessEvent,
     canAccessModule,
     hasExactModuleAccess,
+    orgAllows,
     isAuthenticated: !!user,
     isSuperAdmin: user?.role === "super_admin" || user?.role === "admin",
     isEventAdmin: user?.role === "event_admin",

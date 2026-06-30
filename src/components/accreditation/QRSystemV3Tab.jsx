@@ -36,10 +36,14 @@ const TABS = [
 ];
 
 export default function QRSystemV3Tab({ eventId, onToast }) {
-  const { isSuperAdmin, isViewer, hasExactModuleAccess } = useAuth();
+  const { isSuperAdmin, isViewer, hasExactModuleAccess, orgAllows } = useAuth();
 
   // Filter tabs based on administrative tier and exact module permissions
   const filteredTabs = TABS.filter(tab => {
+    // Org-level feature gate: a client only sees the QR sub-tabs its org enabled
+    // (per-tab). Platform users (super_admin / Apex staff) are unrestricted.
+    if (!orgAllows("/admin/qr-system/" + tab.id)) return false;
+
     const restrictedTabs = ["events", "pdf_fields", "scanner_control"];
     if (!isSuperAdmin && restrictedTabs.includes(tab.id)) return false;
     
