@@ -497,7 +497,7 @@ export default function Events() {
       ...prev,
       customFields: [
         ...(prev.customFields || []),
-        { id: `cf_${Date.now()}`, label_en: "", label_ar: "", type: "text", required: false, options: "", showOnBadge: false }
+        { id: `cf_${Date.now()}`, label_en: "", label_ar: "", type: "text", required: false, options: "", showOnBadge: false, defaultValue: "" }
       ]
     }));
   };
@@ -1127,7 +1127,7 @@ export default function Events() {
               onClick={() => navigate(`/admin/events/${event.id}`)}
               className="group cursor-pointer"
             >
-              <Card className="h-full border-slate-800 hover:border-primary-500/50 hover:bg-slate-800/30 transition-all duration-300">
+              <Card className="h-full border-border hover:border-primary-500/50 hover:bg-base-alt transition-all duration-300">
                 <CardContent className="p-6 flex items-center justify-between">
                   <div className="flex items-center gap-4 min-w-0">
                     <div className="w-12 h-12 rounded-xl bg-primary-500/10 flex items-center justify-center text-primary-400 group-hover:bg-primary-500 group-hover:text-white transition-colors">
@@ -1137,10 +1137,10 @@ export default function Events() {
                       <h3 className="text-xl font-semibold text-main truncate group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
                         {event.name}
                       </h3>
-                      <p className="text-sm text-slate-500 truncate">{event.location}</p>
+                      <p className="text-sm text-muted truncate">{event.location}</p>
                     </div>
                   </div>
-                  <ArrowRight className="w-5 h-5 text-slate-600 group-hover:text-primary-400 transform group-hover:translate-x-1 transition-all" />
+                  <ArrowRight className="w-5 h-5 text-muted group-hover:text-primary-400 transform group-hover:translate-x-1 transition-all" />
                 </CardContent>
               </Card>
             </motion.div>
@@ -1634,13 +1634,13 @@ export default function Events() {
       >
         <form onSubmit={handleSubmit} noValidate className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+            <label className="block text-[10px] font-bold uppercase tracking-widest text-muted mb-1.5 ml-1">
               Output Type
             </label>
             <select
               value={formData.outputType}
               onChange={(e) => setFormData(prev => ({ ...prev, outputType: e.target.value }))}
-              className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-700 rounded-lg text-white outline-none focus:ring-1 focus:ring-primary-500 transition-all"
+              className="w-full px-4 py-2.5 bg-base border border-border rounded-lg text-main outline-none focus:ring-1 focus:ring-primary-500 transition-all"
               required
             >
               {Object.values(OUTPUT_TYPES).map(type => (
@@ -1688,7 +1688,7 @@ export default function Events() {
           </div>
 
           <div>
-            <label className="block text-lg font-medium text-slate-300 mb-1.5">
+            <label className="block text-lg font-medium text-main mb-1.5">
               Description
             </label>
             <textarea
@@ -1697,7 +1697,7 @@ export default function Events() {
                 setFormData((prev) => ({ ...prev, description: e.target.value }))
               }
               rows={3}
-              className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 text-lg"
+              className="w-full px-4 py-2.5 bg-base-alt border border-border rounded-lg text-main placeholder-muted focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 text-lg"
               placeholder="Describe your event..."
             />
           </div>
@@ -1745,7 +1745,7 @@ export default function Events() {
           />
 
           <div>
-            <label className="block text-lg font-medium text-slate-300 mb-1.5">
+            <label className="block text-lg font-medium text-main mb-1.5">
               Reporting Times
             </label>
             <textarea
@@ -1754,20 +1754,20 @@ export default function Events() {
                 setFormData((prev) => ({ ...prev, reportingTimes: e.target.value }))
               }
               rows={2}
-              className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 text-lg"
+              className="w-full px-4 py-2.5 bg-base-alt border border-border rounded-lg text-main placeholder-muted focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 text-lg"
               placeholder="Athletes: 1 hour before event. Officials: 2 hours before session."
             />
           </div>
 
           {/* Required Documents Selection */}
           <div>
-            <label className="block text-lg font-medium text-slate-300 mb-3">
+            <label className="block text-lg font-medium text-main mb-3">
               <div className="flex items-center gap-2">
                 <FileText className="w-5 h-5 text-primary-400" />
                 Required Documents for Registration
               </div>
             </label>
-            <p className="text-lg text-slate-500 mb-6">
+            <p className="text-lg text-muted mb-6">
               Configure which documents participants must upload during registration.
             </p>
             
@@ -1775,27 +1775,27 @@ export default function Events() {
               {(formData.requiredDocuments || []).map((doc, index) => (
                 <div 
                   key={doc.id} 
-                  className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-4 relative group"
+                  className="bg-base-alt border border-border rounded-xl p-4 relative group"
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Document Name</label>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-muted ml-1">Document Name</label>
                       <input
                         type="text"
                         value={doc.label}
                         onChange={(e) => updateDocumentRequirement(doc.id, 'label', e.target.value)}
                         placeholder="e.g. Passport, Emirates ID"
-                        className="w-full px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-600 focus:ring-1 focus:ring-primary-500 outline-none transition-all"
+                        className="w-full px-4 py-2 bg-base border border-border rounded-lg text-main placeholder-muted focus:ring-1 focus:ring-primary-500 outline-none transition-all"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Required Format</label>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-muted ml-1">Required Format</label>
                       <input
                         type="text"
                         value={doc.format}
                         onChange={(e) => updateDocumentRequirement(doc.id, 'format', e.target.value)}
                         placeholder="e.g. PDF, JPEG, Max 5MB"
-                        className="w-full px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-600 focus:ring-1 focus:ring-primary-500 outline-none transition-all"
+                        className="w-full px-4 py-2 bg-base border border-border rounded-lg text-main placeholder-muted focus:ring-1 focus:ring-primary-500 outline-none transition-all"
                       />
                     </div>
                   </div>
@@ -1814,7 +1814,7 @@ export default function Events() {
               <button
                 type="button"
                 onClick={addDocumentRequirement}
-                className="w-full py-4 border-2 border-dashed border-slate-700 rounded-xl text-slate-400 hover:text-primary-400 hover:border-primary-500/50 hover:bg-primary-500/5 transition-all flex items-center justify-center gap-2 group"
+                className="w-full py-4 border-2 border-dashed border-border rounded-xl text-muted hover:text-primary-400 hover:border-primary-500/50 hover:bg-primary-500/5 transition-all flex items-center justify-center gap-2 group"
               >
                 <PlusCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
                 <span className="font-semibold">Add Required Document</span>
@@ -1830,19 +1830,19 @@ export default function Events() {
           </div>
 
           {/* Form Visibility Settings */}
-          <div className="border-t border-slate-700 pt-6">
-            <label className="block text-lg font-medium text-slate-300 mb-3">
+          <div className="border-t border-border pt-6">
+            <label className="block text-lg font-medium text-main mb-3">
               <div className="flex items-center gap-2">
                 <Shield className="w-5 h-5 text-sky-400" />
                 Form Section Visibility
               </div>
             </label>
-            <p className="text-lg text-slate-500 mb-6">
+            <p className="text-lg text-muted mb-6">
               Toggle which core sections are visible on the registration form.
             </p>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-center p-3 bg-slate-900/50 border border-slate-700 rounded-xl">
+              <div className="flex items-center p-3 bg-base border border-border rounded-xl">
                 <label className="flex items-center gap-3 cursor-pointer w-full">
                   <input
                     type="checkbox"
@@ -1851,15 +1851,15 @@ export default function Events() {
                       ...prev, 
                       visibility: { ...prev.visibility, affiliation: e.target.checked }
                     }))}
-                    className="w-5 h-5 rounded border-slate-700 bg-slate-900 text-primary-500"
+                    className="w-5 h-5 rounded border-border bg-base text-primary-500"
                   />
                   <div>
-                    <span className="block text-sm font-semibold text-slate-200">Affiliation Section</span>
-                    <span className="block text-xs text-slate-500">Category/Role, Organization, Club</span>
+                    <span className="block text-sm font-semibold text-main">Affiliation Section</span>
+                    <span className="block text-xs text-muted">Category/Role, Organization, Club</span>
                   </div>
                 </label>
               </div>
-              <div className="flex flex-col p-3 bg-slate-900/50 border border-slate-700 rounded-xl space-y-4">
+              <div className="flex flex-col p-3 bg-base border border-border rounded-xl space-y-4">
                 <label className="flex items-center gap-3 cursor-pointer w-full">
                   <input
                     type="checkbox"
@@ -1868,17 +1868,17 @@ export default function Events() {
                       ...prev, 
                       visibility: { ...prev.visibility, contact: e.target.checked }
                     }))}
-                    className="w-5 h-5 rounded border-slate-700 bg-slate-900 text-primary-500"
+                    className="w-5 h-5 rounded border-border bg-base text-primary-500"
                   />
                   <div>
-                    <span className="block text-sm font-semibold text-slate-200">Contact Details Section</span>
-                    <span className="block text-xs text-slate-500">Email, Phone, Communication</span>
+                    <span className="block text-sm font-semibold text-main">Contact Details Section</span>
+                    <span className="block text-xs text-muted">Email, Phone, Communication</span>
                   </div>
                 </label>
 
                 {formData.visibility?.contact && (
-                  <div className="pl-8 pt-2 border-t border-slate-800 space-y-3">
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500">Phone Visibility Mode</label>
+                  <div className="pl-8 pt-2 border-t border-border space-y-3">
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-muted">Phone Visibility Mode</label>
                     <div className="grid grid-cols-3 gap-2">
                       {[
                         { id: 'hidden', label: 'Hidden', icon: Lock },
@@ -1895,7 +1895,7 @@ export default function Events() {
                           className={`flex flex-col items-center gap-1.5 p-2 rounded-lg border transition-all ${
                             (formData.visibility?.phone || 'optional') === mode.id
                               ? "bg-primary-500/10 border-primary-500 text-primary-400"
-                              : "bg-slate-950/50 border-slate-800 text-slate-500 hover:border-slate-700"
+                              : "bg-base border-border text-muted hover:border-border"
                           }`}
                         >
                           <mode.icon className="w-4 h-4" />
@@ -1906,7 +1906,7 @@ export default function Events() {
                   </div>
                 )}
               </div>
-              <div className="flex items-center p-3 bg-slate-900/50 border border-slate-700 rounded-xl">
+              <div className="flex items-center p-3 bg-base border border-border rounded-xl">
                 <label className="flex items-center gap-3 cursor-pointer w-full">
                   <input
                     type="checkbox"
@@ -1915,15 +1915,15 @@ export default function Events() {
                       ...prev, 
                       visibility: { ...prev.visibility, documents: e.target.checked }
                     }))}
-                    className="w-5 h-5 rounded border-slate-700 bg-slate-900 text-primary-500"
+                    className="w-5 h-5 rounded border-border bg-base text-primary-500"
                   />
                   <div>
-                    <span className="block text-sm font-semibold text-slate-200">Documents Section</span>
-                    <span className="block text-xs text-slate-500">Photo, ID, Custom Documents</span>
+                    <span className="block text-sm font-semibold text-main">Documents Section</span>
+                    <span className="block text-xs text-muted">Photo, ID, Custom Documents</span>
                   </div>
                 </label>
               </div>
-              <div className="flex items-center p-3 bg-slate-900/50 border border-slate-700 rounded-xl md:col-span-2">
+              <div className="flex items-center p-3 bg-base border border-border rounded-xl md:col-span-2">
                 <label className="flex items-center gap-3 cursor-pointer w-full">
                   <input
                     type="checkbox"
@@ -1932,11 +1932,11 @@ export default function Events() {
                       ...prev,
                       visibility: { ...prev.visibility, usesCategories: e.target.checked }
                     }))}
-                    className="w-5 h-5 rounded border-slate-700 bg-slate-900 text-primary-500"
+                    className="w-5 h-5 rounded border-border bg-base text-primary-500"
                   />
                   <div>
-                    <span className="block text-sm font-semibold text-slate-200">Uses Categories / Roles</span>
-                    <span className="block text-xs text-slate-500">On: registrants pick a category and see only the fields allocated to it. Off: the Category/Role selector is hidden and every custom field shows for everyone — for single-purpose forms (e.g. one organisation type).</span>
+                    <span className="block text-sm font-semibold text-main">Uses Categories / Roles</span>
+                    <span className="block text-xs text-muted">On: registrants pick a category and see only the fields allocated to it. Off: the Category/Role selector is hidden and every custom field shows for everyone — for single-purpose forms (e.g. one organisation type).</span>
                   </div>
                 </label>
               </div>
@@ -1944,7 +1944,7 @@ export default function Events() {
           </div>
 
           {/* Field Label Overrides */}
-          <div className="border-t border-slate-700 pt-6">
+          <div className="border-t border-border pt-6">
             <button 
               type="button"
               onClick={() => setShowLabelOverrides(!showLabelOverrides)}
@@ -1953,13 +1953,13 @@ export default function Events() {
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <FileEdit className="w-5 h-5 text-amber-400 group-hover:rotate-12 transition-transform" />
-                  <span className="text-lg font-medium text-slate-300">Standard Field Configuration</span>
+                  <span className="text-lg font-medium text-main">Standard Field Configuration</span>
                 </div>
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-muted">
                   Customize display names, visibility, and requirements of standard fields.
                 </p>
               </div>
-              <div className={`p-1.5 rounded-lg bg-slate-800 text-slate-400 transition-all ${showLabelOverrides ? 'rotate-180 bg-amber-500/10 text-amber-500' : 'group-hover:bg-slate-700'}`}>
+              <div className={`p-1.5 rounded-lg bg-base-alt text-muted transition-all ${showLabelOverrides ? 'rotate-180 bg-amber-500/10 text-amber-500' : 'group-hover:bg-base-alt'}`}>
                 <ChevronDown className="w-5 h-5" />
               </div>
             </button>
@@ -1973,14 +1973,14 @@ export default function Events() {
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 pt-6 pb-2">
                   {OVERRIDABLE_FIELDS.map((field) => (
-                    <div key={field.id} className="space-y-3 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                    <div key={field.id} className="space-y-3 p-4 bg-base-alt rounded-xl border border-border">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-muted">
                           {field.label}
                         </label>
                         <div className="flex items-center gap-4">
                           <label className="flex items-center gap-2 cursor-pointer">
-                            <span className="text-[10px] uppercase font-semibold text-slate-500">Show</span>
+                            <span className="text-[10px] uppercase font-semibold text-muted">Show</span>
                             <div className="relative inline-flex items-center">
                               <input
                                 type="checkbox"
@@ -1994,11 +1994,11 @@ export default function Events() {
                                   }
                                 }))}
                               />
-                              <div className="w-7 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-500"></div>
+                              <div className="w-7 h-4 bg-base-alt peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-500"></div>
                             </div>
                           </label>
                           <label className="flex items-center gap-2 cursor-pointer">
-                            <span className="text-[10px] uppercase font-semibold text-slate-500">Req.</span>
+                            <span className="text-[10px] uppercase font-semibold text-muted">Req.</span>
                             <div className="relative inline-flex items-center">
                               <input
                                 type="checkbox"
@@ -2012,7 +2012,7 @@ export default function Events() {
                                   }
                                 }))}
                               />
-                              <div className="w-7 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-amber-500"></div>
+                              <div className="w-7 h-4 bg-base-alt peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-amber-500"></div>
                             </div>
                           </label>
                         </div>
@@ -2028,7 +2028,7 @@ export default function Events() {
                           }
                         }))}
                         placeholder={`Custom ${field.label}...`}
-                        className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:ring-1 focus:ring-amber-500 outline-none transition-all"
+                        className="w-full px-3 py-2 bg-base border border-border rounded-lg text-sm text-main placeholder-muted focus:ring-1 focus:ring-amber-500 outline-none transition-all"
                       />
                     </div>
                   ))}
@@ -2038,7 +2038,7 @@ export default function Events() {
           </div>
 
           {/* Custom Fields Configuration */}
-          <div className="border-t border-slate-700 pt-6">
+          <div className="border-t border-border pt-6">
             <button 
               type="button"
               onClick={() => setShowCustomFields(!showCustomFields)}
@@ -2047,13 +2047,13 @@ export default function Events() {
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <PlusCircle className="w-5 h-5 text-emerald-400 group-hover:rotate-12 transition-transform" />
-                  <span className="text-lg font-medium text-slate-300">Custom Fields (Requirements)</span>
+                  <span className="text-lg font-medium text-main">Custom Fields (Requirements)</span>
                 </div>
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-muted">
                   Add extra fields for athletes to fill (e.g. Emirates, Region).
                 </p>
               </div>
-              <div className={`p-1.5 rounded-lg bg-slate-800 text-slate-400 transition-all ${showCustomFields ? 'rotate-180 bg-emerald-500/10 text-emerald-500' : 'group-hover:bg-slate-700'}`}>
+              <div className={`p-1.5 rounded-lg bg-base-alt text-muted transition-all ${showCustomFields ? 'rotate-180 bg-emerald-500/10 text-emerald-500' : 'group-hover:bg-base-alt'}`}>
                 <ChevronDown className="w-5 h-5" />
               </div>
             </button>
@@ -2069,27 +2069,27 @@ export default function Events() {
                   {(formData.customFields || []).map((field, index) => (
                     <div 
                       key={field.id} 
-                      className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-4 relative group space-y-4"
+                      className="bg-base-alt border border-border rounded-xl p-4 relative group space-y-4"
                     >
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Label (English) *</label>
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-muted ml-1">Label (English) *</label>
                           <input
                             type="text"
                             value={field.label_en}
                             onChange={(e) => updateCustomField(field.id, 'label_en', e.target.value)}
                             placeholder="e.g. Emirates"
-                            className="w-full px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-600 focus:ring-1 focus:ring-primary-500 outline-none transition-all"
+                            className="w-full px-4 py-2 bg-base border border-border rounded-lg text-main placeholder-muted focus:ring-1 focus:ring-primary-500 outline-none transition-all"
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Label (Arabic) *</label>
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-muted ml-1">Label (Arabic) *</label>
                           <input
                             type="text"
                             value={field.label_ar}
                             onChange={(e) => updateCustomField(field.id, 'label_ar', e.target.value)}
                             placeholder="مثال: الإمارة"
-                            className="w-full px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-600 focus:ring-1 focus:ring-primary-500 outline-none transition-all text-right font-arabic"
+                            className="w-full px-4 py-2 bg-base border border-border rounded-lg text-main placeholder-muted focus:ring-1 focus:ring-primary-500 outline-none transition-all text-right font-arabic"
                             dir="rtl"
                           />
                         </div>
@@ -2097,11 +2097,11 @@ export default function Events() {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Field Type</label>
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-muted ml-1">Field Type</label>
                           <select
                             value={field.type}
                             onChange={(e) => updateCustomField(field.id, 'type', e.target.value)}
-                            className="w-full px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white outline-none focus:ring-1 focus:ring-primary-500 transition-all"
+                            className="w-full px-4 py-2 bg-base border border-border rounded-lg text-main outline-none focus:ring-1 focus:ring-primary-500 transition-all"
                           >
                             <option value="text">Single Line Text</option>
                             <option value="select">Dropdown Menu</option>
@@ -2116,9 +2116,9 @@ export default function Events() {
                               type="checkbox"
                               checked={field.required}
                               onChange={(e) => updateCustomField(field.id, 'required', e.target.checked)}
-                              className="w-5 h-5 rounded border-slate-700 bg-slate-900 text-primary-500 focus:ring-primary-500/50"
+                              className="w-5 h-5 rounded border-border bg-base text-primary-500 focus:ring-primary-500/50"
                             />
-                            <span className="text-sm font-medium text-slate-400 group-hover/check:text-slate-200 transition-colors">Required Field</span>
+                            <span className="text-sm font-medium text-muted group-hover/check:text-main transition-colors">Required Field</span>
                           </label>
 
                           <label className="flex items-center gap-2 cursor-pointer group/badge">
@@ -2126,32 +2126,46 @@ export default function Events() {
                               type="checkbox"
                               checked={field.showOnBadge}
                               onChange={(e) => updateCustomField(field.id, 'showOnBadge', e.target.checked)}
-                              className="w-5 h-5 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-500/50"
+                              className="w-5 h-5 rounded border-border bg-base text-emerald-500 focus:ring-emerald-500/50"
                             />
                             <div className="flex flex-col">
                               <span className="text-sm font-bold text-emerald-500/80 group-hover/badge:text-emerald-400 transition-colors">Show on Badge</span>
-                              <span className="text-[9px] text-slate-500 uppercase tracking-widest leading-none">Accreditation Card</span>
+                              <span className="text-[9px] text-muted uppercase tracking-widest leading-none">Accreditation Card</span>
                             </div>
                           </label>
                         </div>
                       </div>
 
+                      {field.showOnBadge && field.type !== 'medical_booking' && field.type !== 'checkbox' && (
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-muted ml-1">Default value on badge (optional)</label>
+                          <input
+                            type="text"
+                            value={field.defaultValue || ""}
+                            onChange={(e) => updateCustomField(field.id, 'defaultValue', e.target.value)}
+                            placeholder="e.g. 2026 — printed on every card when the athlete has no value"
+                            className="w-full px-4 py-2 bg-base border border-border rounded-lg text-main placeholder-muted focus:ring-1 focus:ring-emerald-500 outline-none transition-all"
+                          />
+                          <p className="text-[10px] text-muted ml-1">Shown on the accreditation card for athletes who didn't fill this field. A per-athlete value always takes priority.</p>
+                        </div>
+                      )}
+
                       {(field.type === 'select' || field.type === 'multi_select') && (
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Options (Comma separated) *</label>
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-muted ml-1">Options (Comma separated) *</label>
                           <input
                             type="text"
                             value={field.options || ""}
                             onChange={(e) => updateCustomField(field.id, 'options', e.target.value)}
                             placeholder="Dubai, Abu Dhabi, Sharjah..."
-                            className="w-full px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-600 focus:ring-1 focus:ring-primary-500 outline-none transition-all"
+                            className="w-full px-4 py-2 bg-base border border-border rounded-lg text-main placeholder-muted focus:ring-1 focus:ring-primary-500 outline-none transition-all"
                           />
                         </div>
                       )}
                       
                       {field.type === 'medical_booking' && (
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Booking Slots Configuration</label>
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-muted ml-1">Booking Slots Configuration</label>
                           <div className="flex items-center gap-3">
                             <Button 
                               type="button" 
@@ -2185,7 +2199,7 @@ export default function Events() {
                   <button
                     type="button"
                     onClick={addCustomField}
-                    className="w-full py-4 border-2 border-dashed border-slate-700 rounded-xl text-slate-400 hover:text-emerald-400 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all flex items-center justify-center gap-2 group"
+                    className="w-full py-4 border-2 border-dashed border-border rounded-xl text-muted hover:text-emerald-400 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all flex items-center justify-center gap-2 group"
                   >
                     <PlusCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
                     <span className="font-semibold text-lg">Add Custom Requirement Field</span>
@@ -2196,7 +2210,7 @@ export default function Events() {
           </div>
 
           {/* Form Layout Builder */}
-          <div className="border-t border-slate-700 pt-6">
+          <div className="border-t border-border pt-6">
             <button
               type="button"
               onClick={() => setShowFormLayout(!showFormLayout)}
@@ -2205,13 +2219,13 @@ export default function Events() {
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <Layers className="w-5 h-5 text-sky-400 group-hover:rotate-12 transition-transform" />
-                  <span className="text-lg font-medium text-slate-300">Form Layout Builder</span>
+                  <span className="text-lg font-medium text-main">Form Layout Builder</span>
                 </div>
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-muted">
                   Rename sections, reorder fields, and arrange the full form. Add custom sections and place any field anywhere.
                 </p>
               </div>
-              <div className={`p-1.5 rounded-lg bg-slate-800 text-slate-400 transition-all ${showFormLayout ? 'rotate-180 bg-sky-500/10 text-sky-500' : 'group-hover:bg-slate-700'}`}>
+              <div className={`p-1.5 rounded-lg bg-base-alt text-muted transition-all ${showFormLayout ? 'rotate-180 bg-sky-500/10 text-sky-500' : 'group-hover:bg-base-alt'}`}>
                 <ChevronDown className="w-5 h-5" />
               </div>
             </button>
@@ -2225,13 +2239,13 @@ export default function Events() {
               >
                 <div className="space-y-4 pt-6 pb-2">
                   {layoutSections().map((section, sIdx, arr) => (
-                    <div key={section.id} className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-4 space-y-3">
+                    <div key={section.id} className="bg-base-alt border border-border rounded-xl p-4 space-y-3">
                       <div className="flex items-center gap-2">
                         <div className="flex flex-col">
-                          <button type="button" disabled={sIdx === 0} onClick={() => moveLayoutSection(sIdx, -1)} className="p-0.5 text-slate-400 hover:text-sky-400 disabled:opacity-20 disabled:hover:text-slate-400" title="Move section up">
+                          <button type="button" disabled={sIdx === 0} onClick={() => moveLayoutSection(sIdx, -1)} className="p-0.5 text-muted hover:text-sky-400 disabled:opacity-20 disabled:hover:text-muted" title="Move section up">
                             <ArrowUp className="w-4 h-4" />
                           </button>
-                          <button type="button" disabled={sIdx === arr.length - 1} onClick={() => moveLayoutSection(sIdx, 1)} className="p-0.5 text-slate-400 hover:text-sky-400 disabled:opacity-20 disabled:hover:text-slate-400" title="Move section down">
+                          <button type="button" disabled={sIdx === arr.length - 1} onClick={() => moveLayoutSection(sIdx, 1)} className="p-0.5 text-muted hover:text-sky-400 disabled:opacity-20 disabled:hover:text-muted" title="Move section down">
                             <ArrowDown className="w-4 h-4" />
                           </button>
                         </div>
@@ -2239,35 +2253,35 @@ export default function Events() {
                           value={section.title}
                           onChange={(e) => renameLayoutSection(sIdx, e.target.value)}
                           placeholder={SECTION_DEFAULT_LABEL[section.id] || "Section Title"}
-                          className="flex-1 px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white font-semibold placeholder-slate-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all"
+                          className="flex-1 px-3 py-2 bg-base border border-border rounded-lg text-main font-semibold placeholder-muted focus:ring-1 focus:ring-sky-500 outline-none transition-all"
                         />
                         {!section.builtin ? (
                           <button type="button" onClick={() => deleteLayoutSection(sIdx)} className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Delete section (fields move to the section above)">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         ) : (
-                          <span className="text-[9px] uppercase tracking-widest text-slate-600 font-bold px-2">core</span>
+                          <span className="text-[9px] uppercase tracking-widest text-muted font-bold px-2">core</span>
                         )}
                       </div>
 
                       <div className="space-y-1.5 pl-1">
                         {section.items.length === 0 && (
-                          <p className="text-xs text-slate-600 italic px-2 py-1">No fields here — move one in with the arrows.</p>
+                          <p className="text-xs text-muted italic px-2 py-1">No fields here — move one in with the arrows.</p>
                         )}
                         {section.items.map((item, iIdx) => {
                           const isCustom = isCustomItem(item);
                           const toggleable = isCustom || LAYOUT_TOGGLEABLE.has(item);
                           return (
-                            <div key={item} className="flex items-center gap-2 bg-slate-900/40 border border-slate-800 rounded-lg px-2 py-1.5">
+                            <div key={item} className="flex items-center gap-2 bg-base border border-border rounded-lg px-2 py-1.5">
                               <div className="flex flex-col">
-                                <button type="button" onClick={() => moveLayoutItem(sIdx, iIdx, -1)} className="p-0.5 text-slate-500 hover:text-sky-400 transition-colors" title="Move up (past the top edge moves to the section above)">
+                                <button type="button" onClick={() => moveLayoutItem(sIdx, iIdx, -1)} className="p-0.5 text-muted hover:text-sky-400 transition-colors" title="Move up (past the top edge moves to the section above)">
                                   <ArrowUp className="w-3.5 h-3.5" />
                                 </button>
-                                <button type="button" onClick={() => moveLayoutItem(sIdx, iIdx, 1)} className="p-0.5 text-slate-500 hover:text-sky-400 transition-colors" title="Move down (past the bottom edge moves to the section below)">
+                                <button type="button" onClick={() => moveLayoutItem(sIdx, iIdx, 1)} className="p-0.5 text-muted hover:text-sky-400 transition-colors" title="Move down (past the bottom edge moves to the section below)">
                                   <ArrowDown className="w-3.5 h-3.5" />
                                 </button>
                               </div>
-                              <span className={`flex-1 text-sm ${isCustom ? 'text-emerald-300' : 'text-slate-200'}`}>
+                              <span className={`flex-1 text-sm ${isCustom ? 'text-emerald-300' : 'text-main'}`}>
                                 {layoutItemLabel(item)}
                                 {isCustom && <span className="ml-2 text-[9px] uppercase tracking-widest text-emerald-500/70 font-bold">custom</span>}
                               </span>
@@ -2275,17 +2289,17 @@ export default function Events() {
                                 <div className="flex items-center gap-3">
                                   {!isCustom && (
                                     <label className="flex items-center gap-1 cursor-pointer" title="Visible on the registration form">
-                                      <span className="text-[9px] uppercase font-semibold text-slate-500">Show</span>
-                                      <input type="checkbox" checked={layoutItemShown(item)} onChange={() => toggleLayoutItemShown(item)} className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-0" />
+                                      <span className="text-[9px] uppercase font-semibold text-muted">Show</span>
+                                      <input type="checkbox" checked={layoutItemShown(item)} onChange={() => toggleLayoutItemShown(item)} className="w-4 h-4 rounded border-border bg-base text-emerald-500 focus:ring-0" />
                                     </label>
                                   )}
                                   <label className="flex items-center gap-1 cursor-pointer" title="Required field">
-                                    <span className="text-[9px] uppercase font-semibold text-slate-500">Req</span>
-                                    <input type="checkbox" checked={layoutItemRequired(item)} onChange={() => toggleLayoutItemRequired(item)} className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-0" />
+                                    <span className="text-[9px] uppercase font-semibold text-muted">Req</span>
+                                    <input type="checkbox" checked={layoutItemRequired(item)} onChange={() => toggleLayoutItemRequired(item)} className="w-4 h-4 rounded border-border bg-base text-amber-500 focus:ring-0" />
                                   </label>
                                 </div>
                               ) : (
-                                <span className="text-[9px] uppercase tracking-widest text-slate-600 font-bold" title={item === 'email' ? 'Email is always required' : 'Managed automatically / by Visibility settings'}>
+                                <span className="text-[9px] uppercase tracking-widest text-muted font-bold" title={item === 'email' ? 'Email is always required' : 'Managed automatically / by Visibility settings'}>
                                   {item === 'email' ? 'always' : 'auto'}
                                 </span>
                               )}
@@ -2299,12 +2313,12 @@ export default function Events() {
                   <button
                     type="button"
                     onClick={addLayoutSection}
-                    className="w-full py-3 border-2 border-dashed border-slate-700 rounded-xl text-slate-400 hover:text-sky-400 hover:border-sky-500/50 hover:bg-sky-500/5 transition-all flex items-center justify-center gap-2 group"
+                    className="w-full py-3 border-2 border-dashed border-border rounded-xl text-muted hover:text-sky-400 hover:border-sky-500/50 hover:bg-sky-500/5 transition-all flex items-center justify-center gap-2 group"
                   >
                     <PlusCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
                     <span className="font-semibold text-lg">Add Custom Section</span>
                   </button>
-                  <p className="text-[11px] text-slate-500 px-1 leading-relaxed">
+                  <p className="text-[11px] text-muted px-1 leading-relaxed">
                     Tip: arrows move a field within its section; pushing past the top/bottom edge sends it into the section above/below. Custom fields appear here automatically once added above.
                   </p>
                 </div>
@@ -2333,10 +2347,10 @@ export default function Events() {
       {mainGateModal.open && mainGateConfig && (
         <Modal isOpen={true} onClose={() => setMainGateModal({ open: false, eventId: null })} title="Main Gate Settings">
           <div className="space-y-4">
-            <div className="flex items-center justify-between bg-slate-800/50 p-3 rounded-lg border border-slate-700">
+            <div className="flex items-center justify-between bg-base-alt p-3 rounded-lg border border-border">
               <div className="flex-1 mr-4">
-                <h4 className="text-sm font-bold text-white">Scanner PIN</h4>
-                <p className="text-xs text-slate-400">Optional. Overrides the global PIN for all scanners in this event.</p>
+                <h4 className="text-sm font-bold text-main">Scanner PIN</h4>
+                <p className="text-xs text-muted">Optional. Overrides the global PIN for all scanners in this event.</p>
               </div>
               <div className="w-32">
                 <Input
@@ -2347,16 +2361,16 @@ export default function Events() {
                 />
               </div>
             </div>
-            <div className="flex items-center justify-between bg-slate-800/50 p-3 rounded-lg border border-slate-700">
+            <div className="flex items-center justify-between bg-base-alt p-3 rounded-lg border border-border">
               <div>
-                <h4 className="text-sm font-bold text-white">Count Duplicate Scans</h4>
-                <p className="text-xs text-slate-400">If enabled, second scans will increment attendance counts.</p>
+                <h4 className="text-sm font-bold text-main">Count Duplicate Scans</h4>
+                <p className="text-xs text-muted">If enabled, second scans will increment attendance counts.</p>
               </div>
               <button
                 type="button"
                 onClick={() => setMainGateConfig(p => ({ ...p, ignoreDuplicates: !p.ignoreDuplicates }))}
                 className={cn("relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                  (!mainGateConfig.ignoreDuplicates) ? "bg-primary-500" : "bg-slate-700"
+                  (!mainGateConfig.ignoreDuplicates) ? "bg-primary-500" : "bg-base-alt"
                 )}
               >
                 <span className={cn("inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
@@ -2365,7 +2379,7 @@ export default function Events() {
               </button>
             </div>
             <MessageSettingsPanel formData={mainGateConfig} setFormData={setMainGateConfig} />
-            <div className="flex justify-end gap-3 pt-4 border-t border-slate-700/50">
+            <div className="flex justify-end gap-3 pt-4 border-t border-border">
               <Button variant="ghost" onClick={() => setMainGateModal({ open: false, eventId: null })}>Cancel</Button>
               <Button variant="primary" onClick={saveMainGateSettings}>Save Settings</Button>
             </div>
@@ -2383,7 +2397,7 @@ export default function Events() {
           <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
             <div className="space-y-4">
               <h4 className="text-sm font-bold text-primary-400 uppercase tracking-widest">Medical Tests Offered</h4>
-              <p className="text-xs text-slate-400">Comma separated tests (e.g. Eye Test, Physical Assessment, ECG)</p>
+              <p className="text-xs text-muted">Comma separated tests (e.g. Eye Test, Physical Assessment, ECG)</p>
               <input
                 type="text"
                 value={(bookingConfigModal.data.tests || []).join(', ')}
@@ -2391,29 +2405,29 @@ export default function Events() {
                   const tests = e.target.value.split(',').map(t => t.trim()).filter(Boolean);
                   setBookingConfigModal(prev => ({...prev, data: {...prev.data, tests}}));
                 }}
-                className="w-full px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white outline-none focus:ring-1 focus:ring-primary-500"
+                className="w-full px-4 py-2 bg-base border border-border rounded-lg text-main outline-none focus:ring-1 focus:ring-primary-500"
                 placeholder="Eye Test, Physical Assessment, Blood Test"
               />
             </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-400 uppercase">Slot Duration (Minutes)</label>
+                <label className="text-xs font-bold text-muted uppercase">Slot Duration (Minutes)</label>
                 <input
                   type="number"
                   value={bookingConfigModal.data.duration || 15}
                   onChange={(e) => setBookingConfigModal(prev => ({...prev, data: {...prev.data, duration: parseInt(e.target.value) || 15}}))}
-                  className="w-full px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white"
+                  className="w-full px-4 py-2 bg-base border border-border rounded-lg text-main"
                   min="5" max="120"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-400 uppercase">Capacity (Athletes per slot)</label>
+                <label className="text-xs font-bold text-muted uppercase">Capacity (Athletes per slot)</label>
                 <input
                   type="number"
                   value={bookingConfigModal.data.capacity || 5}
                   onChange={(e) => setBookingConfigModal(prev => ({...prev, data: {...prev.data, capacity: parseInt(e.target.value) || 1}}))}
-                  className="w-full px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white"
+                  className="w-full px-4 py-2 bg-base border border-border rounded-lg text-main"
                   min="1" max="1000"
                 />
               </div>
@@ -2438,7 +2452,7 @@ export default function Events() {
               
               <div className="space-y-3">
                 {(bookingConfigModal.data.dateRanges || []).map((range, idx) => (
-                  <div key={idx} className="flex gap-2 items-center bg-slate-800/50 p-3 rounded-lg border border-slate-700">
+                  <div key={idx} className="flex gap-2 items-center bg-base-alt p-3 rounded-lg border border-border">
                     <input
                       type="date"
                       value={range.date}
@@ -2447,9 +2461,9 @@ export default function Events() {
                         newRanges[idx].date = e.target.value;
                         setBookingConfigModal(prev => ({...prev, data: {...prev.data, dateRanges: newRanges}}));
                       }}
-                      className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-white w-full"
+                      className="bg-base border border-border rounded px-2 py-1 text-sm text-main w-full"
                     />
-                    <span className="text-slate-500">From</span>
+                    <span className="text-muted">From</span>
                     <input
                       type="time"
                       value={range.startTime}
@@ -2458,9 +2472,9 @@ export default function Events() {
                         newRanges[idx].startTime = e.target.value;
                         setBookingConfigModal(prev => ({...prev, data: {...prev.data, dateRanges: newRanges}}));
                       }}
-                      className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-white"
+                      className="bg-base border border-border rounded px-2 py-1 text-sm text-main"
                     />
-                    <span className="text-slate-500">To</span>
+                    <span className="text-muted">To</span>
                     <input
                       type="time"
                       value={range.endTime}
@@ -2469,7 +2483,7 @@ export default function Events() {
                         newRanges[idx].endTime = e.target.value;
                         setBookingConfigModal(prev => ({...prev, data: {...prev.data, dateRanges: newRanges}}));
                       }}
-                      className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-white"
+                      className="bg-base border border-border rounded px-2 py-1 text-sm text-main"
                     />
                     <button 
                       onClick={() => {
@@ -2489,7 +2503,7 @@ export default function Events() {
               </div>
             </div>
 
-            <div className="flex gap-3 pt-4 border-t border-slate-700">
+            <div className="flex gap-3 pt-4 border-t border-border">
               <Button variant="secondary" onClick={() => setBookingConfigModal({ open: false, fieldId: null, data: null })} className="flex-1">
                 Cancel
               </Button>
@@ -2520,8 +2534,8 @@ export default function Events() {
             <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0" />
             <div>
               <p className="text-lg font-semibold text-red-400">Permanently delete this event?</p>
-              <p className="text-lg text-slate-300 font-extralight mt-1">
-                Event <span className="font-bold text-white">{deleteModal.event?.name}</span> and ALL related data (accreditations, zones, categories) will be permanently removed. This action cannot be undone.
+              <p className="text-lg text-main font-extralight mt-1">
+                Event <span className="font-bold text-main">{deleteModal.event?.name}</span> and ALL related data (accreditations, zones, categories) will be permanently removed. This action cannot be undone.
               </p>
             </div>
           </div>
@@ -2556,7 +2570,7 @@ export default function Events() {
         title="Copy Registration Link"
       >
         <div className="p-6 space-y-4">
-          <p className="text-lg text-slate-400 font-extralight">
+          <p className="text-lg text-muted font-extralight">
             Copy this link to share the registration form:
           </p>
           <div className="flex gap-2">
@@ -2565,7 +2579,7 @@ export default function Events() {
               type="text"
               readOnly
               value={getRegistrationLink(shareModal.slug)}
-              className="flex-1 px-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-lg text-white text-lg focus:outline-none"
+              className="flex-1 px-4 py-2.5 bg-base-alt border border-border rounded-lg text-main text-lg focus:outline-none"
             />
             <Button onClick={handleManualCopy} icon={Copy}>
               Copy

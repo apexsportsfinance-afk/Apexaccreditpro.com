@@ -428,8 +428,8 @@ export default function Settings() {
       default:
         return (
           <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-slate-500" />
-            <span className="text-lg text-slate-400 font-medium">Not tested</span>
+            <div className="w-2.5 h-2.5 rounded-full bg-base-alt" />
+            <span className="text-lg text-muted font-medium">Not tested</span>
           </div>
         );
     }
@@ -465,7 +465,7 @@ export default function Settings() {
                     : "text-muted hover:text-main hover:bg-base border border-transparent"
                 }`}
               >
-                <tab.icon className={`w-5 h-5 ${activeTab === tab.id ? `text-${tab.color}-400` : "text-slate-500"}`} />
+                <tab.icon className={`w-5 h-5 ${activeTab === tab.id ? `text-${tab.color}-400` : "text-muted"}`} />
                 {tab.label}
               </button>
             ))}
@@ -497,7 +497,7 @@ export default function Settings() {
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
-                <h3 className="text-lg font-medium text-white flex items-center gap-2">
+                <h3 className="text-lg font-medium text-main flex items-center gap-2">
                   <Server className="w-4 h-4 text-violet-400" />
                   Server Settings
                 </h3>
@@ -518,7 +518,7 @@ export default function Settings() {
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-lg font-medium text-white flex items-center gap-2">
+                <h3 className="text-lg font-medium text-main flex items-center gap-2">
                   <Shield className="w-4 h-4 text-violet-400" />
                   Authentication
                 </h3>
@@ -549,17 +549,17 @@ export default function Settings() {
               </div>
             </div>
 
-            <div className="pt-4 border-t border-slate-700/50">
-              <h3 className="text-lg font-medium text-white mb-1 flex items-center gap-2">
+            <div className="pt-4 border-t border-border">
+              <h3 className="text-lg font-medium text-main mb-1 flex items-center gap-2">
                 <Mail className="w-4 h-4 text-violet-400" />
                 Sender Identity
               </h3>
-              <p className="text-sm text-slate-500 font-extralight mb-3">
+              <p className="text-sm text-muted font-extralight mb-3">
                 Controls the visible From and Reply-To address on outgoing accreditation emails. Applies instantly to the next email sent &mdash; no redeploy needed.
               </p>
               {loadingSenderConfig ? (
                 <div className="flex items-center justify-center py-6">
-                  <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />
+                  <Loader2 className="w-5 h-5 text-muted animate-spin" />
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -597,8 +597,8 @@ export default function Settings() {
               )}
             </div>
 
-            <div className="pt-4 border-t border-slate-700/50">
-              <h3 className="text-lg font-medium text-white mb-3 flex items-center gap-2">
+            <div className="pt-4 border-t border-border">
+              <h3 className="text-lg font-medium text-main mb-3 flex items-center gap-2">
                 <Send className="w-4 h-4 text-violet-400" />
                 Send Test Email
               </h3>
@@ -642,8 +642,8 @@ export default function Settings() {
                     <p className={`text-lg font-medium ${lastTestResult.success ? "text-emerald-300" : "text-red-300"}`}>
                       {lastTestResult.success ? "Test Successful" : "Test Failed"}
                     </p>
-                    <p className="text-lg text-slate-400 font-extralight mt-1">{lastTestResult.message}</p>
-                    <p className="text-lg text-slate-500 font-extralight mt-1">at {lastTestResult.time}</p>
+                    <p className="text-lg text-muted font-extralight mt-1">{lastTestResult.message}</p>
+                    <p className="text-lg text-muted font-extralight mt-1">at {lastTestResult.time}</p>
                   </div>
                 </motion.div>
               )}
@@ -654,7 +654,7 @@ export default function Settings() {
                 <Info className="w-5 h-5 text-violet-400 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-lg text-violet-300 font-medium">Email Automation Active</p>
-                  <p className="text-lg text-slate-400 font-extralight mt-1">
+                  <p className="text-lg text-muted font-extralight mt-1">
                     Accreditation approval and rejection emails are sent automatically through this SMTP server when you approve or reject applications.
                   </p>
                 </div>
@@ -676,8 +676,8 @@ export default function Settings() {
                 <FileText className="w-5 h-5 text-emerald-400" />
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-white">Email Templates</h2>
-                <p className="text-lg text-slate-400 font-extralight">
+                <h2 className="text-xl font-semibold text-main">Email Templates</h2>
+                <p className="text-lg text-muted font-extralight">
                   Customize the email body sent on approval, rejection, or compose
                 </p>
               </div>
@@ -705,7 +705,7 @@ export default function Settings() {
                         : tab.color === "cyan"
                         ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
                         : "bg-amber-500/20 text-amber-300 border border-amber-500/40"
-                      : "bg-slate-800/50 text-slate-400 border border-slate-700/50 hover:text-white"
+                      : "bg-base-alt text-muted border border-border hover:text-main"
                   }`}
                 >
                   {tab.label}
@@ -715,7 +715,7 @@ export default function Settings() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-2">
               <div className="space-y-1.5">
-                <label className="block text-lg font-medium text-slate-300">
+                <label className="block text-lg font-medium text-main">
                   Target Event
                 </label>
                 <select
@@ -730,7 +730,7 @@ export default function Settings() {
                     </option>
                   ))}
                 </select>
-                <p className="text-sm text-slate-500 italic mt-1 font-extralight">
+                <p className="text-sm text-muted italic mt-1 font-extralight">
                   {selectedEventId 
                     ? `Changes will apply ONLY to "${events.find(e => e.id === selectedEventId)?.name}"`
                     : "Changes will apply to ALL events unless they have a specific template"}
@@ -740,7 +740,7 @@ export default function Settings() {
 
             {loadingTemplates ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
+                <Loader2 className="w-6 h-6 text-muted animate-spin" />
               </div>
             ) : (
               <>
@@ -757,7 +757,7 @@ export default function Settings() {
                 />
 
                 <div className="space-y-1.5">
-                  <label className="block text-lg font-medium text-slate-300">
+                  <label className="block text-lg font-medium text-main">
                     Email Body
                   </label>
                   <textarea
@@ -775,7 +775,7 @@ export default function Settings() {
                 </div>
 
                 <div className="p-4 rounded-lg bg-base-alt border border-border">
-                  <p className="text-lg text-slate-300 font-medium mb-2">Available Placeholders:</p>
+                  <p className="text-lg text-main font-medium mb-2">Available Placeholders:</p>
                   <div className="flex flex-wrap gap-2">
                     {["{name}", "{firstName}", "{lastName}", "{eventName}", "{role}", "{badge}", "{zones}", "{email}", "{ticketCount}", "{amountPaid}", "{paymentMethod}", "{qrCodeId}"].map((ph) => (
                       <span
@@ -799,7 +799,7 @@ export default function Settings() {
                       </span>
                     ))}
                   </div>
-                  <p className="text-lg text-slate-500 font-extralight mt-2">
+                  <p className="text-lg text-muted font-extralight mt-2">
                     Click a placeholder to insert it. These are replaced with actual values when the email is sent.
                   </p>
                 </div>
@@ -838,7 +838,7 @@ export default function Settings() {
               <div className="p-2 rounded-lg bg-primary-500/10 border border-primary-500/20">
                 <Shield className="w-5 h-5 text-primary-400" />
               </div>
-              <h2 className="text-xl font-semibold text-white">Profile Settings</h2>
+              <h2 className="text-xl font-semibold text-main">Profile Settings</h2>
             </div>
           </CardHeader>
           <CardContent>
@@ -906,8 +906,8 @@ export default function Settings() {
                       <Lock className="w-5 h-5 text-red-400" />
                     </div>
                     <div>
-                      <h2 className="text-xl font-semibold text-white">Security & Passcodes</h2>
-                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">
+                      <h2 className="text-xl font-semibold text-main">Security & Passcodes</h2>
+                      <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">
                         Super Admin Override Controls
                       </p>
                     </div>
@@ -915,10 +915,10 @@ export default function Settings() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                   {/* Order Deletion PIN */}
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-4 rounded-xl bg-slate-900/50 border border-slate-800">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-4 rounded-xl bg-base border border-border">
                     <div className="max-w-md">
-                      <h4 className="text-white font-bold mb-1 italic uppercase tracking-tighter">Order Deletion PIN</h4>
-                      <p className="text-sm text-slate-400 leading-relaxed font-extralight">
+                      <h4 className="text-main font-bold mb-1 italic uppercase tracking-tighter">Order Deletion PIN</h4>
+                      <p className="text-sm text-muted leading-relaxed font-extralight">
                         Specify a master security code required to permanently remove ticket orders from the system. 
                         This adds a critical safety layer against accidental deletions.
                       </p>

@@ -548,7 +548,7 @@ export default function InviteRegister() {
                 <CheckCircle className="w-10 h-10 text-white" />
               </motion.div>
               
-              <h1 className="text-2xl font-bold text-slate-800">Registration Received!</h1>
+              <h1 className="text-3xl font-extrabold bg-gradient-to-r from-cyan-600 to-indigo-600 bg-clip-text text-transparent">Registration Received!</h1>
               <p className="text-lg text-slate-600">
                 Your accreditation {inviteLink?.requirePayment ? "payment is being processed" : "request"} for <span className="font-semibold text-cyan-700">{event?.name}</span>.
                 You will receive a confirmation email shortly.
@@ -557,7 +557,7 @@ export default function InviteRegister() {
               <div className="bg-slate-50 border-2 border-cyan-100 rounded-xl p-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-400 font-bold uppercase tracking-wider">Reference Email</span>
-                  <span className="font-mono text-slate-700">{formData.email}</span>
+                  <span className="font-mono text-slate-700 break-all text-right">{formData.email}</span>
                 </div>
                 {inviteLink?.requirePayment && (
                   <div className="flex justify-between text-sm">
@@ -570,8 +570,8 @@ export default function InviteRegister() {
               </div>
 
               <div className="pt-6 border-t border-slate-100">
-                <Button variant="ghost" className="w-full" onClick={() => window.location.href = '/'}>
-                  <ArrowLeft className="w-4 h-4 mr-2" /> Return to Home
+                <Button variant="secondary" icon={ArrowLeft} className="w-full" onClick={() => window.location.href = '/'}>
+                  Return to Home
                 </Button>
               </div>
             </div>

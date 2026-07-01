@@ -15,7 +15,7 @@ export default function SystemInfoTab({ migrating, migrationStatus, onMigrate })
             <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
               <Info className="w-5 h-5 text-cyan-400" />
             </div>
-            <h2 className="text-xl font-semibold text-white">System Information</h2>
+            <h2 className="text-xl font-semibold text-main">System Information</h2>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -45,7 +45,7 @@ export default function SystemInfoTab({ migrating, migrationStatus, onMigrate })
               {migrating ? "Migrating DB Images..." : "Migrate Database Images to Supabase Storage"}
             </Button>
             {migrationStatus && (
-              <p className="text-center text-sm text-slate-400 mt-1">{migrationStatus}</p>
+              <p className="text-center text-sm text-muted mt-1">{migrationStatus}</p>
             )}
           </div>
         </CardContent>

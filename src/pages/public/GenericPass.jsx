@@ -194,7 +194,7 @@ export default function GenericPass() {
                   Generic Pass
                 </h1>
                 <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px]">
-                  {event.name} • 2026
+                  {event.name}
                 </p>
               </div>
 
@@ -208,7 +208,7 @@ export default function GenericPass() {
                     value={pin}
                     onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 8))}
                     placeholder="Enter Security PIN"
-                    className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl px-6 py-5 text-center text-white font-mono text-3xl tracking-[1em] focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50 outline-none transition-all placeholder:tracking-normal placeholder:text-base placeholder:text-slate-600 shadow-inner"
+                    className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl px-6 py-5 text-center text-white font-mono text-2xl sm:text-3xl tracking-[0.5em] sm:tracking-[1em] focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50 outline-none transition-all placeholder:tracking-normal placeholder:text-base placeholder:text-slate-600 shadow-inner"
                     autoFocus
                   />
                 </div>
@@ -324,7 +324,7 @@ export default function GenericPass() {
                   onClick={() => setStep("pin")}
                   className="w-full text-slate-500 hover:text-white text-[10px] font-black uppercase tracking-[0.2em] transition-colors"
                 >
-                  Change Security PIN
+                  Re-enter Security PIN
                 </button>
              </div>
           </motion.div>

@@ -167,12 +167,12 @@ export default function TemplateView({ event, onClose, onSave }) {
   };
 
   return (
-    <Card className="border-slate-800">
+    <Card className="border-border">
       <CardContent className="p-8 space-y-8">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-2xl font-bold text-main mb-2">Accreditation Template</h3>
-            <p className="text-slate-400 font-light">Customize visuals for physical and digital badges</p>
+            <p className="text-muted font-light">Customize visuals for physical and digital badges</p>
           </div>
           <Button onClick={save} loading={saving}>Save Configuration</Button>
         </div>
@@ -189,11 +189,11 @@ export default function TemplateView({ event, onClose, onSave }) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Front Configuration */}
           <div className="space-y-6">
-            <h4 className="text-lg font-bold text-white flex items-center gap-2">
+            <h4 className="text-lg font-bold text-main flex items-center gap-2">
               Front Layout
             </h4>
-            
-            <div className="space-y-4 bg-slate-900/40 p-6 rounded-2xl border border-white/5">
+
+            <div className="space-y-4 bg-base p-6 rounded-2xl border border-white/5">
               <Input 
                 label="Header (Arabic)"
                 value={templateData.headerArabic}
@@ -207,7 +207,7 @@ export default function TemplateView({ event, onClose, onSave }) {
                 placeholder="e.g., Hamdan Sports Complex"
               />
               <div>
-                <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-3">Event Logo</label>
+                <label className="block text-sm font-bold text-muted uppercase tracking-widest mb-3">Event Logo</label>
                 <div className="flex items-start gap-6">
                   {templateData.logoUrl ? (
                     <div className="relative group shrink-0">
@@ -220,14 +220,14 @@ export default function TemplateView({ event, onClose, onSave }) {
                       </button>
                     </div>
                   ) : (
-                    <label className="w-24 h-24 shrink-0 border-2 border-dashed border-slate-700 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-primary-500 transition-all text-slate-500">
+                    <label className="w-24 h-24 shrink-0 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-primary-500 transition-all text-muted">
                       <Upload className="w-6 h-6 mb-1" />
                       <span className="text-[10px] font-bold">UPLOAD</span>
                       <input type="file" accept="image/*" onChange={e => handleFileUpload(e, "logoUrl")} className="hidden" />
                     </label>
                   )}
-                  <div className="text-xs text-slate-500 pt-2 space-y-1">
-                    <p className="text-slate-300 font-medium">Transparent PNG or high-res SVG recommended.</p>
+                  <div className="text-xs text-muted pt-2 space-y-1">
+                    <p className="text-main font-medium">Transparent PNG or high-res SVG recommended.</p>
                     <p>{guidance.logo.size}</p>
                     <p className="text-primary-400">{guidance.logo.note}</p>
                   </div>
@@ -235,7 +235,7 @@ export default function TemplateView({ event, onClose, onSave }) {
               </div>
 
               <div className="pt-2">
-                <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-3">Front Body Background</label>
+                <label className="block text-sm font-bold text-muted uppercase tracking-widest mb-3">Front Body Background</label>
                 <div className="flex items-start gap-6">
                   {templateData.frontBackgroundUrl ? (
                     <div className="relative group shrink-0">
@@ -248,13 +248,13 @@ export default function TemplateView({ event, onClose, onSave }) {
                       </button>
                     </div>
                   ) : (
-                    <label className="w-24 h-24 shrink-0 border-2 border-dashed border-slate-700 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-primary-500 transition-all text-slate-500">
+                    <label className="w-24 h-24 shrink-0 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-primary-500 transition-all text-muted">
                       <Upload className="w-6 h-6 mb-1" />
                       <span className="text-[10px] font-bold text-center">UPLOAD BG</span>
                       <input type="file" accept="image/*" onChange={e => handleFileUpload(e, "frontBackgroundUrl")} className="hidden" />
                     </label>
                   )}
-                  <div className="text-xs text-slate-500 pt-2 space-y-1">
+                  <div className="text-xs text-muted pt-2 space-y-1">
                     <p>{guidance.frontBg.size}</p>
                     <p className="text-primary-400">{guidance.frontBg.note}</p>
                   </div>
@@ -270,13 +270,13 @@ export default function TemplateView({ event, onClose, onSave }) {
                       checked={templateData.onlyFrontPage}
                       onChange={e => setTemplateData(prev => ({ ...prev, onlyFrontPage: e.target.checked }))}
                     />
-                    <div className="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
+                    <div className="w-11 h-6 bg-base-alt rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-sm font-bold text-slate-200 group-hover:text-primary-400 transition-colors">
+                    <span className="text-sm font-bold text-main group-hover:text-primary-400 transition-colors">
                       Single-Sided Mode (Front Only)
                     </span>
-                    <span className="text-[10px] text-slate-500 uppercase tracking-widest leading-none mt-1">
+                    <span className="text-[10px] text-muted uppercase tracking-widest leading-none mt-1">
                       Disable back page generation in PDF
                     </span>
                   </div>
@@ -287,29 +287,29 @@ export default function TemplateView({ event, onClose, onSave }) {
 
           {/* Back Configuration */}
           <div className="space-y-6">
-            <h4 className="text-lg font-bold text-white flex items-center gap-2">
+            <h4 className="text-lg font-bold text-main flex items-center gap-2">
               Back Template &amp; Sponsors
             </h4>
 
-            <div className="space-y-6 bg-slate-900/40 p-6 rounded-2xl border border-white/5">
+            <div className="space-y-6 bg-base p-6 rounded-2xl border border-white/5">
               <div className={cn("transition-all duration-300", templateData.onlyFrontPage && "opacity-40 grayscale pointer-events-none")}>
-                <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-1">Back Graphic</label>
-                <div className="text-xs text-slate-500 mb-4 space-y-1">
+                <label className="block text-sm font-bold text-muted uppercase tracking-widest mb-1">Back Graphic</label>
+                <div className="text-xs text-muted mb-4 space-y-1">
                   <p>{guidance.backBg.size}</p>
                   <p className="text-primary-400">{guidance.backBg.note}</p>
                 </div>
-                <div className="relative aspect-[3/4] max-w-[200px] border-2 border-dashed border-slate-700 rounded-2xl overflow-hidden group">
+                <div className="relative aspect-[3/4] max-w-[200px] border-2 border-dashed border-border rounded-2xl overflow-hidden group">
                   {templateData.backTemplateUrl ? (
                     <>
                       <StorageImage src={templateData.backTemplateUrl} className="w-full h-full object-cover" alt="Back Template" />
-                      <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                      <div className="absolute inset-0 bg-base/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                         <Button variant="ghost" icon={Trash2} onClick={() => setTemplateData(prev => ({ ...prev, backTemplateUrl: "" }))}>Clear</Button>
                       </div>
                     </>
                   ) : (
                     <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-colors">
-                      <Upload className="w-8 h-8 text-slate-600 mb-2" />
-                      <span className="text-xs font-bold text-slate-500 uppercase">Upload Back</span>
+                      <Upload className="w-8 h-8 text-muted mb-2" />
+                      <span className="text-xs font-bold text-muted uppercase">Upload Back</span>
                       <input type="file" accept="image/*" onChange={e => handleFileUpload(e, "backTemplateUrl")} className="hidden" />
                     </label>
                   )}
@@ -317,9 +317,9 @@ export default function TemplateView({ event, onClose, onSave }) {
               </div>
 
               <div className="pt-2 border-t border-white/5">
-                <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-1 mt-4">Sponsor Logos (Max 6)</label>
-                <div className="text-xs text-slate-500 mb-4 space-y-1">
-                  <p className="text-slate-300 font-medium">Transparent PNG recommended.</p>
+                <label className="block text-sm font-bold text-muted uppercase tracking-widest mb-1 mt-4">Sponsor Logos (Max 6)</label>
+                <div className="text-xs text-muted mb-4 space-y-1">
+                  <p className="text-main font-medium">Transparent PNG recommended.</p>
                   <p>{guidance.sponsors.size}</p>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -335,8 +335,8 @@ export default function TemplateView({ event, onClose, onSave }) {
                     </div>
                   ))}
                   {templateData.sponsorLogos.length < 6 && (
-                    <label className="h-24 border-2 border-dashed border-slate-600 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-cyan-500 hover:bg-cyan-500/10 transition-all text-slate-400 bg-slate-800/30">
-                      <Plus className="w-6 h-6 mb-1 text-slate-400" />
+                    <label className="h-24 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-cyan-500 hover:bg-cyan-500/10 transition-all text-muted bg-base-alt">
+                      <Plus className="w-6 h-6 mb-1 text-muted" />
                       <input type="file" accept="image/*" onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (file) {

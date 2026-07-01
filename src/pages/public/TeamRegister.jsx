@@ -210,12 +210,12 @@ export default function TeamRegister() {
             >
               <CheckCircle className="w-10 h-10 text-white" />
             </motion.div>
-            <h1 className="text-2xl font-bold text-slate-800 mb-3">Registration Submitted</h1>
+            <h1 className="text-3xl font-extrabold bg-gradient-to-r from-cyan-600 to-indigo-600 bg-clip-text text-transparent mb-3">Registration Submitted</h1>
             <p className="text-lg text-slate-600 mb-6">
               Thanks! Your team registration for <span className="font-semibold">{event.name}</span> has been
               submitted and is pending review by the event admins.
             </p>
-            <Button variant="primary" icon={Plus} onClick={handleRegisterAnother} className="w-full mb-3">
+            <Button variant="outline" icon={Plus} onClick={handleRegisterAnother} className="w-full mb-3">
               Register Another Team
             </Button>
             <Link to="/">

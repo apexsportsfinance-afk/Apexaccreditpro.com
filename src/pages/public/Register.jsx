@@ -1500,7 +1500,7 @@ export default function Register() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="text-center max-w-md bg-base rounded-2xl p-8 shadow-2xl shadow-primary-500/10 border-2 border-border"
+            className="text-center max-w-md w-full bg-white/95 backdrop-blur-2xl rounded-2xl p-8 shadow-2xl shadow-primary-500/10 border-2 border-cyan-200"
           >
             <motion.div
               initial={{ scale: 0 }}
@@ -1511,13 +1511,13 @@ export default function Register() {
               <CheckCircle className="w-10 h-10 text-white" />
               <Zap className="absolute -top-2 -right-2 w-5 h-5 text-yellow-400 animate-pulse" />
             </motion.div>
-            <h1 className="text-2xl font-bold text-slate-800 mb-3" dir={language === 'ar' ? 'rtl' : 'ltr'}>{t("successTitle")}</h1>
+            <h1 className="text-3xl font-extrabold bg-gradient-to-r from-cyan-600 to-indigo-600 bg-clip-text text-transparent mb-3" dir={language === 'ar' ? 'rtl' : 'ltr'}>{t("successTitle")}</h1>
             <p className="text-lg text-slate-600 mb-6" dir={language === 'ar' ? 'rtl' : 'ltr'}>
               {t("successDesc").replace("{event}", event.name)}
             </p>
             <div className="bg-white border-2 border-cyan-200 rounded-xl p-4 shadow-inner" dir={language === 'ar' ? 'rtl' : 'ltr'}>
               <p className="text-lg text-slate-500 mb-1">{language === 'ar' ? 'البريد الإلكتروني المرجعي' : 'Reference Email'}</p>
-              <p className="text-xl font-mono text-slate-800 font-semibold">{formData.email}</p>
+              <p className="text-base sm:text-lg font-mono text-slate-800 font-semibold break-all">{formData.email}</p>
             </div>
             <div className="mt-6" dir={language === 'ar' ? 'rtl' : 'ltr'}>
               <Button

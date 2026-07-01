@@ -297,7 +297,7 @@ export default function FeedbackForm() {
       </div>,
 
       <div key="s1" className="space-y-10">
-        <h2 className="text-2xl font-bold text-white flex items-center gap-3"><CheckCircle className="w-6 h-6 text-primary-400" /> General Experience</h2>
+        <h2 className="text-2xl font-black text-white flex items-center gap-3"><CheckCircle className="w-6 h-6 text-primary-400" /> General Experience</h2>
         <StarRating label="1. Overall Experience" value={form.overallRating} onChange={v => updateForm("overallRating", v)} />
         <div className="space-y-4">
           <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider">2. Event Organisation</p>
@@ -314,7 +314,7 @@ export default function FeedbackForm() {
       </div>,
 
       <div key="s2" className="space-y-10">
-        <h2 className="text-2xl font-bold text-white flex items-center gap-3"><QrCode className="w-6 h-6 text-yellow-400" /> QR System</h2>
+        <h2 className="text-2xl font-black text-white flex items-center gap-3"><QrCode className="w-6 h-6 text-yellow-400" /> QR System</h2>
         <div className="space-y-4">
           <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider">4. Did you use the QR system?</p>
           <div className="flex gap-3">
@@ -330,19 +330,19 @@ export default function FeedbackForm() {
       </div>,
 
       <div key="s3" className="space-y-10">
-        <h2 className="text-2xl font-bold text-white flex items-center gap-3"><MapPin className="w-6 h-6 text-red-400" /> Venue & Operations</h2>
-        <StarRating label="6. Venue & Facilities (Hamdan Sports Complex)" value={form.venueRating} onChange={v => updateForm("venueRating", v)} />
+        <h2 className="text-2xl font-black text-white flex items-center gap-3"><MapPin className="w-6 h-6 text-red-400" /> Venue & Operations</h2>
+        <StarRating label="6. Venue & Facilities" value={form.venueRating} onChange={v => updateForm("venueRating", v)} />
         <StarRating label="7. Communication Effectiveness" value={form.communicationRating} onChange={v => updateForm("communicationRating", v)} />
       </div>,
 
       <div key="s4" className="space-y-10">
-        <h2 className="text-2xl font-bold text-white flex items-center gap-3"><Megaphone className="w-6 h-6 text-purple-400" /> Final Impact</h2>
+        <h2 className="text-2xl font-black text-white flex items-center gap-3"><Megaphone className="w-6 h-6 text-purple-400" /> Final Impact</h2>
         <div className="space-y-4">
           <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider">8. How likely are you to recommend this event? (0–10)</p>
-          <div className="flex justify-between items-center bg-slate-900/80 p-4 rounded-2xl border border-white/5">
+          <div className="flex justify-between items-center bg-slate-900/80 px-2 py-3 sm:p-4 rounded-2xl border border-white/5">
             {[...Array(11)].map((_, i) => (
               <button key={i} onClick={() => updateForm("npsScore", i)}
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${form.npsScore === i ? "bg-primary-500 text-white scale-125 shadow-cyanGlow" : "text-slate-500 hover:text-white"}`}>
+                className={`w-6 h-6 sm:w-8 sm:h-8 shrink-0 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold transition-all ${form.npsScore === i ? "bg-primary-500 text-white scale-125 shadow-cyanGlow" : "text-slate-500 hover:text-white"}`}>
                 {i}
               </button>
             ))}

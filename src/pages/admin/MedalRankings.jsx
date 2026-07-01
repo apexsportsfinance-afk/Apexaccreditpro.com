@@ -625,9 +625,9 @@ export default function MedalRankings() {
         
         {rankings.length === 0 && !loading && (
           <div className="py-24 flex flex-col items-center justify-center opacity-40 grayscale animate-pulse">
-             <Medal className="w-20 h-20 text-slate-700 mb-6" />
-             <p className="text-2xl font-bold tracking-tight text-white mb-2 uppercase italic">No Achievements Logged</p>
-             <p className="text-slate-400 font-medium tracking-widest text-xs uppercase">Click 'Upload Results' to start processing</p>
+             <Medal className="w-20 h-20 text-muted mb-6" />
+             <p className="text-2xl font-bold tracking-tight text-main mb-2 uppercase italic">No Achievements Logged</p>
+             <p className="text-muted font-medium tracking-widest text-xs uppercase">Click 'Upload Results' to start processing</p>
           </div>
         )}
       </div>
@@ -699,18 +699,18 @@ export default function MedalRankings() {
                   ) : (
                     <div className="space-y-4">
                        <div className="flex justify-center -space-x-3 mb-2">
-                          <div className="w-12 h-12 rounded-2xl bg-base border border-white/10 flex items-center justify-center text-slate-500 -rotate-12 transition-transform group-hover:-translate-y-2">
+                          <div className="w-12 h-12 rounded-2xl bg-base border border-white/10 flex items-center justify-center text-muted -rotate-12 transition-transform group-hover:-translate-y-2">
                             <FileText className="w-6 h-6" />
                           </div>
                           <div className="w-12 h-12 rounded-2xl bg-primary-500 flex items-center justify-center text-base z-10 shadow-2xl transition-transform group-hover:-translate-y-4">
                             <Medal className="w-6 h-6" />
                           </div>
-                          <div className="w-12 h-12 rounded-2xl bg-base border border-white/10 flex items-center justify-center text-slate-500 rotate-12 transition-transform group-hover:-translate-y-2">
+                          <div className="w-12 h-12 rounded-2xl bg-base border border-white/10 flex items-center justify-center text-muted rotate-12 transition-transform group-hover:-translate-y-2">
                             <Trophy className="w-6 h-6" />
                           </div>
                        </div>
-                       <p className="text-lg font-bold text-white tracking-tight">Click or Drag PDF Result File</p>
-                       <p className="text-xs text-slate-500 font-bold uppercase tracking-[0.3em]">HY-TEK MEET MANAGER FORMAT</p>
+                       <p className="text-lg font-bold text-main tracking-tight">Click or Drag PDF Result File</p>
+                       <p className="text-xs text-muted font-bold uppercase tracking-[0.3em]">HY-TEK MEET MANAGER FORMAT</p>
                     </div>
                   )}
                   <input 

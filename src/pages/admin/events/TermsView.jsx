@@ -47,12 +47,12 @@ export default function TermsView({ event, onSave }) {
   };
 
   return (
-    <Card className="border-slate-800">
+    <Card className="border-border">
       <CardHeader>
         <div className="flex items-center justify-between w-full">
           <div>
-            <h3 className="text-xl font-bold text-white">Custom Terms &amp; Conditions</h3>
-            <p className="text-sm text-slate-400 mt-1">
+            <h3 className="text-xl font-bold text-main">Custom Terms &amp; Conditions</h3>
+            <p className="text-sm text-muted mt-1">
               These terms will be displayed to all participants during the registration process.
             </p>
           </div>
@@ -86,13 +86,13 @@ export default function TermsView({ event, onSave }) {
               placeholder="Enter your custom terms and conditions here..."
               className="w-full h-[500px] bg-base-alt/50 border border-border rounded-xl p-6 text-main text-lg font-light leading-relaxed focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 outline-none transition-all resize-none"
             />
-            <div className="absolute top-4 right-4 text-[10px] font-black uppercase tracking-widest text-slate-500 group-focus-within:text-primary-400 transition-colors pointer-events-none">
+            <div className="absolute top-4 right-4 text-[10px] font-black uppercase tracking-widest text-muted group-focus-within:text-primary-400 transition-colors pointer-events-none">
               Rich Text Editor
             </div>
           </div>
           
           <div className="flex justify-end">
-            <p className="text-xs text-slate-500 italic">
+            <p className="text-xs text-muted italic">
               * Remember to include health waivers and media release authorizations if specific to this event.
             </p>
           </div>

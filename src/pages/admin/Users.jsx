@@ -238,7 +238,7 @@ export default function Users() {
       case "event_admin":
         return <Calendar className="w-4 h-4 text-blue-400" />;
       default:
-        return <Eye className="w-4 h-4 text-slate-400" />;
+        return <Eye className="w-4 h-4 text-muted" />;
     }
   };
 

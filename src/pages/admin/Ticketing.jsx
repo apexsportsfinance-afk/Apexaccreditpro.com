@@ -248,7 +248,7 @@ export default function Ticketing() {
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-slate-400">Loading Ticketing Data...</div>;
+  if (loading) return <div className="p-8 text-center text-muted">Loading Ticketing Data...</div>;
 
   return (
     <div className="space-y-6">
@@ -262,7 +262,7 @@ export default function Ticketing() {
       {selectedEvent && (
         <>
           {/* Event Selector for Tabs */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4 bg-slate-900/40 border border-slate-800 rounded-xl p-3 mt-4 w-fit">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 bg-base border border-border rounded-xl p-3 mt-4 w-fit">
             <span className="text-sm font-black uppercase tracking-widest text-muted pl-2">
               Select your Event:
             </span>
@@ -274,7 +274,7 @@ export default function Ticketing() {
                 className="bg-transparent border-none text-main font-bold focus:ring-0 cursor-pointer text-sm outline-none pr-8 truncate max-w-[300px] md:max-w-md w-full"
               >
                 {events.map(e => (
-                  <option key={e.id} value={e.id} className="bg-slate-900 text-white font-bold">
+                  <option key={e.id} value={e.id} className="bg-base text-main font-bold">
                     {e.name}
                   </option>
                 ))}
@@ -379,7 +379,7 @@ export default function Ticketing() {
                 <div className="space-y-4">
                   <div className="flex gap-4">
                     <div className="flex-1 relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
                       <Input
                         placeholder="Search by name, email, or order ID..."
                         value={searchTerm}
@@ -388,11 +388,11 @@ export default function Ticketing() {
                       />
                     </div>
                     <div className="relative">
-                      <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                      <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
                       <select
                         value={paymentFilter}
                         onChange={(e) => setPaymentFilter(e.target.value)}
-                        className="pl-10 pr-8 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary-500 appearance-none cursor-pointer"
+                        className="pl-10 pr-8 py-2 bg-base border border-border rounded-lg text-sm text-main focus:outline-none focus:ring-2 focus:ring-primary-500 appearance-none cursor-pointer"
                       >
                         <option value="all">All Payments</option>
                         <option value="stripe">Online</option>
@@ -588,14 +588,14 @@ export default function Ticketing() {
                                 )}
                                 <button
                                   onClick={() => window.open(`/view-ticket/${order.qr_code_id}`, '_blank')}
-                                  className="p-2 bg-slate-800 rounded-lg hover:bg-primary-500 text-slate-400 hover:text-white transition-all"
+                                  className="p-2 bg-base-alt rounded-lg hover:bg-primary-500 text-muted hover:text-white transition-all"
                                   title="View Ticket"
                                 >
                                   <ExternalLink className="w-4 h-4" />
                                 </button>
                                 <button
                                   onClick={() => handleDeleteOrder(order.id)}
-                                  className="p-2 bg-slate-800 rounded-lg hover:bg-red-500 text-slate-400 hover:text-white transition-all"
+                                  className="p-2 bg-base-alt rounded-lg hover:bg-red-500 text-muted hover:text-white transition-all"
                                   title="Delete Permanently"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -605,7 +605,7 @@ export default function Ticketing() {
                           </tr>
                         )) : (
                           <tr>
-                            <td colSpan="5" className="py-20 text-center text-slate-500">No orders found for this event.</td>
+                            <td colSpan="5" className="py-20 text-center text-muted">No orders found for this event.</td>
                           </tr>
                         )}
                       </tbody>
@@ -664,7 +664,7 @@ export default function Ticketing() {
 
       {/* Security PIN Modal */}
       {pinModal.open && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-xl">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-base backdrop-blur-xl">
           <motion.div
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}

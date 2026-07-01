@@ -44,7 +44,7 @@ const ACTION_COLORS = {
 };
 
 const getActionColor = (action) =>
-  ACTION_COLORS[action] || "text-slate-400 bg-slate-500/10 border-slate-500/30";
+  ACTION_COLORS[action] || "text-muted bg-slate-500/10 border-slate-500/30";
 
 const formatAction = (action) =>
   (action || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -267,14 +267,14 @@ export default function AuditLog() {
           <div className="flex items-center bg-base-alt p-1 rounded-xl border border-border ml-2">
             <button
               onClick={() => setViewMode('raw')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-2 text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === 'raw' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-2 text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === 'raw' ? 'bg-white/10 text-white' : 'text-muted hover:text-main'}`}
             >
               <LayoutList className="w-3 h-3" />
               Raw
             </button>
             <button
               onClick={() => setViewMode('summary')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-2 text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === 'summary' ? 'bg-emerald-500/20 text-emerald-400' : 'text-slate-500 hover:text-slate-300'}`}
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-2 text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === 'summary' ? 'bg-emerald-500/20 text-emerald-400' : 'text-muted hover:text-main'}`}
             >
               <Layers className="w-3 h-3" />
               Summary
@@ -403,7 +403,7 @@ export default function AuditLog() {
               <button
                 onClick={() => setPageOffset(prev => prev + (activeTab === 'system' ? 100 : 500))}
                 disabled={isLoadingMore}
-                className="px-6 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-[10px] font-black tracking-widest uppercase text-white rounded-lg transition-all"
+                className="px-6 py-2 bg-base-alt hover:bg-base-alt disabled:opacity-50 text-[10px] font-black tracking-widest uppercase text-main rounded-lg transition-all"
               >
                 {isLoadingMore ? "Loading..." : "Load More Records"}
               </button>

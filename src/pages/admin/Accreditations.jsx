@@ -145,7 +145,7 @@ export default function Accreditations() {
   const renderParticipatingSports = (accreditation) => {
     const sports = accreditation?.selected_sports || accreditation?.selectedSports;
     if (!sports || !Array.isArray(sports) || sports.length === 0) {
-      return <p className="text-slate-500 italic text-sm">No sports selected</p>;
+      return <p className="text-muted italic text-sm">No sports selected</p>;
     }
     return (
       <div className="flex flex-wrap gap-2">
@@ -885,7 +885,7 @@ export default function Accreditations() {
           ? calculateAge(row.dateOfBirth, currentEvent.ageCalculationYear) 
           : null;
         return (
-          <span className="text-sm font-bold text-slate-300">
+          <span className="text-sm font-bold text-main">
             {age !== null ? age : "---"}
           </span>
         );
@@ -909,9 +909,9 @@ export default function Accreditations() {
                 className="w-5.5 h-3.5 object-cover rounded-[3px] border border-border/40 shadow-sm shrink-0" 
               />
             ) : (
-              <div className="w-5.5 h-3.5 rounded-[3px] bg-slate-800 border border-slate-700 shrink-0" />
+              <div className="w-5.5 h-3.5 rounded-[3px] bg-base-alt border border-border shrink-0" />
             )}
-            <span className="text-sm font-semibold text-slate-200">{code}</span>
+            <span className="text-sm font-semibold text-main">{code}</span>
           </div>
         );
       }
@@ -983,7 +983,7 @@ export default function Accreditations() {
       sortable: true,
       className: "w-[120px]",
       render: (_, row) => (
-        <span className="text-sm text-slate-400 font-medium">{formatDate(row.createdAt)}</span>
+        <span className="text-sm text-muted font-medium">{formatDate(row.createdAt)}</span>
       )
     },
     {
@@ -1071,7 +1071,7 @@ export default function Accreditations() {
             title="Download All Documents"
             disabled={(!row.photoUrl && !row.idDocumentUrl) || imageDownloadingId === row.id}
           >
-            <Files className={`w-3.5 h-3.5 ${(row.photoUrl || row.idDocumentUrl) ? "text-orange-300" : "text-slate-600"}`} />
+            <Files className={`w-3.5 h-3.5 ${(row.photoUrl || row.idDocumentUrl) ? "text-orange-300" : "text-muted"}`} />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); setEmailModal({ open: true, accreditation: row }); }}
@@ -1105,8 +1105,8 @@ export default function Accreditations() {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white">Accreditations</h1>
-          <p className="text-lg text-slate-400 mt-1 font-extralight">Manage participant accreditations</p>
+          <h1 className="text-3xl font-bold text-main">Accreditations</h1>
+          <p className="text-lg text-muted mt-1 font-extralight">Manage participant accreditations</p>
         </div>
         <Button 
           variant="primary" 
@@ -1189,7 +1189,7 @@ export default function Accreditations() {
                 variant="ghost"
                 icon={XCircle}
                 onClick={resetFilters}
-                className="h-[46px] text-slate-400 hover:text-red-400 border-slate-700 hover:border-red-500/30"
+                className="h-[46px] text-muted hover:text-red-400 border-border hover:border-red-500/30"
                 title="Clear All Filters"
               >
                 Clear
@@ -1214,7 +1214,7 @@ export default function Accreditations() {
           {loading ? (
             <div className="flex flex-col items-center justify-center py-16">
               <Loader2 className="w-12 h-12 text-primary-500 animate-spin mb-4" />
-              <p className="text-lg text-slate-400">Loading accreditations...</p>
+              <p className="text-lg text-muted">Loading accreditations...</p>
             </div>
           ) : !selectedEvent ? (
             <EmptyState
@@ -1248,7 +1248,7 @@ export default function Accreditations() {
                     variant="secondary"
                     onClick={handleLoadMore}
                     loading={isLoadingMore}
-                    className="min-w-[240px] py-3 bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-300 font-bold tracking-widest uppercase shadow-lg transition-all"
+                    className="min-w-[240px] py-3 bg-base-alt border-border hover:bg-base-alt text-main font-bold tracking-widest uppercase shadow-lg transition-all"
                   >
                     {isLoadingMore ? "Loading..." : `Load More (${accreditations.length} of ${totalAccreditations})`}
                   </Button>
@@ -1544,42 +1544,42 @@ export default function Accreditations() {
               <div className="flex flex-col items-center justify-center py-12 animate-pulse space-y-6">
                 <div className="flex gap-8 justify-center flex-wrap">
                   {/* Front Card Skeleton */}
-                  <div className="w-[300px] h-[450px] bg-slate-800/80 rounded-2xl border border-white/5 shadow-2xl overflow-hidden relative">
-                    <div className="absolute top-0 w-full h-32 bg-slate-700/50"></div>
-                    <div className="absolute top-20 left-1/2 -translate-x-1/2 w-32 h-32 rounded-full bg-slate-600/50 border-4 border-slate-800"></div>
+                  <div className="w-[300px] h-[450px] bg-base-alt rounded-2xl border border-white/5 shadow-2xl overflow-hidden relative">
+                    <div className="absolute top-0 w-full h-32 bg-base-alt"></div>
+                    <div className="absolute top-20 left-1/2 -translate-x-1/2 w-32 h-32 rounded-full bg-slate-600/50 border-4 border-border"></div>
                     <div className="mt-56 flex flex-col items-center space-y-3 px-6">
-                      <div className="h-6 w-48 bg-slate-700/50 rounded-md"></div>
-                      <div className="h-4 w-32 bg-slate-700/50 rounded-md"></div>
+                      <div className="h-6 w-48 bg-base-alt rounded-md"></div>
+                      <div className="h-4 w-32 bg-base-alt rounded-md"></div>
                     </div>
                     <div className="absolute bottom-6 w-full px-6 flex justify-between items-end">
-                      <div className="w-20 h-20 bg-slate-700/50 rounded-lg"></div>
+                      <div className="w-20 h-20 bg-base-alt rounded-lg"></div>
                       <div className="flex flex-col space-y-2">
-                        <div className="w-24 h-4 bg-slate-700/50 rounded-md"></div>
-                        <div className="w-16 h-4 bg-slate-700/50 rounded-md"></div>
+                        <div className="w-24 h-4 bg-base-alt rounded-md"></div>
+                        <div className="w-16 h-4 bg-base-alt rounded-md"></div>
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Back Card Skeleton */}
-                  <div className="w-[300px] h-[450px] bg-slate-800/80 rounded-2xl border border-white/5 shadow-2xl p-6 flex flex-col justify-between">
+                  <div className="w-[300px] h-[450px] bg-base-alt rounded-2xl border border-white/5 shadow-2xl p-6 flex flex-col justify-between">
                     <div className="space-y-4">
-                      <div className="h-12 w-full bg-slate-700/50 rounded-lg"></div>
-                      <div className="h-4 w-5/6 bg-slate-700/50 rounded-md"></div>
-                      <div className="h-4 w-4/6 bg-slate-700/50 rounded-md"></div>
-                      <div className="h-4 w-full bg-slate-700/50 rounded-md"></div>
+                      <div className="h-12 w-full bg-base-alt rounded-lg"></div>
+                      <div className="h-4 w-5/6 bg-base-alt rounded-md"></div>
+                      <div className="h-4 w-4/6 bg-base-alt rounded-md"></div>
+                      <div className="h-4 w-full bg-base-alt rounded-md"></div>
                     </div>
-                    <div className="h-16 w-full bg-slate-700/50 rounded-lg"></div>
+                    <div className="h-16 w-full bg-base-alt rounded-lg"></div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 text-slate-400">
+                <div className="flex items-center gap-3 text-muted">
                   <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div>
                   <p className="text-sm font-bold uppercase tracking-widest">Generating High-Res Preview...</p>
                 </div>
               </div>
             ) : (
               <>
-                <div className="bg-slate-800/50 rounded-xl p-6 border border-primary-800/30">
-                  <h4 className="text-lg font-semibold text-white mb-4 text-center">Card Preview (Front and Back)</h4>
+                <div className="bg-base-alt rounded-xl p-6 border border-primary-800/30">
+                  <h4 className="text-lg font-semibold text-main mb-4 text-center">Card Preview (Front and Back)</h4>
                   {events.find(e => e.id === pdfPreviewModal.accreditation.eventId)?.outputType === OUTPUT_TYPES.MEMBERSHIP_CARD ? (
                     <MembershipCardPreview
                       accreditation={pdfPreviewModal.accreditation}
@@ -1603,15 +1603,15 @@ export default function Accreditations() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-800/30 rounded-lg p-4 border border-primary-800/30">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-base-alt rounded-lg p-4 border border-primary-800/30">
                   <div>
-                    <label className="block text-lg font-medium text-slate-300 mb-2">
+                    <label className="block text-lg font-medium text-main mb-2">
                       PDF Size
                     </label>
                     <select
                       value={selectedPdfSize}
                       onChange={(e) => setSelectedPdfSize(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-slate-800 border border-primary-700/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-lg"
+                      className="w-full px-4 py-2.5 bg-base-alt border border-primary-700/50 rounded-lg text-main focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-lg"
                     >
                       {Object.entries(PDF_SIZES).map(([key, size]) => (
                         <option key={key} value={key}>{size.label}</option>
@@ -1619,13 +1619,13 @@ export default function Accreditations() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-lg font-medium text-slate-300 mb-2">
+                    <label className="block text-lg font-medium text-main mb-2">
                       Image Size
                     </label>
                     <select
                       value={selectedImageSize}
                       onChange={(e) => setSelectedImageSize(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-slate-800 border border-primary-700/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-lg"
+                      className="w-full px-4 py-2.5 bg-base-alt border border-primary-700/50 rounded-lg text-main focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-lg"
                     >
                       {Object.entries(IMAGE_SIZES).map(([key, size]) => (
                         <option key={key} value={key}>{size.label}</option>

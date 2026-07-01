@@ -411,11 +411,11 @@ export default function AuditLogView({ event }) {
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Live Network Link</span>
+              <span className="text-[10px] font-bold text-muted uppercase tracking-widest">Live Network Link</span>
             </div>
             <div className="flex items-center gap-2">
               <Radio className="w-3.5 h-3.5 text-primary-500 animate-pulse" />
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{logs.length} Total Logs Detected</span>
+              <span className="text-[10px] font-bold text-muted uppercase tracking-widest">{logs.length} Total Logs Detected</span>
             </div>
           </div>
         </div>
@@ -423,7 +423,7 @@ export default function AuditLogView({ event }) {
           <div className="bg-gradient-to-br from-slate-900 to-black rounded-[31px] p-6 border border-white/5">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2.5 bg-primary-500/10 rounded-2xl border border-primary-500/20"><Activity className="w-5 h-5 text-primary-400" /></div>
-              <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${isSyncing ? 'bg-primary-500 text-white' : 'bg-slate-800 text-slate-400'}`}>
+              <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${isSyncing ? 'bg-primary-500 text-white' : 'bg-base-alt text-muted'}`}>
                 {isSyncing ? "Syncing..." : "Ready"}
               </div>
             </div>
@@ -438,7 +438,7 @@ export default function AuditLogView({ event }) {
                   />
                 ))}
               </div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Last System Update</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted">Last System Update</p>
               <p className="text-2xl font-mono font-black text-white tracking-tight tabular-nums">
                 {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
               </p>
@@ -456,7 +456,7 @@ export default function AuditLogView({ event }) {
               <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-800 mb-1">Main Gate Access</p>
               <div className="flex items-baseline gap-1.5 mb-1">
                 <div className="text-3xl font-black text-slate-900 tracking-tighter">{totalUniqueScanned}</div>
-                <span className="text-[10px] font-bold text-slate-500">/ {accreditations.length}</span>
+                <span className="text-[10px] font-bold text-muted">/ {accreditations.length}</span>
               </div>
             </div>
             <div className="mt-4 pt-4 border-t border-[#b5b4ad]/25">
@@ -487,7 +487,7 @@ export default function AuditLogView({ event }) {
           let barColorClass = 'bg-emerald-500';
           let barGlowClass = 'shadow-[0_0_8px_rgba(16,185,129,0.3)]';
           let textDimClass = 'text-slate-900';
-          let metricsDimClass = 'text-slate-500';
+          let metricsDimClass = 'text-muted';
           let pulseClass = 'animate-pulse';
           
           if (data.allocated === 0) {
@@ -513,7 +513,7 @@ export default function AuditLogView({ event }) {
             barColorClass = 'bg-slate-400/30';
             barGlowClass = '';
             textDimClass = 'text-slate-700';
-            metricsDimClass = 'text-slate-400';
+            metricsDimClass = 'text-muted';
             pulseClass = ''; // Standby status indicator doesn't pulse heavily
           } else if (occupancyPct >= 90) {
             // Critical Overload Alert Mode
@@ -591,22 +591,22 @@ export default function AuditLogView({ event }) {
         })}
       </div>
       <div className="bg-black/60 backdrop-blur-3xl border border-white/10 p-3 rounded-[32px] flex flex-col xl:flex-row gap-4 items-center shadow-2xl">
-        <div className="flex bg-slate-900/50 rounded-2xl p-1.5 gap-1.5 border border-white/5 shadow-inner">
-          <button onClick={() => setViewMode("ledger")} className={`flex items-center gap-3 px-8 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-500 ${viewMode === 'ledger' ? 'bg-primary-600 text-white shadow-[0_0_30px_rgba(37,99,235,0.4)] scale-100' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5 scale-95'}`}>
+        <div className="flex bg-base rounded-2xl p-1.5 gap-1.5 border border-white/5 shadow-inner">
+          <button onClick={() => setViewMode("ledger")} className={`flex items-center gap-3 px-8 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-500 ${viewMode === 'ledger' ? 'bg-primary-600 text-white shadow-[0_0_30px_rgba(37,99,235,0.4)] scale-100' : 'text-muted hover:text-main hover:bg-white/5 scale-95'}`}>
             <Radio className={`w-4 h-4 ${viewMode === 'ledger' ? 'animate-pulse' : ''}`} /> Live Feed
           </button>
-          <button onClick={() => setViewMode("presence")} className={`flex items-center gap-3 px-8 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-500 ${viewMode === 'presence' ? 'bg-emerald-600 text-white shadow-[0_0_30px_rgba(5,150,105,0.4)] scale-100' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5 scale-95'}`}>
+          <button onClick={() => setViewMode("presence")} className={`flex items-center gap-3 px-8 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-500 ${viewMode === 'presence' ? 'bg-emerald-600 text-white shadow-[0_0_30px_rgba(5,150,105,0.4)] scale-100' : 'text-muted hover:text-main hover:bg-white/5 scale-95'}`}>
             <Layout className="w-4 h-4" /> Presence
           </button>
         </div>
         <div className="flex-1 flex flex-col md:flex-row gap-4 w-full">
           <div className="relative flex-1 group">
-            <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-primary-400 transition-colors" />
-            <input type="text" placeholder="QUICK SEARCH SUBJECT..." className="bg-black/20 border border-white/10 rounded-2xl pl-14 pr-6 py-4 text-xs font-black uppercase tracking-widest w-full text-white placeholder:text-slate-700 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 outline-none transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted group-focus-within:text-primary-400 transition-colors" />
+            <input type="text" placeholder="QUICK SEARCH SUBJECT..." className="bg-black/20 border border-white/10 rounded-2xl pl-14 pr-6 py-4 text-xs font-black uppercase tracking-widest w-full text-main placeholder:text-slate-700 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 outline-none transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
           <div className="relative min-w-[200px] group">
             <Clock className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-primary-500/40 group-focus-within:text-primary-400 transition-colors" />
-            <select className="bg-black/20 border border-white/10 text-slate-400 rounded-2xl pl-14 pr-12 py-4 text-[10px] font-black uppercase tracking-[0.2em] w-full focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 outline-none appearance-none cursor-pointer hover:bg-black/40 transition-all" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}>
+            <select className="bg-black/20 border border-white/10 text-muted rounded-2xl pl-14 pr-12 py-4 text-[10px] font-black uppercase tracking-[0.2em] w-full focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 outline-none appearance-none cursor-pointer hover:bg-black/40 transition-all" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}>
               <option value="all">ALL TIME</option>
               {availableDates.map(d => (
                 <option key={d} value={d}>{new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}</option>
@@ -616,7 +616,7 @@ export default function AuditLogView({ event }) {
           </div>
           <div className="relative min-w-[200px] group">
             <User className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-primary-500/40 group-focus-within:text-primary-400 transition-colors" />
-            <select className="bg-black/20 border border-white/10 text-slate-400 rounded-2xl pl-14 pr-12 py-4 text-[10px] font-black uppercase tracking-[0.2em] w-full focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 outline-none appearance-none cursor-pointer hover:bg-black/40 transition-all" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
+            <select className="bg-black/20 border border-white/10 text-muted rounded-2xl pl-14 pr-12 py-4 text-[10px] font-black uppercase tracking-[0.2em] w-full focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 outline-none appearance-none cursor-pointer hover:bg-black/40 transition-all" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
               <option value="all">ALL CATEGORIES</option>
               {uniqueCategories.map(c => (<option key={c} value={c}>{c.toUpperCase()}</option>))}
             </select>
@@ -624,7 +624,7 @@ export default function AuditLogView({ event }) {
           </div>
           <div className="relative min-w-[280px] group">
             <Filter className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500/40 group-focus-within:text-emerald-400 transition-colors" />
-            <select className="bg-black/20 border border-white/10 text-slate-400 rounded-2xl pl-14 pr-12 py-4 text-[10px] font-black uppercase tracking-[0.2em] w-full focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50 outline-none appearance-none cursor-pointer hover:bg-black/40 transition-all" value={selectedArea} onChange={(e) => setSelectedArea(e.target.value)}>
+            <select className="bg-black/20 border border-white/10 text-muted rounded-2xl pl-14 pr-12 py-4 text-[10px] font-black uppercase tracking-[0.2em] w-full focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50 outline-none appearance-none cursor-pointer hover:bg-black/40 transition-all" value={selectedArea} onChange={(e) => setSelectedArea(e.target.value)}>
               <option value="all">ALL SECURITY ZONES</option>
               {Object.keys(areaSummary).sort().map(a => (<option key={a} value={a}>{a.toUpperCase()}</option>))}
             </select>

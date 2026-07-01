@@ -999,8 +999,8 @@ export default function ScannerPage() {
           </div>
           <div>
             <h1 className="text-white font-black uppercase tracking-[0.2em] text-sm">
-              {config.mode === 'attendance' ? 'Athletes Entry Gate' :
-                config.mode === 'spectator' ? 'Spectators Entry' :
+              {config.mode === 'attendance' ? 'Athlete Entry Gate' :
+                config.mode === 'spectator' ? 'Spectator Entry' :
                   config.mode === 'spectator_exit' ? 'Spectator Exit' :
                     config.mode === 'verify' ? 'Verify Accreditation' :
                       'Athlete Hub'}
@@ -1164,7 +1164,7 @@ export default function ScannerPage() {
                     repeat: Infinity,
                     ease: "easeInOut"
                   }}
-                  className="text-white font-black uppercase tracking-[0.3em] text-xl drop-shadow-2xl"
+                  className="text-white font-black uppercase tracking-widest text-xl drop-shadow-2xl"
                 >
                   Scan QR Code Below
                 </motion.h2>

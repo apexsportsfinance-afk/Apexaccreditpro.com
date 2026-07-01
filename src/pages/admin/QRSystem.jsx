@@ -94,7 +94,7 @@ export default function QRSystem() {
       ) : (
         <Card>
           <CardContent className="py-12 text-center">
-            <QrCode className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+            <QrCode className="w-12 h-12 text-muted mx-auto mb-3" />
             <p className="text-lg text-muted font-extralight">Select an event to manage QR settings</p>
           </CardContent>
         </Card>

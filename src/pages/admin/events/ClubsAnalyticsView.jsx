@@ -299,34 +299,34 @@ export default function ClubsAnalyticsView({ event }) {
 
   return (
     <div className="space-y-6">
-      <Card className="border-slate-800 bg-slate-900/40 backdrop-blur-xl">
+      <Card className="border-border bg-base backdrop-blur-xl">
         <CardContent className="p-0 overflow-hidden">
-          <div className="p-8 border-b border-slate-800/50 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="p-8 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
               <h3 className="text-2xl font-bold text-main mb-2 tracking-tight">Club Analytics</h3>
-              <p className="text-slate-400 font-light max-w-md">Real-time tracking of athlete registrations and approved accreditations per club.</p>
+              <p className="text-muted font-light max-w-md">Real-time tracking of athlete registrations and approved accreditations per club.</p>
             </div>
             <div className="flex flex-wrap items-center gap-4">
               {uploadedFile && (
-                <div className="flex items-center gap-3 px-4 py-2 bg-slate-950/60 border border-slate-800 rounded-xl">
+                <div className="flex items-center gap-3 px-4 py-2 bg-base border border-border rounded-xl">
                   <div className="flex flex-col">
-                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Active List</span>
-                    <span className="text-xs text-white font-mono truncate max-w-[150px]">{uploadedFile.name}</span>
+                    <span className="text-[10px] text-muted font-bold uppercase tracking-wider">Active List</span>
+                    <span className="text-xs text-main font-mono truncate max-w-[150px]">{uploadedFile.name}</span>
                   </div>
-                  <div className="h-6 w-px bg-slate-800 mx-1" />
+                  <div className="h-6 w-px bg-base-alt mx-1" />
                   <div className="flex gap-1">
-                    <button onClick={() => document.getElementById('club-import').click()} className="p-1.5 text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-all" title="Change File">
+                    <button onClick={() => document.getElementById('club-import').click()} className="p-1.5 text-muted hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-all" title="Change File">
                       <Upload className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={clearClubs} className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all" title="Delete File">
+                    <button onClick={clearClubs} className="p-1.5 text-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all" title="Delete File">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
               )}
-              
+
               <div className="relative group">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted group-focus-within:text-cyan-400 transition-colors" />
                 <input 
                   type="text" 
                   placeholder="Search club..." 
@@ -352,22 +352,22 @@ export default function ClubsAnalyticsView({ event }) {
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="bg-slate-900/60 border-b border-slate-800">
+                <tr className="bg-base border-b border-border">
                   <th className="p-5 w-12 text-center">
                     <div className="flex items-center justify-center">
-                      <input 
-                        type="checkbox" 
-                        className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-primary-500 focus:ring-primary-500/50 focus:ring-offset-slate-950 transition-colors"
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded border-border bg-base text-primary-500 focus:ring-primary-500/50 focus:ring-offset-slate-950 transition-colors"
                         checked={analytics.length > 0 && selectedRows.size === analytics.length}
                         onChange={handleSelectAll}
                       />
                     </div>
                   </th>
-                  <th className="p-5 text-xs text-slate-400 font-semibold tracking-wide">SR#</th>
-                  <th className="p-5 text-xs text-slate-400 font-semibold tracking-wide">Club / Academy</th>
-                  <th className="p-5 text-xs text-slate-400 font-semibold tracking-wide text-center">Registered Athletes</th>
-                  <th className="p-5 text-xs text-slate-400 font-semibold tracking-wide text-center">Accreditations Issued</th>
-                  <th className="p-5 text-xs text-slate-400 font-semibold tracking-wide text-center">Live Attendance</th>
+                  <th className="p-5 text-xs text-muted font-semibold tracking-wide">SR#</th>
+                  <th className="p-5 text-xs text-muted font-semibold tracking-wide">Club / Academy</th>
+                  <th className="p-5 text-xs text-muted font-semibold tracking-wide text-center">Registered Athletes</th>
+                  <th className="p-5 text-xs text-muted font-semibold tracking-wide text-center">Accreditations Issued</th>
+                  <th className="p-5 text-xs text-muted font-semibold tracking-wide text-center">Live Attendance</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/30">
@@ -375,19 +375,19 @@ export default function ClubsAnalyticsView({ event }) {
                   <tr>
                     <td colSpan="6" className="p-20 text-center">
                       <div className="flex flex-col items-center gap-4 opacity-30">
-                        <Users className="w-16 h-16 text-slate-500" />
-                        <p className="text-xl font-light text-slate-500 italic">No clubs registered for this event yet.</p>
+                        <Users className="w-16 h-16 text-muted" />
+                        <p className="text-xl font-light text-muted italic">No clubs registered for this event yet.</p>
                       </div>
                     </td>
                   </tr>
                 ) : (
                   analytics.map((row) => (
-                    <tr key={row.sr} className={`group border-b border-slate-800/30 transition-all ${selectedRows.has(row.full) ? 'bg-primary-500/5' : 'hover:bg-white/[0.02]'}`}>
+                    <tr key={row.sr} className={`group border-b border-border transition-all ${selectedRows.has(row.full) ? 'bg-primary-500/5' : 'hover:bg-white/[0.02]'}`}>
                       <td className="p-5 text-center">
                         <div className="flex items-center justify-center">
-                          <input 
-                            type="checkbox" 
-                            className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-primary-500 focus:ring-primary-500/50 focus:ring-offset-slate-950 transition-colors cursor-pointer"
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4 rounded border-border bg-base text-primary-500 focus:ring-primary-500/50 focus:ring-offset-slate-950 transition-colors cursor-pointer"
                             checked={selectedRows.has(row.full)}
                             onChange={(e) => handleSelectRow(row.full, e.target.checked)}
                           />
@@ -418,7 +418,7 @@ export default function ClubsAnalyticsView({ event }) {
                         <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-black tracking-widest ${
                           row.approved > 0 
                             ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
-                            : "bg-slate-800/30 text-slate-600 border border-slate-800"
+                            : "bg-base-alt text-muted border border-border"
                         }`}>
                           {row.approved} APPROVED
                         </span>

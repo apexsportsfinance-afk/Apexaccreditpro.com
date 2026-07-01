@@ -1221,7 +1221,7 @@ export default function VerifyAccreditation() {
                 <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/5">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-cyan-500/10 rounded-xl"><Bell className="w-5 h-5 text-cyan-400" /></div>
-                    <h2 className="text-xl font-black text-white uppercase tracking-tighter">Event Messages</h2>
+                    <h2 className="text-lg font-black text-white uppercase tracking-tight">Event Messages</h2>
                   </div>
                   <button onClick={() => setShowMessagesModal(false)} className="p-2 hover:bg-white/5 rounded-full transition-colors">
                     <X className="w-6 h-6 text-white/40" />
@@ -1783,7 +1783,7 @@ export default function VerifyAccreditation() {
                               {selectedSportId && (
                                 <>
                                   {/* Status / League / Date filters, scoped to the chosen sport */}
-                                  <div className="grid grid-cols-3 gap-2 mb-4">
+                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
                                     <select
                                       value={selectedStatus}
                                       onChange={(e) => setSelectedStatus(e.target.value)}
@@ -2043,7 +2043,7 @@ export default function VerifyAccreditation() {
               <div className="px-6 py-6 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-20">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center shadow-lg"><Trophy className="w-6 h-6 text-white" /></div>
-                  <div><h3 className="text-lg font-black text-slate-900 uppercase tracking-tighter">Live Results Center</h3><p className="text-[9px] text-amber-600 font-black uppercase tracking-widest leading-none">{data?.events?.name}</p></div>
+                  <div><h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Live Results Center</h3><p className="text-[9px] text-amber-600 font-black uppercase tracking-widest leading-none">{data?.events?.name}</p></div>
                 </div>
                 <button onClick={() => setShowMedalsModal(false)} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all"><X className="w-6 h-6 text-slate-400" /></button>
               </div>
