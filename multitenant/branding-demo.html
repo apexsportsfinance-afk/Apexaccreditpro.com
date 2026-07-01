@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Apex White-Label Demo</title>
+<style>
+  :root{
+    --brand:#0B5FFF; --brand-dark:#073db0; --ink:#0f172a; --muted:#64748b;
+    --bg:#f1f5f9; --card:#ffffff; --ring:#e2e8f0;
+  }
+  *{box-sizing:border-box;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  body{margin:0;background:var(--bg);color:var(--ink)}
+
+  /* org switcher bar */
+  .switcher{background:#0f172a;color:#fff;padding:10px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .switcher b{font-size:13px;opacity:.8;margin-right:4px}
+  .switcher button{border:0;border-radius:999px;padding:7px 14px;cursor:pointer;font-weight:600;font-size:13px;background:#1e293b;color:#cbd5e1}
+  .switcher button.active{background:#fff;color:#0f172a}
+
+  /* fake browser address bar */
+  .urlbar{background:#e2e8f0;padding:8px 16px;display:flex;align-items:center;gap:10px;font-size:14px;color:#334155}
+  .urlbar .dot{width:11px;height:11px;border-radius:50%;background:#cbd5e1}
+  .urlbar .addr{background:#fff;border-radius:8px;padding:6px 12px;flex:1;border:1px solid #cbd5e1;color:#0f172a}
+  .urlbar .lock{color:#16a34a;font-weight:700}
+
+  /* branded page */
+  header{background:var(--brand);color:#fff;padding:22px 24px;display:flex;align-items:center;gap:14px}
+  header .logo{width:46px;height:46px;border-radius:12px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px}
+  header .name{font-size:20px;font-weight:800;line-height:1.1}
+  header .sub{font-size:12px;opacity:.85}
+
+  .wrap{max-width:680px;margin:26px auto;padding:0 18px}
+  .card{background:var(--card);border:1px solid var(--ring);border-radius:16px;padding:26px;box-shadow:0 8px 30px rgba(2,6,23,.06)}
+  h1{margin:0 0 4px;font-size:22px}
+  .lead{color:var(--muted);margin:0 0 22px;font-size:14px}
+  label{display:block;font-size:13px;font-weight:600;margin:14px 0 6px}
+  input,select{width:100%;padding:11px 12px;border:1px solid var(--ring);border-radius:10px;font-size:14px}
+  input:focus,select:focus{outline:2px solid var(--brand);border-color:var(--brand)}
+  .btn{margin-top:20px;width:100%;background:var(--brand);color:#fff;border:0;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer}
+  .btn:hover{background:var(--brand-dark)}
+  .pill{display:inline-block;background:color-mix(in srgb,var(--brand) 12%,#fff);color:var(--brand);font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;margin-bottom:14px}
+  footer{max-width:680px;margin:18px auto 40px;padding:0 18px;text-align:center;color:var(--muted);font-size:12px}
+  .note{max-width:680px;margin:0 auto 24px;padding:14px 18px;color:var(--muted);font-size:13px;line-height:1.55}
+  .note b{color:var(--ink)}
+</style>
+</head>
+<body>
+
+<div class="switcher">
+  <b>VIEW THE SAME SYSTEM AS:</b>
+  <button id="b-fc"  class="active" onclick="setOrg('fc')">🔵 Demo FC</button>
+  <button id="b-fed" onclick="setOrg('fed')">🟢 Demo Federation</button>
+  <button id="b-apex" onclick="setOrg('apex')">⚫ Apex (default)</button>
+</div>
+
+<div class="urlbar">
+  <span class="dot"></span>
+  <span class="addr"><span class="lock">🔒</span> <span id="url">demofc.apexsmart.com</span>/register</span>
+</div>
+
+<header>
+  <div class="logo" id="logo">FC</div>
+  <div>
+    <div class="name" id="orgname">Demo FC</div>
+    <div class="sub" id="orgtag">Official Event Registration</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="card">
+    <span class="pill" id="pill">DEMO FC CHAMPIONSHIP</span>
+    <h1>Event Registration</h1>
+    <p class="lead">Register your participants for the upcoming event. All fields are required.</p>
+    <label>Full name</label>
+    <input placeholder="e.g. Sara Ahmed" />
+    <label>Email</label>
+    <input placeholder="you@example.com" />
+    <label>Category</label>
+    <select><option>Under 14</option><option>Under 17</option><option>Senior</option></select>
+    <button class="btn" id="submit">Register for the event →</button>
+  </div>
+</div>
+
+<div class="note">
+  <b>What you're looking at:</b> this is <b>one platform</b>. Only the organisation's
+  branding (domain, logo, colour, name, event) changes — pulled from that org's record.
+  The participant feels they're on <b>their federation's own system</b>. Apex stays the
+  owner and controller in the background.
+</div>
+
+<footer id="poweredby">Powered by Apex · platform &amp; technical controller</footer>
+
+<script>
+  // In the REAL system, this object comes from each org's row in the database
+  // (organizations.logo_url / brand_primary / name / custom_domain).
+  const ORGS = {
+    fc:  { name:'Demo FC',         tag:'Official Event Registration', logo:'FC',
+           color:'#0B5FFF', dark:'#073db0', url:'demofc.apexsmart.com',
+           event:'DEMO FC CHAMPIONSHIP', powered:true },
+    fed: { name:'Demo Federation', tag:'National Championship Portal', logo:'DF',
+           color:'#16a34a', dark:'#0f7a37', url:'events.demofederation.com',
+           event:'DEMO FEDERATION CUP', powered:false /* premium: white-label removed */ },
+    apex:{ name:'Apex Sports',     tag:'Accreditation & Events', logo:'AX',
+           color:'#020617', dark:'#0f172a', url:'apexsmart.com',
+           event:'APEX EVENT', powered:false },
+  };
+  function setOrg(key){
+    const o = ORGS[key], r = document.documentElement.style;
+    r.setProperty('--brand', o.color); r.setProperty('--brand-dark', o.dark);
+    document.getElementById('logo').textContent = o.logo;
+    document.getElementById('orgname').textContent = o.name;
+    document.getElementById('orgtag').textContent = o.tag;
+    document.getElementById('url').textContent = o.url;
+    document.getElementById('pill').textContent = o.event;
+    document.getElementById('submit').textContent = 'Register for the '+o.name+' event →';
+    document.getElementById('poweredby').style.display = o.powered ? 'block' : 'none';
+    for (const k of ['fc','fed','apex'])
+      document.getElementById('b-'+k).classList.toggle('active', k===key);
+  }
+  setOrg('fc');
+</script>
+</body>
+</html>

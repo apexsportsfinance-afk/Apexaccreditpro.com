@@ -17,13 +17,30 @@ export default function AdminLayout() {
       } else if (profileLoaded) {
         // Protect routes based on module permissions
         // (wait for profileLoaded so we don't redirect away before
-        // allowedModules/team assignments have finished loading)
-        if (!canAccessModule(location.pathname)) {
+        // allowedModules/team assignments have finished loading).
+        // Mirror Sidebar's gating: platformOnly/superOnly nav items are role-gated
+        // on top of canAccessModule, which fails open for a client 'admin' on the
+        // platform-owner-only pages (Settings/Audit/Integrations/API docs). Without
+        // this, those pages are reachable by direct URL even though the nav hides them.
+        const canSeeNavItem = (item) => {
+          if (item.platformOnly && user?.role !== "super_admin") return false;
+          if (item.superOnly && !isSuperAdmin) return false;
+          return canAccessModule(item.to);
+        };
+        // Keep the original per-pathname canAccessModule check (preserves dynamic
+        // event sub-route matching); only ADD a role-based denial when the current
+        // path belongs to a restricted nav item the user isn't allowed to see.
+        const currentItem = navItems.find(
+          item => location.pathname === item.to || location.pathname.startsWith(item.to + "/")
+        );
+        const roleBlocked = currentItem && (
+          (currentItem.platformOnly && user?.role !== "super_admin") ||
+          (currentItem.superOnly && !isSuperAdmin)
+        );
+
+        if (roleBlocked || !canAccessModule(location.pathname)) {
           // APX-Fix: Find first authorized module instead of always defaulting to dashboard
-          const firstAllowed = navItems.find(item => {
-            if (item.superOnly && !isSuperAdmin) return false;
-            return canAccessModule(item.to);
-          });
+          const firstAllowed = navItems.find(canSeeNavItem);
 
           if (firstAllowed) {
             navigate(firstAllowed.to);

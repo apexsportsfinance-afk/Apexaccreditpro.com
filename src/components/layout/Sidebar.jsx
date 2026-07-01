@@ -46,11 +46,16 @@ export const navItems = [
   { to: "/admin/call-room", icon: MonitorPlay, label: "Call Room Display" },
   { to: "/admin/feedback", icon: MessageSquare, label: "Feedback" },
   { to: "/admin/organizations", icon: Building2, label: "Organizations", platformOnly: true },
-  { to: "/admin/partners", icon: Settings, label: "Integrations", superOnly: true },
-  { to: "/admin/api-docs", icon: Book, label: "API Documentation", superOnly: true },
+  // Platform-owner-only tools. Must be platformOnly (strict super_admin), NOT
+  // superOnly: a client login is role 'admin', which isSuperAdmin also covers,
+  // and the org-feature gate fails open for paths it doesn't model (these are
+  // deliberately excluded from Organizations' FEATURE_TREE) — so superOnly would
+  // leak them into client sidebars. Users stays superOnly: it's org-grantable.
+  { to: "/admin/partners", icon: Settings, label: "Integrations", platformOnly: true },
+  { to: "/admin/api-docs", icon: Book, label: "API Documentation", platformOnly: true },
   { to: "/admin/users", icon: Users, label: "Users", superOnly: true },
-  { to: "/admin/audit", icon: History, label: "Audit Log", superOnly: true },
-  { to: "/admin/settings", icon: Settings, label: "Settings", superOnly: true }
+  { to: "/admin/audit", icon: History, label: "Audit Log", platformOnly: true },
+  { to: "/admin/settings", icon: Settings, label: "Settings", platformOnly: true }
 ];
 
 const Sidebar = memo(function Sidebar() {

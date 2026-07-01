@@ -641,11 +641,11 @@ export default function AuditLogView({ event }) {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-white/[0.02] border-b border-white/10">
-                    <th className="px-10 py-8 text-[9px] font-black text-slate-500 uppercase tracking-[0.5em]">Time Unit</th>
-                    <th className="px-10 py-8 text-[9px] font-black text-slate-500 uppercase tracking-[0.5em]">Entity Profile</th>
-                    <th className="px-10 py-8 text-[9px] font-black text-slate-500 uppercase tracking-[0.5em]">Security Key</th>
-                    <th className="px-10 py-8 text-[9px] font-black text-slate-500 uppercase tracking-[0.5em] text-center">Status Op</th>
-                    <th className="px-10 py-8 text-[9px] font-black text-slate-500 uppercase tracking-[0.5em]">Deployment</th>
+                    <th className="px-10 py-8 text-[9px] font-black text-muted uppercase tracking-[0.5em]">Time Unit</th>
+                    <th className="px-10 py-8 text-[9px] font-black text-muted uppercase tracking-[0.5em]">Entity Profile</th>
+                    <th className="px-10 py-8 text-[9px] font-black text-muted uppercase tracking-[0.5em]">Security Key</th>
+                    <th className="px-10 py-8 text-[9px] font-black text-muted uppercase tracking-[0.5em] text-center">Status Op</th>
+                    <th className="px-10 py-8 text-[9px] font-black text-muted uppercase tracking-[0.5em]">Deployment</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -664,7 +664,7 @@ export default function AuditLogView({ event }) {
                       </motion.tr>
                     ) : filteredLogs.length === 0 ? (
                       <motion.tr initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                        <td colSpan="5" className="py-48 text-center text-slate-600 font-black uppercase tracking-widest text-[10px]">Zero Activity in Sector</td>
+                        <td colSpan="5" className="py-48 text-center text-muted font-black uppercase tracking-widest text-[10px]">Zero Activity in Sector</td>
                       </motion.tr>
                     ) : (
                       filteredLogs.map((log, idx) => (
@@ -672,7 +672,7 @@ export default function AuditLogView({ event }) {
                           <td className="px-10 py-7">
                             <div className="flex flex-col gap-1">
                               <span className="text-lg font-mono font-black text-white tracking-tighter tabular-nums">{new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</span>
-                              <span className="text-[9px] text-slate-600 font-black uppercase tracking-[0.2em]">{new Date(log.created_at).toLocaleDateString()}</span>
+                              <span className="text-[9px] text-muted font-black uppercase tracking-[0.2em]">{new Date(log.created_at).toLocaleDateString()}</span>
                             </div>
                           </td>
                           <td className="px-10 py-7">
@@ -707,8 +707,8 @@ export default function AuditLogView({ event }) {
                           </td>
                           <td className="px-10 py-7">
                             <div className="flex items-center gap-3">
-                              <div className="p-2 bg-white/5 rounded-lg"><MapPin className="w-3.5 h-3.5 text-slate-500" /></div>
-                              <span className="text-[11px] text-slate-400 font-black uppercase tracking-widest">{log.device_label || 'CENTRAL HUB'}</span>
+                              <div className="p-2 bg-white/5 rounded-lg"><MapPin className="w-3.5 h-3.5 text-muted" /></div>
+                              <span className="text-[11px] text-muted font-black uppercase tracking-widest">{log.device_label || 'CENTRAL HUB'}</span>
                             </div>
                           </td>
                         </motion.tr>
@@ -721,11 +721,11 @@ export default function AuditLogView({ event }) {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-white/[0.02] border-b border-white/10">
-                    <th className="px-10 py-8 text-[9px] font-black text-slate-500 uppercase tracking-[0.5em]">Subject Profile</th>
-                    <th className="px-10 py-8 text-[9px] font-black text-slate-500 uppercase tracking-[0.5em]">Zone Assignment</th>
-                    <th className="px-10 py-8 text-[9px] font-black text-slate-500 uppercase tracking-[0.5em]">Presence Status</th>
-                    <th className="px-10 py-8 text-[9px] font-black text-slate-500 uppercase tracking-[0.5em]">Last Ingress</th>
-                    <th className="px-10 py-8 text-[9px] font-black text-slate-500 uppercase tracking-[0.5em]">Last Egress</th>
+                    <th className="px-10 py-8 text-[9px] font-black text-muted uppercase tracking-[0.5em]">Subject Profile</th>
+                    <th className="px-10 py-8 text-[9px] font-black text-muted uppercase tracking-[0.5em]">Zone Assignment</th>
+                    <th className="px-10 py-8 text-[9px] font-black text-muted uppercase tracking-[0.5em]">Presence Status</th>
+                    <th className="px-10 py-8 text-[9px] font-black text-muted uppercase tracking-[0.5em]">Last Ingress</th>
+                    <th className="px-10 py-8 text-[9px] font-black text-muted uppercase tracking-[0.5em]">Last Egress</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -736,7 +736,7 @@ export default function AuditLogView({ event }) {
                       </motion.tr>
                     ) : filteredPresence.length === 0 ? (
                       <motion.tr initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                        <td colSpan="5" className="py-48 text-center text-slate-600 font-black tracking-widest uppercase text-[10px]">Zero Presence Tracked</td>
+                        <td colSpan="5" className="py-48 text-center text-muted font-black tracking-widest uppercase text-[10px]">Zero Presence Tracked</td>
                       </motion.tr>
                     ) : (
                       filteredPresence.map((p, idx) => (
@@ -744,19 +744,19 @@ export default function AuditLogView({ event }) {
                           <td className="px-10 py-7">
                             <div className="flex flex-col gap-1">
                               <p className="text-[13px] font-black text-white uppercase tracking-tight group-hover/row:text-primary-400 transition-colors">{p.athlete ? `${p.athlete.first_name} ${p.athlete.last_name}` : 'Unknown Subject'}</p>
-                              <p className="text-[10px] text-slate-600 font-black uppercase tracking-widest font-mono">
+                              <p className="text-[10px] text-muted font-black uppercase tracking-widest font-mono">
                                 {p.athlete?.badge_number || '---'} • {p.athlete?.role || 'External'} • {p.athlete?.club || 'No Club'} • {p.athlete?.nationality || 'N/A'}
                               </p>
                             </div>
                           </td>
-                          <td className="px-10 py-7"><span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{p.zone}</span></td>
+                          <td className="px-10 py-7"><span className="text-[11px] font-black text-muted uppercase tracking-widest">{p.zone}</span></td>
                           <td className="px-10 py-7">
-                            <div className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-[0.3em] inline-flex items-center gap-3 border transition-all ${p.status === 'Inside' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.2)]' : 'bg-slate-900 text-slate-600 border-white/5'}`}>
-                              <div className={`w-2 h-2 rounded-full ${p.status === 'Inside' ? 'bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,1)]' : 'bg-slate-700'}`} />
+                            <div className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-[0.3em] inline-flex items-center gap-3 border transition-all ${p.status === 'Inside' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.2)]' : 'bg-base text-muted border-white/5'}`}>
+                              <div className={`w-2 h-2 rounded-full ${p.status === 'Inside' ? 'bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,1)]' : 'bg-base-alt'}`} />
                               {p.status}
                             </div>
                           </td>
-                          <td className="px-10 py-7"><p className="text-lg font-mono font-black text-slate-300 tabular-nums tracking-tighter">{p.lastIn ? new Date(p.lastIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '---'}</p></td>
+                          <td className="px-10 py-7"><p className="text-lg font-mono font-black text-main tabular-nums tracking-tighter">{p.lastIn ? new Date(p.lastIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '---'}</p></td>
                           <td className="px-10 py-7"><p className="text-lg font-mono font-black text-slate-700 tabular-nums tracking-tighter italic">{p.lastOut ? new Date(p.lastOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '---'}</p></td>
                         </motion.tr>
                       ))

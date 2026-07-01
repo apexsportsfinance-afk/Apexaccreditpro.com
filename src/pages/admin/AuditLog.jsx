@@ -425,7 +425,7 @@ function TabButton({ active, onClick, label, icon: Icon }) {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${active ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-900/20' : 'text-slate-500 hover:text-slate-300'
+      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${active ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-900/20' : 'text-muted hover:text-main'
         }`}
     >
       <Icon className="w-3 h-3" />
@@ -443,7 +443,7 @@ function SystemLogRow({ log, index }) {
       className="p-5 hover:bg-white/[0.02] transition-colors group"
     >
       <div className="flex items-start gap-4">
-        <div className="p-2.5 rounded-xl bg-slate-800 border border-slate-700/60 flex-shrink-0 mt-0.5">
+        <div className="p-2.5 rounded-xl bg-base-alt border border-border flex-shrink-0 mt-0.5">
           <Activity className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
         </div>
         <div className="flex-1 min-w-0">
@@ -451,18 +451,18 @@ function SystemLogRow({ log, index }) {
             {formatAction(log.action)}
           </span>
           <div className="flex items-center gap-4 mt-2.5">
-            <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase">
+            <span className="flex items-center gap-1.5 text-[10px] font-bold text-muted uppercase">
               <User className="w-3 h-3 text-cyan-500/60" />
               {log.userName || "SEC_SYSTEM"}
             </span>
-            <span className="flex items-center gap-1.5 text-[10px] font-mono text-slate-500">
+            <span className="flex items-center gap-1.5 text-[10px] font-mono text-muted">
               <Clock className="w-3 h-3" />
               {formatDate(log.timestamp, "MMM dd, yyyy HH:mm")}
             </span>
           </div>
           {log.details && Object.keys(log.details).length > 0 && (
             <div className="mt-3 p-3 rounded-xl bg-black/20 border border-white/5">
-              <p className="text-[10px] font-mono text-slate-500 line-clamp-1">
+              <p className="text-[10px] font-mono text-muted line-clamp-1">
                 {Object.entries(log.details).map(([k, v]) => `${k}: ${v}`).join(" | ")}
               </p>
             </div>

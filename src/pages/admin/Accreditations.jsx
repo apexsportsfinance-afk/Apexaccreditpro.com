@@ -997,7 +997,7 @@ export default function Accreditations() {
             className="p-1 rounded-lg hover:bg-primary-800/30 transition-colors"
             title="View Details"
           >
-            <Eye className="w-3.5 h-3.5 text-white" />
+            <Eye className="w-3.5 h-3.5 text-primary-500" />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); handleOpenEdit(row); }}

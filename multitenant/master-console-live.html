@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Apex Master Console (Live)</title>
+<style>
+  :root{--bg:#0b1220;--card:#121a2b;--line:#223049;--ink:#e8eefb;--mut:#8aa0c4;--pri:#3b82f6;--ok:#16a34a;--bad:#ef4444}
+  *{box-sizing:border-box;font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
+  body{margin:0;background:var(--bg);color:var(--ink)}
+  header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
+  h1{font-size:18px;margin:0}.sub{color:var(--mut);font-size:12px}
+  .wrap{max-width:1100px;margin:0 auto;padding:20px}
+  .row{display:flex;gap:18px;flex-wrap:wrap}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .col{flex:1;min-width:320px}
+  label{display:block;font-size:12px;color:var(--mut);margin:10px 0 4px}
+  input,select{width:100%;padding:9px 10px;background:#0e1626;border:1px solid var(--line);border-radius:8px;color:var(--ink);font-size:14px}
+  input[type=color]{padding:2px;height:38px}
+  button{cursor:pointer;border:0;border-radius:8px;padding:9px 14px;font-size:14px;background:var(--pri);color:#fff}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
+  button.danger{background:var(--bad)}
+  .orgcard{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;cursor:pointer;background:#0e1626}
+  .orgcard:hover{border-color:var(--pri)}
+  .pill{font-size:11px;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mut)}
+  .feat{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin-top:6px}
+  .feat label{display:flex;align-items:center;gap:8px;margin:0;color:var(--ink);font-size:13px}
+  .feat input{width:auto}
+  .msg{padding:10px 12px;border-radius:8px;margin:10px 0;font-size:13px;display:none}
+  .msg.ok{background:rgba(22,163,74,.15);border:1px solid var(--ok);display:block}
+  .msg.err{background:rgba(239,68,68,.15);border:1px solid var(--bad);display:block}
+  .hide{display:none}
+  .logo{width:54px;height:54px;border-radius:10px;object-fit:cover;border:1px solid var(--line);background:#0e1626}
+  small.note{color:var(--mut);font-size:11px}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Apex Master Console <span class="pill">LIVE</span></h1><div class="sub">Create &amp; brand organisations · packages · features · link client logins</div></div>
+  <div id="who" class="sub"></div>
+</header>
+
+<div class="wrap">
+  <div id="gMsg" class="msg"></div>
+
+  <!-- LOGIN -->
+  <div id="login" class="card col hide" style="max-width:420px;margin:40px auto">
+    <h3 style="margin-top:0">Sign in (super-admin)</h3>
+    <label>Email</label><input id="li_email" type="email" autocomplete="username">
+    <label>Password</label><input id="li_pw" type="password" autocomplete="current-password">
+    <div style="margin-top:14px"><button id="li_btn">Sign in</button></div>
+    <small class="note">Only a platform super-admin can use this console. All actions are checked on the server.</small>
+  </div>
+
+  <!-- SETUP (anon key once) -->
+  <div id="setup" class="card col hide" style="max-width:520px;margin:40px auto">
+    <h3 style="margin-top:0">One-time setup</h3>
+    <label>Supabase URL</label><input id="cfg_url">
+    <label>Anon / publishable key (from your .env — public-safe)</label><input id="cfg_key" placeholder="sb_publishable_... or eyJ...">
+    <div style="margin-top:14px"><button id="cfg_btn">Save &amp; continue</button></div>
+  </div>
+
+  <!-- CONSOLE -->
+  <div id="app" class="hide">
+    <div class="row">
+      <div class="col card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h3 style="margin:0">Organisations</h3>
+          <button id="newBtn">+ New organisation</button>
+        </div>
+        <div id="orgList" style="margin-top:12px"></div>
+      </div>
+
+      <div class="col card">
+        <h3 id="formTitle" style="margin-top:0">New organisation</h3>
+        <div id="fMsg" class="msg"></div>
+        <input type="hidden" id="f_id">
+        <div class="row">
+          <div class="col" style="min-width:0">
+            <label>Display name *</label><input id="f_name">
+            <label>Slug * (unique, no spaces)</label><input id="f_slug" placeholder="uaeaquatics">
+            <label>Custom domain (the hostname they use)</label><input id="f_domain" placeholder="registration.uaeaquatics.ae">
+            <label>Tagline</label><input id="f_tagline" placeholder="Official Accreditation">
+          </div>
+          <div class="col" style="min-width:0">
+            <label>Package</label><select id="f_plan"></select>
+            <div class="row">
+              <div class="col" style="min-width:0"><label>Primary colour</label><input id="f_primary" type="color" value="#0a3d62"></div>
+              <div class="col" style="min-width:0"><label>Dark colour</label><input id="f_dark" type="color" value="#06243b"></div>
+            </div>
+            <label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input id="f_hide" type="checkbox" style="width:auto"> Hide "Powered by Apex"</label>
+            <label>Logo</label>
+            <div style="display:flex;gap:10px;align-items:center">
+              <img id="f_logo_prev" class="logo" alt="">
+              <input id="f_logo_file" type="file" accept="image/*" style="border:0;padding:0">
+            </div>
+            <small class="note">Stored inline (keep under ~300&nbsp;KB). Leave empty to use the name monogram.</small>
+          </div>
+        </div>
+
+        <label>Features for this organisation</label>
+        <div id="feat" class="feat"></div>
+
+        <div style="margin-top:16px;display:flex;gap:10px">
+          <button id="saveBtn">Save</button>
+          <button id="delBtn" class="danger hide">Delete</button>
+          <button id="clearBtn" class="ghost">Clear / new</button>
+        </div>
+
+        <hr style="border-color:var(--line);margin:18px 0">
+        <h3 style="margin:0 0 4px">Link a client login to this org</h3>
+        <small class="note">Create their user first in Supabase → Authentication → Add user, then link by email.</small>
+        <div class="row">
+          <div class="col" style="min-width:0"><label>User email</label><input id="lk_email" placeholder="admin@uaeaquatics.ae"></div>
+          <div class="col" style="min-width:0"><label>App role</label>
+            <select id="lk_role"><option value="admin">admin (full self-service)</option><option value="event_admin">event_admin</option><option value="viewer">viewer</option></select>
+          </div>
+        </div>
+        <div style="margin-top:12px"><button id="lkBtn">Link user to this org</button></div>
+      </div>
+    </div>
+    <div style="margin-top:16px"><button id="outBtn" class="ghost">Sign out</button></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const DEFAULT_URL = "https://dixelomafeobabahqeqg.supabase.co";
+const PLANS = ['basic','standard','premium','full','enterprise'];
+const FEATURES = [
+  ['registration_forms','Registration forms'],['custom_form_builder','Custom form builder'],
+  ['qr_accreditation','QR accreditation'],['broadcast_messages','Broadcast messages'],
+  ['notifications','Personal notifications'],['booking_forms','Booking forms'],
+  ['document_approval','Document upload & approval'],['reports_exports','Reports & exports'],
+  ['gallery','Gallery'],['birthday_cards','Birthday cards'],
+  ['heatsheet','Heat sheet / profiles'],['scanner_logs','Check-in & scanner logs'],
+  ['finance_invoice','Finance / invoices'],['admin_dashboards','Admin dashboards'],
+];
+const $ = id => document.getElementById(id);
+const show = (id,on)=>$(id).classList.toggle('hide',!on);
+function gmsg(t,ok){const e=$('gMsg');e.className='msg '+(ok?'ok':'err');e.textContent=t;}
+function fmsg(t,ok){const e=$('fMsg');e.className='msg '+(ok?'ok':'err');e.textContent=t;}
+
+let sb=null;
+
+// build static UI bits
+$('f_plan').innerHTML = PLANS.map(p=>`<option>${p}</option>`).join('');
+$('feat').innerHTML = FEATURES.map(([k,l])=>`<label><input type="checkbox" data-f="${k}"> ${l}</label>`).join('');
+
+// ---- config / boot ----
+function boot(){
+  const url = localStorage.getItem('mc_url') || DEFAULT_URL;
+  const key = localStorage.getItem('mc_key');
+  if(!key){ $('cfg_url').value = url; show('setup',true); return; }
+  sb = supabase.createClient(url, key);
+  sb.auth.getSession().then(({data})=> data.session ? enterApp() : show('login',true));
+}
+$('cfg_btn').onclick = ()=>{
+  const url=$('cfg_url').value.trim(), key=$('cfg_key').value.trim();
+  if(!url||!key){ gmsg('Enter both URL and key',false); return; }
+  localStorage.setItem('mc_url',url); localStorage.setItem('mc_key',key);
+  show('setup',false); boot();
+};
+
+// ---- auth ----
+$('li_btn').onclick = async ()=>{
+  const email=$('li_email').value.trim(), password=$('li_pw').value;
+  const {error}=await sb.auth.signInWithPassword({email,password});
+  if(error){ gmsg(error.message,false); return; }
+  enterApp();
+};
+$('outBtn').onclick = async ()=>{ await sb.auth.signOut(); location.reload(); };
+
+async function enterApp(){
+  // verify super-admin by calling a gated RPC
+  const {data,error}=await sb.rpc('admin_list_orgs');
+  if(error){
+    gmsg('This account is not a platform super-admin (or RPCs not deployed). '+error.message,false);
+    await sb.auth.signOut(); show('login',true); return;
+  }
+  const {data:u}=await sb.auth.getUser();
+  $('who').textContent = u?.user?.email || '';
+  show('login',false); show('setup',false); show('app',true);
+  renderList(data);
+}
+
+// ---- list ----
+let ORGS=[];
+function renderList(rows){
+  ORGS=rows||[];
+  $('orgList').innerHTML = ORGS.length ? ORGS.map(o=>{
+    const on=FEATURES.filter(([k])=>o.features&&o.features[k]).length;
+    return `<div class="orgcard" data-id="${o.id}">
+      <div><b>${esc(o.name)}</b><div class="sub">${esc(o.custom_domain||'no domain')} · ${on}/${FEATURES.length} features</div></div>
+      <span class="pill">${esc(o.plan||'basic')}</span></div>`;
+  }).join('') : '<div class="sub">No organisations yet.</div>';
+  $('orgList').querySelectorAll('.orgcard').forEach(c=>c.onclick=()=>loadForm(c.dataset.id));
+}
+async function refresh(){ const {data,error}=await sb.rpc('admin_list_orgs'); if(!error) renderList(data); }
+
+// ---- form ----
+function clearForm(){
+  $('formTitle').textContent='New organisation';
+  ['f_id','f_name','f_slug','f_domain','f_tagline','lk_email'].forEach(i=>$(i).value='');
+  $('f_plan').value='full'; $('f_primary').value='#0a3d62'; $('f_dark').value='#06243b';
+  $('f_hide').checked=false; $('f_logo_prev').src=''; $('f_logo_file').value=''; $('f_logo_prev').dataset.url='';
+  $('feat').querySelectorAll('[data-f]').forEach(c=>c.checked=true); // default: all on
+  show('delBtn',false); fmsg('',true); $('fMsg').className='msg';
+}
+function loadForm(id){
+  const o=ORGS.find(x=>x.id===id); if(!o) return;
+  $('formTitle').textContent='Edit: '+o.name;
+  $('f_id').value=o.id; $('f_name').value=o.name||''; $('f_slug').value=o.slug||'';
+  $('f_domain').value=o.custom_domain||''; $('f_tagline').value=o.tagline||'';
+  $('f_plan').value=o.plan||'basic'; $('f_primary').value=o.brand_primary||'#0a3d62';
+  $('f_dark').value=o.brand_dark||'#06243b'; $('f_hide').checked=!!o.hide_powered_by;
+  $('f_logo_prev').src=o.logo_url||''; $('f_logo_prev').dataset.url=o.logo_url||'';
+  const f=o.features||{}; $('feat').querySelectorAll('[data-f]').forEach(c=>c.checked=!!f[c.dataset.f]);
+  show('delBtn',true); fmsg('',true); $('fMsg').className='msg';
+  $('lk_email').value='';
+}
+$('newBtn').onclick=clearForm; $('clearBtn').onclick=clearForm;
+
+$('f_logo_file').onchange=e=>{
+  const file=e.target.files[0]; if(!file) return;
+  if(file.size>320*1024){ fmsg('Logo too big (keep under ~300 KB)',false); e.target.value=''; return; }
+  const r=new FileReader(); r.onload=()=>{ $('f_logo_prev').src=r.result; $('f_logo_prev').dataset.url=r.result; }; r.readAsDataURL(file);
+};
+
+$('saveBtn').onclick=async ()=>{
+  const features={}; $('feat').querySelectorAll('[data-f]').forEach(c=>features[c.dataset.f]=c.checked);
+  const body={
+    p_id: $('f_id').value||null,
+    p_name:$('f_name').value, p_slug:$('f_slug').value,
+    p_primary:$('f_primary').value, p_dark:$('f_dark').value,
+    p_domain:$('f_domain').value, p_tagline:$('f_tagline').value,
+    p_plan:$('f_plan').value, p_hide:$('f_hide').checked,
+    p_features:features, p_logo_url:$('f_logo_prev').dataset.url||null
+  };
+  const {data,error}=await sb.rpc('admin_save_org',body);
+  if(error){ fmsg(error.message,false); return; }
+  fmsg('Saved ✓',true); $('f_id').value=data; await refresh();
+};
+
+$('delBtn').onclick=async ()=>{
+  const id=$('f_id').value; if(!id) return;
+  if(!confirm('Delete this organisation? This cannot be undone (fails if it still owns events).')) return;
+  const {error}=await sb.rpc('admin_delete_org',{p_id:id});
+  if(error){ fmsg(error.message,false); return; }
+  clearForm(); await refresh(); fmsg('Deleted ✓',true);
+};
+
+$('lkBtn').onclick=async ()=>{
+  const slug=$('f_slug').value.trim();
+  if(!slug){ fmsg('Save/select an org first (need its slug)',false); return; }
+  const email=$('lk_email').value.trim(); if(!email){ fmsg('Enter the user email',false); return; }
+  const {error}=await sb.rpc('admin_link_user',{p_email:email,p_org_slug:slug,p_app_role:$('lk_role').value,p_org_role:'org_admin'});
+  if(error){ fmsg(error.message,false); return; }
+  fmsg('Linked '+email+' to '+slug+' as '+$('lk_role').value+' ✓ (they must log out/in)',true);
+};
+
+function esc(s){return (s||'').toString().replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
+boot();
+</script>
+</body>
+</html>
