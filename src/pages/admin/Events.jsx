@@ -497,7 +497,7 @@ export default function Events() {
       ...prev,
       customFields: [
         ...(prev.customFields || []),
-        { id: `cf_${Date.now()}`, label_en: "", label_ar: "", type: "text", required: false, options: "", showOnBadge: false }
+        { id: `cf_${Date.now()}`, label_en: "", label_ar: "", type: "text", required: false, options: "", showOnBadge: false, defaultValue: "" }
       ]
     }));
   };
@@ -2135,6 +2135,20 @@ export default function Events() {
                           </label>
                         </div>
                       </div>
+
+                      {field.showOnBadge && field.type !== 'medical_booking' && field.type !== 'checkbox' && (
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Default value on badge (optional)</label>
+                          <input
+                            type="text"
+                            value={field.defaultValue || ""}
+                            onChange={(e) => updateCustomField(field.id, 'defaultValue', e.target.value)}
+                            placeholder="e.g. 2026 — printed on every card when the athlete has no value"
+                            className="w-full px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-600 focus:ring-1 focus:ring-emerald-500 outline-none transition-all"
+                          />
+                          <p className="text-[10px] text-slate-500 ml-1">Shown on the accreditation card for athletes who didn't fill this field. A per-athlete value always takes priority.</p>
+                        </div>
+                      )}
 
                       {(field.type === 'select' || field.type === 'multi_select') && (
                         <div className="space-y-1.5">

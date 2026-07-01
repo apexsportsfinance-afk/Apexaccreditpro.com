@@ -14,9 +14,14 @@ export const BadgeCustomFields = ({ accreditation, customFieldConfigs = [], card
         ?.filter(cfg => cfg.showOnBadge === true)
         ?.map(cfg => {
           // Values are keyed by the field's config id. Fall back to the
-          // English/Arabic label keys for legacy records saved before ids were used.
+          // English/Arabic label keys for legacy records saved before ids were used,
+          // and finally to the field's event-wide default (e.g. Season = 2026) so it
+          // prints on every card even when the athlete has no per-person value.
           const cf = accreditation?.customFields || {};
-          const value = cf[cfg.id] ?? cf[cfg.label_en] ?? cf[cfg.label_ar] ?? cf[cfg.label];
+          const perPerson = cf[cfg.id] ?? cf[cfg.label_en] ?? cf[cfg.label_ar] ?? cf[cfg.label];
+          const value = (perPerson !== undefined && perPerson !== null && perPerson !== "")
+            ? perPerson
+            : cfg.defaultValue;
           if (value === undefined || value === null || value === "") return null;
           return (
             <div 
