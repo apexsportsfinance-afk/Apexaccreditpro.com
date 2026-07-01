@@ -1,6 +1,7 @@
 export const registerTranslations = {
   en: {
     formTitle: "Accreditation Registration Form",
+    membershipFormTitle: "Membership Registration Form",
     personalInfo: "Personal Information",
     firstName: "First Name",
     lastName: "Last Name",
@@ -57,6 +58,7 @@ export const registerTranslations = {
   },
   ar: {
     formTitle: "نموذج تسجيل الاعتماد",
+    membershipFormTitle: "نموذج تسجيل العضوية",
     personalInfo: "معلومات شخصية",
     firstName: "الاسم الأول",
     lastName: "اسم العائلة",

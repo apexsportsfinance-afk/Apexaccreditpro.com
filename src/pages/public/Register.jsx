@@ -1583,7 +1583,7 @@ export default function Register() {
               {event.name}
             </h1>
             <h2 className="text-xl lg:text-2xl text-cyan-700 font-bold drop-shadow-md">
-              {t("formTitle")}
+              {event.outputType === "Membership Card" ? t("membershipFormTitle") : t("formTitle")}
             </h2>
             <p className="text-lg text-slate-600 mt-4 font-medium">
               {event.location} • {formatDateDisplay(event.startDate)} to {formatDateDisplay(event.endDate)}
