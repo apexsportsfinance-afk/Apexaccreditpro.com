@@ -460,6 +460,13 @@ export const MembershipCardInner = memo(function MembershipCardInner({ accredita
                  </div>
               </div>
 
+              {/* Custom Information Fields - Dynamic based on event config */}
+              <BadgeCustomFields
+                accreditation={accreditation}
+                customFieldConfigs={customFieldConfigs}
+                cardFont={cardFont}
+              />
+
               <div style={{ flex: 1 }} />
               
               {/* Bottom Logos */}
