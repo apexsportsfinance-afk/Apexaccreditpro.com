@@ -13,8 +13,11 @@ export const BadgeCustomFields = ({ accreditation, customFieldConfigs = [], card
       {customFieldConfigs
         ?.filter(cfg => cfg.showOnBadge === true)
         ?.map(cfg => {
-          const value = accreditation?.customFields?.[cfg.id];
-          if (!value) return null;
+          // Values are keyed by the field's config id. Fall back to the
+          // English/Arabic label keys for legacy records saved before ids were used.
+          const cf = accreditation?.customFields || {};
+          const value = cf[cfg.id] ?? cf[cfg.label_en] ?? cf[cfg.label_ar] ?? cf[cfg.label];
+          if (value === undefined || value === null || value === "") return null;
           return (
             <div 
               key={cfg.id}
@@ -29,7 +32,7 @@ export const BadgeCustomFields = ({ accreditation, customFieldConfigs = [], card
               }}
             >
               <div style={{ fontSize: "7px", fontWeight: "bold", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.02em", marginBottom: "1px", width: "100%", textAlign: "center" }}>
-                {cfg.label}
+                {cfg.label_en || cfg.label_ar || cfg.label || cfg.name}
               </div>
               <div style={{ fontSize: "11px", fontWeight: "900", color: "#1e293b", textTransform: "uppercase", width: "100%", textAlign: "center", lineHeight: "1" }}>
                 {value}
