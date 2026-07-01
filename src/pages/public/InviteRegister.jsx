@@ -605,7 +605,7 @@ export default function InviteRegister() {
             </div>
 
             <h1 className="text-2xl lg:text-3xl text-main font-bold drop-shadow-lg">
-              Accreditation Registration Form
+              {event?.outputType === "Membership Card" ? "Membership Registration Form" : "Accreditation Registration Form"}
             </h1>
             <p className="text-xl text-slate-600 mt-2 font-medium">
               {event?.name} • {formatDateDisplay(event?.startDate)}
