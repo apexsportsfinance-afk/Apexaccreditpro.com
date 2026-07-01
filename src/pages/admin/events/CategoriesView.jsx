@@ -407,8 +407,8 @@ export default function CategoriesView({ event, availableCategories, onClose }) 
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Font Weight</label>
-              <select name="fontWeight" defaultValue={catModal.data?.fontWeight || "bold"} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-4 py-2 text-white">
+              <label className="block text-sm font-medium text-main mb-2">Font Weight</label>
+              <select name="fontWeight" defaultValue={catModal.data?.fontWeight || "bold"} className="w-full bg-base border border-border rounded-lg px-4 py-2 text-main">
                 <option value="normal">Normal</option>
                 <option value="medium">Medium</option>
                 <option value="bold">Bold</option>
@@ -417,19 +417,19 @@ export default function CategoriesView({ event, availableCategories, onClose }) 
             </div>
           </div>
 
-          <div className="space-y-4 pt-2 border-t border-slate-800">
+          <div className="space-y-4 pt-2 border-t border-border">
             <div>
-              <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Allowed Sports</label>
+              <label className="block text-sm font-bold text-muted uppercase tracking-widest mb-2">Allowed Sports</label>
               <MultiSearchableSelect 
                 options={(eventSports || ["Swimming"]).map(s => ({ value: s.value || s, label: s.label || s }))}
                 value={tempSports}
                 onChange={setTempSports}
                 placeholder="Select sports for this category..."
               />
-              <p className="text-[10px] text-slate-500 mt-1">If empty, all event sports will be available to this role.</p>
+              <p className="text-[10px] text-muted mt-1">If empty, all event sports will be available to this role.</p>
             </div>
             <div>
-              <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Exclusive Clubs</label>
+              <label className="block text-sm font-bold text-muted uppercase tracking-widest mb-2">Exclusive Clubs</label>
               <MultiSearchableSelect 
                 options={eventClubs.map(c => ({ value: c, label: c }))}
                 value={tempAllowlist}
@@ -438,21 +438,21 @@ export default function CategoriesView({ event, availableCategories, onClose }) 
                 creatable={true}
                 creatableText="Add club/organization:"
               />
-              <p className="text-[10px] text-slate-500 mt-1">If empty, all clubs will be available to this role.</p>
+              <p className="text-[10px] text-muted mt-1">If empty, all clubs will be available to this role.</p>
             </div>
             <div>
-              <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Required Documents</label>
+              <label className="block text-sm font-bold text-muted uppercase tracking-widest mb-2">Required Documents</label>
               <MultiSearchableSelect 
                 options={(event.requiredDocuments || []).map(d => ({ value: d.id || d, label: d.label || d }))}
                 value={tempDocuments}
                 onChange={setTempDocuments}
                 placeholder="Select required documents..."
               />
-              <p className="text-[10px] text-slate-500 mt-1">If empty, the event's default required documents will be used.</p>
+              <p className="text-[10px] text-muted mt-1">If empty, the event's default required documents will be used.</p>
             </div>
             {eventCustomFields.length > 0 && (
               <div>
-                <label className="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Additional Information Fields</label>
+                <label className="block text-sm font-bold text-muted uppercase tracking-widest mb-2">Additional Information Fields</label>
                 <MultiSearchableSelect
                   options={eventCustomFields.map(field => ({
                     value: field.id,
@@ -462,7 +462,7 @@ export default function CategoriesView({ event, availableCategories, onClose }) 
                   onChange={setTempCustomFields}
                   placeholder="Select fields to show for this role..."
                 />
-                <p className="text-[10px] text-slate-500 mt-1">Select specific fields or sub-options to show for this role. If nothing is selected, no additional fields will be displayed.</p>
+                <p className="text-[10px] text-muted mt-1">Select specific fields or sub-options to show for this role. If nothing is selected, no additional fields will be displayed.</p>
               </div>
             )}
           </div>
@@ -480,7 +480,7 @@ export default function CategoriesView({ event, availableCategories, onClose }) 
              <AlertCircle className="w-6 h-6 text-red-500 shrink-0" />
              <div>
                <h4 className="text-lg font-bold text-red-400">Permanently Delete?</h4>
-               <p className="text-slate-300 mt-1 leading-relaxed">You are about to delete <span className="font-bold text-white">{deleteModal.data?.name}</span>. This action cannot be undone.</p>
+               <p className="text-main mt-1 leading-relaxed">You are about to delete <span className="font-bold text-main">{deleteModal.data?.name}</span>. This action cannot be undone.</p>
              </div>
            </div>
            <div className="flex gap-3">

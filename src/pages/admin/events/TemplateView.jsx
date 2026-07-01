@@ -177,10 +177,10 @@ export default function TemplateView({ event, onClose, onSave }) {
           <Button onClick={save} loading={saving}>Save Configuration</Button>
         </div>
 
-        <div className="bg-primary-500/10 border border-primary-500/20 rounded-xl p-4 flex gap-3 text-sm text-primary-200">
+        <div className="bg-primary-500/10 border border-primary-500/20 rounded-xl p-4 flex gap-3 text-sm text-main">
           <Info className="w-5 h-5 text-primary-400 shrink-0" />
           <p>
-            <strong className="text-white block mb-1">General Print Quality Note:</strong>
+            <strong className="text-main block mb-1">General Print Quality Note:</strong>
             For best print quality, upload PNG files exported directly from the original design file. 
             Avoid screenshots, WhatsApp-compressed images, or low-resolution JPG files.
           </p>

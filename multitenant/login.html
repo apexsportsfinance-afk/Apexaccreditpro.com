@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Apex — Org-Aware Login</title>
+<style>
+  *{box-sizing:border-box;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  body{margin:0;background:#0b1220;color:#e2e8f0;min-height:100vh}
+  .top{background:#020617;padding:16px 24px;border-bottom:1px solid #1e293b;display:flex;align-items:center;gap:12px}
+  .top .badge{width:34px;height:34px;border-radius:9px;background:#1d4ed8;display:flex;align-items:center;justify-content:center;font-weight:800}
+  .top h1{font-size:18px;margin:0}.top .sub{font-size:12px;color:#64748b}
+  .wrap{max-width:560px;margin:36px auto;padding:0 18px}
+  .card{background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:24px;margin-bottom:18px}
+  label{display:block;font-size:12px;color:#94a3b8;margin:12px 0 5px}
+  input{width:100%;padding:11px 12px;border:1px solid #334155;border-radius:9px;background:#0b1220;color:#e2e8f0;font-size:14px}
+  .btn{border:0;border-radius:9px;padding:12px 16px;font-size:14px;font-weight:700;cursor:pointer}
+  .btn.primary{background:#2563eb;color:#fff;width:100%;margin-top:18px}
+  .btn.ghost{background:#1e293b;color:#cbd5e1;font-size:12px;padding:8px 12px}
+  .btn.out{background:#7f1d1d;color:#fecaca}
+  .quick{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .muted{color:#64748b;font-size:12px}
+  .err{background:#7f1d1d;border:1px solid #ef4444;color:#fecaca;padding:12px 14px;border-radius:10px;margin-top:14px;font-size:13px}
+  .sesshead{display:flex;align-items:center;gap:12px}
+  .who{font-size:18px;font-weight:800}
+  .role{font-size:12px;font-weight:700;padding:4px 11px;border-radius:999px;text-transform:uppercase}
+  .role.plat{background:#7c2d12;color:#fed7aa}.role.org{background:#1e3a8a;color:#bfdbfe}
+  .box{background:#0b1220;border:1px solid #1e293b;border-radius:12px;padding:14px;margin-top:14px}
+  .box h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8}
+  .ev{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:14px}
+  .ev:before{content:'📅'}
+  .verdict{margin-top:14px;padding:14px;border-radius:12px;font-size:14px;font-weight:600}
+  .verdict.locked{background:#064e3b;color:#6ee7b7;border:1px solid #10b981}
+  .verdict.all{background:#422006;color:#fde68a;border:1px solid #f59e0b}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="badge">AX</div>
+  <div><h1>Apex — Org-Aware Login</h1><div class="sub">Real Supabase session · isolation enforced by who you are</div></div>
+</div>
+
+<div class="wrap">
+  <div class="card" id="loginCard">
+    <label>Email</label><input id="email" placeholder="fc@apexdemo.com" autocomplete="username">
+    <label>Password</label><input id="password" type="password" placeholder="ApexDemo123!" autocomplete="current-password">
+    <button class="btn primary" onclick="signIn()">Sign in</button>
+    <div class="quick">
+      <button class="btn ghost" onclick="quick('fc@apexdemo.com')">▶ Demo FC admin</button>
+      <button class="btn ghost" onclick="quick('fed@apexdemo.com')">▶ Demo Federation admin</button>
+      <button class="btn ghost" onclick="quick('master@apexdemo.com')">▶ Apex master</button>
+    </div>
+    <p class="muted" style="margin-top:14px">Quick buttons fill the demo password <b>ApexDemo123!</b> and sign in. (Create the 3 users in the dashboard first.)</p>
+    <div id="err"></div>
+  </div>
+
+  <div id="session"></div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://utqfugxzeqgtveiwevyi.supabase.co';
+  const ANON_KEY     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV0cWZ1Z3h6ZXFndHZlaXdldnlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MDczOTIsImV4cCI6MjA5ODI4MzM5Mn0.0sN-YmQBqtKaJnaZNPikKcY3SStk-WrvnCWopIxhF9k';
+  const DEMO_PW = 'ApexDemo123!';
+
+  function quick(email){ document.getElementById('email').value=email;
+    document.getElementById('password').value=DEMO_PW; signIn(); }
+
+  function evName(e){ return e.name||e.title||e.event_name||e.event_title||'(event)'; }
+
+  async function signIn(){
+    const email=document.getElementById('email').value.trim();
+    const password=document.getElementById('password').value;
+    document.getElementById('err').innerHTML='';
+    try{
+      const res=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{
+        method:'POST', headers:{apikey:ANON_KEY,'Content-Type':'application/json'},
+        body:JSON.stringify({email,password})
+      });
+      const data=await res.json();
+      if(!res.ok){ throw new Error(data.error_description||data.msg||data.error||'Sign-in failed'); }
+      await showSession(data.access_token);
+    }catch(e){
+      document.getElementById('err').innerHTML='<div class="err">⚠️ '+e.message+
+        '<br><span class="muted">If it says invalid credentials, create the 3 users in the dashboard (Auto Confirm) with password ApexDemo123!, then run 007 SQL.</span></div>';
+    }
+  }
+
+  async function showSession(token){
+    const res=await fetch(SUPABASE_URL+'/rest/v1/rpc/whoami',{
+      method:'POST', headers:{apikey:ANON_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+      body:'{}'
+    });
+    const me=await res.json();
+    if(!res.ok){ document.getElementById('err').innerHTML='<div class="err">⚠️ '+(me.message||'whoami failed — did you run 007 SQL?')+'</div>'; return; }
+
+    const isPlat=me.is_platform_admin;
+    const mem=(me.memberships&&me.memberships[0])||{};
+    const events=(me.visible_events||[]).map(e=>'<div class="ev">'+evName(e)+'</div>').join('') || '<div class="muted">none</div>';
+    const verdict = isPlat
+      ? '<div class="verdict all">👑 Apex master — sees ALL organisations’ data ('+me.visible_event_count+' events across the whole platform).</div>'
+      : '<div class="verdict locked">🔒 Sees ONLY '+(mem.org||'their org')+'’s data ('+me.visible_event_count+' event'+(me.visible_event_count==1?'':'s')+'). The database refuses everything else — enforced by this real login.</div>';
+
+    document.getElementById('loginCard').style.display='none';
+    document.getElementById('session').innerHTML=
+      '<div class="card"><div class="sesshead">'+
+        '<div style="flex:1"><div class="who">'+me.email+'</div>'+
+        '<div class="muted">'+(isPlat?'Platform administrator':(mem.org||'')+' · '+(mem.role||''))+'</div></div>'+
+        '<span class="role '+(isPlat?'plat':'org')+'">'+(isPlat?'Apex master':(mem.role||'member'))+'</span>'+
+      '</div>'+
+      '<div class="box"><h3>Organisation membership</h3>'+
+        ((me.memberships||[]).map(m=>'<div class="ev" style="--x:0">🏢 '+m.org+' — <b>'+m.role+'</b></div>').join('')||'<div class="muted">none</div>')+
+      '</div>'+
+      '<div class="box"><h3>Events this session can see</h3>'+events+'</div>'+
+      verdict+
+      '<button class="btn out" style="margin-top:16px;width:100%" onclick="signOut()">Sign out</button>'+
+      '</div>';
+  }
+
+  function signOut(){
+    document.getElementById('session').innerHTML='';
+    document.getElementById('loginCard').style.display='block';
+    document.getElementById('password').value='';
+  }
+</script>
+</body>
+</html>

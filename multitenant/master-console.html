@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Apex Master Console</title>
+<style>
+  *{box-sizing:border-box;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  body{margin:0;background:#0b1220;color:#e2e8f0}
+  .top{background:#020617;padding:16px 24px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #1e293b}
+  .top .badge{width:34px;height:34px;border-radius:9px;background:#1d4ed8;display:flex;align-items:center;justify-content:center;font-weight:800}
+  .top h1{font-size:18px;margin:0}
+  .top .sub{font-size:12px;color:#64748b}
+  .top .live{margin-left:auto;font-size:12px;background:#064e3b;color:#6ee7b7;padding:5px 11px;border-radius:999px;font-weight:700}
+  .wrap{max-width:1100px;margin:24px auto;padding:0 18px}
+  .err{background:#7f1d1d;border:1px solid #ef4444;color:#fecaca;padding:14px 16px;border-radius:12px;margin-bottom:18px;font-size:14px}
+  .err button{margin-left:10px;background:#ef4444;border:0;color:#fff;padding:6px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+  h2{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8;margin:26px 0 12px}
+  .card{background:#0f172a;border:1px solid #1e293b;border-radius:14px;padding:18px;margin-bottom:16px}
+  .card.new{border-style:dashed;border-color:#334155}
+  .row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+  .row .swatch{width:42px;height:42px;border-radius:10px;border:2px solid #1e293b;flex:none}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:8px}
+  label.fld{display:block;font-size:12px;color:#94a3b8;margin-bottom:4px}
+  input,select{width:100%;padding:9px 10px;border:1px solid #334155;border-radius:9px;font-size:13px;background:#0b1220;color:#e2e8f0}
+  input[type=color]{padding:3px;height:38px}
+  .feats{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:6px;margin-top:6px}
+  .ck{display:flex;align-items:center;gap:7px;font-size:13px;background:#0b1220;border:1px solid #1e293b;padding:7px 10px;border-radius:8px;cursor:pointer}
+  .ck input{width:auto}
+  .actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+  .btn{border:0;border-radius:9px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer}
+  .btn.save{background:#2563eb;color:#fff}.btn.create{background:#16a34a;color:#fff}
+  .btn.del{background:transparent;border:1px solid #7f1d1d;color:#fca5a5}
+  .btn.view{background:#1e293b;color:#cbd5e1}
+  .pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#1e293b;color:#cbd5e1;text-transform:uppercase}
+  .name{font-size:17px;font-weight:800}
+  .muted{color:#64748b;font-size:12px}
+  .featcount{font-size:12px;color:#7dd3fc}
+  .swatch img,img.swatch{width:42px;height:42px;border-radius:10px;object-fit:cover;border:2px solid #1e293b;flex:none}
+  .logorow{display:flex;align-items:center;gap:9px}
+  .logoprev{width:38px;height:38px;border-radius:9px;object-fit:cover;border:1px solid #334155;background:#0b1220;flex:none}
+  .logorow input[type=file]{padding:7px;font-size:12px}
+  .logorow .clr{background:transparent;border:1px solid #334155;color:#94a3b8;border-radius:8px;padding:7px 9px;font-size:12px;cursor:pointer;flex:none}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="badge">AX</div>
+  <div><h1>Apex Master Console</h1><div class="sub">Create organisations · set branding · choose package · toggle features</div></div>
+  <span class="live">● connected to database</span>
+</div>
+
+<div class="wrap">
+  <div id="err"></div>
+
+  <h2>➕ Create a new organisation</h2>
+  <div id="newcard"></div>
+
+  <h2>🏢 Organisations</h2>
+  <div id="list"><p class="muted">Loading…</p></div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://utqfugxzeqgtveiwevyi.supabase.co';
+  const ANON_KEY     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV0cWZ1Z3h6ZXFndHZlaXdldnlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MDczOTIsImV4cCI6MjA5ODI4MzM5Mn0.0sN-YmQBqtKaJnaZNPikKcY3SStk-WrvnCWopIxhF9k';
+
+  const PLANS = ['basic','standard','premium','full','enterprise'];
+  const FEATURES = [
+    ['registration_forms','Registration forms'],['custom_form_builder','Custom form builder'],
+    ['qr_accreditation','QR accreditation'],['broadcast_messages','Broadcast messages'],
+    ['notifications','Personal notifications'],['booking_forms','Booking forms'],
+    ['document_approval','Document upload & approval'],['reports_exports','Reports & exports'],
+    ['gallery','Gallery'],['birthday_cards','Birthday cards'],
+    ['heatsheet','Heat sheet / profiles'],['scanner_logs','Check-in & scanner logs'],
+    ['finance_invoice','Finance / invoices'],['admin_dashboards','Admin dashboards'],
+  ];
+
+  async function rpc(name, body){
+    const r = await fetch(SUPABASE_URL+'/rest/v1/rpc/'+name, {
+      method:'POST',
+      headers:{apikey:ANON_KEY,'Authorization':'Bearer '+ANON_KEY,'Content-Type':'application/json'},
+      body: JSON.stringify(body||{})
+    });
+    if(!r.ok) throw new Error(await r.text());
+    const t = await r.text(); return t ? JSON.parse(t) : null;
+  }
+
+  function esc(s){return (s||'').replace(/"/g,'&quot;')}
+  function featBoxes(f){ return FEATURES.map(([k,l])=>
+    `<label class="ck"><input type="checkbox" data-f="${k}" ${f&&f[k]?'checked':''}> ${l}</label>`).join(''); }
+
+  function orgCard(o, isNew){
+    const f=o.features||{}; const id=o.id||'';
+    const countOn=FEATURES.filter(([k])=>f[k]).length;
+    return `<div class="card${isNew?' new':''}" data-id="${id}">
+      <div class="row">
+        ${o.logo_url
+          ? `<img class="swatch" src="${esc(o.logo_url)}" alt="">`
+          : `<div class="swatch" style="background:${o.brand_primary||'#334155'}"></div>`}
+        <div style="flex:1">
+          <div class="name">${isNew?'New organisation':esc(o.name)}</div>
+          ${isNew?'':`<div class="muted">${esc(o.custom_domain||'')} · <span class="featcount">${countOn}/${FEATURES.length} features on</span></div>`}
+        </div>
+        ${isNew?'':`<span class="pill">${esc(o.plan||'basic')}</span>`}
+      </div>
+      <div class="grid">
+        <div><label class="fld">Name</label><input data-k="name" value="${esc(o.name)}" placeholder="Demo Academy"></div>
+        <div><label class="fld">Slug (url key)</label><input data-k="slug" value="${esc(o.slug)}" placeholder="demoacademy"></div>
+        <div><label class="fld">Custom domain</label><input data-k="domain" value="${esc(o.custom_domain)}" placeholder="events.client.com"></div>
+        <div><label class="fld">Tagline</label><input data-k="tagline" value="${esc(o.tagline)}" placeholder="Official Event Registration"></div>
+        <div style="grid-column:1/-1"><label class="fld">Logo image (overrides the auto monogram)</label>
+          <div class="logorow">
+            <img class="logoprev" src="${esc(o.logo_url)}" alt="" ${o.logo_url?'':'style="visibility:hidden"'}>
+            <input type="file" accept="image/*" onchange="pickLogo(this)">
+            <button type="button" class="clr" onclick="clearLogo(this)">Remove</button>
+            <input type="hidden" data-k="logo_url" value="${esc(o.logo_url)}">
+          </div>
+        </div>
+        <div><label class="fld">Primary colour</label><input type="color" data-k="primary" value="${o.brand_primary||'#2563eb'}"></div>
+        <div><label class="fld">Dark colour</label><input type="color" data-k="dark" value="${o.brand_dark||'#1e3a8a'}"></div>
+        <div><label class="fld">Package</label><select data-k="plan">${PLANS.map(p=>`<option ${o.plan===p?'selected':''}>${p}</option>`).join('')}</select></div>
+        <div><label class="fld">Hide "Powered by Apex"</label><select data-k="hide"><option value="false" ${!o.hide_powered_by?'selected':''}>No (show)</option><option value="true" ${o.hide_powered_by?'selected':''}>Yes (white-label)</option></select></div>
+      </div>
+      <label class="fld" style="margin-top:12px">Features for this organisation</label>
+      <div class="feats">${featBoxes(f)}</div>
+      <div class="actions">
+        ${isNew
+          ? `<button class="btn create" onclick="save(this,true)">＋ Create organisation</button>`
+          : `<button class="btn save" onclick="save(this,false)">Save changes</button>
+             <button class="btn view" onclick="window.open('branding-demo-live.html?org=${esc(o.slug)}','_blank')">View live page ↗</button>
+             <button class="btn del" onclick="del('${id}')">Delete</button>`}
+      </div>
+    </div>`;
+  }
+
+  function gather(card){
+    const g=k=>card.querySelector(`[data-k="${k}"]`).value;
+    const features={}; card.querySelectorAll('[data-f]').forEach(c=>features[c.dataset.f]=c.checked);
+    return {name:g('name'),slug:g('slug'),primary:g('primary'),dark:g('dark'),
+            domain:g('domain'),tagline:g('tagline'),plan:g('plan'),hide:g('hide')==='true',
+            logo_url:g('logo_url'),features};
+  }
+
+  // Read a chosen image to a data URL, preview it, and stash it in the hidden field.
+  function pickLogo(input){
+    const file = input.files && input.files[0]; if(!file) return;
+    if(file.size > 300*1024){ alert('Please choose an image under 300 KB (logos are tiny — resize or use a PNG/SVG).'); input.value=''; return; }
+    const reader = new FileReader();
+    reader.onload = e => {
+      const url = e.target.result;
+      const field = input.closest('div[style*="grid-column"]');
+      field.querySelector('[data-k="logo_url"]').value = url;
+      const img = field.querySelector('.logoprev');
+      img.src = url; img.style.visibility = 'visible';
+    };
+    reader.readAsDataURL(file);
+  }
+  function clearLogo(btn){
+    const field = btn.closest('div[style*="grid-column"]');
+    field.querySelector('[data-k="logo_url"]').value = '';
+    const img = field.querySelector('.logoprev'); img.src=''; img.style.visibility='hidden';
+    const file = field.querySelector('input[type=file]'); if(file) file.value='';
+  }
+
+  async function save(btn,isNew){
+    const card=btn.closest('.card'); const id=card.dataset.id||null; const v=gather(card);
+    if(!v.name||!v.slug){ alert('Name and slug are required'); return; }
+    btn.disabled=true; btn.textContent='Saving…';
+    try{
+      await rpc('admin_save_org',{p_id:isNew?null:id,p_name:v.name,p_slug:v.slug,p_primary:v.primary,
+        p_dark:v.dark,p_domain:v.domain,p_tagline:v.tagline,p_plan:v.plan,p_hide:v.hide,
+        p_logo_url:v.logo_url,p_features:v.features});
+      await refresh();
+    }catch(e){ showErr(e.message); btn.disabled=false; btn.textContent=isNew?'＋ Create organisation':'Save changes'; }
+  }
+  async function del(id){
+    if(!confirm('Delete this organisation? (Will fail if it still has events/data.)')) return;
+    try{ await rpc('admin_delete_org',{p_id:id}); await refresh(); }
+    catch(e){ showErr(e.message); }
+  }
+
+  function showErr(msg){
+    document.getElementById('err').innerHTML =
+      `<div class="err">⚠️ ${msg}<button onclick="refresh()">Retry</button><div class="muted" style="margin-top:6px">If this mentions a missing function, run <b>006_master_console.sql</b> in the sandbox first, then Retry.</div></div>`;
+  }
+
+  function resetNewCard(){ document.getElementById('newcard').innerHTML = orgCard({},true); }
+
+  async function refresh(){
+    resetNewCard();
+    try{
+      const orgs = await rpc('admin_list_orgs',{});
+      document.getElementById('err').innerHTML='';
+      document.getElementById('list').innerHTML = (orgs&&orgs.length)
+        ? orgs.map(o=>orgCard(o,false)).join('')
+        : '<p class="muted">No organisations yet — create one above.</p>';
+    }catch(e){ showErr(e.message); document.getElementById('list').innerHTML=''; }
+  }
+
+  resetNewCard();
+  refresh();
+</script>
+</body>
+</html>

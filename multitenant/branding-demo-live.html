@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Apex White-Label — LIVE from database</title>
+<style>
+  :root{--brand:#0B5FFF;--brand-dark:#073db0;--ink:#0f172a;--muted:#64748b;--bg:#f1f5f9;--card:#fff;--ring:#e2e8f0}
+  *{box-sizing:border-box;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  body{margin:0;background:var(--bg);color:var(--ink)}
+  .switcher{background:#0f172a;color:#fff;padding:10px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .switcher b{font-size:13px;opacity:.8;margin-right:4px}
+  .switcher button{border:0;border-radius:999px;padding:7px 14px;cursor:pointer;font-weight:600;font-size:13px;background:#1e293b;color:#cbd5e1}
+  .switcher button.active{background:#fff;color:#0f172a}
+  .live{margin-left:auto;font-size:12px;background:#064e3b;color:#6ee7b7;padding:5px 11px;border-radius:999px;font-weight:700}
+  .urlbar{background:#e2e8f0;padding:8px 16px;display:flex;align-items:center;gap:10px;font-size:14px;color:#334155}
+  .urlbar .dot{width:11px;height:11px;border-radius:50%;background:#cbd5e1}
+  .urlbar .addr{background:#fff;border-radius:8px;padding:6px 12px;flex:1;border:1px solid #cbd5e1;color:#0f172a}
+  .urlbar .lock{color:#16a34a;font-weight:700}
+  header{background:var(--brand);color:#fff;padding:22px 24px;display:flex;align-items:center;gap:14px;transition:background .25s}
+  header .logo{width:46px;height:46px;border-radius:12px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px}
+  header .name{font-size:20px;font-weight:800;line-height:1.1}
+  header .sub{font-size:12px;opacity:.85}
+  .wrap{max-width:680px;margin:26px auto;padding:0 18px}
+  .card{background:var(--card);border:1px solid var(--ring);border-radius:16px;padding:26px;box-shadow:0 8px 30px rgba(2,6,23,.06)}
+  h1{margin:0 0 4px;font-size:22px}
+  .lead{color:var(--muted);margin:0 0 22px;font-size:14px}
+  label{display:block;font-size:13px;font-weight:600;margin:14px 0 6px}
+  input,select{width:100%;padding:11px 12px;border:1px solid var(--ring);border-radius:10px;font-size:14px}
+  input:focus,select:focus{outline:2px solid var(--brand);border-color:var(--brand)}
+  .btn{margin-top:20px;width:100%;background:var(--brand);color:#fff;border:0;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer}
+  .pill{display:inline-block;background:color-mix(in srgb,var(--brand) 12%,#fff);color:var(--brand);font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;margin-bottom:14px}
+  footer{max-width:680px;margin:18px auto 40px;padding:0 18px;text-align:center;color:var(--muted);font-size:12px}
+  .note{max-width:680px;margin:0 auto 24px;padding:14px 18px;color:var(--muted);font-size:13px;line-height:1.55}
+  .warn{max-width:680px;margin:20px auto;padding:16px 18px;background:#fef3c7;border:1px solid #f59e0b;border-radius:12px;color:#92400e;font-size:14px;line-height:1.6}
+  code{background:#fde68a;padding:1px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+
+<div class="switcher">
+  <b>LOAD ORGANISATION:</b>
+  <button id="b-demofc" class="active" onclick="load('demofc')">🔵 Demo FC</button>
+  <button id="b-demofed" onclick="load('demofed')">🟢 Demo Federation</button>
+  <button id="b-apex" onclick="load('apex')">⚫ Apex (default)</button>
+  <span class="live">● LIVE from database</span>
+</div>
+
+<div class="urlbar">
+  <span class="dot"></span>
+  <span class="addr"><span class="lock">🔒</span> <span id="url">loading…</span>/register</span>
+</div>
+
+<header>
+  <div class="logo" id="logo">··</div>
+  <div><div class="name" id="orgname">Loading…</div><div class="sub" id="orgtag"></div></div>
+</header>
+
+<div id="warnbox"></div>
+
+<div class="wrap">
+  <div class="card">
+    <span class="pill" id="pill">EVENT</span>
+    <h1>Event Registration</h1>
+    <p class="lead">Register your participants for the upcoming event. All fields are required.</p>
+    <label>Full name</label><input placeholder="e.g. Sara Ahmed" />
+    <label>Email</label><input placeholder="you@example.com" />
+    <label>Category</label><select><option>Under 14</option><option>Under 17</option><option>Senior</option></select>
+    <button class="btn" id="submit">Register →</button>
+  </div>
+</div>
+
+<div class="note"><b>This page holds NO branding of its own.</b> Every time you switch
+organisation it queries your <b>real database</b> for that org's logo, colour, name and
+domain — exactly how the production system will work. Change a colour in the
+<code>organizations</code> table and this page changes too.</div>
+
+<footer id="poweredby">Powered by Apex · platform &amp; technical controller</footer>
+
+<script>
+  // ====== CONFIG — paste your sandbox anon/public key on the next line ======
+  const SUPABASE_URL = 'https://utqfugxzeqgtveiwevyi.supabase.co';
+  const ANON_KEY     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV0cWZ1Z3h6ZXFndHZlaXdldnlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MDczOTIsImV4cCI6MjA5ODI4MzM5Mn0.0sN-YmQBqtKaJnaZNPikKcY3SStk-WrvnCWopIxhF9k';
+  // =========================================================================
+
+  const APEX_DEFAULT = { name:'Apex Sports', slug:'apex', logo_text:'AX',
+    brand_primary:'#020617', brand_dark:'#0f172a', tagline:'Accreditation & Events',
+    custom_domain:'apexsmart.com', hide_powered_by:false };
+
+  function apply(o){
+    const r = document.documentElement.style;
+    r.setProperty('--brand', o.brand_primary); r.setProperty('--brand-dark', o.brand_dark);
+    const logoEl = document.getElementById('logo');
+    if (o.logo_url){ logoEl.innerHTML = '<img src="'+o.logo_url+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:12px">'; }
+    else { logoEl.innerHTML=''; logoEl.textContent = o.logo_text || '··'; }
+    document.getElementById('orgname').textContent= o.name;
+    document.getElementById('orgtag').textContent = o.tagline || '';
+    document.getElementById('url').textContent    = o.custom_domain || '';
+    document.getElementById('pill').textContent   = (o.name || '') + ' EVENT';
+    document.getElementById('submit').textContent = 'Register for the ' + o.name + ' event →';
+    document.getElementById('poweredby').style.display = o.hide_powered_by ? 'none' : 'block';
+  }
+  function setActive(slug){ for(const k of ['demofc','demofed','apex'])
+    document.getElementById('b-'+k).classList.toggle('active', k===slug); }
+
+  async function load(slug){
+    setActive(slug);
+    if (ANON_KEY === 'PASTE_YOUR_ANON_KEY_HERE'){
+      document.getElementById('warnbox').innerHTML =
+        '<div class="warn">⚠️ Add your sandbox <b>anon key</b> to the <code>ANON_KEY</code> line near the bottom of this file, then reload. Showing built-in defaults for now.</div>';
+      apply(slug==='apex'?APEX_DEFAULT:{name:slug,brand_primary:'#64748b',brand_dark:'#475569',logo_text:'··',tagline:'',custom_domain:slug});
+      return;
+    }
+    if (slug==='apex'){ apply(APEX_DEFAULT); return; }
+    try{
+      const res = await fetch(SUPABASE_URL + '/rest/v1/rpc/get_org_branding', {
+        method:'POST',
+        headers:{ 'apikey':ANON_KEY, 'Authorization':'Bearer '+ANON_KEY, 'Content-Type':'application/json' },
+        body: JSON.stringify({ p_key: slug })
+      });
+      const rows = await res.json();
+      if (Array.isArray(rows) && rows.length){ apply(rows[0]); document.getElementById('warnbox').innerHTML=''; }
+      else { apply(APEX_DEFAULT); }
+    }catch(e){
+      document.getElementById('warnbox').innerHTML =
+        '<div class="warn">Could not reach the database: '+e.message+'</div>';
+    }
+  }
+  const initial = new URLSearchParams(location.search).get('org') || 'demofc';
+  load(initial);
+</script>
+</body>
+</html>

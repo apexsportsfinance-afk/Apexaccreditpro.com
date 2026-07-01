@@ -861,7 +861,7 @@ export default function Dashboard() {
             <span className="text-[10px] font-bold text-muted uppercase tracking-widest leading-none mb-1">Data Pipeline Sync</span>
             <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest leading-none">20.0s OFFSET</span>
           </div>
-          <button onClick={loadData} className="w-11 h-11 bg-slate-900 border border-white/10 text-indigo-400 rounded-2xl hover:bg-slate-800 transition-all shadow-xl flex items-center justify-center group">
+          <button onClick={loadData} className="w-11 h-11 bg-base border border-white/10 text-indigo-400 rounded-2xl hover:bg-base-alt transition-all shadow-xl flex items-center justify-center group">
             <RefreshCw className="w-5 h-5 group-hover:rotate-180 transition-transform duration-700" />
           </button>
         </div>
@@ -871,7 +871,7 @@ export default function Dashboard() {
   );
 
   return (
-    <div id="dashboard_page" className={cn("space-y-4 font-body pb-6", isSuperAdmin && "bg-slate-950 min-h-screen -m-8 p-8 overflow-x-hidden")}>
+    <div id="dashboard_page" className={cn("space-y-4 font-body pb-6", isSuperAdmin && "bg-base min-h-screen -m-8 p-8 overflow-x-hidden")}>
       {isSuperAdmin ? <SuperAdminLayout /> : <SubAdminLayout />}
     </div>
   );

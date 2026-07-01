@@ -931,11 +931,11 @@ export default function Settings() {
                           value={securityPin}
                           onChange={(e) => setSecurityPin(e.target.value.replace(/\D/g, '').slice(0, 8))}
                           placeholder="Enter Security PIN"
-                          className="w-full md:w-64 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white font-mono text-xl tracking-[0.5em] focus:ring-2 focus:ring-red-500/20 outline-none transition-all placeholder:tracking-normal placeholder:text-sm"
+                          className="w-full md:w-64 bg-base border border-border rounded-xl px-4 py-3 text-main font-mono text-xl tracking-[0.5em] focus:ring-2 focus:ring-red-500/20 outline-none transition-all placeholder:tracking-normal placeholder:text-sm"
                         />
                         <button 
                           onClick={() => setShowPin(!showPin)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-slate-500 hover:text-white transition-colors"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-muted hover:text-main transition-colors"
                         >
                           {showPin ? <X className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
                         </button>
@@ -958,7 +958,7 @@ export default function Settings() {
                          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                          <h4 className="text-emerald-400 font-black uppercase italic tracking-tighter">Generic Pass Access PIN</h4>
                       </div>
-                      <p className="text-sm text-slate-300 leading-relaxed font-extralight">
+                      <p className="text-sm text-main leading-relaxed font-extralight">
                         Set the password required for spectators to access the Generic Pass portal. 
                         This PIN should be shared only with authorized personnel or specific spectator groups.
                       </p>
@@ -971,7 +971,7 @@ export default function Settings() {
                           value={genericPassPin}
                           onChange={(e) => setGenericPassPin(e.target.value.replace(/\D/g, '').slice(0, 8))}
                           placeholder="Set Access PIN"
-                          className="w-full md:w-64 bg-slate-950 border-2 border-emerald-500/20 rounded-xl px-4 py-3 text-emerald-500 font-mono text-xl tracking-[0.5em] focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all placeholder:tracking-normal placeholder:text-sm"
+                          className="w-full md:w-64 bg-base border-2 border-emerald-500/20 rounded-xl px-4 py-3 text-emerald-500 font-mono text-xl tracking-[0.5em] focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all placeholder:tracking-normal placeholder:text-sm"
                         />
                         <button 
                           onClick={() => setShowGenericPin(!showGenericPin)}
