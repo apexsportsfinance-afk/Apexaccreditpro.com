@@ -22,7 +22,8 @@ import {
   Book,
   Shield,
   BookOpen,
-  MonitorPlay
+  MonitorPlay,
+  Building2
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -32,7 +33,6 @@ import { cn } from "../../lib/utils";
 
 export const navItems = [
   { to: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/staff", icon: Smartphone, label: "Staff App (Mobile)" },
   { to: "/admin/events", icon: Calendar, label: "Events" },
   { to: "/admin/teams", icon: Shield, label: "Admin Teams" },
   { to: "/admin/rules", icon: BookOpen, label: "Rules & Regulations" },
@@ -45,6 +45,7 @@ export const navItems = [
   { to: "/admin/medals", icon: Trophy, label: "Medal Rankings" },
   { to: "/admin/call-room", icon: MonitorPlay, label: "Call Room Display" },
   { to: "/admin/feedback", icon: MessageSquare, label: "Feedback" },
+  { to: "/admin/organizations", icon: Building2, label: "Organizations", platformOnly: true },
   { to: "/admin/partners", icon: Settings, label: "Integrations", superOnly: true },
   { to: "/admin/api-docs", icon: Book, label: "API Documentation", superOnly: true },
   { to: "/admin/users", icon: Users, label: "Users", superOnly: true },
@@ -68,9 +69,13 @@ const Sidebar = memo(function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   
   const filteredNavItems = navItems.filter(item => {
+    // Platform-owner-only items (e.g. Organizations) — strictly super_admin,
+    // never the broader "admin" that isSuperAdmin also covers (clients are admin).
+    if (item.platformOnly && user?.role !== "super_admin") return false;
+
     // If it's a superOnly item, check isSuperAdmin
     if (item.superOnly && !isSuperAdmin) return false;
-    
+
     // Check module permission
     return canAccessModule(item.to);
   });

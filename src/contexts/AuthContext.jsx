@@ -18,6 +18,27 @@ export const useAuth = () => {
   return context;
 };
 
+// Org-level feature gate. `features` is the org's jsonb map of enabled module
+// paths, e.g. { "/admin/qr-system": true, "/admin/medals": false }. Returns true
+// if `path` is covered by an enabled entry (exact / parent / child match, same
+// semantics as canAccessModule). MIGRATION-SAFE: an org with no "/admin" module
+// keys (null / legacy 14-key format / empty) is treated as unrestricted, so
+// existing clients aren't locked out until features are explicitly configured.
+function orgAllowsModule(features, path) {
+  if (!features || typeof features !== "object") return true;
+  const keys = Object.keys(features).filter((k) => k.startsWith("/admin"));
+  if (keys.length === 0) return true; // not configured -> unrestricted (fail-open)
+  // 1) an explicit on/off for this exact path wins (e.g. a sub-tab toggled off)
+  if (path in features) return !!features[path];
+  // 2) otherwise inherit the nearest configured ancestor (parent off => child off)
+  const ancestors = keys.filter((k) => path.startsWith(k + "/")).sort((a, b) => b.length - a.length);
+  if (ancestors.length) return !!features[ancestors[0]];
+  // 3) a page with any enabled descendant stays reachable (so its nav shows)
+  if (keys.some((k) => features[k] && k.startsWith(path + "/"))) return true;
+  // 4) anything this org's config doesn't model -> allow (only restrict what's set)
+  return true;
+}
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -33,7 +54,13 @@ export const AuthProvider = ({ children }) => {
       sessionUser.user_metadata?.full_name ||
       sessionUser.user_metadata?.name ||
       sessionUser.email,
-    role: sessionUser.user_metadata?.role || "event_admin"
+    role: sessionUser.user_metadata?.role || "event_admin",
+    // Org-feature gating context — optimistic defaults (unrestricted) until the
+    // background profile load resolves the real values, so platform users never
+    // flash an empty sidebar. A real client gets isPlatform=false + their org's
+    // features once loaded.
+    isPlatform: true,
+    orgFeatures: null
   });
 
   const upgradeProfileRole = async (sessionUser) => {
@@ -42,7 +69,7 @@ export const AuthProvider = ({ children }) => {
 
     try {
       // Fetch profile, access mappings, and team assignments in parallel for speed
-      const [profileRes, accessMapping, moduleMapping, teamAssignments] = await Promise.all([
+      const [profileRes, accessMapping, moduleMapping, teamAssignments, accessCtxRes] = await Promise.all([
         supabase
           .from("profiles")
           .select("role, full_name")
@@ -53,7 +80,9 @@ export const AuthProvider = ({ children }) => {
         supabase
           .from("team_users")
           .select("team_id")
-          .eq("user_id", sessionUser.id)
+          .eq("user_id", sessionUser.id),
+        // Org-level feature context (platform flag + the user's org features).
+        supabase.rpc("my_access_context")
       ]);
 
       if (!mountedRef.current) return;
@@ -69,7 +98,12 @@ export const AuthProvider = ({ children }) => {
           role: data?.role || current.role,
           allowedEventIds: accessMapping[sessionUser.id] || [],
           allowedModules: moduleMapping[sessionUser.id] || [],
-          hasTeamAccess: (teamAssignments.data?.length || 0) > 0
+          hasTeamAccess: (teamAssignments.data?.length || 0) > 0,
+          // Org-feature gating: platform users (super_admin / Apex staff) stay
+          // unrestricted; a client is limited to its org's features. Default to
+          // unrestricted on any error so we never lock people out by accident.
+          isPlatform: accessCtxRes?.data?.is_platform ?? true,
+          orgFeatures: accessCtxRes?.data?.features ?? null
         };
       });
 
@@ -181,11 +215,23 @@ export const AuthProvider = ({ children }) => {
   const canAccessEvent = (eventId) =>
     user ? canAccessEventPure(user.role, user.allowedEventIds, eventId) : false;
 
-  const canAccessModule = (path) =>
-    user ? canAccessModulePure(user.role, user.allowedModules, user.hasTeamAccess, path) : false;
+  const canAccessModule = (path) => {
+    if (!user) return false;
+    // Org-level feature gate: a client (non-platform) user only sees pages their
+    // org enabled — even a client 'admin'. Platform users (super_admin / Apex
+    // staff) bypass this. Orgs with no module config stay unrestricted.
+    if (!user.isPlatform && !orgAllowsModule(user.orgFeatures, path)) return false;
+    return canAccessModulePure(user.role, user.allowedModules, user.hasTeamAccess, path);
+  };
 
   const hasExactModuleAccess = (path) =>
     user ? hasExactModuleAccessPure(user.role, user.allowedModules, path) : false;
+
+  // Pure org-feature check for a single path (page OR sub-tab). Platform users
+  // (super_admin / Apex staff) are unrestricted; a client is limited to its org's
+  // enabled features. Used by pages to gate their internal tabs.
+  const orgAllows = (path) =>
+    user ? (user.isPlatform || orgAllowsModule(user.orgFeatures, path)) : true;
 
   const value = {
     user,
@@ -197,6 +243,7 @@ export const AuthProvider = ({ children }) => {
     canAccessEvent,
     canAccessModule,
     hasExactModuleAccess,
+    orgAllows,
     isAuthenticated: !!user,
     isSuperAdmin: user?.role === "super_admin" || user?.role === "admin",
     isEventAdmin: user?.role === "event_admin",

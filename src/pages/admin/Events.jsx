@@ -118,7 +118,11 @@ export default function Events() {
   const { id, subpage } = useParams();
   const navigate = useNavigate();
   const { canAccessEvent, user, hasExactModuleAccess, profileLoaded } = useAuth();
-  const isSuperAdminOnly = user?.role === "super_admin";
+  // Event create/edit/delete is available to full admins (super_admin OR admin).
+  // super_admin additionally bypasses tenant isolation (platform owner); a plain
+  // 'admin' is scoped to their own org, so this lets client federations manage
+  // their own events (self-service) without ever seeing other tenants' data.
+  const canManageEvents = user?.role === "super_admin" || user?.role === "admin";
   const hasFullEventAccess = hasExactModuleAccess("/admin/events");
   const hasAuditLogAccess = hasExactModuleAccess("/admin/events/audit-log");
   const [events, setEvents] = useState([]);
@@ -1095,7 +1099,7 @@ export default function Events() {
             </p>
           </div>
         </div>
-        {!id && isSuperAdminOnly && (
+        {!id && canManageEvents && (
           <Button icon={Plus} onClick={() => handleOpenModal()}>
             Create Event
           </Button>
@@ -1106,10 +1110,10 @@ export default function Events() {
         <EmptyState
           icon={Calendar}
           title="No Events Yet"
-          description={isSuperAdminOnly ? "Create your first event to start managing accreditations" : "No events are currently available for management."}
-          action={isSuperAdminOnly ? () => handleOpenModal() : null}
-          actionLabel={isSuperAdminOnly ? "Create Event" : ""}
-          actionIcon={isSuperAdminOnly ? Plus : null}
+          description={canManageEvents ? "Create your first event to start managing accreditations" : "No events are currently available for management."}
+          action={canManageEvents ? () => handleOpenModal() : null}
+          actionLabel={canManageEvents ? "Create Event" : ""}
+          actionIcon={canManageEvents ? Plus : null}
         />
       ) : !id ? (
         /* --- LIST VIEW --- */
@@ -1416,7 +1420,7 @@ export default function Events() {
                       </p>
                     </div>
                     
-                    {isSuperAdminOnly && (
+                    {canManageEvents && (
                       <div className="flex gap-2 h-fit">
                         <Button variant="secondary" icon={Edit} onClick={() => handleOpenModal(event)}>Edit Settings</Button>
                         <Button variant="ghost" icon={Trash2} onClick={() => handleDelete(event)} className="text-red-500 hover:text-red-400 hover:bg-red-500/10">Delete</Button>
