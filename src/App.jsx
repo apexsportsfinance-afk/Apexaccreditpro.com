@@ -44,6 +44,7 @@ const Partners = lazy(() => import("./pages/admin/Partners"));
 const APIDocs = lazy(() => import("./pages/admin/APIDocs"));
 const Organizations = lazy(() => import("./pages/admin/Organizations"));
 const CallRoomControl = lazy(() => import("./pages/admin/CallRoomControl"));
+const SwimmersRanking = lazy(() => import("./pages/admin/ranking/SwimmersRanking"));
 
 const StaffLayout = lazy(() => import("./components/layout/StaffLayout"));
 const StaffDashboard = lazy(() => import("./pages/staff/StaffDashboard"));
@@ -115,6 +116,7 @@ export default function App() {
                 <Route path="users" element={<Users />} />
                 <Route path="medals" element={<MedalRankings />} />
                 <Route path="call-room" element={<CallRoomControl />} />
+                <Route path="ranking" element={<SwimmersRanking />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="audit" element={<AuditLog />} />
                 <Route path="feedback" element={<Feedback />} />

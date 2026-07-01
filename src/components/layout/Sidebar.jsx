@@ -43,6 +43,7 @@ export const navItems = [
   { to: "/admin/qr-system", icon: QrCode, label: "QR System" },
   { to: "/admin/broadcasts", icon: Radio, label: "Broadcast History" },
   { to: "/admin/medals", icon: Trophy, label: "Medal Rankings" },
+  { to: "/admin/ranking", icon: Waves, label: "Swimmers Ranking" },
   { to: "/admin/call-room", icon: MonitorPlay, label: "Call Room Display" },
   { to: "/admin/feedback", icon: MessageSquare, label: "Feedback" },
   { to: "/admin/organizations", icon: Building2, label: "Organizations", platformOnly: true },
