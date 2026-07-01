@@ -95,7 +95,7 @@ export default function Feedback() {
     {
       key: "createdAt",
       header: "Submitted",
-      render: (v) => <span className="text-slate-400 text-sm">{new Date(v).toLocaleDateString()}</span>
+      render: (v) => <span className="text-muted text-sm">{new Date(v).toLocaleDateString()}</span>
     },
     {
       key: "role",
@@ -132,8 +132,8 @@ export default function Feedback() {
       header: "Feedback",
       render: (v, row) => (
         <div className="max-w-xs">
-          <p className="text-sm text-white truncate font-medium">{v || "No comment"}</p>
-          <p className="text-xs text-slate-500 truncate italic">{row.improveFuture}</p>
+          <p className="text-sm text-main truncate font-medium">{v || "No comment"}</p>
+          <p className="text-xs text-muted truncate italic">{row.improveFuture}</p>
         </div>
       )
     },
@@ -241,7 +241,7 @@ export default function Feedback() {
                   key={r}
                   onClick={() => setRoleFilter(r)}
                   className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    roleFilter === r ? "bg-primary-500 text-white shadow-cyanGlowSmall" : "text-slate-400 hover:text-white"
+                    roleFilter === r ? "bg-primary-500 text-white shadow-cyanGlowSmall" : "text-muted hover:text-main"
                   }`}
                 >
                   {r}
@@ -277,7 +277,7 @@ export default function Feedback() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedFeedback(null)}
-              className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+              className="absolute inset-0 bg-base backdrop-blur-sm"
             />
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
@@ -295,7 +295,7 @@ export default function Feedback() {
                     <p className="text-muted text-sm">Submitted on {new Date(selectedFeedback.createdAt).toLocaleString()}</p>
                   </div>
                 </div>
-                <button onClick={() => setSelectedFeedback(null)} className="text-slate-500 hover:text-white transition-colors">
+                <button onClick={() => setSelectedFeedback(null)} className="text-muted hover:text-main transition-colors">
                   Close ✕
                 </button>
               </div>
@@ -322,7 +322,7 @@ export default function Feedback() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest border-b border-white/5 pb-2">Experience Ratings</h3>
+                    <h3 className="text-sm font-bold text-muted uppercase tracking-widest border-b border-white/5 pb-2">Experience Ratings</h3>
                     <div className="space-y-4">
                       {[
                         { label: "Organisation", value: selectedFeedback.organisationRating, max: 5, isText: true },
@@ -331,7 +331,7 @@ export default function Feedback() {
                         { label: "Communication", value: selectedFeedback.communicationRating, max: 5 }
                       ].map((item, i) => (
                         <div key={i} className="flex items-center justify-between">
-                          <span className="text-sm text-slate-400">{item.label}</span>
+                          <span className="text-sm text-muted">{item.label}</span>
                           <div className="flex gap-0.5">
                             {item.isText ? (
                               <Badge variant="info">{item.value}</Badge>
@@ -347,14 +347,14 @@ export default function Feedback() {
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest border-b border-white/5 pb-2">QR System Experience</h3>
+                    <h3 className="text-sm font-bold text-muted uppercase tracking-widest border-b border-white/5 pb-2">QR System Experience</h3>
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-slate-400">QR Code Used</span>
+                        <span className="text-sm text-muted">QR Code Used</span>
                         <Badge variant={selectedFeedback.qrUsed ? "success" : "default"}>{selectedFeedback.qrUsed ? "Yes" : "No"}</Badge>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-slate-400">Ease of Use</span>
+                        <span className="text-sm text-muted">Ease of Use</span>
                         <div className="flex gap-0.5">
                           {[...Array(5)].map((_, i) => (
                             <Star key={i} className={`w-3 h-3 ${i < selectedFeedback.qrEase ? "fill-primary-400 text-primary-400" : "text-slate-800"}`} />
@@ -362,7 +362,7 @@ export default function Feedback() {
                         </div>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-slate-400">Value of System</span>
+                        <span className="text-sm text-muted">Value of System</span>
                         <Badge variant="info">{selectedFeedback.qrValue}</Badge>
                       </div>
                     </div>
@@ -377,8 +377,8 @@ export default function Feedback() {
                     { label: "Additional Comments", value: selectedFeedback.additionalComments }
                   ].map((item, i) => item.value && (
                     <div key={i} className="space-y-2">
-                      <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">{item.label}</h4>
-                      <div className="p-4 bg-slate-950/50 rounded-xl border border-white/5 text-white text-sm leading-relaxed whitespace-pre-wrap">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-muted">{item.label}</h4>
+                      <div className="p-4 bg-base rounded-xl border border-white/5 text-main text-sm leading-relaxed whitespace-pre-wrap">
                         {item.value}
                       </div>
                     </div>
@@ -396,36 +396,36 @@ export default function Feedback() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowSetup(false)}
-              className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+              className="absolute inset-0 bg-base backdrop-blur-sm"
             />
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="relative bg-slate-900 border border-white/10 p-8 rounded-3xl shadow-2xl w-full max-xl"
+              className="relative bg-base border border-white/10 p-8 rounded-3xl shadow-2xl w-full max-xl"
             >
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-primary-500/10 rounded-xl flex items-center justify-center">
                     <Settings className="w-5 h-5 text-primary-400" />
                   </div>
-                  <h2 className="text-xl font-bold text-white">Feedback Setup</h2>
+                  <h2 className="text-xl font-bold text-main">Feedback Setup</h2>
                 </div>
-                <button onClick={() => setShowSetup(false)} className="text-slate-500 hover:text-white transition-colors text-sm">
+                <button onClick={() => setShowSetup(false)} className="text-muted hover:text-main transition-colors text-sm">
                   Close ✕
                 </button>
               </div>
 
               <div className="space-y-6">
-                <div className="p-4 bg-slate-800/50 rounded-2xl border border-white/5 space-y-1">
+                <div className="p-4 bg-base-alt rounded-2xl border border-white/5 space-y-1">
                   <span className="text-xs font-bold text-primary-400 uppercase tracking-widest">Active Event</span>
-                  <p className="text-lg font-bold text-white">{events.find(e => e.id === selectedEventId)?.name || "N/A"}</p>
+                  <p className="text-lg font-bold text-main">{events.find(e => e.id === selectedEventId)?.name || "N/A"}</p>
                 </div>
 
                 <div className="space-y-3">
-                  <label className="text-sm font-medium text-slate-400">Public Feedback Link</label>
+                  <label className="text-sm font-medium text-muted">Public Feedback Link</label>
                   <div className="flex gap-2">
-                    <div className="bg-slate-950 px-4 py-3 rounded-xl border border-white/5 text-slate-300 text-sm font-mono flex-1 truncate">
+                    <div className="bg-base px-4 py-3 rounded-xl border border-white/5 text-main text-sm font-mono flex-1 truncate">
                       {window.location.origin}/feedback/{events.find(e => e.id === selectedEventId)?.slug || "your-event-slug"}
                     </div>
                     <Button
@@ -448,9 +448,9 @@ export default function Feedback() {
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-white/5 flex items-center gap-3 text-slate-400 text-sm">
+                <div className="pt-4 border-t border-white/5 flex items-center gap-3 text-muted text-sm">
                   <QrCode className="w-4 h-4 flex-shrink-0" />
-                  <span>To customise questions, go to <strong className="text-white">QR System → Feedback Form</strong> tab.</span>
+                  <span>To customise questions, go to <strong className="text-main">QR System → Feedback Form</strong> tab.</span>
                 </div>
               </div>
             </motion.div>

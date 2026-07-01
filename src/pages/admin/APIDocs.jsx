@@ -167,10 +167,10 @@ else:
             <Book className="w-10 h-10 text-cyan-400" />
           </div>
           <div>
-            <h1 className="text-4xl font-bold text-white mb-1">
+            <h1 className="text-4xl font-bold text-main mb-1">
               Partner API Documentation
             </h1>
-            <p className="text-slate-400 text-lg">V1.0.0 — Build secure integrations with the Apex Platform.</p>
+            <p className="text-muted text-lg">V1.0.0 — Build secure integrations with the Apex Platform.</p>
           </div>
         </div>
         <button 
@@ -184,23 +184,23 @@ else:
       <div id="api_docs_content" className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Sidebar Navigation */}
         <div className="lg:col-span-1 space-y-2 sticky top-6 self-start">
-          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 px-4">Documentation</h3>
-          <a href="#overview" className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 transition-all">
+          <h3 className="text-xs font-bold text-muted uppercase tracking-widest mb-4 px-4">Documentation</h3>
+          <a href="#overview" className="flex items-center gap-3 px-4 py-3 rounded-xl text-main hover:bg-base-alt transition-all">
             <Globe className="w-4 h-4" /> Overview
           </a>
-          <a href="#integration" className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 transition-all">
+          <a href="#integration" className="flex items-center gap-3 px-4 py-3 rounded-xl text-main hover:bg-base-alt transition-all">
             <Activity className="w-4 h-4" /> Integration Workflow
           </a>
-          <a href="#authentication" className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 transition-all">
+          <a href="#authentication" className="flex items-center gap-3 px-4 py-3 rounded-xl text-main hover:bg-base-alt transition-all">
             <Shield className="w-4 h-4" /> Authentication
           </a>
-          <a href="#endpoint" className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 transition-all">
+          <a href="#endpoint" className="flex items-center gap-3 px-4 py-3 rounded-xl text-main hover:bg-base-alt transition-all">
             <Terminal className="w-4 h-4" /> Verify Badge
           </a>
-          <a href="#fields" className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 transition-all">
+          <a href="#fields" className="flex items-center gap-3 px-4 py-3 rounded-xl text-main hover:bg-base-alt transition-all">
             <Database className="w-4 h-4" /> Field Reference
           </a>
-          <a href="#errors" className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 transition-all">
+          <a href="#errors" className="flex items-center gap-3 px-4 py-3 rounded-xl text-main hover:bg-base-alt transition-all">
             <AlertCircle className="w-4 h-4" /> Error Handling
           </a>
         </div>
@@ -210,22 +210,22 @@ else:
           
           {/* Overview Section */}
           <section id="overview" className="scroll-mt-10">
-            <h2 className="text-2xl font-bold text-white mb-6">Overview</h2>
-            <div className="prose prose-invert max-w-none text-slate-300 space-y-4">
+            <h2 className="text-2xl font-bold text-main mb-6">Overview</h2>
+            <div className="prose prose-invert max-w-none text-main space-y-4">
               <p>
-                The Apex Partner API allows authorized third-party systems (such as medical centers, event kiosks, and gate access controllers) 
+                The Apex Partner API allows authorized third-party systems (such as medical centers, event kiosks, and gate access controllers)
                 to verify athlete accreditations in real-time.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                <div className="bg-slate-800/30 border border-slate-700 p-6 rounded-2xl">
+                <div className="bg-base-alt border border-border p-6 rounded-2xl">
                   <Laptop className="w-6 h-6 text-cyan-400 mb-3" />
-                  <h4 className="text-white font-bold mb-2">Self-Service Kiosks</h4>
-                  <p className="text-sm text-slate-400">Enable athletes to scan their QR codes to print badges or check entry status at event venues.</p>
+                  <h4 className="text-main font-bold mb-2">Self-Service Kiosks</h4>
+                  <p className="text-sm text-muted">Enable athletes to scan their QR codes to print badges or check entry status at event venues.</p>
                 </div>
-                <div className="bg-slate-800/30 border border-slate-700 p-6 rounded-2xl">
+                <div className="bg-base-alt border border-border p-6 rounded-2xl">
                   <Smartphone className="w-6 h-6 text-emerald-400 mb-3" />
-                  <h4 className="text-white font-bold mb-2">Partner Apps</h4>
-                  <p className="text-sm text-slate-400">Verify athlete eligibility at medical check-ins or equipment collection points.</p>
+                  <h4 className="text-main font-bold mb-2">Partner Apps</h4>
+                  <p className="text-sm text-muted">Verify athlete eligibility at medical check-ins or equipment collection points.</p>
                 </div>
               </div>
             </div>
@@ -233,7 +233,7 @@ else:
 
           {/* Integration Workflow */}
           <section id="integration" className="scroll-mt-10">
-            <h2 className="text-2xl font-bold text-white mb-6">Integration Workflow</h2>
+            <h2 className="text-2xl font-bold text-main mb-6">Integration Workflow</h2>
             <div className="space-y-6">
               {[
                 { step: "01", title: "Partner Registration", desc: "Contact the Apex Admin to have your partner organization registered in the platform." },
@@ -243,8 +243,8 @@ else:
                 <div key={i} className="flex gap-6 items-start">
                   <span className="text-4xl font-black text-slate-800 leading-none">{item.step}</span>
                   <div>
-                    <h4 className="text-white font-bold mb-1">{item.title}</h4>
-                    <p className="text-slate-400 text-sm leading-relaxed">{item.desc}</p>
+                    <h4 className="text-main font-bold mb-1">{item.title}</h4>
+                    <p className="text-muted text-sm leading-relaxed">{item.desc}</p>
                   </div>
                 </div>
               ))}
@@ -252,13 +252,13 @@ else:
           </section>
 
           {/* Authentication Section */}
-          <section id="authentication" className="bg-slate-800/50 rounded-3xl border border-slate-700 p-8 scroll-mt-10">
-            <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-3">
+          <section id="authentication" className="bg-base-alt rounded-3xl border border-border p-8 scroll-mt-10">
+            <h2 className="text-2xl font-bold text-main mb-4 flex items-center gap-3">
               <Shield className="w-6 h-6 text-cyan-400" />
               Authentication
             </h2>
-            <p className="text-slate-300 mb-6 leading-relaxed">
-              All API requests must include your unique API Key in the <code className="text-cyan-400 bg-slate-900 px-2 py-0.5 rounded">x-api-key</code> HTTP header. 
+            <p className="text-main mb-6 leading-relaxed">
+              All API requests must include your unique API Key in the <code className="text-cyan-400 bg-slate-900 px-2 py-0.5 rounded">x-api-key</code> HTTP header.
             </p>
             <div className="bg-slate-950 rounded-xl p-4 border border-slate-800">
               <pre className="text-slate-400 font-mono text-sm">
@@ -268,15 +268,15 @@ else:
           </section>
 
           {/* Verification Endpoint */}
-          <section id="endpoint" className="bg-slate-800/50 rounded-3xl border border-slate-700 p-8 scroll-mt-10">
+          <section id="endpoint" className="bg-base-alt rounded-3xl border border-border p-8 scroll-mt-10">
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h2 className="text-2xl font-bold text-white mb-1">Verify Badge</h2>
-                <p className="text-slate-400">Fetch athlete details from a scanned QR code.</p>
+                <h2 className="text-2xl font-bold text-main mb-1">Verify Badge</h2>
+                <p className="text-muted">Fetch athlete details from a scanned QR code.</p>
               </div>
               <div className="flex flex-col items-end gap-2">
                 <span className="px-3 py-1 bg-cyan-500 text-black font-black text-xs rounded uppercase">POST</span>
-                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">application/json</span>
+                <span className="text-[10px] text-muted font-bold uppercase tracking-tighter">application/json</span>
               </div>
             </div>
             
@@ -288,16 +288,16 @@ else:
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-10">
               <div>
-                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Request Body</h3>
+                <h3 className="text-sm font-bold text-muted uppercase tracking-widest mb-4">Request Body</h3>
                 <table className="w-full text-sm">
-                  <thead className="text-left border-b border-slate-700 text-slate-500">
+                  <thead className="text-left border-b border-border text-muted">
                     <tr>
                       <th className="pb-2">Field</th>
                       <th className="pb-2">Type</th>
                       <th className="pb-2">Required</th>
                     </tr>
                   </thead>
-                  <tbody className="text-slate-300">
+                  <tbody className="text-main">
                     <tr>
                       <td className="py-3 font-mono text-cyan-400">badgeId</td>
                       <td className="py-3">String</td>
@@ -305,20 +305,20 @@ else:
                     </tr>
                   </tbody>
                 </table>
-                <p className="mt-3 text-xs text-slate-500 italic">Accepts system UUID, Badge Number (ATH-XXX), or internal ID.</p>
+                <p className="mt-3 text-xs text-muted italic">Accepts system UUID, Badge Number (ATH-XXX), or internal ID.</p>
               </div>
 
               <div>
-                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Response Fields</h3>
+                <h3 className="text-sm font-bold text-muted uppercase tracking-widest mb-4">Response Fields</h3>
                 <div className="space-y-3">
                   {[
                     { f: "success", t: "Boolean", d: "True if verification passed" },
                     { f: "partner", t: "String", d: "Your registered partner name" },
                     { f: "data", t: "Object", d: "Allocated athlete details" }
                   ].map((field, i) => (
-                    <div key={i} className="flex justify-between border-b border-slate-800 pb-2">
-                      <span className="font-mono text-xs text-white">{field.f}</span>
-                      <span className="text-[10px] text-slate-500">{field.d}</span>
+                    <div key={i} className="flex justify-between border-b border-border pb-2">
+                      <span className="font-mono text-xs text-main">{field.f}</span>
+                      <span className="text-[10px] text-muted">{field.d}</span>
                     </div>
                   ))}
                 </div>
@@ -327,24 +327,24 @@ else:
 
           {/* Field Reference Section */}
           <section id="fields" className="scroll-mt-10">
-            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+            <h2 className="text-2xl font-bold text-main mb-6 flex items-center gap-3">
               <Database className="w-6 h-6 text-cyan-400" />
               Field Reference
             </h2>
-            <p className="text-slate-300 mb-6">
-              The <code className="text-cyan-400">data</code> object in a successful response contains athlete details. 
+            <p className="text-main mb-6">
+              The <code className="text-cyan-400">data</code> object in a successful response contains athlete details.
               Availability depends on your API key permissions.
             </p>
-            <div className="bg-slate-800/30 rounded-3xl border border-slate-700 overflow-hidden">
+            <div className="bg-base-alt rounded-3xl border border-border overflow-hidden">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-800/50 text-slate-400 border-b border-slate-700">
+                <thead className="bg-base-alt text-muted border-b border-border">
                   <tr>
                     <th className="px-6 py-4">Field Name</th>
                     <th className="px-6 py-4">Description</th>
                     <th className="px-6 py-4">Example</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800 text-slate-300">
+                <tbody className="divide-y divide-slate-800 text-main">
                   {[
                     { n: "firstName", d: "The athlete's first name", e: "Fatma" },
                     { n: "lastName", d: "The athlete's last name", e: "Abdullah" },
@@ -358,7 +358,7 @@ else:
                     <tr key={i}>
                       <td className="px-6 py-4 font-mono text-cyan-400">{field.n}</td>
                       <td className="px-6 py-4">{field.d}</td>
-                      <td className="px-6 py-4 text-slate-500">{field.e}</td>
+                      <td className="px-6 py-4 text-muted">{field.e}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -397,20 +397,20 @@ else:
 
           {/* Error Handling Section */}
           <section id="errors" className="scroll-mt-10">
-            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+            <h2 className="text-2xl font-bold text-main mb-6 flex items-center gap-3">
               <AlertCircle className="w-6 h-6 text-red-400" />
               Error Handling
             </h2>
-            <div className="bg-slate-800/30 rounded-3xl border border-slate-700 overflow-hidden">
+            <div className="bg-base-alt rounded-3xl border border-border overflow-hidden">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-800/50 text-slate-400 border-b border-slate-700">
+                <thead className="bg-base-alt text-muted border-b border-border">
                   <tr>
                     <th className="px-6 py-4">Status</th>
                     <th className="px-6 py-4">Error Message</th>
                     <th className="px-6 py-4">Reason</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800 text-slate-300">
+                <tbody className="divide-y divide-slate-800 text-main">
                   <tr>
                     <td className="px-6 py-4 font-bold text-red-400">400</td>
                     <td className="px-6 py-4">badgeId is required</td>
@@ -442,8 +442,8 @@ else:
               <Database className="w-6 h-6" />
               Data Allocation Policy
             </h2>
-            <p className="text-slate-300 text-sm leading-relaxed">
-              For security and GDPR compliance, the <strong>data</strong> object returned by the API is filtered dynamically. 
+            <p className="text-main text-sm leading-relaxed">
+              For security and GDPR compliance, the <strong>data</strong> object returned by the API is filtered dynamically.
               Only the fields explicitly allocated by the Admin when generating your API key will be included in the response.
               Common fields include: <code className="text-emerald-400">firstName</code>, <code className="text-emerald-400">lastName</code>, <code className="text-emerald-400">role</code>, and <code className="text-emerald-400">photoUrl</code>.
             </p>
@@ -451,7 +451,7 @@ else:
         </div>
       </div>
 
-      <footer className="mt-20 pt-10 border-t border-slate-800 text-center text-slate-500 text-xs">
+      <footer className="mt-20 pt-10 border-t border-border text-center text-muted text-xs">
         <div className="flex items-center justify-center gap-4 mb-4">
           <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3" /> System Stable</span>
           <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> SSL Encryption Active</span>

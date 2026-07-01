@@ -23,7 +23,7 @@ function BadgeColorPicker({ defaultValue, name }) {
   
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-300 mb-2">Badge Color</label>
+      <label className="block text-sm font-medium text-main mb-2">Badge Color</label>
       <input type="hidden" name={name} value={color} />
       <div className="flex flex-wrap items-center gap-2.5 mb-2">
         {COLOR_PRESETS.map(c => (
@@ -36,22 +36,22 @@ function BadgeColorPicker({ defaultValue, name }) {
             title={c}
           />
         ))}
-        <div className="w-px h-6 bg-slate-700/50 mx-1 flex-shrink-0" />
+        <div className="w-px h-6 bg-base-alt mx-1 flex-shrink-0" />
         <div className="flex items-center gap-2">
           <label 
-            className={`relative w-8 h-8 rounded-full border-2 cursor-pointer transition-transform hover:scale-105 flex items-center justify-center overflow-hidden ${!COLOR_PRESETS.includes(color) ? 'border-white shadow-xl shadow-white/10' : 'border-slate-500 bg-slate-800'}`} 
+            className={`relative w-8 h-8 rounded-full border-2 cursor-pointer transition-transform hover:scale-105 flex items-center justify-center overflow-hidden ${!COLOR_PRESETS.includes(color) ? 'border-white shadow-xl shadow-white/10' : 'border-border bg-base-alt'}`}
             style={{ backgroundColor: !COLOR_PRESETS.includes(color) ? color : undefined }}
             title="Custom RGB/Hex Color"
           >
              <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="opacity-0 absolute w-full h-full cursor-pointer" />
-             {COLOR_PRESETS.includes(color) && <Palette className="w-4 h-4 text-slate-400" />}
+             {COLOR_PRESETS.includes(color) && <Palette className="w-4 h-4 text-muted" />}
           </label>
           {!COLOR_PRESETS.includes(color) && (
-            <span className="text-xs font-mono text-slate-200 font-bold px-2 py-1 bg-slate-800 rounded uppercase border border-slate-700">{color}</span>
+            <span className="text-xs font-mono text-main font-bold px-2 py-1 bg-base-alt rounded uppercase border border-border">{color}</span>
           )}
         </div>
       </div>
-      <p className="text-xs text-slate-500">Pick a preset or custom RGB/HEX color to print on physical badge ribbons.</p>
+      <p className="text-xs text-muted">Pick a preset or custom RGB/HEX color to print on physical badge ribbons.</p>
     </div>
   );
 }
@@ -250,12 +250,12 @@ export default function CategoriesView({ event, availableCategories, onClose }) 
 
   return (
     <div className="space-y-6">
-      <Card className="border-slate-800 bg-slate-900/40 backdrop-blur-xl">
+      <Card className="border-border bg-base/40 backdrop-blur-xl">
         <CardContent className="p-8 space-y-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h3 className="text-3xl font-black text-main mb-2 tracking-tighter uppercase italic">Categories Management</h3>
-              <p className="text-slate-400 font-light text-lg">Define roles, edit names, and set exclusive club dropdown limits for registration.</p>
+              <p className="text-muted font-light text-lg">Define roles, edit names, and set exclusive club dropdown limits for registration.</p>
             </div>
             <div className="flex items-center gap-3">
               <Button variant="secondary" icon={Plus} onClick={() => openCatModal('add_main')}>
@@ -321,7 +321,7 @@ export default function CategoriesView({ event, availableCategories, onClose }) 
                         </div>
                       </div>
 
-                      <div className="mt-auto pt-3 border-t border-slate-800/80 flex items-center justify-between">
+                      <div className="mt-auto pt-3 border-t border-border flex items-center justify-between">
                         <div className="flex flex-col gap-1.5 flex-1">
                           <button 
                             onClick={(e) => { e.stopPropagation(); openCatModal('edit', cat); }} 
@@ -352,7 +352,7 @@ export default function CategoriesView({ event, availableCategories, onClose }) 
                             className={`text-[10px] font-black uppercase tracking-widest px-3 py-2 rounded-lg flex items-center gap-2 transition-colors ${
                               categoryCustomFields[cat.id]?.length > 0 
                                 ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" 
-                                : "bg-slate-800 text-slate-400 border border-slate-700"
+                                : "bg-base-alt text-muted border border-border"
                             }`}
                           >
                             <PlusCircle className="w-3.5 h-3.5" />
@@ -361,10 +361,10 @@ export default function CategoriesView({ event, availableCategories, onClose }) 
                         </div>
 
                         <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={(e) => { e.stopPropagation(); openCatModal('edit', cat) }} className="p-1.5 text-slate-500 hover:text-white bg-transparent hover:bg-slate-800 rounded transition-colors">
+                          <button onClick={(e) => { e.stopPropagation(); openCatModal('edit', cat) }} className="p-1.5 text-muted hover:text-main bg-transparent hover:bg-base-alt rounded transition-colors">
                             <Edit className="w-4 h-4" />
                           </button>
-                          <button onClick={(e) => { e.stopPropagation(); setDeleteModal({ open: true, data: cat }) }} className="p-1.5 text-slate-500 hover:text-red-400 bg-transparent hover:bg-red-500/10 rounded transition-colors">
+                          <button onClick={(e) => { e.stopPropagation(); setDeleteModal({ open: true, data: cat }) }} className="p-1.5 text-muted hover:text-red-400 bg-transparent hover:bg-red-500/10 rounded transition-colors">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
@@ -372,8 +372,8 @@ export default function CategoriesView({ event, availableCategories, onClose }) 
                     </div>
                   ))}
                   {parent.children.length === 0 && (
-                    <div className="col-span-full py-8 text-center border-2 border-dashed border-slate-800 rounded-2xl">
-                      <p className="text-slate-500 font-light text-lg">No sub-roles defined for this group.</p>
+                    <div className="col-span-full py-8 text-center border-2 border-dashed border-border rounded-2xl">
+                      <p className="text-muted font-light text-lg">No sub-roles defined for this group.</p>
                       <Button variant="ghost" className="mt-2 text-primary-400" onClick={() => openCatModal('add_sub', { parentId: parent.id })}>Add Sub-Role</Button>
                     </div>
                   )}
@@ -391,12 +391,12 @@ export default function CategoriesView({ event, availableCategories, onClose }) 
           <div className="grid grid-cols-2 gap-4">
             <BadgeColorPicker defaultValue={catModal.data?.badgeColor} name="badgeColor" />
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Text Color</label>
+              <label className="block text-sm font-medium text-main mb-2">Text Color</label>
               <input type="color" name="textColor" defaultValue={catModal.data?.textColor || "#ffffff"} className="w-full h-10 rounded cursor-pointer bg-transparent border-0 p-0" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Font Size</label>
-              <select name="fontSize" defaultValue={catModal.data?.fontSize || "14px"} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-4 py-2 text-white">
+              <label className="block text-sm font-medium text-main mb-2">Font Size</label>
+              <select name="fontSize" defaultValue={catModal.data?.fontSize || "14px"} className="w-full bg-base border border-border rounded-lg px-4 py-2 text-main">
                 <option value="10px">10px</option>
                 <option value="12px">12px</option>
                 <option value="14px">14px</option>

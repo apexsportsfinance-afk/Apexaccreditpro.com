@@ -124,11 +124,11 @@ export default function Partners() {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-main mb-2 flex items-center gap-3">
             <Shield className="w-8 h-8 text-cyan-400" />
             API & Partner Management
           </h1>
-          <p className="text-slate-400 text-lg">Manage third-party integrations and secure API access.</p>
+          <p className="text-muted text-lg">Manage third-party integrations and secure API access.</p>
         </div>
         <Button onClick={() => setShowAddModal(true)} icon={Plus}>
           Add New Partner
@@ -138,17 +138,17 @@ export default function Partners() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Partners List */}
         <div className="lg:col-span-1 space-y-4">
-          <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+          <h2 className="text-xl font-semibold text-main mb-4 flex items-center gap-2">
             <Users className="w-5 h-5 text-cyan-400" />
             Partners
           </h2>
           {loading ? (
             <div className="animate-pulse space-y-3">
-              {[1, 2, 3].map(i => <div key={i} className="h-20 bg-slate-800 rounded-xl"></div>)}
+              {[1, 2, 3].map(i => <div key={i} className="h-20 bg-base-alt rounded-xl"></div>)}
             </div>
           ) : partners.length === 0 ? (
-            <div className="text-center py-12 bg-slate-800/50 rounded-2xl border border-dashed border-slate-700">
-              <p className="text-slate-400">No partners found.</p>
+            <div className="text-center py-12 bg-base-alt/50 rounded-2xl border border-dashed border-border">
+              <p className="text-muted">No partners found.</p>
             </div>
           ) : (
             partners.map(partner => (
@@ -158,27 +158,27 @@ export default function Partners() {
                 className={`p-4 rounded-xl border transition-all cursor-pointer ${
                   selectedPartner?.id === partner.id 
                     ? "bg-cyan-500/10 border-cyan-500/50 shadow-lg shadow-cyan-500/5" 
-                    : "bg-slate-800 border-slate-700 hover:border-slate-500"
+                    : "bg-base-alt border-border hover:border-border"
                 }`}
               >
                 <div className="flex items-center justify-between mb-1">
-                  <h3 className="font-bold text-white text-lg">{partner.name}</h3>
+                  <h3 className="font-bold text-main text-lg">{partner.name}</h3>
                   <div className="flex items-center gap-2">
                     <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${
-                      partner.status === 'active' ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-700 text-slate-400"
+                      partner.status === 'active' ? "bg-emerald-500/20 text-emerald-400" : "bg-base-alt text-muted"
                     }`}>
                       {partner.status}
                     </span>
                     <button 
                       onClick={(e) => handleDeletePartner(e, partner.id)}
-                      className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+                      className="p-1.5 text-muted hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
                       title="Delete Partner Permanently"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
-                <p className="text-slate-400 text-sm line-clamp-2">{partner.description}</p>
+                <p className="text-muted text-sm line-clamp-2">{partner.description}</p>
               </div>
             ))
           )}
@@ -187,13 +187,13 @@ export default function Partners() {
         {/* API Keys Management */}
         <div className="lg:col-span-2">
           {selectedPartner ? (
-            <div className="bg-slate-800/50 rounded-2xl border border-slate-700 p-6">
+            <div className="bg-base-alt/50 rounded-2xl border border-border p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-white mb-1">
+                  <h2 className="text-2xl font-bold text-main mb-1">
                     API Keys for {selectedPartner.name}
                   </h2>
-                  <p className="text-slate-400">Manage security keys and data allocations for this partner.</p>
+                  <p className="text-muted">Manage security keys and data allocations for this partner.</p>
                 </div>
                 <Button variant="secondary" onClick={() => setShowKeyModal(true)} icon={Key}>
                   Generate Key
@@ -202,25 +202,25 @@ export default function Partners() {
 
               {loadingKeys ? (
                 <div className="space-y-4">
-                  {[1, 2].map(i => <div key={i} className="h-24 bg-slate-800 rounded-xl animate-pulse"></div>)}
+                  {[1, 2].map(i => <div key={i} className="h-24 bg-base-alt rounded-xl animate-pulse"></div>)}
                 </div>
               ) : keys.length === 0 ? (
-                <div className="text-center py-16 bg-slate-900/50 rounded-2xl border border-dashed border-slate-800">
-                  <Key className="w-12 h-12 text-slate-700 mx-auto mb-4" />
-                  <p className="text-slate-500 text-lg">No API keys generated yet.</p>
+                <div className="text-center py-16 bg-base/50 rounded-2xl border border-dashed border-border">
+                  <Key className="w-12 h-12 text-muted mx-auto mb-4" />
+                  <p className="text-muted text-lg">No API keys generated yet.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {keys.map(key => (
-                    <div key={key.id} className="bg-slate-900/50 border border-slate-700 rounded-xl p-5">
+                    <div key={key.id} className="bg-base/50 border border-border rounded-xl p-5">
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
                           <div className={`p-2 rounded-lg ${key.status === 'active' ? "bg-cyan-500/10" : "bg-red-500/10"}`}>
                             <Key className={`w-5 h-5 ${key.status === 'active' ? "text-cyan-400" : "text-red-400"}`} />
                           </div>
                           <div>
-                            <h4 className="font-bold text-white">{key.label}</h4>
-                            <p className="text-xs text-slate-500 uppercase tracking-wider">
+                            <h4 className="font-bold text-main">{key.label}</h4>
+                            <p className="text-xs text-muted uppercase tracking-wider">
                               Created {new Date(key.created_at).toLocaleDateString()}
                             </p>
                           </div>
@@ -236,14 +236,14 @@ export default function Partners() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3 p-3 bg-slate-950 rounded-lg border border-slate-800 group relative mb-4">
+                      <div className="flex items-center gap-3 p-3 bg-base rounded-lg border border-border group relative mb-4">
                         <code className="text-cyan-400 font-mono text-sm break-all">
                           {key.status === 'active' ? key.api_key : "••••••••••••••••••••••••••••••••"}
                         </code>
                         {key.status === 'active' && (
                           <button 
                             onClick={() => copyToClipboard(key.api_key)}
-                            className="ml-auto p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded transition-colors"
+                            className="ml-auto p-1.5 text-muted hover:text-main hover:bg-base-alt rounded transition-colors"
                             title="Copy Key"
                           >
                             <Copy className="w-4 h-4" />
@@ -251,10 +251,10 @@ export default function Partners() {
                         )}
                       </div>
 
-                      <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-800">
-                        <span className="text-xs text-slate-500 w-full mb-1">ALLOCATED FIELDS:</span>
+                      <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-border">
+                        <span className="text-xs text-muted w-full mb-1">ALLOCATED FIELDS:</span>
                         {key.allowed_fields.map(field => (
-                          <span key={field} className="px-2 py-1 bg-slate-800 text-slate-300 text-xs rounded border border-slate-700">
+                          <span key={field} className="px-2 py-1 bg-base-alt text-main text-xs rounded border border-border">
                             {field}
                           </span>
                         ))}
@@ -265,12 +265,12 @@ export default function Partners() {
               )}
             </div>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center py-20 bg-slate-800/20 rounded-3xl border-2 border-dashed border-slate-800 text-center">
-              <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mb-6">
-                <Users className="w-10 h-10 text-slate-600" />
+            <div className="h-full flex flex-col items-center justify-center py-20 bg-base-alt/20 rounded-3xl border-2 border-dashed border-border text-center">
+              <div className="w-20 h-20 bg-base-alt rounded-full flex items-center justify-center mb-6">
+                <Users className="w-10 h-10 text-muted" />
               </div>
-              <h3 className="text-2xl font-bold text-slate-300 mb-2">Select a Partner</h3>
-              <p className="text-slate-500 max-w-xs">Choose a partner from the left to manage their API integration.</p>
+              <h3 className="text-2xl font-bold text-main mb-2">Select a Partner</h3>
+              <p className="text-muted max-w-xs">Choose a partner from the left to manage their API integration.</p>
             </div>
           )}
         </div>
@@ -286,9 +286,9 @@ export default function Partners() {
             onChange={(e) => setNewPartner({ ...newPartner, name: e.target.value })}
           />
           <div className="space-y-1">
-            <label className="block text-sm font-medium text-slate-400">Description / Notes</label>
-            <textarea 
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+            <label className="block text-sm font-medium text-muted">Description / Notes</label>
+            <textarea
+              className="w-full bg-base border border-border rounded-xl p-3 text-main focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
               rows="3"
               placeholder="What is this integration for?"
               value={newPartner.description}
@@ -313,15 +313,15 @@ export default function Partners() {
           />
           
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-3">Allocated Fields (What this key can see)</label>
+            <label className="block text-sm font-medium text-muted mb-3">Allocated Fields (What this key can see)</label>
             <div className="grid grid-cols-2 gap-3">
               {availableFields.map(field => (
                 <label 
                   key={field.id}
                   className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
                     newKey.allowedFields.includes(field.id)
-                      ? "bg-cyan-500/10 border-cyan-500/50 text-white"
-                      : "bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700"
+                      ? "bg-cyan-500/10 border-cyan-500/50 text-main"
+                      : "bg-base border-border text-muted hover:border-border"
                   }`}
                 >
                   <input 
@@ -336,7 +336,7 @@ export default function Partners() {
                       }
                     }}
                   />
-                  {newKey.allowedFields.includes(field.id) ? <CheckCircle className="w-5 h-5 text-cyan-400" /> : <div className="w-5 h-5 border-2 border-slate-700 rounded-full" />}
+                  {newKey.allowedFields.includes(field.id) ? <CheckCircle className="w-5 h-5 text-cyan-400" /> : <div className="w-5 h-5 border-2 border-border rounded-full" />}
                   <span className="font-medium">{field.label}</span>
                 </label>
               ))}

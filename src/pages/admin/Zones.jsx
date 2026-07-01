@@ -355,8 +355,8 @@ export default function Zones() {
     <div id="zones_page" className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Zones</h1>
-          <p className="text-lg text-slate-400 font-extralight">
+          <h1 className="text-3xl font-bold text-main mb-2">Zones</h1>
+          <p className="text-lg text-muted font-extralight">
             Manage venue access zones per event
           </p>
         </div>
@@ -404,8 +404,8 @@ export default function Zones() {
               <div className="w-16 h-16 rounded-2xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center mb-4">
                 <MapPin className="w-8 h-8 text-primary-400 opacity-60" />
               </div>
-              <h3 className="text-xl font-semibold text-white mb-2">No Zones Yet</h3>
-              <p className="text-lg text-slate-400 font-extralight max-w-sm mb-6">
+              <h3 className="text-xl font-semibold text-main mb-2">No Zones Yet</h3>
+              <p className="text-lg text-muted font-extralight max-w-sm mb-6">
                 Create zones to define access areas for this event
               </p>
               <div className="flex gap-4">

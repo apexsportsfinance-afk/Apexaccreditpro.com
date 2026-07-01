@@ -201,7 +201,7 @@ export default function InviteLinksView({ event }) {
 
   const statusColors = {
     active: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400",
-    inactive: "bg-slate-700/30 border-slate-600/30 text-slate-500",
+    inactive: "bg-base-alt border-border text-muted",
     expired: "bg-amber-500/10 border-amber-500/30 text-amber-400",
     exhausted: "bg-red-500/10 border-red-500/30 text-red-400"
   };
@@ -218,8 +218,8 @@ export default function InviteLinksView({ event }) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-xl font-bold text-white">Private Invite Links</h3>
-          <p className="text-sm text-slate-400 mt-1">Generate secret registration links for specific people while main registration stays closed.</p>
+          <h3 className="text-xl font-bold text-main">Private Invite Links</h3>
+          <p className="text-sm text-muted mt-1">Generate secret registration links for specific people while main registration stays closed.</p>
         </div>
         <Button icon={Plus} onClick={() => {
           setEditingLinkId(null);
@@ -232,23 +232,23 @@ export default function InviteLinksView({ event }) {
       {showCreate && (
         <Card className="border-violet-500/30 bg-violet-500/5">
           <CardContent className="p-6 space-y-4">
-            <h4 className="text-lg font-bold text-white">{editingLinkId ? "Edit Invite Link" : "New Invite Link"}</h4>
+            <h4 className="text-lg font-bold text-main">{editingLinkId ? "Edit Invite Link" : "New Invite Link"}</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Label <span className="text-red-400">*</span></label>
+                <label className="block text-sm font-medium text-main mb-1">Label <span className="text-red-400">*</span></label>
                 <input
                   value={form.label}
                   onChange={e => setForm(p => ({ ...p, label: e.target.value }))}
                   placeholder="e.g. Late Registrations - Coaches"
-                  className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet-500"
+                  className="w-full bg-base-alt border border-border rounded-lg px-3 py-2 text-main text-sm focus:outline-none focus:border-violet-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Link Expires In</label>
+                <label className="block text-sm font-medium text-main mb-1">Link Expires In</label>
                 <select
                   value={form.expiresIn}
                   onChange={e => setForm(p => ({ ...p, expiresIn: e.target.value }))}
-                  className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet-500"
+                  className="w-full bg-base-alt border border-border rounded-lg px-3 py-2 text-main text-sm focus:outline-none focus:border-violet-500"
                 >
                   <option value="12h">12 Hours</option>
                   <option value="24h">24 Hours</option>
@@ -262,21 +262,21 @@ export default function InviteLinksView({ event }) {
             </div>
             {form.expiresIn === "custom" && (
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Custom Expiry</label>
+                <label className="block text-sm font-medium text-main mb-1">Custom Expiry</label>
                 <input type="datetime-local" value={form.customExpiry}
                   onChange={e => setForm(p => ({ ...p, customExpiry: e.target.value }))}
-                  className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet-500" />
+                  className="w-full bg-base-alt border border-border rounded-lg px-3 py-2 text-main text-sm focus:outline-none focus:border-violet-500" />
               </div>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Restrict to Role <span className="text-slate-500 text-xs">(optional)</span>
+                <label className="block text-sm font-medium text-main mb-1">
+                  Restrict to Role <span className="text-muted text-xs">(optional)</span>
                 </label>
                 <select
                   value={form.role}
                   onChange={e => setForm(p => ({ ...p, role: e.target.value }))}
-                  className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet-500"
+                  className="w-full bg-base-alt border border-border rounded-lg px-3 py-2 text-main text-sm focus:outline-none focus:border-violet-500"
                 >
                   <option value="">Any Role</option>
                   {roleOptions.map(r => (
@@ -285,8 +285,8 @@ export default function InviteLinksView({ event }) {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Restrict to Clubs <span className="text-slate-500 text-xs">(optional)</span>
+                <label className="block text-sm font-medium text-main mb-1">
+                  Restrict to Clubs <span className="text-muted text-xs">(optional)</span>
                 </label>
                 <MultiSearchableSelect
                   options={clubs}
@@ -297,7 +297,7 @@ export default function InviteLinksView({ event }) {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Usage Mode</label>
+              <label className="block text-sm font-medium text-main mb-2">Usage Mode</label>
               <div className="flex gap-3">
                 {[
                   { value: "multi", label: "Multi-Use", desc: "Same link for multiple people" },
@@ -305,7 +305,7 @@ export default function InviteLinksView({ event }) {
                 ].map(opt => (
                   <button key={opt.value} type="button"
                     onClick={() => setForm(p => ({ ...p, mode: opt.value, maxUses: opt.value === "single" ? "1" : "" }))}
-                    className={`flex-1 p-3 rounded-xl border text-left transition-all ${form.mode === opt.value ? "border-violet-500 bg-violet-500/10 text-violet-300" : "border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600"}`}
+                    className={`flex-1 p-3 rounded-xl border text-left transition-all ${form.mode === opt.value ? "border-violet-500 bg-violet-500/10 text-violet-300" : "border-border bg-base-alt text-muted hover:border-border"}`}
                   >
                     <p className="font-semibold text-sm">{opt.label}</p>
                     <p className="text-xs opacity-70 mt-0.5">{opt.desc}</p>
@@ -315,31 +315,31 @@ export default function InviteLinksView({ event }) {
             </div>
             {form.mode === "multi" && (
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Max Uses <span className="text-slate-500">(optional — leave blank for unlimited)</span></label>
+                <label className="block text-sm font-medium text-main mb-1">Max Uses <span className="text-muted">(optional — leave blank for unlimited)</span></label>
                 <input
                   type="number" min="1" value={form.maxUses}
                   onChange={e => setForm(p => ({ ...p, maxUses: e.target.value }))}
                   placeholder="e.g. 10"
-                  className="w-40 bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet-500"
+                  className="w-40 bg-base-alt border border-border rounded-lg px-3 py-2 text-main text-sm focus:outline-none focus:border-violet-500"
                 />
               </div>
             )}
 
-            <div className="pt-4 border-t border-slate-700/50">
+            <div className="pt-4 border-t border-border">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${form.requirePayment ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
+                  <div className={`p-2 rounded-lg ${form.requirePayment ? 'bg-emerald-500/10 text-emerald-400' : 'bg-base-alt text-muted'}`}>
                     <CreditCard className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-white">Require Payment</p>
-                    <p className="text-xs text-slate-500">Enable Stripe fee for this registration link</p>
+                    <p className="text-sm font-bold text-main">Require Payment</p>
+                    <p className="text-xs text-muted">Enable Stripe fee for this registration link</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setForm(p => ({ ...p, requirePayment: !p.requirePayment }))}
-                  className={`w-12 h-6 rounded-full transition-all relative ${form.requirePayment ? 'bg-emerald-500' : 'bg-slate-700'}`}
+                  className={`w-12 h-6 rounded-full transition-all relative ${form.requirePayment ? 'bg-emerald-500' : 'bg-base-alt'}`}
                 >
                   <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${form.requirePayment ? 'left-7' : 'left-1'}`} />
                 </button>
@@ -349,7 +349,7 @@ export default function InviteLinksView({ event }) {
                 <div className="animate-in fade-in slide-in-from-top-2 duration-300 translate-x-11">
                   <div className="flex items-center gap-3">
                     <div className="relative flex-1 max-w-[200px]">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-bold">AED</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm font-bold">AED</span>
                       <input
                         type="number"
                         step="0.01"
@@ -357,10 +357,10 @@ export default function InviteLinksView({ event }) {
                         value={form.paymentAmount}
                         onChange={e => setForm(p => ({ ...p, paymentAmount: e.target.value }))}
                         placeholder="0.00"
-                        className="w-full pl-12 pr-4 py-2 bg-slate-800 border border-slate-600 rounded-xl text-white text-sm focus:outline-none focus:border-emerald-500 transition-all font-mono"
+                        className="w-full pl-12 pr-4 py-2 bg-base-alt border border-border rounded-xl text-main text-sm focus:outline-none focus:border-emerald-500 transition-all font-mono"
                       />
                     </div>
-                    <p className="text-xs text-slate-400 italic">Fee per athlete registration</p>
+                    <p className="text-xs text-muted italic">Fee per athlete registration</p>
                   </div>
                 </div>
               )}
@@ -381,13 +381,13 @@ export default function InviteLinksView({ event }) {
 
       {/* Links List */}
       {loading ? (
-        <div className="text-center py-10 text-slate-400">Loading invite links...</div>
+        <div className="text-center py-10 text-muted">Loading invite links...</div>
       ) : links.length === 0 ? (
-        <Card className="border-slate-800">
+        <Card className="border-border">
           <CardContent className="p-12 text-center">
-            <Lock className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-            <p className="text-slate-400 font-medium">No invite links yet</p>
-            <p className="text-slate-600 text-sm mt-1">Create your first private invite link above.</p>
+            <Lock className="w-12 h-12 text-muted mx-auto mb-4" />
+            <p className="text-muted font-medium">No invite links yet</p>
+            <p className="text-muted text-sm mt-1">Create your first private invite link above.</p>
           </CardContent>
         </Card>
       ) : (
@@ -396,7 +396,7 @@ export default function InviteLinksView({ event }) {
             const status = getLinkStatus(link);
             const url = getInviteUrl(link);
             return (
-              <Card key={link.id} className="border-slate-800 hover:border-slate-700 transition-colors">
+              <Card key={link.id} className="border-border hover:border-border transition-colors">
                 <CardContent className="p-5">
                   <div className="flex flex-col md:flex-row md:items-center gap-4">
                     <div className="flex-1 min-w-0">
@@ -451,13 +451,13 @@ export default function InviteLinksView({ event }) {
                         {copiedId === link.id ? "Copied!" : "Copy"}
                       </button>
                       <a href={url} target="_blank" rel="noopener noreferrer"
-                        className="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors"
+                        className="p-2 bg-base-alt hover:bg-base-alt border border-border rounded-lg text-muted hover:text-main transition-colors"
                         title="Open link">
                         <ExternalLink className="w-3.5 h-3.5" />
                       </a>
                       <button
                         onClick={() => openEdit(link)}
-                        className="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors"
+                        className="p-2 bg-base-alt hover:bg-base-alt border border-border rounded-lg text-muted hover:text-main transition-colors"
                         title="Edit link">
                         <Edit className="w-3.5 h-3.5" />
                       </button>

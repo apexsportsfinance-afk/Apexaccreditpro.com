@@ -142,7 +142,7 @@ export default function BroadcastHistory() {
       {/* Header */}
       <div>
         <h1 className="font-h1 text-whiteElite mb-1 uppercase tracking-tight">Signal Dispatch</h1>
-        <p className="text-sm text-slate-500 font-medium tracking-wide uppercase opacity-70">
+        <p className="text-sm text-muted font-medium tracking-wide uppercase opacity-70">
           Global and Targeted Communication Archive
         </p>
       </div>
@@ -157,20 +157,20 @@ export default function BroadcastHistory() {
       {/* Filters */}
       <div className="apex-glass p-2 flex flex-wrap gap-4 items-center">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
           <input
             type="text"
             placeholder="Search transmission logs..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-whiteElite placeholder-slate-600 focus:border-primary outline-none transition-all text-xs font-mono uppercase tracking-widest"
+            className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-whiteElite placeholder-muted focus:border-primary outline-none transition-all text-xs font-mono uppercase tracking-widest"
           />
         </div>
 
         <select
           value={filterEvent}
           onChange={e => setFilterEvent(e.target.value)}
-          className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-slate-400 text-[10px] font-bold uppercase tracking-widest outline-none focus:border-primary transition-all min-w-[180px]"
+          className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-muted text-[10px] font-bold uppercase tracking-widest outline-none focus:border-primary transition-all min-w-[180px]"
         >
           <option value="all">Frequency: All Events</option>
           {events.map(e => (
@@ -181,7 +181,7 @@ export default function BroadcastHistory() {
         <select
           value={filterType}
           onChange={e => setFilterType(e.target.value)}
-          className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-slate-400 text-[10px] font-bold uppercase tracking-widest outline-none focus:border-primary transition-all"
+          className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-muted text-[10px] font-bold uppercase tracking-widest outline-none focus:border-primary transition-all"
         >
           <option value="all">Type: All</option>
           <option value="global">Global Only</option>
@@ -191,7 +191,7 @@ export default function BroadcastHistory() {
         <button
           onClick={loadData}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-500 hover:text-white rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border border-white/5"
+          className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-muted hover:text-main rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border border-white/5"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
           Sys-Refresh
@@ -424,7 +424,7 @@ function StatCard({ icon: Icon, label, value, color }) {
   return (
     <div className={`apex-glass ${colors[color]} p-5 transition-all hover:scale-[1.02] duration-300`}>
       <div className="flex items-center justify-between mb-3">
-        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">{label}</p>
+        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted">{label}</p>
         <Icon className="w-3.5 h-3.5 text-current opacity-60" />
       </div>
       <p className="font-h1 text-whiteElite">{value}</p>

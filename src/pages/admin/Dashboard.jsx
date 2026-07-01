@@ -385,25 +385,25 @@ export default function Dashboard() {
         {/* Header Skeleton */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
-            <div className="h-8 w-48 bg-slate-800 rounded-lg mb-2"></div>
-            <div className="h-4 w-32 bg-slate-800 rounded-lg"></div>
+            <div className="h-8 w-48 bg-base-alt rounded-lg mb-2"></div>
+            <div className="h-4 w-32 bg-base-alt rounded-lg"></div>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
-            <div className="h-10 w-full sm:w-40 bg-slate-800 rounded-lg"></div>
+            <div className="h-10 w-full sm:w-40 bg-base-alt rounded-lg"></div>
           </div>
         </div>
 
         {/* Stats Grid Skeleton */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map(i => (
-            <div key={i} className="h-32 bg-slate-800/50 rounded-2xl border border-border/50"></div>
+            <div key={i} className="h-32 bg-base-alt rounded-2xl border border-border/50"></div>
           ))}
         </div>
 
         {/* Charts Grid Skeleton */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-          <div className="h-80 bg-slate-800/50 rounded-2xl border border-border/50"></div>
-          <div className="h-80 bg-slate-800/50 rounded-2xl border border-border/50"></div>
+          <div className="h-80 bg-base-alt rounded-2xl border border-border/50"></div>
+          <div className="h-80 bg-base-alt rounded-2xl border border-border/50"></div>
         </div>
       </div>
     );
@@ -419,12 +419,12 @@ export default function Dashboard() {
           { label: 'Approved Users', value: stats.approved, color: 'text-emerald-400', icon: CheckCircle, iconBg: 'bg-emerald-500/5 border-emerald-500/10', data: trends.approved },
           { label: 'Live Operations', value: liveScanLogs.length, color: 'text-sky-400', icon: Activity, iconBg: 'bg-sky-500/5 border-sky-500/10', data: liveEventsTrend }
         ].map(({ label, value, color, icon: Icon, iconBg, data, badge }) => (
-          <Card key={label} className="bg-slate-900/40 border border-white/5 shadow-xl hover:border-white/10 transition-all overflow-hidden group">
+          <Card key={label} className="bg-base border border-white/5 shadow-xl hover:border-white/10 transition-all overflow-hidden group">
             <CardContent className="p-5">
               <div className="flex items-start justify-between mb-2">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 group-hover:text-indigo-400 transition-colors leading-none">{label}</p>
-                  <p className="text-3xl font-bold text-white tracking-tight leading-tight mt-1">{value.toLocaleString()}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted group-hover:text-indigo-400 transition-colors leading-none">{label}</p>
+                  <p className="text-3xl font-bold text-main tracking-tight leading-tight mt-1">{value.toLocaleString()}</p>
                   {badge && <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-500 text-[8px] font-bold uppercase tracking-widest mt-2 border border-rose-500/20">{badge}</span>}
                 </div>
                 <div className={cn("p-2.5 rounded-xl border transition-all", iconBg, color, "group-hover:bg-opacity-20")}>
@@ -439,12 +439,12 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <Card className="bg-slate-900/40 border border-white/5 shadow-2xl overflow-hidden group">
+      <Card className="bg-base border border-white/5 shadow-2xl overflow-hidden group">
         <CardHeader className="border-b border-white/5 py-2.5 px-5 flex items-center justify-between bg-white/[0.02]">
-          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-3">
+          <h3 className="text-[10px] font-black text-muted uppercase tracking-widest flex items-center gap-3">
             <MapPin className="w-3.5 h-3.5 text-sky-500" strokeWidth={2} /> Operational Capacity Flow
           </h3>
-          <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest opacity-60">Real-time Zone Occupancy</span>
+          <span className="text-[8px] font-bold text-muted uppercase tracking-widest opacity-60">Real-time Zone Occupancy</span>
         </CardHeader>
         <CardContent className="p-4 max-h-[480px] overflow-y-auto custom-scrollbar">
           <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3.5 pt-1 pb-2">
@@ -453,17 +453,17 @@ export default function Dashboard() {
               const perc = data.allocated > 0 ? Math.round((data.scanned / data.allocated) * 100) : (data.scanned > 0 ? 100 : 0);
               const cappedPerc = Math.min(perc, 100);
               return (
-                <div key={zone.id || zone.name} className="relative bg-slate-800/40 border border-white/5 p-3.5 rounded-2xl group/zone hover:border-indigo-500/30 transition-all flex flex-col justify-between h-[88px] shadow-lg overflow-hidden group">
+                <div key={zone.id || zone.name} className="relative bg-base-alt border border-white/5 p-3.5 rounded-2xl group/zone hover:border-indigo-500/30 transition-all flex flex-col justify-between h-[88px] shadow-lg overflow-hidden group">
                   <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover/zone:opacity-100 transition-opacity pointer-events-none" />
                   <div className="flex items-center justify-between min-w-0 relative z-10">
-                    <span className="text-[9px] font-black uppercase tracking-tight text-slate-500 truncate group-hover/zone:text-white transition-colors">{zone.name}</span>
+                    <span className="text-[9px] font-black uppercase tracking-tight text-muted truncate group-hover/zone:text-main transition-colors">{zone.name}</span>
                     <span className={cn("text-[10px] font-black tracking-tighter", perc > 90 ? "text-rose-500 animate-pulse" : "text-emerald-400")}>{perc}%</span>
                   </div>
                   <div className="flex items-baseline gap-1 relative z-10 -mt-1">
-                    <p className="text-2xl font-bold text-white tracking-tighter leading-none">{data.scanned}</p>
-                    <sub className="text-[9px] font-bold text-slate-600 uppercase tracking-tighter">/ {data.allocated || 1}</sub>
+                    <p className="text-2xl font-bold text-main tracking-tighter leading-none">{data.scanned}</p>
+                    <sub className="text-[9px] font-bold text-muted uppercase tracking-tighter">/ {data.allocated || 1}</sub>
                   </div>
-                  <div className="w-full bg-slate-900/80 rounded-full h-[6px] overflow-hidden border border-white/5 relative z-10 mt-1.5">
+                  <div className="w-full bg-base rounded-full h-[6px] overflow-hidden border border-white/5 relative z-10 mt-1.5">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${cappedPerc}%` }}
@@ -492,9 +492,9 @@ export default function Dashboard() {
         <div className="lg:col-span-3 space-y-4 flex flex-col">
 
 
-          <Card className="flex-1 bg-slate-900/40 border border-white/5 shadow-sm flex flex-col overflow-hidden">
+          <Card className="flex-1 bg-base border border-white/5 shadow-sm flex flex-col overflow-hidden">
             <CardHeader className="py-1.5 px-3 border-b border-white/5 flex items-center justify-between">
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Event Audit Feed</h3>
+              <h3 className="text-[10px] font-black text-muted uppercase tracking-widest leading-none">Event Audit Feed</h3>
             </CardHeader>
             <CardContent className="p-0 flex-1 overflow-y-auto max-h-[300px] custom-scrollbar">
               <div className="divide-y divide-white/5">
@@ -505,7 +505,7 @@ export default function Dashboard() {
                         <Activity className="w-4 h-4 opacity-70" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-black text-white truncate leading-tight group-hover:text-indigo-400 transition-colors uppercase tracking-tight">
+                        <p className="text-sm font-black text-main truncate leading-tight group-hover:text-indigo-400 transition-colors uppercase tracking-tight">
                           {log.accreditations?.first_name ? `${log.accreditations.first_name} ${log.accreditations.last_name}` : 'Security Node'}
                         </p>
                         <p className="text-[11px] font-black text-indigo-400/60 uppercase tracking-widest leading-none mt-1 flex items-center gap-2">
@@ -515,7 +515,7 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-[10px] font-black text-white opacity-90 uppercase leading-none">
+                      <p className="text-[10px] font-black text-main opacity-90 uppercase leading-none">
                         {new Date(log.scanned_at || log.created_at || log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>
                       <p className="text-[6px] font-black text-emerald-500 uppercase tracking-[0.2em] mt-1">CONFIRMED</p>
@@ -528,9 +528,9 @@ export default function Dashboard() {
         </div>
 
         <div className="lg:col-span-2 space-y-4 flex flex-col">
-          <Card className="flex-1 bg-slate-900/40 border border-white/5 shadow-sm flex flex-col overflow-hidden group">
+          <Card className="flex-1 bg-base border border-white/5 shadow-sm flex flex-col overflow-hidden group">
             <CardHeader className="py-1.5 px-4 border-b border-white/5 flex items-center justify-between bg-white/[0.01]">
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Role Analytics</h3>
+              <h3 className="text-[10px] font-black text-muted uppercase tracking-widest leading-none">Role Analytics</h3>
               <span className="text-[8px] font-bold text-indigo-400/50 uppercase tracking-widest">Live Census</span>
             </CardHeader>
             <CardContent className="p-4 flex-1 flex flex-col">
@@ -540,7 +540,7 @@ export default function Dashboard() {
                   <div className="md:col-span-2 h-[220px] relative group/chart flex items-center justify-center">
                     <LazyChart kind="donut-census" data={subAdminRoleDist} />
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                      <p className="text-4xl font-black text-white leading-none group-hover/chart:text-indigo-400 transition-all duration-300 transform group-hover/chart:scale-110">{eventAccreditations.length}</p>
+                      <p className="text-4xl font-black text-main leading-none group-hover/chart:text-indigo-400 transition-all duration-300 transform group-hover/chart:scale-110">{eventAccreditations.length}</p>
                       <p className="text-[10px] font-black text-indigo-400/40 uppercase tracking-[0.3em] mt-2">Active</p>
                     </div>
                   </div>
@@ -555,10 +555,10 @@ export default function Dashboard() {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               <div className="w-2.5 h-2.5 rounded-full shadow-[0_0_10px_currentColor]" style={{ backgroundColor: role.color, color: role.color }} />
-                              <span className="text-[11px] font-black text-white/90 uppercase tracking-tight group-hover/role:text-indigo-400 transition-colors">{role.name}</span>
+                              <span className="text-[11px] font-black text-main uppercase tracking-tight group-hover/role:text-indigo-400 transition-colors">{role.name}</span>
                             </div>
                             <div className="text-right flex items-baseline gap-2">
-                              <span className="text-sm font-black text-white">{role.value}</span>
+                              <span className="text-sm font-black text-main">{role.value}</span>
                               <span className="text-[9px] font-bold text-indigo-400/60 font-mono italic">{perc}%</span>
                             </div>
                           </div>
@@ -579,7 +579,7 @@ export default function Dashboard() {
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center space-y-3 opacity-30">
                   <RefreshCw className="w-8 h-8 animate-spin text-indigo-400" />
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Aggregating Global Census...</p>
+                  <p className="text-[10px] font-black text-muted uppercase tracking-widest">Aggregating Global Census...</p>
                 </div>
               )}
             </CardContent>
@@ -593,11 +593,11 @@ export default function Dashboard() {
     <div className="space-y-4 animate-in fade-in duration-700 overflow-hidden">
       <div className="flex flex-col md:flex-row items-center justify-between gap-6 py-2">
         <div className="flex flex-col shrink-0">
-          <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-main tracking-tight flex items-center gap-3">
             Operations Command
             <span className="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full font-black tracking-widest uppercase shadow-sm">v4.0</span>
           </h1>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.25em] opacity-80 mt-1">
+          <p className="text-xs font-bold text-muted uppercase tracking-[0.25em] opacity-80 mt-1">
             {selectedEventId === "all" ? `${branding.isApex ? "Apex Sports" : branding.name} Global Intelligence` : "Event-Specific Operational Hub"}
           </p>
         </div>
@@ -610,7 +610,7 @@ export default function Dashboard() {
               <select
                 value={selectedEventId}
                 onChange={(e) => setSelectedEventId(e.target.value)}
-                className="w-full bg-slate-900 border border-white/10 text-white font-bold uppercase tracking-wider text-[11px] rounded-xl px-5 py-3.5 pr-12 outline-none focus:border-indigo-500/40 transition-all appearance-none cursor-pointer shadow-2xl"
+                className="w-full bg-base border border-white/10 text-main font-bold uppercase tracking-wider text-[11px] rounded-xl px-5 py-3.5 pr-12 outline-none focus:border-indigo-500/40 transition-all appearance-none cursor-pointer shadow-2xl"
               >
                 <option value="all">🌐 GLOBAL OVERVIEW (ALL EVENTS)</option>
                 <option disabled>──────────</option>
@@ -629,26 +629,26 @@ export default function Dashboard() {
 
         <div className="flex items-center gap-5 w-full md:w-auto">
           <div className="relative flex-1 md:w-72 group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-hover:text-indigo-400 transition-colors" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted group-hover:text-indigo-400 transition-colors" />
             <input
               type="text"
               placeholder="Search datasets or logs..."
-              className="w-full bg-slate-900/50 border border-white/5 focus:border-indigo-500/40 rounded-xl py-3 pl-11 pr-4 text-[11px] font-bold text-white shadow-inner outline-none placeholder:text-slate-600 transition-all"
+              className="w-full bg-base border border-white/5 focus:border-indigo-500/40 rounded-xl py-3 pl-11 pr-4 text-[11px] font-bold text-main shadow-inner outline-none placeholder:text-muted transition-all"
             />
           </div>
 
           <div className="h-10 w-[1px] bg-white/5 mx-1" />
 
           <div className="flex items-center gap-4">
-            <button className="relative p-3 bg-slate-900/50 border border-white/5 rounded-xl hover:bg-slate-800 transition-all group shadow-lg">
-              <Bell className="w-5 h-5 text-slate-400 group-hover:text-white transition-colors" />
+            <button className="relative p-3 bg-base border border-white/5 rounded-xl hover:bg-base-alt transition-all group shadow-lg">
+              <Bell className="w-5 h-5 text-muted group-hover:text-main transition-colors" />
               <span className="absolute top-3 right-3 w-2 h-2 bg-rose-500 rounded-full border-2 border-slate-950 shadow-[0_0_10px_rgba(244,63,94,0.5)]"></span>
             </button>
 
             <div className="flex items-center gap-3 pl-2 group cursor-pointer">
               <div className="flex flex-col items-end">
-                <span className="text-[11px] font-bold text-white uppercase tracking-tight group-hover:text-indigo-400 transition-colors">{user?.email?.split('@')[0] || "Admin"}</span>
-                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-none">Super Admin</span>
+                <span className="text-[11px] font-bold text-main uppercase tracking-tight group-hover:text-indigo-400 transition-colors">{user?.email?.split('@')[0] || "Admin"}</span>
+                <span className="text-[9px] font-bold text-muted uppercase tracking-widest leading-none">Super Admin</span>
               </div>
               <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-slate-800 to-slate-700 border border-white/10 flex items-center justify-center text-xs font-black text-indigo-400 shadow-xl group-hover:border-indigo-500/50 transition-all">
                 {user?.email?.[0]?.toUpperCase() || "S"}
@@ -668,12 +668,12 @@ export default function Dashboard() {
               { title: 'Pending Review', value: stats.pending, icon: Clock, iconBg: 'bg-amber-500/5', color: 'text-amber-400', data: trends.pending, badge: stats.pending > 0 ? 'ACTION' : null },
               { title: 'Rejected', value: stats.rejected, icon: XCircle, iconBg: 'bg-rose-500/5', color: 'text-rose-400', data: trends.rejected },
             ].map(({ title, value, icon: Icon, color, iconBg, data, badge }) => (
-              <Card key={title} className="bg-slate-900/40 border border-white/5 shadow-xl hover:border-indigo-500/20 transition-all duration-500 group overflow-hidden">
+              <Card key={title} className="bg-base border border-white/5 shadow-xl hover:border-indigo-500/20 transition-all duration-500 group overflow-hidden">
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between mb-4">
                     <div className="space-y-1 flex-1 min-w-0">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 group-hover:text-indigo-400 transition-colors truncate leading-none">{title}</p>
-                      <p className="text-3xl font-bold text-white tracking-tight leading-tight mt-1">{value.toLocaleString()}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted group-hover:text-indigo-400 transition-colors truncate leading-none">{title}</p>
+                      <p className="text-3xl font-bold text-main tracking-tight leading-tight mt-1">{value.toLocaleString()}</p>
                       {badge && <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-rose-500/20 text-rose-500 text-[8px] font-bold uppercase tracking-widest mt-2 border border-rose-500/20">{badge}</span>}
                     </div>
                     <div className={cn("p-2.5 rounded-xl border transition-colors", iconBg, color, "border-white/5 group-hover:bg-opacity-20")}>
@@ -691,27 +691,27 @@ export default function Dashboard() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-            <Card className="lg:col-span-2 bg-slate-900/40 border border-white/5 shadow-xl flex flex-col group">
+            <Card className="lg:col-span-2 bg-base border border-white/5 shadow-xl flex flex-col group">
               <CardHeader className="p-4 flex items-center justify-between border-b border-white/5 bg-white/[0.02]">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Accreditation Spread</h3>
-                <MoreHorizontal className="w-4 h-4 text-slate-500 hover:text-white cursor-pointer transition-colors" />
+                <h3 className="text-xs font-bold text-muted uppercase tracking-widest">Accreditation Spread</h3>
+                <MoreHorizontal className="w-4 h-4 text-muted hover:text-main cursor-pointer transition-colors" />
               </CardHeader>
               <CardContent className="flex-1 p-6 flex flex-col items-center justify-center relative">
                 <div className="h-60 w-full">
                   <LazyChart kind="donut-spread" data={pieData} />
                   <div className="absolute top-[42%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-                    <p className="text-4xl font-bold text-white tracking-tighter leading-none">{stats.totalAccreditations}</p>
+                    <p className="text-4xl font-bold text-main tracking-tighter leading-none">{stats.totalAccreditations}</p>
                     <p className="text-[10px] font-bold text-indigo-400/60 uppercase tracking-[0.2em] mt-1.5">Total Hub</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="lg:col-span-3 bg-slate-900/40 border border-white/5 shadow-xl overflow-hidden flex flex-col group">
+            <Card className="lg:col-span-3 bg-base border border-white/5 shadow-xl overflow-hidden flex flex-col group">
               <CardHeader className="p-4 flex items-center justify-between border-b border-white/5 bg-white/[0.02]">
                 <div className="flex flex-col">
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Operations Intensity</h3>
-                  <p className="text-[10px] text-slate-500 font-bold mt-0.5">Real-time attendance density per zone</p>
+                  <h3 className="text-xs font-bold text-muted uppercase tracking-widest">Operations Intensity</h3>
+                  <p className="text-[10px] text-muted font-bold mt-0.5">Real-time attendance density per zone</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_#10b981]" />
@@ -728,21 +728,21 @@ export default function Dashboard() {
                       <div key={zone.id || i} className="space-y-2.5">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className={cn("w-2 h-2 rounded-full", ratio > 0 ? "bg-emerald-500 shadow-[0_0_10px_#10b981]" : "bg-slate-700")} />
-                            <span className="text-[11px] font-bold text-white uppercase tracking-tight">{zone.name}</span>
+                            <div className={cn("w-2 h-2 rounded-full", ratio > 0 ? "bg-emerald-500 shadow-[0_0_10px_#10b981]" : "bg-base-alt")} />
+                            <span className="text-[11px] font-bold text-main uppercase tracking-tight">{zone.name}</span>
                           </div>
                           <div className="flex items-center gap-3">
                             <div className="text-right">
-                              <span className="text-xs font-bold text-white tracking-tight">{zoneData.scanned}</span>
-                              <span className="text-[10px] font-bold text-slate-500 mx-1">/</span>
-                              <span className="text-[10px] font-bold text-slate-500">{zoneData.allocated || 0}</span>
+                              <span className="text-xs font-bold text-main tracking-tight">{zoneData.scanned}</span>
+                              <span className="text-[10px] font-bold text-muted mx-1">/</span>
+                              <span className="text-[10px] font-bold text-muted">{zoneData.allocated || 0}</span>
                             </div>
-                            <div className={cn("px-2 py-0.5 rounded text-[10px] font-black tracking-tighter", ratio > 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-800/50 text-slate-500")}>
+                            <div className={cn("px-2 py-0.5 rounded text-[10px] font-black tracking-tighter", ratio > 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-base-alt text-muted")}>
                               {Math.round(ratio)}%
                             </div>
                           </div>
                         </div>
-                        <div className="h-[6px] w-full bg-slate-800/40 rounded-full overflow-hidden border border-white/5 shadow-inner">
+                        <div className="h-[6px] w-full bg-base-alt rounded-full overflow-hidden border border-white/5 shadow-inner">
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${cappedRatio}%` }}
@@ -766,22 +766,22 @@ export default function Dashboard() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <Card className="bg-slate-900/40 border border-white/5 shadow-xl flex flex-col overflow-hidden group">
+            <Card className="bg-base border border-white/5 shadow-xl flex flex-col overflow-hidden group">
               <CardHeader className="p-4 flex items-center justify-between border-b border-white/5 bg-white/[0.02]">
                 <div className="flex flex-col">
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Recent Applications</h3>
-                  <p className="text-[10px] text-slate-500 font-bold mt-0.5">Latest queue for verification</p>
+                  <h3 className="text-xs font-bold text-muted uppercase tracking-widest">Recent Applications</h3>
+                  <p className="text-[10px] text-muted font-bold mt-0.5">Latest queue for verification</p>
                 </div>
-                <Link to="/admin/accreditations" className="text-[10px] font-bold text-indigo-400 hover:text-white uppercase tracking-widest flex items-center gap-1.5 transition-colors">VIEW QUEUE <ArrowRight className="w-3.5 h-3.5" /></Link>
+                <Link to="/admin/accreditations" className="text-[10px] font-bold text-indigo-400 hover:text-main uppercase tracking-widest flex items-center gap-1.5 transition-colors">VIEW QUEUE <ArrowRight className="w-3.5 h-3.5" /></Link>
               </CardHeader>
               <CardContent className="p-0 flex-1 overflow-y-auto custom-scrollbar min-h-[300px]">
                 <div className="divide-y divide-white/5">
                   {recentAccreditations.slice(0, 5).map((acc) => (
                     <div key={acc.id} className="px-5 py-3.5 flex items-center gap-4 group/row hover:bg-white/[0.02] transition-colors">
-                      <div className="w-9 h-9 rounded-xl bg-slate-800 border border-white/5 flex items-center justify-center text-xs font-bold text-indigo-400">{(acc.firstName || 'U')[0].toUpperCase()}</div>
+                      <div className="w-9 h-9 rounded-xl bg-base-alt border border-white/5 flex items-center justify-center text-xs font-bold text-indigo-400">{(acc.firstName || 'U')[0].toUpperCase()}</div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-bold text-white truncate uppercase tracking-tight">{acc.firstName || ''} {acc.lastName || ''}</p>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{acc.role || 'Attendee'}</p>
+                        <p className="text-[13px] font-bold text-main truncate uppercase tracking-tight">{acc.firstName || ''} {acc.lastName || ''}</p>
+                        <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{acc.role || 'Attendee'}</p>
                       </div>
                       <div className={cn('text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded border shadow-inner shrink-0', acc.status === 'approved' ? 'text-emerald-500 border-emerald-500/20 bg-emerald-500/5' : 'text-amber-500 border-amber-500/20 bg-amber-500/5')}>{acc.status || 'pending'}</div>
                     </div>
@@ -790,21 +790,21 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card className="bg-slate-900/40 border border-white/5 shadow-xl overflow-hidden group">
+            <Card className="bg-base border border-white/5 shadow-xl overflow-hidden group">
               <CardHeader className="p-4 flex items-center justify-between border-b border-white/5 bg-white/[0.02]">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Global Activity</h3>
-                <Link to="/admin/audit" className="p-2 bg-slate-800/50 hover:bg-slate-700/50 rounded-lg border border-white/5"><ArrowRight className="w-3.5 h-3.5 text-indigo-400" /></Link>
+                <h3 className="text-xs font-bold text-muted uppercase tracking-widest">Global Activity</h3>
+                <Link to="/admin/audit" className="p-2 bg-base-alt hover:bg-base rounded-lg border border-white/5"><ArrowRight className="w-3.5 h-3.5 text-indigo-400" /></Link>
               </CardHeader>
               <CardContent className="p-0 min-h-[300px]">
                 <div className="divide-y divide-white/5">
                   {recentActivity.slice(0, 5).map((log) => (
                     <div key={log.id} className="p-4 flex items-start gap-4">
-                      <div className="mt-1 p-2 bg-slate-800 border border-white/5 rounded-xl">{getActivityIcon(log.action)}</div>
+                      <div className="mt-1 p-2 bg-base-alt border border-white/5 rounded-xl">{getActivityIcon(log.action)}</div>
                       <div className="flex-1 min-w-0 space-y-1">
-                        <p className="text-[13px] font-bold text-white truncate uppercase tracking-tight">{log.action.replace(/_/g, " ")}</p>
+                        <p className="text-[13px] font-bold text-main truncate uppercase tracking-tight">{log.action.replace(/_/g, " ")}</p>
                         <div className="flex items-center gap-3">
-                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-800/50 px-2 py-0.5 rounded border border-white/5">{log.userName.split('@')[0]}</span>
-                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{formatDate(log.timestamp, "HH:mm")}</span>
+                          <span className="text-[10px] font-bold text-muted uppercase tracking-widest bg-base-alt px-2 py-0.5 rounded border border-white/5">{log.userName.split('@')[0]}</span>
+                          <span className="text-[10px] font-bold text-muted uppercase tracking-wider">{formatDate(log.timestamp, "HH:mm")}</span>
                         </div>
                       </div>
                     </div>
@@ -813,9 +813,9 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card className="bg-slate-900/40 border border-white/5 shadow-xl overflow-hidden flex flex-col group">
+            <Card className="bg-base border border-white/5 shadow-xl overflow-hidden flex flex-col group">
               <CardHeader className="p-4 flex items-center justify-between border-b border-white/5 bg-white/[0.02]">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Attendance Velocity</h3>
+                <h3 className="text-xs font-bold text-muted uppercase tracking-widest">Attendance Velocity</h3>
               </CardHeader>
               <CardContent className="flex-1 p-4 min-h-[300px]">
                 <LazyChart kind="area-velocity" data={attendanceData} />
@@ -847,18 +847,18 @@ export default function Dashboard() {
             <Activity className="w-6 h-6 text-emerald-500 animate-pulse" />
           </div>
           <div className="flex flex-col">
-            <h2 className="text-3xl font-bold uppercase text-white tracking-tight leading-none">Live Telemetry Center</h2>
+            <h2 className="text-3xl font-bold uppercase text-main tracking-tight leading-none">Live Telemetry Center</h2>
             <div className="flex items-center gap-3 mt-1.5">
               <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 font-bold text-[10px] tracking-widest">
                 SYSTEM ONLINE
               </Badge>
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none">Operational Intelligence Flow</span>
+              <span className="text-[10px] font-bold text-muted uppercase tracking-widest leading-none">Operational Intelligence Flow</span>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-6">
           <div className="flex flex-col items-end">
-            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest leading-none mb-1">Data Pipeline Sync</span>
+            <span className="text-[10px] font-bold text-muted uppercase tracking-widest leading-none mb-1">Data Pipeline Sync</span>
             <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest leading-none">20.0s OFFSET</span>
           </div>
           <button onClick={loadData} className="w-11 h-11 bg-slate-900 border border-white/10 text-indigo-400 rounded-2xl hover:bg-slate-800 transition-all shadow-xl flex items-center justify-center group">
