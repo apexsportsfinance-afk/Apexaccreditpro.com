@@ -4,12 +4,12 @@ import React from 'react';
  * Dedicated component for rendering custom fields on the badge.
  * Extracted to avoid module caching issues and ensure stable rendering.
  */
-export const BadgeCustomFields = ({ accreditation, customFieldConfigs = [], cardFont = {} }) => {
+export const BadgeCustomFields = ({ accreditation, customFieldConfigs = [], cardFont = {}, align = "flex-end", itemMinWidth = "120px", marginTop = "10px" }) => {
   // Deep Refresh V2 - Forced Code Update
   if (!customFieldConfigs || customFieldConfigs.length === 0) return null;
 
   return (
-    <div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "6px", width: "100%", alignItems: "flex-end" }}>
+    <div style={{ marginTop, display: "flex", flexDirection: "column", gap: "6px", width: "100%", alignItems: align }}>
       {customFieldConfigs
         ?.filter(cfg => cfg.showOnBadge === true)
         ?.map(cfg => {
@@ -31,7 +31,7 @@ export const BadgeCustomFields = ({ accreditation, customFieldConfigs = [], card
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
-                minWidth: "120px",
+                minWidth: itemMinWidth,
                 ...cardFont,
                 boxSizing: "border-box"
               }}
