@@ -42,6 +42,7 @@ const FEATURE_TREE = [
   ] },
   { path: "/admin/broadcasts", label: "Broadcast History" },
   { path: "/admin/medals", label: "Medal Rankings" },
+  { path: "/admin/ranking", label: "Swimmers Ranking" },
   { path: "/admin/call-room", label: "Call Room Display" },
   { path: "/admin/feedback", label: "Feedback" },
   { path: "/admin/users", label: "Users (their org)" },
